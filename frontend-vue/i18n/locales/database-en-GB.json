@@ -1,0 +1,239 @@
+{
+	"dms_database": {
+		"title": "Database",
+		"description": "Inspect schemas, browse data, view the schema diagram, and check connection configuration.",
+		"overview": {
+			"title": "Overview",
+			"description": "Connection health, storage and recent activity across your database.",
+			"beta": {
+				"title": "This module is in beta",
+				"body": "Today the database console is read-only — it lets you explore schemas, browse table data and run queries. In an upcoming release you'll be able to **edit tables directly**, change their structure, **add or rename columns and adjust their types**, **create and manage indexes**, define relations and constraints — all **without writing a single migration**. Antelope is actively building this; it ships alongside the **Module Builder**, the upcoming way to configure the whole platform without writing code."
+			},
+			"actions": {
+				"schema": "Schema",
+				"openData": "Open Data Browser"
+			},
+			"health": {
+				"connection": "Connection",
+				"healthy": "Healthy",
+				"down": "Unavailable",
+				"driver": "Driver",
+				"latency": "Latency",
+				"pool": "Pool",
+				"collections": "Collections"
+			},
+			"kpis": {
+				"schemas": "Schemas",
+				"tables": "Tables",
+				"rows": "Total rows",
+				"indexes": "Indexes",
+				"size": "Stored elements"
+			},
+			"storage": {
+				"title": "Storage by table",
+				"subtitle": "Top tables by row count",
+				"viewSchema": "View schema",
+				"rowsUnit": "rows",
+				"empty": "No tables to display."
+			},
+			"recent": {
+				"title": "Recent queries",
+				"console": "Query Console",
+				"rowsUnit": "rows",
+				"justNow": "just now",
+				"empty": "No recent queries yet."
+			},
+			"tables": {
+				"title": "Tables",
+				"subtitle": "All collections in the active schema",
+				"empty": "No tables match the current filter.",
+				"cols": {
+					"table": "Table",
+					"rows": "Rows",
+					"columns": "Columns",
+					"indexes": "Indexes"
+				}
+			}
+		},
+		"schemas": {
+			"title": "Schemas",
+			"description": "Explore tables as a list or a visual map. Click a table to inspect its columns, indexes and relations.",
+			"tableCount": "{count} table | {count} tables",
+			"collections": "{count} collection | {count} collections",
+			"selectSchema": "Schema selection",
+			"searchSchemaPlaceholder": "Search a schema…",
+			"open": "Open",
+			"view": {
+				"list": "List",
+				"diagram": "Diagram"
+			},
+			"cols": {
+				"relations": "Relations"
+			},
+			"inspector": {
+				"columns": "Columns",
+				"indexes": "Indexes",
+				"preview": "Preview",
+				"close": "Close",
+				"colName": "Column",
+				"colType": "Type",
+				"colNullable": "Nullable",
+				"yes": "Yes",
+				"no": "No",
+				"multi": "multi",
+				"single": "single",
+				"noIndexes": "No indexes defined.",
+				"previewError": "Could not load a sample document.",
+				"previewEmpty": "This table has no rows to preview.",
+				"healthy": "Healthy"
+			},
+			"stats": {
+				"tables": "Tables",
+				"elements": "Elements",
+				"instances": "Instances"
+			},
+			"menu": {
+				"browseData": "Browse data",
+				"viewInDiagram": "View in diagram",
+				"copyId": "Copy schema ID",
+				"rename": "Rename",
+				"duplicate": "Duplicate",
+				"export": "Export",
+				"delete": "Delete",
+				"comingSoon": "Coming soon",
+				"copied": "Schema ID copied"
+			},
+			"browseData": "Browse data",
+			"viewDefinition": "View definition",
+			"columns": {
+				"name": "Name",
+				"elementCount": "Elements",
+				"columnCount": "Columns",
+				"indexCount": "Indexes"
+			}
+		},
+		"data": {
+			"title": "Data Browser",
+			"description": "Browse rows from a selected schema, instance, and table.",
+			"instanceDefault": "Default",
+			"instanceCross": "All instances (read-only)",
+			"schema": "Schema",
+			"openInQuery": "Open in Query Console",
+			"findTable": "Find a table…",
+			"colCount": "{count} column | {count} columns",
+			"crossInstanceNotice": "Reading across every instance of this schema. Writes are disabled.",
+			"noColumns": "No columns to display for this table.",
+			"pickPrompt": "Pick a schema and a table to browse its rows.",
+			"searchPlaceholder": "Search rows…",
+			"refresh": "Refresh",
+			"readOnly": "Read-only",
+			"filtersActive": "{count} filter active | {count} filters active",
+			"filterModeIs": "is exactly",
+			"filterModeContains": "contains",
+			"filterApply": "Apply",
+			"filterClear": "Clear",
+			"filterTitle": "Filter {column}",
+			"rowsTotal": "{count} row | {count} rows",
+			"noRows": "No rows match the current view.",
+			"prevPage": "Previous page",
+			"nextPage": "Next page",
+			"editError": "Failed to save the cell",
+			"rowVanished": "This row no longer exists — the view was refreshed.",
+			"jsonPanelTitle": "Edit {column}",
+			"jsonInvalid": "Invalid JSON",
+			"jsonNotStructured": "The value must be a JSON object or array.",
+			"save": "Save",
+			"cancel": "Cancel",
+			"closeTab": "Close tab",
+			"keepTab": "Keep tab open",
+			"previewTab": "{name} (preview tab)"
+		},
+		"diagram": {
+			"title": "Diagram",
+			"description": "Visualization of registered schemas and their tables.",
+			"recomputeLayout": "Recompute layout",
+			"tooManyTables": "Showing {shown} of {total} tables. Use the schema filter to narrow down.",
+			"toolbar": {
+				"autoLayout": "Auto layout",
+				"help": "Help",
+				"helpText": "Automatically rearranges the schema tables with a hierarchical layout (dagre) and refits the view.",
+				"undo": "Undo",
+				"redo": "Redo",
+				"cancel": "Cancel",
+				"apply": "Apply",
+				"pointer": "Select",
+				"hand": "Pan",
+				"zoomIn": "Zoom in",
+				"zoomOut": "Zoom out",
+				"resetZoom": "Reset zoom",
+				"fitView": "Fit view",
+				"notes": "Note"
+			},
+			"notes": {
+				"placeholder": "Double-click to edit",
+				"delete": "Delete note"
+			},
+			"unsavedConfirm": "You have unsaved diagram changes. Leave anyway?"
+		},
+		"query": {
+			"title": "Query Console",
+			"description": "Write, run and save queries against your database with live results.",
+			"builder": "Query builder",
+			"result": "Result",
+			"favorites": "Saved",
+			"history": "Last requests",
+			"format": "Format",
+			"save": "Save",
+			"saveAsFavorite": "Save as favorite",
+			"hint": "JavaScript query builder",
+			"builderHintLabel": "Builder",
+			"backToData": "Back to Data Browser",
+			"clear": "Clear",
+			"clearHistory": "Clear",
+			"execute": "Run",
+			"table": "Table",
+			"json": "JSON",
+			"chart": "Chart",
+			"chartUnavailable": "No numeric column to plot.",
+			"emptyResult": "Run a query to see the results",
+			"emptyFavorites": "No saved queries yet.",
+			"emptyHistory": "No history yet.",
+			"language": "Language",
+			"scopeMe": "Mine",
+			"scopeShared": "Team",
+			"sharedBadge": "Shared with team",
+			"previous": "Previous",
+			"next": "Next",
+			"rowCount": "{count} row | {count} rows",
+			"runtime": "{ms} ms",
+			"saveModal": {
+				"title": "Save query",
+				"name": "Name",
+				"namePlaceholder": "Untitled query",
+				"description": "Description",
+				"descriptionPlaceholder": "Optional notes about this query",
+				"share": "Share with team",
+				"shareDescription": "Team members will see this query under the Team tab.",
+				"save": "Save",
+				"cancel": "Cancel"
+			},
+			"editModal": {
+				"title": "Edit query",
+				"query": "Query"
+			},
+			"itemMenu": {
+				"load": "Load in editor",
+				"edit": "Edit",
+				"delete": "Delete"
+			},
+			"errorTitle": "Query failed",
+			"mutationModal": {
+				"title": "Run mutating query?",
+				"body": "This query will modify data (insert, update, replace or delete). Are you sure you want to run it?",
+				"dontRemind": "Don't ask me again",
+				"confirm": "Run query",
+				"cancel": "Cancel"
+			}
+		}
+	}
+}

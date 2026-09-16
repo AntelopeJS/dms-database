@@ -1,0 +1,239 @@
+{
+	"dms_database": {
+		"title": "Base de données",
+		"description": "Inspecter les schémas, parcourir les données, visualiser le diagramme et vérifier la configuration de la connexion.",
+		"overview": {
+			"title": "Vue d'ensemble",
+			"description": "Santé de la connexion, stockage et activité récente de votre base de données.",
+			"beta": {
+				"title": "Ce module est en bêta",
+				"body": "Aujourd'hui la console de base de données est en lecture seule — elle permet d'explorer les schémas, de parcourir les données et d'exécuter des requêtes. Dans une prochaine version, vous pourrez **modifier les tables directement**, changer leur structure, **ajouter ou renommer des colonnes et ajuster leurs types**, **créer et gérer des index**, définir des relations et des contraintes — le tout **sans écrire la moindre migration**. Antelope développe activement cette fonctionnalité ; elle arrivera avec le **Module Builder**, la future façon de configurer toute la plateforme sans écrire de code."
+			},
+			"actions": {
+				"schema": "Schéma",
+				"openData": "Ouvrir l'explorateur"
+			},
+			"health": {
+				"connection": "Connexion",
+				"healthy": "En bonne santé",
+				"down": "Indisponible",
+				"driver": "Pilote",
+				"latency": "Latence",
+				"pool": "Pool",
+				"collections": "Collections"
+			},
+			"kpis": {
+				"schemas": "Schémas",
+				"tables": "Tables",
+				"rows": "Lignes totales",
+				"indexes": "Index",
+				"size": "Éléments stockés"
+			},
+			"storage": {
+				"title": "Stockage par table",
+				"subtitle": "Top des tables par nombre de lignes",
+				"viewSchema": "Voir le schéma",
+				"rowsUnit": "lignes",
+				"empty": "Aucune table à afficher."
+			},
+			"recent": {
+				"title": "Requêtes récentes",
+				"console": "Console de requêtes",
+				"rowsUnit": "lignes",
+				"justNow": "à l'instant",
+				"empty": "Aucune requête récente."
+			},
+			"tables": {
+				"title": "Tables",
+				"subtitle": "Toutes les collections du schéma actif",
+				"empty": "Aucune table ne correspond au filtre.",
+				"cols": {
+					"table": "Table",
+					"rows": "Lignes",
+					"columns": "Colonnes",
+					"indexes": "Index"
+				}
+			}
+		},
+		"schemas": {
+			"title": "Schémas",
+			"description": "Explorez les tables sous forme de liste ou de carte visuelle. Cliquez sur une table pour inspecter ses colonnes, index et relations.",
+			"tableCount": "{count} table | {count} tables",
+			"collections": "{count} collection | {count} collections",
+			"selectSchema": "Sélection du schéma",
+			"searchSchemaPlaceholder": "Rechercher un schéma…",
+			"open": "Ouvrir",
+			"view": {
+				"list": "Liste",
+				"diagram": "Diagramme"
+			},
+			"cols": {
+				"relations": "Relations"
+			},
+			"inspector": {
+				"columns": "Colonnes",
+				"indexes": "Index",
+				"preview": "Aperçu",
+				"close": "Fermer",
+				"colName": "Colonne",
+				"colType": "Type",
+				"colNullable": "Nullable",
+				"yes": "Oui",
+				"no": "Non",
+				"multi": "multi",
+				"single": "simple",
+				"noIndexes": "Aucun index défini.",
+				"previewError": "Impossible de charger un document exemple.",
+				"previewEmpty": "Cette table n'a aucune ligne à prévisualiser.",
+				"healthy": "En bonne santé"
+			},
+			"stats": {
+				"tables": "Tables",
+				"elements": "Éléments",
+				"instances": "Instances"
+			},
+			"menu": {
+				"browseData": "Parcourir les données",
+				"viewInDiagram": "Voir dans le diagramme",
+				"copyId": "Copier l'identifiant",
+				"rename": "Renommer",
+				"duplicate": "Dupliquer",
+				"export": "Exporter",
+				"delete": "Supprimer",
+				"comingSoon": "Bientôt disponible",
+				"copied": "Identifiant copié"
+			},
+			"browseData": "Parcourir les données",
+			"viewDefinition": "Voir la définition",
+			"columns": {
+				"name": "Nom",
+				"elementCount": "Éléments",
+				"columnCount": "Colonnes",
+				"indexCount": "Index"
+			}
+		},
+		"data": {
+			"title": "Explorateur de données",
+			"description": "Parcourir les lignes d'un schéma, d'une instance et d'une table sélectionnés.",
+			"instanceDefault": "Par défaut",
+			"instanceCross": "Toutes les instances (lecture seule)",
+			"schema": "Schéma",
+			"openInQuery": "Ouvrir dans la console",
+			"findTable": "Rechercher une table…",
+			"colCount": "{count} colonne | {count} colonnes",
+			"crossInstanceNotice": "Lecture sur toutes les instances de ce schéma. Les écritures sont désactivées.",
+			"noColumns": "Aucune colonne à afficher pour cette table.",
+			"pickPrompt": "Sélectionnez un schéma et une table pour parcourir ses lignes.",
+			"searchPlaceholder": "Rechercher dans les lignes…",
+			"refresh": "Rafraîchir",
+			"readOnly": "Lecture seule",
+			"filtersActive": "{count} filtre actif | {count} filtres actifs",
+			"filterModeIs": "est exactement",
+			"filterModeContains": "contient",
+			"filterApply": "Appliquer",
+			"filterClear": "Effacer",
+			"filterTitle": "Filtrer {column}",
+			"rowsTotal": "{count} ligne | {count} lignes",
+			"noRows": "Aucune ligne ne correspond à la vue actuelle.",
+			"prevPage": "Page précédente",
+			"nextPage": "Page suivante",
+			"editError": "Échec de l'enregistrement de la cellule",
+			"rowVanished": "Cette ligne n'existe plus — la vue a été rafraîchie.",
+			"jsonPanelTitle": "Modifier {column}",
+			"jsonInvalid": "JSON invalide",
+			"jsonNotStructured": "La valeur doit être un objet ou un tableau JSON.",
+			"save": "Enregistrer",
+			"cancel": "Annuler",
+			"closeTab": "Fermer l'onglet",
+			"keepTab": "Garder l'onglet ouvert",
+			"previewTab": "{name} (onglet d'aperçu)"
+		},
+		"diagram": {
+			"title": "Diagramme",
+			"description": "Visualisation des schémas enregistrés et de leurs tables.",
+			"recomputeLayout": "Recalculer la disposition",
+			"tooManyTables": "Affichage de {shown} sur {total} tables. Utilisez le filtre de schéma pour affiner.",
+			"toolbar": {
+				"autoLayout": "Auto layout",
+				"help": "Aide",
+				"helpText": "Réorganise automatiquement les tables du schéma avec un placement hiérarchique (dagre) et recadre la vue.",
+				"undo": "Annuler la dernière action",
+				"redo": "Refaire",
+				"cancel": "Annuler",
+				"apply": "Appliquer",
+				"pointer": "Sélection",
+				"hand": "Déplacer",
+				"zoomIn": "Zoom avant",
+				"zoomOut": "Zoom arrière",
+				"resetZoom": "Réinitialiser le zoom",
+				"fitView": "Ajuster",
+				"notes": "Note"
+			},
+			"notes": {
+				"placeholder": "Double-cliquez pour modifier",
+				"delete": "Supprimer la note"
+			},
+			"unsavedConfirm": "Des modifications du diagramme n'ont pas été enregistrées. Quitter quand même ?"
+		},
+		"query": {
+			"title": "Console de requêtes",
+			"description": "Écrivez, exécutez et sauvegardez des requêtes sur votre base de données avec des résultats en direct.",
+			"builder": "Constructeur de requête",
+			"result": "Résultat",
+			"favorites": "Sauvegardées",
+			"history": "Dernières requêtes",
+			"format": "Formater",
+			"save": "Sauvegarder",
+			"saveAsFavorite": "Sauvegarder en favori",
+			"hint": "Constructeur de requêtes JavaScript",
+			"builderHintLabel": "Constructeur",
+			"backToData": "Retour à l'explorateur",
+			"clear": "Effacer",
+			"clearHistory": "Effacer",
+			"execute": "Exécuter",
+			"table": "Tableau",
+			"json": "JSON",
+			"chart": "Graphique",
+			"chartUnavailable": "Aucune colonne numérique à tracer.",
+			"emptyResult": "Exécutez une requête pour voir les résultats",
+			"emptyFavorites": "Aucune requête sauvegardée.",
+			"emptyHistory": "Aucun historique.",
+			"language": "Langage",
+			"scopeMe": "Moi",
+			"scopeShared": "Équipe",
+			"sharedBadge": "Partagée avec l'équipe",
+			"previous": "Précédent",
+			"next": "Suivant",
+			"rowCount": "{count} ligne | {count} lignes",
+			"runtime": "{ms} ms",
+			"saveModal": {
+				"title": "Sauvegarder la requête",
+				"name": "Nom",
+				"namePlaceholder": "Requête sans titre",
+				"description": "Description",
+				"descriptionPlaceholder": "Notes optionnelles sur cette requête",
+				"share": "Partager avec l'équipe",
+				"shareDescription": "Les membres de l'équipe verront cette requête dans l'onglet Équipe.",
+				"save": "Sauvegarder",
+				"cancel": "Annuler"
+			},
+			"editModal": {
+				"title": "Modifier la requête",
+				"query": "Requête"
+			},
+			"itemMenu": {
+				"load": "Charger dans l'éditeur",
+				"edit": "Modifier",
+				"delete": "Supprimer"
+			},
+			"errorTitle": "Échec de la requête",
+			"mutationModal": {
+				"title": "Exécuter une requête modifiante ?",
+				"body": "Cette requête va modifier des données (insert, update, replace ou delete). Voulez-vous vraiment l'exécuter ?",
+				"dontRemind": "Ne plus me demander",
+				"confirm": "Exécuter",
+				"cancel": "Annuler"
+			}
+		}
+	}
+}
