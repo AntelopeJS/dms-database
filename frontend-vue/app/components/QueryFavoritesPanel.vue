@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { DropdownMenuItem } from "@nuxt/ui";
 import type { QueryScope, SavedQuery } from "../composables/useQueryStore";
-import { formatRelativeTime } from "../utils/relativeTime";
+import { formatDatabaseRelativeTime } from "../utils/relativeTime";
 
 interface Props {
 	items: SavedQuery[];
@@ -101,7 +101,7 @@ function menuItems(item: SavedQuery): DropdownMenuItem[][] {
 					</div>
 				</div>
 				<span class="text-dimmed font-mono text-[10.5px] shrink-0">
-					{{ formatRelativeTime(item.createdAt) }}
+					{{ formatDatabaseRelativeTime(item.createdAt) }}
 				</span>
 				<UDropdownMenu :items="menuItems(item)" :content="{ align: 'end' }">
 					<UButton
