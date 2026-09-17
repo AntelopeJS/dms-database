@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { HistoryEntry } from "../composables/useQueryStore";
-import { formatRelativeTime } from "../utils/relativeTime";
+import { formatDatabaseRelativeTime } from "../utils/relativeTime";
 
 interface Props {
 	items: HistoryEntry[];
@@ -41,7 +41,7 @@ function meta(item: HistoryEntry): string {
 		{ count: item.rowCount },
 		item.rowCount,
 	);
-	return `${formatRelativeTime(item.executedAt)} · ${count}`;
+	return `${formatDatabaseRelativeTime(item.executedAt)} · ${count}`;
 }
 
 function prev() {
