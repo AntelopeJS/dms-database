@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.3
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.2...v0.0.3)
+
+### 💅 Refactors
+
+- **frontend:** Rename the module-local relative-time helper ([#3](https://github.com/AntelopeJS/dms-database/pull/3))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.2
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.1...v0.0.2)
