@@ -24,9 +24,12 @@ importers:
         specifier: ^0.1.6
         version: 0.1.6(@antelopejs/interface-api@0.0.13(@antelopejs/interface-core@0.0.13))(@antelopejs/interface-core@0.0.13)(@antelopejs/interface-database@0.1.7(@antelopejs/interface-core@0.0.13))
     devDependencies:
+      '@antelopejs/core':
+        specifier: 1.8.0
+        version: 1.8.0(@types/node@22.20.1)
       '@antelopejs/dms-frontend':
-        specifier: '>=0.2.0 <1.0.0'
-        version: 0.2.0(@antelopejs/core@1.7.0(@types/node@22.20.1))
+        specifier: 0.2.0
+        version: 0.2.0(@antelopejs/core@1.8.0(@types/node@22.20.1))
       '@types/node':
         specifier: ^22.14.1
         version: 22.20.1
@@ -42,8 +45,8 @@ packages:
   2fa@0.1.2:
     resolution: {integrity: sha512-PbQttc6USc2TmZwOPE/zlNWTJTySLt50rWhUbZgPkZ5LAOLpgShT3yclbxwHPfHGUXEjfLrTo3Lunyx8onGnXw==}
 
-  '@antelopejs/core@1.7.0':
-    resolution: {integrity: sha512-2VdIAGPGQXRtmabq3jds9T7iFXPsRByqJHeBhk6s6fgnZwW4Z0zZVP3ForkwoY18+rn/aUpv6UkxVYr95ApYeA==}
+  '@antelopejs/core@1.8.0':
+    resolution: {integrity: sha512-aH0t8YsPT76Fvgt+p83mFsfIFqNp5QMON4ZhNnK3ov7/2SepRFimakcrT2llrz8GArLHmrGwbvO/3kTh+I+ZjA==}
     hasBin: true
 
   '@antelopejs/dms-frontend@0.2.0':
@@ -1268,7 +1271,7 @@ snapshots:
       qr-image: 3.2.0
       thirty-two: 0.0.2
 
-  '@antelopejs/core@1.7.0(@types/node@22.20.1)':
+  '@antelopejs/core@1.8.0(@types/node@22.20.1)':
     dependencies:
       '@antelopejs/interface-core': 0.0.13
       '@types/proper-lockfile': 4.1.4
@@ -1287,7 +1290,7 @@ snapshots:
     transitivePeerDependencies:
       - '@types/node'
 
-  '@antelopejs/dms-frontend@0.2.0(@antelopejs/core@1.7.0(@types/node@22.20.1))':
+  '@antelopejs/dms-frontend@0.2.0(@antelopejs/core@1.8.0(@types/node@22.20.1))':
     dependencies:
       boxen: 5.1.2
       chalk: 4.1.2
@@ -1298,7 +1301,7 @@ snapshots:
       semver: 7.8.5
       unzipper: 0.12.5
     optionalDependencies:
-      '@antelopejs/core': 1.7.0(@types/node@22.20.1)
+      '@antelopejs/core': 1.8.0(@types/node@22.20.1)
       '@oxc-parser/binding-darwin-arm64': 0.95.0
       '@oxc-parser/binding-darwin-x64': 0.95.0
       '@oxc-parser/binding-linux-arm64-gnu': 0.95.0
@@ -1308,7 +1311,7 @@ snapshots:
   '@antelopejs/dms@0.0.1(@antelopejs/interface-auth@0.0.6(@antelopejs/interface-api@0.0.13(@antelopejs/interface-core@0.0.13))(@antelopejs/interface-core@0.0.13))(@types/node@22.20.1)':
     dependencies:
       2fa: 0.1.2
-      '@antelopejs/core': 1.7.0(@types/node@22.20.1)
+      '@antelopejs/core': 1.8.0(@types/node@22.20.1)
       '@antelopejs/interface-api': 0.0.13(@antelopejs/interface-core@0.0.12)
       '@antelopejs/interface-api-util': 0.1.2(@antelopejs/interface-api@0.0.13(@antelopejs/interface-core@0.0.13))(@antelopejs/interface-core@0.0.13)
       '@antelopejs/interface-core': 0.0.12
