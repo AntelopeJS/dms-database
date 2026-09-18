@@ -49,14 +49,20 @@ const computedPath = computed<[string, number, number]>(() => {
 		:marker-end="markerEnd"
 		:marker-start="markerStart"
 		:style="style"
-		:label="label"
 		:label-x="computedPath[1]"
 		:label-y="computedPath[2]"
-		:label-style="labelStyle"
-		:label-show-bg="labelShowBg"
-		:label-bg-style="labelBgStyle"
-		:label-bg-padding="labelBgPadding"
-		:label-bg-border-radius="labelBgBorderRadius"
+		:label="undefined"
 		:interaction-width="interactionWidth"
 	/>
+	<text
+		v-if="label"
+		class="vue-flow__edge-text"
+		:x="computedPath[1]"
+		:y="computedPath[2]"
+		text-anchor="middle"
+		dominant-baseline="middle"
+		:style="labelStyle"
+	>
+		{{ label }}
+	</text>
 </template>
