@@ -201,16 +201,16 @@ useTableViewRowClick<TableListRow>(COMPONENT_ID, openInspector);
 			/>
 		</div>
 
-		<!-- ClientOnly: vue-flow is not SSR-safe. Kept mounted (v-show) so toggling
+		<!-- DmsClientOnly: vue-flow is not SSR-safe. Kept mounted (v-show) so toggling
 		     List/Diagram preserves un-applied diagram edits and avoids a blocking
 		     confirm dialog on every switch. -->
-		<ClientOnly>
+		<DmsClientOnly>
 			<DmsDatabaseSchemaDiagram
 				v-show="view === 'diagram'"
 				:schema-id="selectedSchemaId"
 				:active="view === 'diagram'"
 				@inspect-table="openInspectorByName"
 			/>
-		</ClientOnly>
+		</DmsClientOnly>
 	</div>
 </template>
