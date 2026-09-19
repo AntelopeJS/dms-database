@@ -1,5 +1,25 @@
 import { expect, it, vi } from 'vitest'
+import { readFileSync } from 'node:fs'
 import frontendModule from '../dms.frontend'
+
+const schemasPage = readFileSync(
+	new URL('../app/custom-pages/database/schemas.vue', import.meta.url),
+	'utf8',
+)
+const relationEdge = readFileSync(
+	new URL('../app/components/DiagramRelationEdge.vue', import.meta.url),
+	'utf8',
+)
+
+it('uses the DMS client-only wrapper for the Vue Flow schema diagram', () => {
+	expect(schemasPage).toContain('<DmsClientOnly>')
+	expect(schemasPage).not.toContain('<ClientOnly>')
+})
+
+it('does not route relation labels through Vue Flow EdgeText measurement', () => {
+	expect(relationEdge).toContain(':label="undefined"')
+	expect(relationEdge).toContain('<text')
+})
 
 it('preserves all database page keys, component aliases and preloaders', async () => {
 	const registerComponent = vi.fn()
