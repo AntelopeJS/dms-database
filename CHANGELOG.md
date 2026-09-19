@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.0.6
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.5...v0.0.6)
+
+### 🩹 Fixes
+
+- **frontend:** Render schema relation labels safely ([#10](https://github.com/AntelopeJS/dms-database/pull/10))
+
+### 🏡 Chore
+
+- Update DMS CLI scripts and dependencies ([#9](https://github.com/AntelopeJS/dms-database/pull/9))
+- **orb:** Add playground setup and services ([#11](https://github.com/AntelopeJS/dms-database/pull/11))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.5
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.4...v0.0.5)
