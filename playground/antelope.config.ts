@@ -29,6 +29,9 @@ export default defineConfig({
       },
       config: {
         homepage: "/modules/database/overview",
+        auth: {
+          jwtSecret: "dev",
+        },
       },
       importOverrides: [],
       disabledExports: [],
