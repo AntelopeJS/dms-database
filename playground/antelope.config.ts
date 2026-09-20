@@ -1,5 +1,7 @@
 import { defineConfig } from "@antelopejs/interface-core/config";
 
+const dmsClientUrl = process.env.DMS_CLIENT_BASE_URL;
+
 export default defineConfig({
   name: "playground",
   modules: {
@@ -100,6 +102,14 @@ export default defineConfig({
             port: "5010",
           },
         ],
+        cors: {
+          allowedOrigins: [
+            "http://localhost:3001",
+            "http://127.0.0.1:3001",
+            /^https:\/\/[^/]+\.onamp\.dev$/,
+            ...(dmsClientUrl ? [dmsClientUrl] : []),
+          ],
+        },
       },
       importOverrides: [],
       disabledExports: [],
