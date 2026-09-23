@@ -1,9 +1,9 @@
 {
   "compilerOptions": {
-    "noEmit": true,
+    "types": ["node"],
     "moduleResolution": "bundler",
     "target": "esnext",
-    "module": "preserve",
+    "module": "commonjs",
     "lib": ["ES2020"],
     "allowJs": true,
     "outDir": "dist",

@@ -3,14 +3,13 @@
     // tsgolint resolves node: builtins to an error type acting as `any`
     // without this, which makes every type-aware rule blind to them.
     "types": ["node", "mocha", "chai"],
-    "noEmit": true,
     "moduleResolution": "bundler",
     "target": "esnext",
-    "module": "preserve",
+    "module": "commonjs",
     "lib": ["esnext", "dom"],
     "allowJs": true,
     "incremental": true,
-    "tsBuildInfoFile": "node_modules/.cache/tsc/lint.tsbuildinfo",
+    "tsBuildInfoFile": "dist/.tsbuildinfo",
     "outDir": "dist",
     "strict": true,
     "noImplicitAny": true,
