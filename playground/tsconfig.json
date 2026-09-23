@@ -1,8 +1,9 @@
 {
   "compilerOptions": {
-    "moduleResolution": "nodenext",
+    "types": ["node"],
+    "moduleResolution": "bundler",
     "target": "esnext",
-    "module": "nodenext",
+    "module": "commonjs",
     "lib": ["ES2020"],
     "allowJs": true,
     "outDir": "dist",

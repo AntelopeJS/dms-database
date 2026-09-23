@@ -3,9 +3,9 @@
     // tsgolint resolves node: builtins to an error type acting as `any`
     // without this, which makes every type-aware rule blind to them.
     "types": ["node", "mocha", "chai"],
-    "moduleResolution": "nodenext",
+    "moduleResolution": "bundler",
     "target": "esnext",
-    "module": "nodenext",
+    "module": "commonjs",
     "lib": ["esnext", "dom"],
     "allowJs": true,
     "incremental": true,
