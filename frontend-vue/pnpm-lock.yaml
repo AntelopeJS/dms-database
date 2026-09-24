@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@antelopejs/interface-core':
-        specifier: '>=0.0.13 <1.0.0'
-        version: 0.1.0
+        specifier: '>=0.1.1 <1.0.0'
+        version: 0.1.1
       '@antelopejs/interface-database':
         specifier: '>=0.1.7 <1.0.0'
-        version: 0.1.7(@antelopejs/interface-core@0.1.0)
+        version: 0.1.7(@antelopejs/interface-core@0.1.1)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.3
@@ -79,8 +79,8 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@antelopejs/interface-core@0.1.0':
-    resolution: {integrity: sha512-49mmTXREMNNEigWpmubwQD7fSrIIvmcTb9L8L79zQcDWTToud/GIap40vaKWmkbN1oGbjOB4ael/agqZ/ejYSg==}
+  '@antelopejs/interface-core@0.1.1':
+    resolution: {integrity: sha512-nGxElt51KGWIwGsUcFdGT7ikQEqDB+mLj4NQ/eFL/DI1+j65GJqq9PdkVT4x3/YKchNA48iMbzXyW7bKUsQ8Iw==}
 
   '@antelopejs/interface-database@0.1.7':
     resolution: {integrity: sha512-2rXQZ0ynLInKxk++2XUPH1fHqd5Sj6k0QC2UxqOzsdfUSoyCyhsfnbELEV/i6jenUHeXGZ2vESkwxXTS9KJpbg==}
@@ -2939,13 +2939,13 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@antelopejs/interface-core@0.1.0':
+  '@antelopejs/interface-core@0.1.1':
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@0.1.7(@antelopejs/interface-core@0.1.0)':
+  '@antelopejs/interface-database@0.1.7(@antelopejs/interface-core@0.1.1)':
     dependencies:
-      '@antelopejs/interface-core': 0.1.0
+      '@antelopejs/interface-core': 0.1.1
 
   '@antfu/install-pkg@2.0.1':
     dependencies:
