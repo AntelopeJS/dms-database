@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.0.7
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.6...v0.0.7)
+
+### 🩹 Fixes
+
+- Route playground through public gateway ([#13](https://github.com/AntelopeJS/dms-database/pull/13))
+
+### 💅 Refactors
+
+- **build:** Merge tsconfig.build.json into tsconfig.json ([#16](https://github.com/AntelopeJS/dms-database/pull/16))
+
+### 🏡 Chore
+
+- **playground:** Use dms frontend 0.2.1 ([#12](https://github.com/AntelopeJS/dms-database/pull/12))
+- **agents:** Install Node 24 in setup script ([#14](https://github.com/AntelopeJS/dms-database/pull/14))
+
+### 🤖 CI
+
+- **release:** Release next from a dedicated branch and restore requireCommits ([#17](https://github.com/AntelopeJS/dms-database/pull/17))
+- **release:** Reference the shared release workflows through v1 ([#18](https://github.com/AntelopeJS/dms-database/pull/18))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.6
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.5...v0.0.6)
