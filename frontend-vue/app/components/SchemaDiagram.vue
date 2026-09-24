@@ -6,6 +6,7 @@ import {
 	type VueFlowStore,
 } from "@vue-flow/core";
 import dagre from "@dagrejs/dagre";
+import type { ShallowUnwrapRef } from "vue";
 import type { SchemaSummary } from "../composables/useDatabaseSchemas";
 import type {
 	DiagramNote,
@@ -192,7 +193,9 @@ const {
 // exposes the full imperative VueFlow controller (setNodes/setEdges/fitView/
 // viewport/findNode/onNodeDrag…) via a template ref; all the ERD business
 // logic below (dagre auto-layout, edge routing, undo/redo, notes) stays here.
-const canvas = ref<VueFlowStore | null>(null);
+// Vue's expose proxy unwraps the controller's refs: `edges` is the array
+// itself, not a Ref (`edges.value` is undefined and threw on every drag).
+const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null);
 // Our own wrapper element — used to measure the visible canvas for note placement.
 const canvasWrapper = ref<HTMLElement | null>(null);
 
@@ -810,7 +813,7 @@ function widthForNodeType(type: string | undefined): number {
 function recomputeEdgesForNode(nodeId: string) {
 	const instance = canvas.value;
 	if (!instance) return;
-	for (const edge of instance.edges.value) {
+	for (const edge of instance.edges) {
 		if (edge.source !== nodeId && edge.target !== nodeId) continue;
 		const sNode = instance.findNode(edge.source);
 		const tNode = instance.findNode(edge.target);
