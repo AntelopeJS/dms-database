@@ -6,6 +6,11 @@ import {
 	type VueFlowStore,
 } from "@vue-flow/core";
 import dagre from "@dagrejs/dagre";
+import type { ShallowUnwrapRef } from "vue";
+import DiagramNoteNode from "./DiagramNoteNode.vue";
+import DiagramRelationEdge from "./DiagramRelationEdge.vue";
+import DiagramStubNode from "./DiagramStubNode.vue";
+import DiagramTableNode from "./DiagramTableNode.vue";
 import type { SchemaSummary } from "../composables/useDatabaseSchemas";
 import type {
 	DiagramNote,
@@ -192,7 +197,9 @@ const {
 // exposes the full imperative VueFlow controller (setNodes/setEdges/fitView/
 // viewport/findNode/onNodeDrag…) via a template ref; all the ERD business
 // logic below (dagre auto-layout, edge routing, undo/redo, notes) stays here.
-const canvas = ref<VueFlowStore | null>(null);
+// Vue's expose proxy unwraps the controller's refs: `edges` is the array
+// itself, not a Ref (`edges.value` is undefined and threw on every drag).
+const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null);
 // Our own wrapper element — used to measure the visible canvas for note placement.
 const canvasWrapper = ref<HTMLElement | null>(null);
 
@@ -788,15 +795,19 @@ async function applyChanges() {
 	}
 }
 
-const nodeTypes = {
-	[TABLE_NODE_TYPE]: resolveComponent("DmsDatabaseDiagramTableNode"),
-	[STUB_NODE_TYPE]: resolveComponent("DmsDatabaseDiagramStubNode"),
-	[NOTE_NODE_TYPE]: resolveComponent("DmsDatabaseDiagramNoteNode"),
-};
+// Imported directly, not resolved by name: the DMS registers its global
+// components as async components, and the async relation edge was mounted
+// with the HTML namespace — its <path> was created as an HTML element inside
+// the edges <svg>, so no relation line was drawn.
+const nodeTypes = markRaw({
+	[TABLE_NODE_TYPE]: DiagramTableNode,
+	[STUB_NODE_TYPE]: DiagramStubNode,
+	[NOTE_NODE_TYPE]: DiagramNoteNode,
+});
 
-const edgeTypes = {
-	[RELATION_EDGE_TYPE]: resolveComponent("DmsDatabaseDiagramRelationEdge"),
-};
+const edgeTypes = markRaw({
+	[RELATION_EDGE_TYPE]: DiagramRelationEdge,
+});
 
 const zoomPercent = computed(
 	() => `${Math.round(liveViewport.value.zoom * 100)}%`,
@@ -810,7 +821,7 @@ function widthForNodeType(type: string | undefined): number {
 function recomputeEdgesForNode(nodeId: string) {
 	const instance = canvas.value;
 	if (!instance) return;
-	for (const edge of instance.edges.value) {
+	for (const edge of instance.edges) {
 		if (edge.source !== nodeId && edge.target !== nodeId) continue;
 		const sNode = instance.findNode(edge.source);
 		const tNode = instance.findNode(edge.target);
