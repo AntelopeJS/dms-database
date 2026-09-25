@@ -27,6 +27,7 @@ import {
 	lineNumbers,
 	placeholder as cmPlaceholder,
 } from "@codemirror/view";
+import { useColorMode } from "@vueuse/core";
 import type { SchemaSummary } from "../composables/useDatabaseSchemas";
 import type { QueryLanguage } from "../composables/useQueryStore";
 
