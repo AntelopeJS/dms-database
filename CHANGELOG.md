@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.8
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.7...v0.0.8)
+
+### 🩹 Fixes
+
+- **diagram:** Let tables be dragged and draw the relation lines ([#20](https://github.com/AntelopeJS/dms-database/pull/20))
+
+### ❤️ Contributors
+
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.0.7
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.6...v0.0.7)
