@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.9
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.8...v0.0.9)
+
+### 🩹 Fixes
+
+- **query:** Read the color mode from vueuse and bump @vueuse/core to ^14.3.0 ([#21](https://github.com/AntelopeJS/dms-database/pull/21))
+
+### ❤️ Contributors
+
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.0.8
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.7...v0.0.8)
