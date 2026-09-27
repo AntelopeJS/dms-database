@@ -13,15 +13,14 @@ export class QueryHistoryModel extends BasicDataModel(
   async addAndPrune(entry: Omit<QueryHistoryRow, "_id">): Promise<void> {
     await this.insert(entry);
 
-    const all = await this.table
+    const overflow = await this.table
       .filter((d) => d.key("userId").eq(entry.userId))
       .orderBy("executedAt", "desc")
+      .slice(MAX_HISTORY_PER_USER)
       .run();
 
-    if (all.length > MAX_HISTORY_PER_USER) {
-      for (const row of all.slice(MAX_HISTORY_PER_USER)) {
-        await this.delete(row._id);
-      }
+    for (const row of overflow) {
+      await this.delete(row._id);
     }
   }
 
@@ -34,10 +33,7 @@ export class QueryHistoryModel extends BasicDataModel(
 
     const [total, items] = await Promise.all([
       baseFilter.count().run(),
-      baseFilter
-        .orderBy("executedAt", "desc")
-        .slice(offset, offset + limit)
-        .run(),
+      baseFilter.orderBy("executedAt", "desc").slice(offset, limit).run(),
     ]);
 
     return { items, total };
