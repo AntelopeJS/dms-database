@@ -12,7 +12,7 @@ export class DatabaseDataPage extends PageController(
     module: "database",
     order: 2,
   },
-  DefaultLayout({ fullWidth: true }),
+  DefaultLayout({ fullWidth: true, fillHeight: true }),
 ) {
   static content = CustomComponent("DmsDatabaseData").meta({
     name: "$dms_database.data.title",

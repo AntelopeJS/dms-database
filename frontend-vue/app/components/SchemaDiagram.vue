@@ -982,7 +982,7 @@ registerGuard(() => {
 <template>
 	<div
 		ref="canvasWrapper"
-		class="h-[calc(100vh-15rem)] min-h-[28rem] overflow-hidden rounded-xl border border-default"
+		class="min-h-0 flex-1 overflow-hidden rounded-xl border border-default"
 		:class="panMode ? 'diagram-pan-mode' : 'diagram-select-mode'"
 	>
 		<DmsFlowCanvas
