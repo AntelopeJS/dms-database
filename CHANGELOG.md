@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.10
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.9...v0.0.10)
+
+### 🩹 Fixes
+
+- **db:** Return one page of query history per request and prune only the overflow ([#24](https://github.com/AntelopeJS/dms-database/pull/24))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.9
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.8...v0.0.9)
