@@ -12,12 +12,12 @@ export const queryHistoryTableName = "query_history";
 
 @RegisterTable(queryHistoryTableName, SCHEMA_NAME)
 export class QueryHistoryRow extends Table {
-  @Index()
+  @Index({ group: "userId_executedAt" })
   @Field("string")
   @Relation({ to: () => User })
   declare userId: string;
 
-  @Index()
+  @Index({ group: "userId_executedAt" })
   @Field("date")
   declare executedAt: Date;
 
