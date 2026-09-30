@@ -16,11 +16,10 @@ const fallbackFields = computed(() => {
 </script>
 
 <template>
-	<!-- Studio layout: full height, only the grid scrolls. The offset accounts
-	     for the DMS shell chrome + page header — tune it at the visual
-	     checkpoint so the page itself never scrolls. -->
+	<!-- Studio layout: the page fills the panel (`fillHeight` in
+	     src/pages/data.ts) and only the grid scrolls. -->
 	<div
-		class="flex h-[calc(100dvh-13.5rem)] min-h-[30rem] overflow-hidden rounded-lg border border-default bg-default"
+		class="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-default bg-default"
 	>
 		<DmsDatabaseDataBrowserSidebar :schemas="schemas" />
 		<div class="flex min-w-0 flex-1 flex-col">

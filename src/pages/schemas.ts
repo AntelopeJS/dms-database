@@ -12,7 +12,7 @@ export class DatabaseSchemasPage extends PageController(
     module: "database",
     order: 1,
   },
-  DefaultLayout({ hideHeader: true, fullWidth: true }),
+  DefaultLayout({ hideHeader: true, fullWidth: true, fillHeight: true }),
 ) {
   static content = CustomComponent("DmsDatabaseSchemas").meta({
     name: "$dms_database.schemas.title",

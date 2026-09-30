@@ -5,6 +5,9 @@
 	"type": "module",
 	"main": "./dms.frontend.ts",
 	"packageManager": "pnpm@10.6.5",
+	"engines": {
+		"@antelopejs/dms-frontend": ">=0.2.8 <0.4.0"
+	},
 	"scripts": {
 		"dev": "pnpm --dir ../playground frontend:dev",
 		"build": "pnpm --dir ../playground exec ajs dms build",
@@ -16,7 +19,7 @@
 	},
 	"dependencies": {
 		"@antelopejs/interface-core": ">=0.1.1 <1.0.0",
-		"@antelopejs/interface-database": ">=0.1.7 <1.0.0",
+		"@antelopejs/interface-database": ">=0.1.8 <1.0.0",
 		"@codemirror/autocomplete": "^6.18.6",
 		"@codemirror/commands": "^6.8.1",
 		"@codemirror/lang-javascript": "^6.2.4",

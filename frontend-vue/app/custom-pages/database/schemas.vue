@@ -149,7 +149,9 @@ useTableViewRowClick<TableListRow>(COMPONENT_ID, openInspector);
 </script>
 
 <template>
-	<div class="space-y-5 pb-6">
+	<!-- The page fills the panel (`fillHeight` in src/pages/schemas.ts): the
+	     list scrolls under the header, the diagram takes the height left. -->
+	<div class="flex min-h-0 flex-1 flex-col gap-5">
 		<section class="flex flex-wrap items-center gap-4 pt-6 pb-2">
 			<div
 				class="rounded-lg bg-primary/10 shadow-sm shrink-0 ring ring-primary/20 flex items-center justify-center size-12"
@@ -180,7 +182,7 @@ useTableViewRowClick<TableListRow>(COMPONENT_ID, openInspector);
 			</div>
 		</section>
 
-		<div v-show="view === 'list'" class="space-y-2">
+		<div v-show="view === 'list'" class="min-h-0 flex-1 space-y-2 overflow-y-auto">
 			<p class="text-dimmed px-1 text-xs">
 				<span class="font-mono">{{ selectedSchemaId }}</span>
 				· {{ collectionsLabel }}
