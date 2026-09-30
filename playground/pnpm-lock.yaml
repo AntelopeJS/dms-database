@@ -18,10 +18,10 @@ importers:
         specifier: '>=0.1.1 <1.0.0'
         version: 0.1.1
       '@antelopejs/interface-database':
-        specifier: ^0.1.7
+        specifier: '>=0.1.7 <1.0.0'
         version: 0.1.7(@antelopejs/interface-core@0.1.1)
       '@antelopejs/interface-database-decorators':
-        specifier: ^0.1.6
+        specifier: '>=0.1.6 <1.0.0'
         version: 0.1.6(@antelopejs/interface-api@0.0.13(@antelopejs/interface-core@0.1.1))(@antelopejs/interface-core@0.1.1)(@antelopejs/interface-database@0.1.7(@antelopejs/interface-core@0.1.1))
     devDependencies:
       '@antelopejs/core':
