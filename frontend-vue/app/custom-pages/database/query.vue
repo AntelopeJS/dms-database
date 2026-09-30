@@ -268,7 +268,9 @@ onMounted(async () => {
 </script>
 
 <template>
-	<div class="space-y-6 pb-6">
+	<!-- The page fills the panel (`fillHeight` in src/pages/query.ts): each
+	     column scrolls on its own, and the grid scrolls when they stack. -->
+	<div class="flex min-h-0 flex-1 flex-col gap-6">
 		<section class="flex flex-wrap items-center gap-4 pt-6 pb-2">
 			<div
 				class="rounded-lg bg-primary/10 shadow-sm shrink-0 ring ring-primary/20 flex items-center justify-center size-12"
@@ -293,8 +295,10 @@ onMounted(async () => {
 			/>
 		</section>
 
-		<div class="grid grid-cols-1 lg:grid-cols-[18rem_1fr] gap-5 items-start">
-			<aside class="flex flex-col gap-5 lg:sticky lg:top-6 lg:max-h-[calc(100vh-6rem)]">
+		<div
+			class="grid min-h-0 flex-1 grid-cols-1 gap-5 pb-6 max-lg:overflow-y-auto lg:grid-cols-[18rem_1fr]"
+		>
+			<aside class="flex min-h-0 flex-col gap-5 lg:overflow-y-auto">
 				<DmsDatabaseQueryHistoryPanel
 					v-model:page="historyPage"
 					:items="historyItems"
@@ -314,7 +318,7 @@ onMounted(async () => {
 				/>
 			</aside>
 
-			<div class="flex flex-col gap-5 min-w-0">
+			<div class="flex min-h-0 min-w-0 flex-col gap-5 lg:overflow-y-auto">
 				<DmsDatabaseQueryBuilderPanel
 					v-model="queryText"
 					v-model:language="language"

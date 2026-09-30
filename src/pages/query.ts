@@ -12,7 +12,7 @@ export class DatabaseQueryPage extends PageController(
     module: "database",
     order: 3,
   },
-  DefaultLayout({ hideHeader: true, fullWidth: true }),
+  DefaultLayout({ hideHeader: true, fullWidth: true, fillHeight: true }),
 ) {
   static content = CustomComponent("DmsDatabaseQuery").meta({
     name: "$dms_database.query.title",
