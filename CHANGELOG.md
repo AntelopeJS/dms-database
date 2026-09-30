@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.0.13
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.12...v0.0.13)
+
+### 🩹 Fixes
+
+- **query:** Fill the panel instead of capping the aside at the viewport ([#31](https://github.com/AntelopeJS/dms-database/pull/31))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.12
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.11...v0.0.12)
