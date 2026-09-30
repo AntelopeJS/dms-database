@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.0.11
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.10...v0.0.11)
+
+### 🩹 Fixes
+
+- **deps:** Accept compatible 0.x versions of the interface packages ([#23](https://github.com/AntelopeJS/dms-database/pull/23))
+
+### 💅 Refactors
+
+- **pages:** Fill the panel instead of guessing viewport offsets ([#30](https://github.com/AntelopeJS/dms-database/pull/30))
+
+### 🏡 Chore
+
+- **lint:** Check @antelopejs/interface-* ranges ([#29](https://github.com/AntelopeJS/dms-database/pull/29))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.0.10
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.9...v0.0.10)
