@@ -132,7 +132,7 @@ interface TableDiagramNode {
 		tableName: string;
 		fields: Record<string, unknown>;
 		indexes: Record<string, { fields?: string[] }>;
-		modifiers: Record<string, string[]>;
+		modifiers?: Record<string, string[]>;
 	};
 }
 

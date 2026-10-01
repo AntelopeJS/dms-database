@@ -5,7 +5,7 @@ interface NodeData {
 	tableName: string;
 	fields: Record<string, unknown>;
 	indexes: Record<string, { fields?: string[]; multi?: boolean }>;
-	modifiers: Record<string, string[]>;
+	modifiers?: Record<string, string[]>;
 }
 
 defineProps<{ data: NodeData }>();
