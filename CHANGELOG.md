@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.0.14
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.13...v0.0.14)
+
+### 🩹 Fixes
+
+- **frontend:** Typecheck the layer in CI and fix the SchemaDiagram modifiers type ([#33](https://github.com/AntelopeJS/dms-database/pull/33))
+
+### 🏡 Chore
+
+- **playground:** Open module source ranges ([#32](https://github.com/AntelopeJS/dms-database/pull/32))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.13
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.12...v0.0.13)
