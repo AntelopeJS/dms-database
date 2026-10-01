@@ -40,7 +40,8 @@
     "release": "pnpm --dir frontend-vue install --frozen-lockfile && release-it",
     "prepack": "pnpm run build",
     "knip": "knip --dependencies",
-    "knip:all": "knip"
+    "knip:all": "knip",
+    "test:frontend": "ajs dms verify-source --layer node_modules/@antelopejs/dms/frontend-vue --module frontend-vue"
   },
   "dependencies": {
     "@antelopejs/interface-api": ">=0.0.13 <1.0.0",
@@ -52,6 +53,8 @@
   },
   "devDependencies": {
     "@antelopejs/core": ">=1.10.1 <2",
+    "@antelopejs/dms": ">=0.5.0 <1.0.0",
+    "@antelopejs/dms-frontend": ">=0.3.6 <0.4.0",
     "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
