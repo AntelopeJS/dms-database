@@ -29,43 +29,73 @@ import {
 } from "@codemirror/view";
 import { useColorMode } from "@vueuse/core";
 import type { SchemaSummary } from "../composables/useDatabaseSchemas";
-import type { QueryLanguage } from "../composables/useQueryStore";
+import { tableAccess } from "../utils/databaseLinks";
+
+// The query editor (D-12): AQL with completion of the workspace's own
+// schemas, tables (with their row counts) and columns, snippets to insert at
+// the cursor, and the cursor position.
 
 interface Props {
 	modelValue: string;
-	language: QueryLanguage;
 	executing?: boolean;
 	// Drives the schema-aware autocomplete (table/field names + the query DSL).
 	schemas?: SchemaSummary[];
+	/** Rows per table, keyed `schema.table`, shown next to table completions. */
+	tableCounts?: Record<string, number>;
+	/** The saved query open in the editor, if any. */
+	savedName?: string;
+	savedShared?: boolean;
+	/** Whether the editor differs from the saved query it opened. */
+	edited?: boolean;
 }
 
 const props = withDefaults(defineProps<Props>(), {
 	executing: false,
 	schemas: () => [],
+	tableCounts: () => ({}),
+	savedName: undefined,
+	savedShared: false,
+	edited: false,
 });
 
 const emit = defineEmits<{
 	"update:modelValue": [value: string];
-	"update:language": [value: QueryLanguage];
 	execute: [];
 	save: [];
+	new: [];
 }>();
 
-// Static code example for the builder DSL, used as the editor placeholder and the
-// footer hint (not translatable — the angle-bracket-free call trips no i18n guard).
-const BUILDER_EXAMPLE = 'schemas.shop.instance().table("users").slice(0, 10)';
+const { t, n } = useI18n();
 
 const internalValue = computed<string>({
 	get: () => props.modelValue,
 	set: (value) => emit("update:modelValue", value),
 });
 
-const languageOptions = [{ label: "AQL", value: "aql" as const }];
-
-const internalLanguage = computed<QueryLanguage>({
-	get: () => props.language,
-	set: (value) => emit("update:language", value),
+// The placeholder starts from a table of the workspace, not a made-up one.
+const placeholderExample = computed(() => {
+	const schema = props.schemas.find((candidate) => candidate.tables.length > 0);
+	const table = schema?.tables[0]?.name;
+	return schema && table
+		? `${tableAccess({ schema: schema.id, table })}.slice(0, 10)`
+		: "schemas.<schema>.instance().table(\"<table>\").slice(0, 10)";
 });
+
+interface Snippet {
+	label: string;
+	insert: string;
+}
+
+const SNIPPETS: Snippet[] = [
+	{ label: "table()", insert: '.table("")' },
+	{ label: "filter()", insert: '.filter((row) => row.key("").eq(""))' },
+	{ label: "orderBy()", insert: '.orderBy("", "desc")' },
+	{ label: "slice()", insert: ".slice(0, 50)" },
+	{ label: "count()", insert: ".count()" },
+	{ label: "get(id)", insert: '.get("")' },
+];
+
+const cursor = ref({ line: 1, column: 1 });
 
 function canExecute(): boolean {
 	return Boolean(internalValue.value.trim()) && !props.executing;
@@ -143,6 +173,8 @@ const completionData = computed(() => {
 	const instancesBySchema: Record<string, string[]> = {};
 	const allTables = new Set<string>();
 	const allFields = new Set<string>();
+	const counts = props.tableCounts;
+	const tableDetails: Record<string, string> = {};
 	for (const schema of props.schemas ?? []) {
 		schemaIds.push(schema.id);
 		instancesBySchema[schema.id] = schema.instances ?? [];
@@ -151,6 +183,10 @@ const completionData = computed(() => {
 		for (const table of schema.tables ?? []) {
 			tables.push(table.name);
 			allTables.add(table.name);
+			const count = counts[`${schema.id}.${table.name}`];
+			if (count !== undefined) {
+				tableDetails[`${schema.id}.${table.name}`] = t("dms_database.query.editor.table_rows", { count: n(count) }, count);
+			}
 			for (const field of Object.keys(table.fields ?? {})) {
 				fields.add(field);
 				allFields.add(field);
@@ -166,6 +202,7 @@ const completionData = computed(() => {
 		instancesBySchema,
 		allTables: [...allTables],
 		allFields: [...allFields],
+		tableDetails,
 	};
 });
 
@@ -243,18 +280,15 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 	if (inTable) {
 		const quote = inTable[1];
 		const typed = inTable[2] ?? "";
-		const tables = listFor(
-			data.tablesBySchema,
-			currentSchemaId(before),
-			data.allTables,
-		);
+		const schemaId = currentSchemaId(before);
+		const tables = listFor(data.tablesBySchema, schemaId, data.allTables);
 		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$-]*/,
 			options: tables.map((name) => ({
 				label: name,
 				type: "class",
-				detail: "table",
+				detail: data.tableDetails[`${schemaId}.${name}`] ?? "table",
 				apply: quote ? name : `"${name}"`,
 			})),
 		};
@@ -340,6 +374,7 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 const editorContainer = ref<HTMLElement | null>(null);
 let view: EditorView | null = null;
 const themeCompartment = new Compartment();
+const placeholderCompartment = new Compartment();
 const colorMode = useColorMode();
 
 // Transparent surfaces so the editor blends into the DmsCard (bg-default).
@@ -373,7 +408,7 @@ onMounted(() => {
 			indentOnInput(),
 			javascript({ typescript: true }),
 			autocompletion({ override: [completionSource], activateOnTyping: true }),
-			cmPlaceholder(BUILDER_EXAMPLE),
+			placeholderCompartment.of(cmPlaceholder(placeholderExample.value)),
 			EditorView.lineWrapping,
 			keymap.of([
 				{
@@ -381,6 +416,14 @@ onMounted(() => {
 					preventDefault: true,
 					run: () => {
 						if (canExecute()) emit("execute");
+						return true;
+					},
+				},
+				{
+					key: "Mod-s",
+					preventDefault: true,
+					run: () => {
+						if (internalValue.value.trim()) emit("save");
 						return true;
 					},
 				},
@@ -392,6 +435,11 @@ onMounted(() => {
 			themeCompartment.of(themeExtension()),
 			baseTheme,
 			EditorView.updateListener.of((update) => {
+				if (update.selectionSet || update.docChanged) {
+					const head = update.state.selection.main.head;
+					const line = update.state.doc.lineAt(head);
+					cursor.value = { line: line.number, column: head - line.from + 1 };
+				}
 				if (!update.docChanged) return;
 				const text = update.state.doc.toString();
 				if (text !== props.modelValue) emit("update:modelValue", text);
@@ -413,6 +461,10 @@ watch(
 	},
 );
 
+watch(placeholderExample, (example) => {
+	view?.dispatch({ effects: placeholderCompartment.reconfigure(cmPlaceholder(example)) });
+});
+
 // Swap the syntax theme when the app toggles light/dark.
 watch(
 	() => colorMode.value,
@@ -427,76 +479,98 @@ onBeforeUnmount(() => {
 	view?.destroy();
 	view = null;
 });
+
+// Inserts a snippet at the cursor, the cursor landing inside its first quotes.
+function insertSnippet(snippet: Snippet) {
+	if (!view) return;
+	const { from, to } = view.state.selection.main;
+	const quote = snippet.insert.indexOf('""');
+	const anchor = from + (quote >= 0 ? quote + 1 : snippet.insert.length);
+	view.dispatch({
+		changes: { from, to, insert: snippet.insert },
+		selection: { anchor },
+	});
+	view.focus();
+}
+
+defineExpose({ focus: () => view?.focus() });
 </script>
 
 <template>
 	<DmsCard :padded="false" class="overflow-hidden">
-		<!-- editor bar -->
-		<div
-			class="flex items-center gap-2 px-3.5 py-3 border-b border-default flex-wrap"
-		>
-			<USelect
-				v-model="internalLanguage"
-				:items="languageOptions"
-				:aria-label="$t('dms_database.query.language')"
-				size="sm"
-				class="w-24"
-			/>
-			<span class="inline-flex items-center gap-1.5 text-[11.5px] text-dimmed">
-				<UIcon name="i-ph-brackets-curly" class="size-3.5" />
-				{{ $t("dms_database.query.hint") }}
+		<div class="border-default flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5">
+			<span v-if="savedName" class="text-highlighted flex min-w-0 items-center gap-1.5 text-sm font-medium">
+				<UIcon name="i-ph-star-fill" class="text-warning size-4 shrink-0" />
+				<span class="truncate">{{ savedName }}</span>
+				<UBadge v-if="savedShared" color="neutral" variant="outline" size="sm">
+					{{ t("dms_database.query.editor.shared") }}
+				</UBadge>
+				<span v-if="edited" class="text-dimmed text-xs font-normal">· {{ t("dms_database.query.editor.edited") }}</span>
 			</span>
+			<span v-else class="text-muted text-sm">{{ t("dms_database.query.editor.untitled") }}</span>
 			<span class="flex-1" />
+			<UTooltip :text="t('dms_database.query.editor.new_hint')">
+				<UButton
+					size="sm"
+					color="neutral"
+					variant="ghost"
+					icon="i-ph-plus"
+					:label="t('dms_database.query.editor.new')"
+					@click="emit('new')"
+				/>
+			</UTooltip>
 			<UButton
 				size="sm"
 				color="neutral"
 				variant="ghost"
 				icon="i-ph-magic-wand"
-				:label="$t('dms_database.query.format')"
+				:label="t('dms_database.query.editor.format')"
 				:disabled="!internalValue.trim()"
 				@click="runFormat"
 			/>
 			<UButton
 				size="sm"
 				color="neutral"
-				variant="ghost"
+				variant="outline"
 				icon="i-ph-floppy-disk"
-				:label="$t('dms_database.query.save')"
 				:disabled="!internalValue.trim()"
 				@click="emit('save')"
-			/>
+			>
+				{{ t("dms_database.query.editor.save") }}
+				<UKbd value="meta" size="sm" class="ml-1" /><UKbd value="s" size="sm" />
+			</UButton>
 			<UButton
 				size="sm"
-				color="primary"
-				icon="i-ph-lightning"
+				icon="i-ph-play"
 				:loading="executing"
 				:disabled="!internalValue.trim() || executing"
 				@click="emit('execute')"
 			>
-				{{ $t("dms_database.query.execute") }}
-				<UKbd value="meta" size="sm" class="ml-1" />
-				<UKbd value="enter" size="sm" />
+				{{ t("dms_database.query.editor.run") }}
+				<UKbd value="meta" size="sm" class="ml-1" /><UKbd value="enter" size="sm" />
 			</UButton>
 		</div>
 
-		<!-- editor (CodeMirror mounts here on the client) -->
-		<div
-			ref="editorContainer"
-			class="h-64 overflow-auto bg-default text-toned"
-		/>
+		<!-- CodeMirror mounts here on the client. -->
+		<div ref="editorContainer" class="bg-default text-toned h-60 overflow-auto" />
 
-		<!-- builder hint footer -->
-		<div
-			class="flex items-center gap-2 px-3.5 py-3 border-t border-default flex-wrap"
-		>
-			<span
-				class="font-mono text-[10px] uppercase tracking-wider text-dimmed shrink-0"
+		<div class="border-default text-dimmed flex flex-wrap items-center gap-2 border-t px-3.5 py-2 text-[11.5px]">
+			<DmsEyebrow :label="t('dms_database.query.editor.insert')" />
+			<button
+				v-for="snippet in SNIPPETS"
+				:key="snippet.label"
+				type="button"
+				class="border-default bg-elevated text-toned hover:border-primary hover:text-highlighted rounded border px-1.5 py-0.5 font-mono text-[11px]"
+				@click="insertSnippet(snippet)"
 			>
-				{{ $t("dms_database.query.builderHintLabel") }}
+				{{ snippet.label }}
+			</button>
+			<span class="ml-auto flex items-center gap-1">
+				<UKbd value="ctrl" size="sm" /><UKbd value="space" size="sm" />{{ t("dms_database.query.editor.complete") }}
 			</span>
-			<code class="text-[11.5px] font-mono text-muted truncate">
-				{{ BUILDER_EXAMPLE }}
-			</code>
+			<span class="font-mono">
+				{{ t("dms_database.query.editor.position", { line: cursor.line, column: cursor.column }) }}
+			</span>
 		</div>
 	</DmsCard>
 </template>

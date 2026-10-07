@@ -1,4 +1,5 @@
 import {
+  CROSS_INSTANCE,
   Datum,
   Query,
   Schema,
@@ -9,6 +10,8 @@ import {
   Table,
   ValueProxy,
 } from "@antelopejs/interface-database";
+
+import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 
 export interface QueryStage {
   stage: string;
@@ -47,6 +50,8 @@ function isSerializedStaged(value: unknown): value is SerializedStaged {
 
 export function decodeStaged(value: unknown): unknown {
   if (value === null || value === undefined) return value;
+  // The symbol JSON cannot carry, sent as its sentinel by the console.
+  if (value === CROSS_INSTANCE_SENTINEL) return CROSS_INSTANCE;
   if (Array.isArray(value)) return value.map(decodeStaged);
   if (typeof value !== "object") return value;
 

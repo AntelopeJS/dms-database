@@ -11,7 +11,7 @@ import { assert } from "@antelopejs/interface-api-util";
 import { Query } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
-import type { User } from "@antelopejs/interface-dms/auth/db";
+import { type User, UserModel } from "@antelopejs/interface-dms/auth/db";
 import {
   QueryHistoryModel,
   type QueryHistoryRow,
@@ -20,8 +20,10 @@ import {
 } from "../db";
 import {
   containsMutation,
+  describeUnknownTarget,
   type DryRunResult,
   dryRun,
+  readQueryTarget,
 } from "../service/queryInspection";
 import { decodeStaged } from "../service/stagedSerialization";
 import type {
@@ -137,6 +139,12 @@ async function getOwnedSavedQuery(
   return owned;
 }
 
+function toIso(value: Date | string): string {
+  return value instanceof Date
+    ? value.toISOString()
+    : new Date(value).toISOString();
+}
+
 function toSavedWire(row: SavedQueryRow & { _id: string }): SavedQuery {
   return {
     id: row._id,
@@ -147,11 +155,24 @@ function toSavedWire(row: SavedQueryRow & { _id: string }): SavedQuery {
     source: row.source,
     language: row.language,
     shared: row.shared,
-    createdAt:
-      row.createdAt instanceof Date
-        ? row.createdAt.toISOString()
-        : new Date(row.createdAt).toISOString(),
+    createdAt: toIso(row.createdAt),
+    updatedAt: toIso(row.updatedAt ?? row.createdAt),
   };
+}
+
+// The names of the users who shared queries, read once per listing.
+async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
+  const users = GetModel(UserModel);
+  const names = new Map<string, string>();
+  for (const userId of new Set(userIds)) {
+    try {
+      const user = await users.get(userId);
+      if (user?.name) names.set(userId, user.name);
+    } catch {
+      // A deleted account leaves its shared queries unnamed.
+    }
+  }
+  return names;
 }
 
 function normaliseRows(raw: unknown): Record<string, unknown>[] {
@@ -226,6 +247,8 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const startedAt = Date.now();
     let raw: unknown;
     try {
+      const unknownTarget = describeUnknownTarget(readQueryTarget(root));
+      if (unknownTarget) throw new Error(unknownTarget);
       raw = await root.run();
     } catch (error) {
       const message = errorMessage(error);
@@ -278,6 +301,8 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @JSONBody() body: ExecuteBody,
   ): Promise<DryRunResult> {
     const root = decodeRunnable(asRecord(body?.query));
+    const unknownTarget = describeUnknownTarget(readQueryTarget(root));
+    assert(!unknownTarget, 400, unknownTarget ?? "");
     try {
       return await dryRun(root);
     } catch (error) {
@@ -293,10 +318,12 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const input = parseSaveBody(body);
 
     const savedModel = GetModel(SavedQueryModel);
+    const now = new Date();
     const ids = await savedModel.insert({
       userId: user._id,
       ...input,
-      createdAt: new Date(),
+      createdAt: now,
+      updatedAt: now,
     });
     const id = ids[0];
     assert(id !== undefined, 500, "Failed to persist saved query");
@@ -313,13 +340,21 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   ): Promise<SavedQuery> {
     const input = parseSaveBody(body);
     const existing = await getOwnedSavedQuery(id, user._id);
-    await GetModel(SavedQueryModel).update(existing._id, input);
+    const updatedAt = new Date();
+    await GetModel(SavedQueryModel).update(existing._id, {
+      ...input,
+      updatedAt,
+    });
     // The updated row is fully determined by the existing row plus the
     // validated input — no need to fetch it back. Projected first because
     // spreading the model instance copies own properties only: anything the
     // model exposes through its prototype would be dropped, and toSavedWire
     // would read `undefined` for it.
-    return { ...toSavedWire(existing), ...input };
+    return {
+      ...toSavedWire(existing),
+      ...input,
+      updatedAt: updatedAt.toISOString(),
+    };
   }
 
   @Get("/saved")
@@ -328,12 +363,19 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @Parameter("scope", "query") scope: unknown,
   ): Promise<ListResult<SavedQuery>> {
     const savedModel = GetModel(SavedQueryModel);
-    const rows =
-      asSavedScope(scope) === "shared"
-        ? await savedModel.listShared()
-        : await savedModel.listForUser(user._id);
+    const shared = asSavedScope(scope) === "shared";
+    const rows = shared
+      ? await savedModel.listShared()
+      : await savedModel.listForUser(user._id);
+    const names = shared
+      ? await ownerNames(rows.map((row) => row.userId))
+      : new Map<string, string>();
     return {
-      items: rows.map((r) => toSavedWire(r as SavedQueryRow & { _id: string })),
+      items: rows.map((row) => {
+        const wire = toSavedWire(row as SavedQueryRow & { _id: string });
+        const ownerName = names.get(row.userId);
+        return ownerName ? { ...wire, ownerName } : wire;
+      }),
     };
   }
 
@@ -344,6 +386,12 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   ): Promise<SuccessResponse> {
     const existing = await getOwnedSavedQuery(id, user._id);
     await GetModel(SavedQueryModel).delete(existing._id);
+    return { success: true };
+  }
+
+  @Delete("/history")
+  async clearHistory(@AuthRawUser() user: User): Promise<SuccessResponse> {
+    await GetModel(QueryHistoryModel).clearForUser(user._id);
     return { success: true };
   }
 

@@ -38,4 +38,8 @@ export class SavedQueryRow extends Table {
 
   @Field("date")
   declare createdAt: Date;
+
+  /** Absent on queries saved before edits were dated: read as `createdAt`. */
+  @Field("date")
+  declare updatedAt?: Date;
 }

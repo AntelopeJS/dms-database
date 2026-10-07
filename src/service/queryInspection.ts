@@ -1,4 +1,4 @@
-import { CROSS_INSTANCE, Query } from "@antelopejs/interface-database";
+import { CROSS_INSTANCE, Query, Schema } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 import type { QueryStage } from "./stagedSerialization";
 
@@ -118,4 +118,19 @@ export async function dryRun(root: unknown): Promise<DryRunResult> {
       ? insertedDocuments(stage)
       : await countSelected(stages.slice(0, index));
   return { ...target, operation, rows };
+}
+
+/**
+ * Why a query cannot run on the schema it names: an unknown schema or table.
+ * A store reading a missing table answers no row, which reads like an empty
+ * table; the console says what is wrong instead.
+ */
+export function describeUnknownTarget(target: QueryTarget): string | null {
+  if (!target.schema) return null;
+  const schema = Schema.get(target.schema);
+  if (!schema) return `Unknown schema "${target.schema}"`;
+  if (target.table && !(target.table in schema.definition)) {
+    return `Unknown table "${target.table}" in schema ${target.schema}`;
+  }
+  return null;
 }

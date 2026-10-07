@@ -66,6 +66,9 @@ export interface SavedQuery {
   language: QueryLanguage;
   shared: boolean;
   createdAt: string;
+  updatedAt: string;
+  /** Who saved it, for the team's shared queries. */
+  ownerName?: string;
 }
 
 /** How a query run ended. */

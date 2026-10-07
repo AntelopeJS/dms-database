@@ -1,4 +1,5 @@
 import {
+	CROSS_INSTANCE,
 	Datum,
 	Query,
 	Schema,
@@ -37,7 +38,12 @@ function classNameOf(obj: object): string | undefined {
 	return undefined
 }
 
+// CROSS_INSTANCE is a symbol, which JSON drops: it travels as this sentinel,
+// which the server turns back into the symbol.
+const CROSS_INSTANCE_SENTINEL = '__CROSS_INSTANCE__'
+
 export function encodeStaged(node: unknown): unknown {
+	if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL
 	if (node === null || node === undefined) return node
 	if (typeof node !== 'object') return node
 	if (Array.isArray(node)) return node.map(encodeStaged)

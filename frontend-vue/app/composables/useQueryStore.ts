@@ -11,7 +11,12 @@ export interface SavedQuery {
 	language: QueryLanguage;
 	shared: boolean;
 	createdAt: string;
+	updatedAt: string;
+	/** Who saved it, on the team's shared queries. */
+	ownerName?: string;
 }
+
+export type QueryRunStatus = "ok" | "error";
 
 export interface HistoryEntry {
 	id: string;
@@ -22,13 +27,32 @@ export interface HistoryEntry {
 	executedAt: string;
 	durationMs: number;
 	rowCount: number;
+	status: QueryRunStatus;
+	/** Whether the query wrote. */
+	mutation: boolean;
+	error?: string;
 }
 
 export interface ExecuteResult {
 	rows: Record<string, unknown>[];
+	/** Rows the query answered; above `rows.length` when they were cut. */
+	rowCount: number;
+	truncated: boolean;
+	mutation: boolean;
 	executedAt: string;
 	durationMs: number;
-	error?: string;
+}
+
+export type QueryOperation = "read" | "insert" | "update" | "replace" | "delete";
+
+/** What a query would write, measured before it runs. */
+export interface DryRunResult {
+	operation: QueryOperation;
+	schema?: string;
+	instance?: string;
+	table?: string;
+	/** Null when the write is nested and cannot be measured on its own. */
+	rows: number | null;
 }
 
 export interface SaveQueryInput {
@@ -55,6 +79,23 @@ export function useQueryStore() {
 			{ query: { scope } },
 		);
 		savedQueries.value = response.items ?? [];
+	}
+
+	async function fetchHistoryEntry(id: string): Promise<HistoryEntry> {
+		return $authFetch<HistoryEntry>(`${QUERY_BASE}/history/${encodeURIComponent(id)}`);
+	}
+
+	async function clearHistory(): Promise<void> {
+		await $authFetch<{ success: boolean }>(`${QUERY_BASE}/history`, { method: "DELETE" });
+		historyItems.value = [];
+		historyTotal.value = 0;
+	}
+
+	async function dryRun(query: Record<string, unknown>): Promise<DryRunResult> {
+		return $authFetch<DryRunResult>(`${QUERY_BASE}/dry-run`, {
+			method: "POST",
+			body: { query },
+		});
 	}
 
 	async function fetchHistory(limit: number, offset: number): Promise<void> {
@@ -109,6 +150,9 @@ export function useQueryStore() {
 		historyTotal,
 		fetchSaved,
 		fetchHistory,
+		fetchHistoryEntry,
+		clearHistory,
+		dryRun,
 		executeQuery,
 		saveQuery,
 		updateSaved,
