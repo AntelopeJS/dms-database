@@ -12,57 +12,18 @@
 				"meta_description": "The one-line notice about writes and what is coming."
 			},
 			"actions": {
-				"schema": "Schema",
-				"openData": "Open Data Browser",
 				"query": "Open query console",
 				"browse": "Browse data"
-			},
-			"health": {
-				"connection": "Connection",
-				"healthy": "Healthy",
-				"down": "Unavailable",
-				"driver": "Driver",
-				"latency": "Latency",
-				"pool": "Pool",
-				"collections": "Collections"
-			},
-			"kpis": {
-				"schemas": "Schemas",
-				"tables": "Tables",
-				"rows": "Total rows",
-				"indexes": "Indexes",
-				"size": "Stored elements"
-			},
-			"storage": {
-				"title": "Storage by table",
-				"subtitle": "Top tables by row count",
-				"viewSchema": "View schema",
-				"rowsUnit": "rows",
-				"empty": "No tables to display."
 			},
 			"recent": {
 				"title": "Recent queries",
 				"console": "Query console",
-				"rowsUnit": "rows",
-				"justNow": "just now",
-				"empty": "No recent queries yet.",
 				"duration": "{duration} ms",
 				"rows": "{count} rows",
 				"changed": "{count} changed",
 				"failed": "Failed",
 				"empty_title": "No query run yet",
 				"empty_description": "Queries you run in the query console show up here."
-			},
-			"tables": {
-				"title": "Tables",
-				"subtitle": "All collections in the active schema",
-				"empty": "No tables match the current filter.",
-				"cols": {
-					"table": "Table",
-					"rows": "Rows",
-					"columns": "Columns",
-					"indexes": "Indexes"
-				}
 			},
 			"connection": {
 				"meta": "Connection status",
@@ -77,7 +38,7 @@
 				"tables": "Tables",
 				"tables_sub": "in {count} schema | in {count} schemas",
 				"rows": "Rows",
-				"rows_sub": "{count} relation | {count} relations",
+				"rows_sub": "in the default instances",
 				"indexes": "Indexes",
 				"indexes_sub": "declared in code",
 				"last_error": "Last error",
@@ -103,15 +64,6 @@
 		"schemas": {
 			"title": "Schemas",
 			"description": "Every table registered by your modules. Open one to inspect its columns, indexes and relations.",
-			"tableCount": "{count} table | {count} tables",
-			"collections": "{count} collection | {count} collections",
-			"selectSchema": "Schema selection",
-			"searchSchemaPlaceholder": "Search a schema…",
-			"open": "Open",
-			"view": {
-				"list": "List",
-				"diagram": "Diagram"
-			},
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
@@ -122,48 +74,9 @@
 				"modifiers": "Modifiers"
 			},
 			"inspector": {
-				"columns": "Columns",
-				"indexes": "Indexes",
-				"preview": "Preview",
-				"close": "Close",
-				"colName": "Column",
-				"colType": "Type",
-				"colNullable": "Nullable",
-				"yes": "Yes",
-				"no": "No",
-				"multi": "multi",
-				"single": "single",
-				"noIndexes": "No indexes defined.",
-				"previewError": "Could not load a sample document.",
-				"previewEmpty": "This table has no rows to preview.",
-				"healthy": "Healthy",
 				"title": "Table",
 				"meta": "Table inspector",
 				"meta_description": "Columns, indexes, relations and a sample row of one table."
-			},
-			"stats": {
-				"tables": "Tables",
-				"elements": "Elements",
-				"instances": "Instances"
-			},
-			"menu": {
-				"browseData": "Browse data",
-				"viewInDiagram": "View in diagram",
-				"copyId": "Copy schema ID",
-				"rename": "Rename",
-				"duplicate": "Duplicate",
-				"export": "Export",
-				"delete": "Delete",
-				"comingSoon": "Coming soon",
-				"copied": "Schema ID copied"
-			},
-			"browseData": "Browse data",
-			"viewDefinition": "View definition",
-			"columns": {
-				"name": "Name",
-				"elementCount": "Elements",
-				"columnCount": "Columns",
-				"indexCount": "Indexes"
 			},
 			"caption": "Tables",
 			"table_meta_description": "Every registered table, by schema, with its inspector.",
@@ -487,9 +400,7 @@
 		},
 		"common": {
 			"retry": "Try again",
-			"copy": "Copy",
-			"cancel": "Cancel",
-			"close": "Close"
+			"cancel": "Cancel"
 		},
 		"modifiers": {
 			"hashed": "Hashed",

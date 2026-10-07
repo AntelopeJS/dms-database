@@ -103,6 +103,55 @@ function inferFieldType(value: unknown): FieldDescriptor | undefined {
   return undefined;
 }
 
+async function sampleRows(
+  schema: Schema,
+  tableName: string,
+  instance?: string,
+): Promise<unknown[]> {
+  try {
+    return (await schema
+      .instance(instance)
+      .table(tableName as never)
+      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)) as unknown[];
+  } catch {
+    return [];
+  }
+}
+
+// The rows to infer a table's columns from: the default instance's, or, when
+// it holds none, the first named instance holding some. A schema whose data
+// lives in named instances (one per region, per tenant) otherwise shows only
+// its decorated columns.
+async function sampleAnyInstance(
+  schema: Schema,
+  tableName: string,
+): Promise<unknown[]> {
+  const rows = await sampleRows(schema, tableName);
+  if (rows.length > 0) return rows;
+  for (const instance of await listSchemaInstances(schema)) {
+    const named = await sampleRows(schema, tableName, instance);
+    if (named.length > 0) return named;
+  }
+  return [];
+}
+
+// The instance a row was read from, which the store adds to rows of named
+// instances: not a column of the table.
+const INSTANCE_TAG_FIELD = "_instance";
+
+function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
+  const inferred: Record<string, FieldDescriptor> = {};
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+      if (key in inferred || key === INSTANCE_TAG_FIELD) continue;
+      const type = inferFieldType(value);
+      if (type !== undefined) inferred[key] = type;
+    }
+  }
+  return inferred;
+}
+
 async function inferTableFields(
   schemaId: string,
   schema: Schema,
@@ -113,26 +162,7 @@ async function inferTableFields(
   const now = Date.now();
   if (cached && cached.expiresAt > now) return cached.value;
 
-  const inferred: Record<string, FieldDescriptor> = {};
-  try {
-    const sample = await schema
-      .instance()
-      .table(tableName as never)
-      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE);
-    for (const row of sample) {
-      if (!row || typeof row !== "object") continue;
-      for (const [key, value] of Object.entries(
-        row as Record<string, unknown>,
-      )) {
-        if (key in inferred) continue;
-        const type = inferFieldType(value);
-        if (type !== undefined) inferred[key] = type;
-      }
-    }
-  } catch {
-    // Inference is best-effort; fall back to empty on any failure.
-  }
-
+  const inferred = inferFromRows(await sampleAnyInstance(schema, tableName));
   fieldsCache.set(cacheKey, {
     value: inferred,
     expiresAt: now + FIELDS_TTL_MS,

@@ -1,7 +1,26 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { Category, RegisterModule } from "@antelopejs/interface-dms/page";
 import { readCatalogReadout } from "./service/catalog";
 
 export const DATABASE_MODULE_ID = "database";
+
+interface PackageManifest {
+  version?: string;
+}
+
+// The release shown on the catalog tile, read from the published manifest.
+function readVersion(): string | undefined {
+  try {
+    const manifest = readFileSync(
+      path.join(__dirname, "../package.json"),
+      "utf8",
+    );
+    return (JSON.parse(manifest) as PackageManifest).version;
+  } catch {
+    return undefined;
+  }
+}
 
 /** Root of the module's sidebar; every page sits in one of its sections. */
 export const databaseModule = RegisterModule({
@@ -10,6 +29,7 @@ export const databaseModule = RegisterModule({
   description: "$dms_database.description",
   icon: "i-ph-database",
   landingPage: "overview",
+  version: readVersion(),
   catalogCategory: "$dms_database.catalog_category",
   // Saved edits write straight to the database while structure editing is
   // still to come: the module says so on its catalog tile too.

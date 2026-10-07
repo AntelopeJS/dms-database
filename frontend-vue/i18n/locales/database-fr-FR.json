@@ -12,57 +12,18 @@
 				"meta_description": "L'avertissement d'une ligne sur les écritures et ce qui arrive."
 			},
 			"actions": {
-				"schema": "Schéma",
-				"openData": "Ouvrir l'explorateur",
 				"query": "Ouvrir la console",
 				"browse": "Parcourir les données"
-			},
-			"health": {
-				"connection": "Connexion",
-				"healthy": "En bonne santé",
-				"down": "Indisponible",
-				"driver": "Pilote",
-				"latency": "Latence",
-				"pool": "Pool",
-				"collections": "Collections"
-			},
-			"kpis": {
-				"schemas": "Schémas",
-				"tables": "Tables",
-				"rows": "Lignes totales",
-				"indexes": "Index",
-				"size": "Éléments stockés"
-			},
-			"storage": {
-				"title": "Stockage par table",
-				"subtitle": "Top des tables par nombre de lignes",
-				"viewSchema": "Voir le schéma",
-				"rowsUnit": "lignes",
-				"empty": "Aucune table à afficher."
 			},
 			"recent": {
 				"title": "Requêtes récentes",
 				"console": "Console de requêtes",
-				"rowsUnit": "lignes",
-				"justNow": "à l'instant",
-				"empty": "Aucune requête récente.",
 				"duration": "{duration} ms",
 				"rows": "{count} lignes",
 				"changed": "{count} modifiées",
 				"failed": "Échec",
 				"empty_title": "Aucune requête lancée",
 				"empty_description": "Les requêtes lancées dans la console apparaissent ici."
-			},
-			"tables": {
-				"title": "Tables",
-				"subtitle": "Toutes les collections du schéma actif",
-				"empty": "Aucune table ne correspond au filtre.",
-				"cols": {
-					"table": "Table",
-					"rows": "Lignes",
-					"columns": "Colonnes",
-					"indexes": "Index"
-				}
 			},
 			"connection": {
 				"meta": "État de la connexion",
@@ -77,7 +38,7 @@
 				"tables": "Tables",
 				"tables_sub": "dans {count} schéma | dans {count} schémas",
 				"rows": "Lignes",
-				"rows_sub": "{count} relation | {count} relations",
+				"rows_sub": "dans les instances par défaut",
 				"indexes": "Index",
 				"indexes_sub": "déclarés dans le code",
 				"last_error": "Dernière erreur",
@@ -103,15 +64,6 @@
 		"schemas": {
 			"title": "Schémas",
 			"description": "Toutes les tables déclarées par vos modules. Ouvrez-en une pour voir ses colonnes, index et relations.",
-			"tableCount": "{count} table | {count} tables",
-			"collections": "{count} collection | {count} collections",
-			"selectSchema": "Sélection du schéma",
-			"searchSchemaPlaceholder": "Rechercher un schéma…",
-			"open": "Ouvrir",
-			"view": {
-				"list": "Liste",
-				"diagram": "Diagramme"
-			},
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
@@ -122,48 +74,9 @@
 				"modifiers": "Modificateurs"
 			},
 			"inspector": {
-				"columns": "Colonnes",
-				"indexes": "Index",
-				"preview": "Aperçu",
-				"close": "Fermer",
-				"colName": "Colonne",
-				"colType": "Type",
-				"colNullable": "Nullable",
-				"yes": "Oui",
-				"no": "Non",
-				"multi": "multi",
-				"single": "simple",
-				"noIndexes": "Aucun index défini.",
-				"previewError": "Impossible de charger un document exemple.",
-				"previewEmpty": "Cette table n'a aucune ligne à prévisualiser.",
-				"healthy": "En bonne santé",
 				"title": "Table",
 				"meta": "Inspecteur de table",
 				"meta_description": "Colonnes, index, relations et ligne exemple d'une table."
-			},
-			"stats": {
-				"tables": "Tables",
-				"elements": "Éléments",
-				"instances": "Instances"
-			},
-			"menu": {
-				"browseData": "Parcourir les données",
-				"viewInDiagram": "Voir dans le diagramme",
-				"copyId": "Copier l'identifiant",
-				"rename": "Renommer",
-				"duplicate": "Dupliquer",
-				"export": "Exporter",
-				"delete": "Supprimer",
-				"comingSoon": "Bientôt disponible",
-				"copied": "Identifiant copié"
-			},
-			"browseData": "Parcourir les données",
-			"viewDefinition": "Voir la définition",
-			"columns": {
-				"name": "Nom",
-				"elementCount": "Éléments",
-				"columnCount": "Colonnes",
-				"indexCount": "Index"
 			},
 			"caption": "Tables",
 			"table_meta_description": "Toutes les tables déclarées, par schéma, avec leur inspecteur.",
@@ -487,9 +400,7 @@
 		},
 		"common": {
 			"retry": "Réessayer",
-			"copy": "Copier",
-			"cancel": "Annuler",
-			"close": "Fermer"
+			"cancel": "Annuler"
 		},
 		"modifiers": {
 			"hashed": "Haché",

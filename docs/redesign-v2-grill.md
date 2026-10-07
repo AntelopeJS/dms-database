@@ -15,8 +15,10 @@ the conclusion.
 
 **Q1. Which packages move, and to which ranges?**
 Every AntelopeJS dependency moves to its latest release line:
-`@antelopejs/interface-dms` `>=0.4.0 <0.5.0` (the DMS caps the interface below
-its next minor, migration guide § Dependencies), `@antelopejs/dms` `>=0.6.0
+`@antelopejs/interface-dms` `>=0.4.0 <1.0.0` (the DMS itself caps the interface
+below its next minor; a module keeps the range wide so every module resolves
+the same copy, which `antelopejs-check-interface-ranges` enforces),
+`@antelopejs/dms` `>=0.6.0
 <0.7.0` (dev and playground), `@antelopejs/dms-frontend` `>=0.5.0 <0.6.0` (dev,
 playground and the layer's `engines`), `@antelopejs/core` `>=1.13.5 <2`,
 `@antelopejs/interface-api` `>=0.0.14`, `@antelopejs/interface-dms-automation`
