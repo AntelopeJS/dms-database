@@ -104,7 +104,7 @@
 				"schema": "Schéma",
 				"instance": "Instance",
 				"whats_this": "Qu'est-ce que c'est ?",
-				"instance_help": "Une instance est une copie à part des tables du schéma, par exemple une par boutique ou par région. Tout lit toutes les instances à la fois, en lecture seule.",
+				"instance_help": "Une instance est une copie à part des tables du schéma, par exemple une par boutique ou par région. « toutes » lit toutes les instances à la fois, en lecture seule.",
 				"default": "défaut",
 				"all": "toutes",
 				"find_table": "Chercher une table",
@@ -450,7 +450,7 @@
 				"none_in": "Aucune table ne pointe vers celle-ci."
 			},
 			"sample": {
-				"position": "Ligne {position} sur {total} · instance par défaut",
+				"position": "Ligne {position} sur {total} · instance {instance}",
 				"another": "Une autre ligne",
 				"error": "Impossible de charger une ligne de cette table.",
 				"empty": "Cette table n'a encore aucune ligne."

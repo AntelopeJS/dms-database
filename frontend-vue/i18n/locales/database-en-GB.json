@@ -104,7 +104,7 @@
 				"schema": "Schema",
 				"instance": "Instance",
 				"whats_this": "What's this?",
-				"instance_help": "An instance is a separate copy of the schema's tables, for example one per storefront or region. All reads every instance at once, read-only.",
+				"instance_help": "An instance is a separate copy of the schema's tables, for example one per storefront or region. “all” reads every instance at once, read-only.",
 				"default": "default",
 				"all": "all",
 				"find_table": "Find a table",
@@ -450,7 +450,7 @@
 				"none_in": "No table points to this one."
 			},
 			"sample": {
-				"position": "Row {position} of {total} · default instance",
+				"position": "Row {position} of {total} · instance {instance}",
 				"another": "Another row",
 				"error": "Couldn't load a row of this table.",
 				"empty": "This table has no row yet."

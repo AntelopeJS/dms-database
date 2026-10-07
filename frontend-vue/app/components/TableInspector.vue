@@ -36,6 +36,9 @@ const props = defineProps<{
 	navigation?: RowNavigation
 }>()
 
+// A link out closes the drawer: the page it opens may be this one.
+const emit = defineEmits<{ success: [] }>()
+
 type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
 
 // Descriptor kinds that admit an empty value on their own.
@@ -174,22 +177,48 @@ const sampleTotal = ref(0)
 const sampleLoading = ref(false)
 const sampleFailed = ref(false)
 
+interface SamplePage {
+	results: Record<string, unknown>[]
+	total: number
+}
+
+// The instance the sample is read from: the default one, or the first named
+// instance holding rows when the default one holds none.
+const sampleInstance = ref<string | null>(null)
+
+function fetchSample(instance: string | null) {
+	const query: Record<string, string | number> = {
+		filter_schema: `is:${schemaId.value}`,
+		filter_table: `is:${tableName.value}`,
+		offset: sampleOffset.value,
+		limit: 1,
+	}
+	if (instance) query.filter_instance = `is:${instance}`
+	return $authFetch<SamplePage>(BROWSE_LIST, { query })
+}
+
+async function firstFilledInstance(): Promise<SamplePage> {
+	const page = await fetchSample(null)
+	if (page.total > 0) return page
+	for (const instance of schema.value?.instances ?? []) {
+		const named = await fetchSample(instance)
+		if (named.total > 0) {
+			sampleInstance.value = instance
+			return named
+		}
+	}
+	return page
+}
+
 async function loadSample() {
 	if (!schemaId.value || !tableName.value) return
 	sampleLoading.value = true
 	sampleFailed.value = false
 	try {
-		const res = await $authFetch<{
-			results: Record<string, unknown>[]
-			total: number
-		}>(BROWSE_LIST, {
-			query: {
-				filter_schema: `is:${schemaId.value}`,
-				filter_table: `is:${tableName.value}`,
-				offset: sampleOffset.value,
-				limit: 1,
-			},
-		})
+		const res =
+			sampleInstance.value === null && sampleOffset.value === 0
+				? await firstFilledInstance()
+				: await fetchSample(sampleInstance.value)
 		sample.value = res.results?.[0] ?? null
 		sampleTotal.value = res.total ?? 0
 	} catch {
@@ -210,9 +239,13 @@ watch(tab, (value) => {
 	if (value === 'sample' && !sample.value && !sampleLoading.value) loadSample()
 })
 
-const sampleJson = computed(() =>
-	sample.value ? JSON.stringify(sample.value, null, 2) : '',
-)
+// The `_instance` tag the store adds to rows of named instances is not a
+// column of the table.
+const sampleJson = computed(() => {
+	if (!sample.value) return ''
+	const { _instance: _tag, ...row } = sample.value
+	return JSON.stringify(row, null, 2)
+})
 
 async function copyName() {
 	await copy(tableName.value)
@@ -279,12 +312,14 @@ async function copyName() {
 			<div class="flex flex-wrap gap-2">
 				<UButton
 					:to="tableLink('data', address)"
+					@click="emit('success')"
 					icon="i-ph-rows"
 					size="sm"
 					:label="t('dms_database.inspector.actions.browse')"
 				/>
 				<UButton
 					:to="tableLink('query', address)"
+					@click="emit('success')"
 					icon="i-ph-code"
 					size="sm"
 					color="neutral"
@@ -293,6 +328,7 @@ async function copyName() {
 				/>
 				<UButton
 					:to="tableLink('diagram', address)"
+					@click="emit('success')"
 					icon="i-ph-graph"
 					size="sm"
 					color="neutral"
@@ -417,6 +453,7 @@ async function copyName() {
 						"
 					/>
 					<DmsAutoLink
+						@click="emit('success')"
 						v-for="relation in outgoing"
 						:key="relation.key"
 						:to="relation.link"
@@ -466,6 +503,8 @@ async function copyName() {
 							t('dms_database.inspector.sample.position', {
 								position: sampleTotal ? sampleOffset + 1 : 0,
 								total: sampleTotal,
+								instance:
+									sampleInstance ?? t('dms_database.data.scope.default'),
 							})
 						"
 					/>

@@ -47,6 +47,9 @@ const props = defineProps<{
 	onReview: () => void
 }>()
 
+// A link out closes the drawer: the page it opens may be this one.
+const emit = defineEmits<{ success: [] }>()
+
 const { t, n } = useI18n()
 const { $authFetch } = useAuthFetch()
 const staged = useStagedEdits()
@@ -365,6 +368,7 @@ onKeyStroke('k', (event) => {
 						{{ errors[field.name] }}
 					</p>
 					<DmsAutoLink
+						@click="emit('success')"
 						v-if="
 							field.relation &&
 							field.value !== null &&
@@ -418,6 +422,7 @@ onKeyStroke('k', (event) => {
 					:title="t('dms_database.data.row.references_none')"
 				/>
 				<DmsAutoLink
+					@click="emit('success')"
 					v-for="reference in references ?? []"
 					:key="`${reference.schema}.${reference.table}.${reference.field}`"
 					:to="
