@@ -1,55 +1,52 @@
-import { rememberTable } from "../build/data/recentTables";
-import { decodeMatch } from "../utils/databaseLinks";
+import { useDataBrowserGrid } from './useDataBrowserGrid'
+import { rememberTable } from '../data/recentTables'
+import { decodeMatch } from '../utils/databaseLinks'
 
 // Shared state for the data-browser tabs: each tab pins a (schema, instance,
 // table) triplet. The active tab is mirrored to the URL query (deep-links) and
 // the whole tab set is persisted to sessionStorage (survives a page refresh,
 // stays per browser tab).
 
-export const DEFAULT_INSTANCE_VALUE = "__DEFAULT__";
-export const CROSS_INSTANCE_VALUE = "__CROSS_INSTANCE__";
+export const DEFAULT_INSTANCE_VALUE = '__DEFAULT__'
+export const CROSS_INSTANCE_VALUE = '__CROSS_INSTANCE__'
 
 export interface BrowserTab {
-	id: string;
-	schema: string;
+	id: string
+	schema: string
 	// DEFAULT_INSTANCE_VALUE, CROSS_INSTANCE_VALUE or a named instance id.
-	instance: string;
-	table: string;
+	instance: string
+	table: string
 	// VS Code-style preview tab: the next openTab reuses it instead of adding
 	// a new tab. At most one per session; pinning (double-click, pin icon,
 	// drag-reorder, editing a cell) clears the flag.
-	preview?: boolean;
+	preview?: boolean
 }
 
-const STORAGE_KEY = "dms-database:data-browser:tabs";
+const STORAGE_KEY = 'dms-database:data-browser:tabs'
 
-function browserTabId(
-	schema: string,
-	instance: string,
-	table: string,
-): string {
-	return `${schema}::${instance}::${table}`;
+function browserTabId(schema: string, instance: string, table: string): string {
+	return `${schema}::${instance}::${table}`
 }
 
 interface PersistedTabs {
-	tabs: BrowserTab[];
-	activeId: string | null;
+	tabs: BrowserTab[]
+	activeId: string | null
 }
 
 function readPersisted(): PersistedTabs | null {
-	if (typeof window === "undefined") return null;
+	if (typeof window === 'undefined') return null
 	try {
-		const raw = window.sessionStorage.getItem(STORAGE_KEY);
-		if (!raw) return null;
-		const parsed = JSON.parse(raw) as PersistedTabs;
-		if (!Array.isArray(parsed.tabs)) return null;
+		const raw = window.sessionStorage.getItem(STORAGE_KEY)
+		if (!raw) return null
+		const parsed = JSON.parse(raw) as PersistedTabs
+		if (!Array.isArray(parsed.tabs)) return null
 		const tabs = parsed.tabs
 			.filter(
 				(tab) =>
 					tab &&
-					typeof tab.schema === "string" &&
-					typeof tab.instance === "string" &&
-					typeof tab.table === "string",
+					typeof tab.schema === 'string' &&
+					typeof tab.instance === 'string' &&
+					typeof tab.table === 'string',
 			)
 			.map((tab) => ({
 				...tab,
@@ -60,49 +57,49 @@ function readPersisted(): PersistedTabs | null {
 			// ids would break the tab bar's v-for keys and closeTab.
 			.filter(
 				(tab, index, all) => all.findIndex((t) => t.id === tab.id) === index,
-			);
+			)
 		// The preview slot is a singleton; a hand-edited payload could carry
 		// several — honour only the first.
-		const firstPreview = tabs.findIndex((tab) => tab.preview);
+		const firstPreview = tabs.findIndex((tab) => tab.preview)
 		for (const [index, tab] of tabs.entries()) {
-			if (index !== firstPreview) tab.preview = false;
+			if (index !== firstPreview) tab.preview = false
 		}
 		const activeId = tabs.some((tab) => tab.id === parsed.activeId)
 			? parsed.activeId
-			: (tabs[0]?.id ?? null);
-		return { tabs, activeId };
+			: (tabs[0]?.id ?? null)
+		return { tabs, activeId }
 	} catch {
-		return null;
+		return null
 	}
 }
 
 export function useDataBrowserTabs() {
-	const tabs = useDmsState<BrowserTab[]>("dms-database-browser-tabs", () => []);
+	const tabs = useDmsState<BrowserTab[]>('dms-database-browser-tabs', () => [])
 	const activeId = useDmsState<string | null>(
-		"dms-database-browser-active",
+		'dms-database-browser-active',
 		() => null,
-	);
-	const route = useDmsRoute();
-	const router = useDmsRouter();
+	)
+	const route = useDmsRoute()
+	const router = useDmsRouter()
 	// Captured at setup so closeTab can drop the closed tab's
 	// grid state itself instead of relying on every caller to remember to.
-	const grid = useDataBrowserGrid();
+	const grid = useDataBrowserGrid()
 
 	const activeTab = computed(
 		() => tabs.value.find((tab) => tab.id === activeId.value) ?? null,
-	);
+	)
 	// When tabs span several schemas the tab bar disambiguates its labels.
 	const hasMultipleSchemas = computed(
 		() => new Set(tabs.value.map((tab) => tab.schema)).size > 1,
-	);
+	)
 
 	function persist() {
-		if (typeof window === "undefined") return;
+		if (typeof window === 'undefined') return
 		try {
 			window.sessionStorage.setItem(
 				STORAGE_KEY,
 				JSON.stringify({ tabs: tabs.value, activeId: activeId.value }),
-			);
+			)
 		} catch {
 			// Quota/private-mode failures only cost tab restoration.
 		}
@@ -111,41 +108,46 @@ export function useDataBrowserTabs() {
 	// The URL carries the ACTIVE tab only (deep-links); per-tab grid state
 	// deliberately stays out of it.
 	function syncUrl() {
-		const tab = activeTab.value;
-		const query = { ...route.query };
-		delete query.schema;
-		delete query.instance;
-		delete query.table;
-		delete query.match;
+		const tab = activeTab.value
+		const query = { ...route.query }
+		delete query.schema
+		delete query.instance
+		delete query.table
+		delete query.match
 		if (tab) {
-			query.schema = tab.schema;
-			query.table = tab.table;
-			if (tab.instance !== DEFAULT_INSTANCE_VALUE) query.instance = tab.instance;
+			query.schema = tab.schema
+			query.table = tab.table
+			if (tab.instance !== DEFAULT_INSTANCE_VALUE) query.instance = tab.instance
 		}
 		if (
 			Object.keys(query).length === Object.keys(route.query).length &&
 			Object.entries(query).every(([key, value]) => route.query[key] === value)
-		) return;
-		router.replace({ query });
+		)
+			return
+		router.replace({ query })
 	}
 
 	function activateTab(id: string) {
-		const tab = tabs.value.find((candidate) => candidate.id === id);
-		if (!tab) return;
-		rememberTable({ schema: tab.schema, instance: tab.instance, table: tab.table });
-		activeId.value = id;
-		syncUrl();
-		persist();
+		const tab = tabs.value.find((candidate) => candidate.id === id)
+		if (!tab) return
+		rememberTable({
+			schema: tab.schema,
+			instance: tab.instance,
+			table: tab.table,
+		})
+		activeId.value = id
+		syncUrl()
+		persist()
 	}
 
 	// Promote a preview tab to a permanent one (double-click, pin icon, drag).
 	function pinTab(id: string) {
-		const tab = tabs.value.find((t) => t.id === id);
-		if (!tab?.preview) return;
+		const tab = tabs.value.find((t) => t.id === id)
+		if (!tab?.preview) return
 		tabs.value = tabs.value.map((t) =>
 			t.id === id ? { ...t, preview: false } : t,
-		);
-		persist();
+		)
+		persist()
 	}
 
 	// Opens as a preview by default (VS Code-style: single-click reuses the
@@ -158,94 +160,100 @@ export function useDataBrowserTabs() {
 		table: string,
 		preview = true,
 	) {
-		const id = browserTabId(schema, instance, table);
-		const existing = tabs.value.find((tab) => tab.id === id);
+		const id = browserTabId(schema, instance, table)
+		const existing = tabs.value.find((tab) => tab.id === id)
 		if (existing) {
-			if (!preview) pinTab(id);
-			activateTab(id);
-			return;
+			if (!preview) pinTab(id)
+			activateTab(id)
+			return
 		}
-		const tab: BrowserTab = { id, schema, instance, table, preview };
-		const previewIndex = tabs.value.findIndex((t) => t.preview);
+		const tab: BrowserTab = { id, schema, instance, table, preview }
+		const previewIndex = tabs.value.findIndex((t) => t.preview)
 		if (preview && previewIndex >= 0) {
 			// Reuse the preview slot in place: swap its content, drop the replaced
 			// tab's grid state (its id dies with it).
-			const replaced = tabs.value[previewIndex]!;
-			const next = [...tabs.value];
-			next[previewIndex] = tab;
-			tabs.value = next;
-			grid.drop(replaced.id);
+			const replaced = tabs.value[previewIndex]!
+			const next = [...tabs.value]
+			next[previewIndex] = tab
+			tabs.value = next
+			grid.drop(replaced.id)
 		} else {
-			tabs.value = [...tabs.value, tab];
+			tabs.value = [...tabs.value, tab]
 		}
-		activateTab(id);
+		activateTab(id)
 	}
 
 	function closeTab(id: string) {
-		const index = tabs.value.findIndex((tab) => tab.id === id);
-		if (index < 0) return;
-		const next = tabs.value.filter((tab) => tab.id !== id);
-		tabs.value = next;
+		const index = tabs.value.findIndex((tab) => tab.id === id)
+		if (index < 0) return
+		const next = tabs.value.filter((tab) => tab.id !== id)
+		tabs.value = next
 		if (activeId.value === id) {
 			// Right neighbour first, then left — mirrors browser tab behaviour.
-			activeId.value = (next[index] ?? next[index - 1])?.id ?? null;
+			activeId.value = (next[index] ?? next[index - 1])?.id ?? null
 		}
 		// The closed tab's grid state and cached rows go with it — otherwise they
 		// leak for the rest of the session.
-		grid.drop(id);
-		syncUrl();
-		persist();
+		grid.drop(id)
+		syncUrl()
+		persist()
 	}
 
 	// Reorder (drag & drop): move the dragged tab to the target tab's position.
 	// Pure reorder — pin-on-drag is a gesture policy and lives at the drop site
 	// (the tab bar's onDrop), not in this primitive.
 	function moveTab(draggedId: string, targetId: string) {
-		if (draggedId === targetId) return;
-		const next = [...tabs.value];
-		const from = next.findIndex((tab) => tab.id === draggedId);
-		const to = next.findIndex((tab) => tab.id === targetId);
-		if (from < 0 || to < 0) return;
-		const [moved] = next.splice(from, 1);
-		if (!moved) return;
-		next.splice(to, 0, moved);
-		tabs.value = next;
-		persist();
+		if (draggedId === targetId) return
+		const next = [...tabs.value]
+		const from = next.findIndex((tab) => tab.id === draggedId)
+		const to = next.findIndex((tab) => tab.id === targetId)
+		if (from < 0 || to < 0) return
+		const [moved] = next.splice(from, 1)
+		if (!moved) return
+		next.splice(to, 0, moved)
+		tabs.value = next
+		persist()
 	}
 
 	// Opens the table the URL names (overview links, the inspector's "Browse
 	// data", relation links, shared URLs): permanently, since the preview
 	// slot is for casual browsing from the list.
 	function openFromRoute() {
-		const schema = route.query.schema;
-		const table = route.query.table;
-		if (typeof schema !== "string" || !schema || typeof table !== "string" || !table) return false;
+		const schema = route.query.schema
+		const table = route.query.table
+		if (
+			typeof schema !== 'string' ||
+			!schema ||
+			typeof table !== 'string' ||
+			!table
+		)
+			return false
 		const instance =
-			typeof route.query.instance === "string" && route.query.instance
+			typeof route.query.instance === 'string' && route.query.instance
 				? route.query.instance
-				: DEFAULT_INSTANCE_VALUE;
+				: DEFAULT_INSTANCE_VALUE
 		// A link to one row (a relation, a reference) opens the table filtered
 		// on it; the filter shows as a chip the user removes.
-		const match = decodeMatch(route.query.match);
+		const match = decodeMatch(route.query.match)
 		if (match) {
-			const state = grid.getState(browserTabId(schema, instance, table));
-			state.filters = { [match.field]: { mode: "is", value: match.value } };
-			state.page = 0;
+			const state = grid.getState(browserTabId(schema, instance, table))
+			state.filters = { [match.field]: { mode: 'is', value: match.value } }
+			state.page = 0
 		}
-		openTab(schema, instance, table, false);
-		return true;
+		openTab(schema, instance, table, false)
+		return true
 	}
 
 	// Restore persisted tabs, then let the URL win for the active selection.
 	// Call once, from the page's onMounted.
 	function restore() {
-		const persisted = readPersisted();
+		const persisted = readPersisted()
 		if (persisted) {
-			tabs.value = persisted.tabs;
-			activeId.value = persisted.activeId;
+			tabs.value = persisted.tabs
+			activeId.value = persisted.activeId
 		}
 		// A schema-only link (?schema=X) is the sidebar's to honour.
-		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl();
+		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}
 
 	return {
@@ -260,5 +268,5 @@ export function useDataBrowserTabs() {
 		moveTab,
 		restore,
 		openFromRoute,
-	};
+	}
 }

@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import type { NoteNodeData } from "../build/diagram/graph";
+import type { NoteNodeData } from '../build/diagram/graph'
 
 // A sticky note on the diagram: double-click to write, saved with the layout.
-const props = defineProps<{ data: NoteNodeData; selected?: boolean }>();
+const props = defineProps<{ data: NoteNodeData; selected?: boolean }>()
 
-const editing = ref(false);
-const textBuffer = ref(props.data.text);
+const editing = ref(false)
+const textBuffer = ref(props.data.text)
 
 watch(
 	() => props.data.text,
 	(value) => {
-		if (!editing.value) textBuffer.value = value;
+		if (!editing.value) textBuffer.value = value
 	},
-);
+)
 
 function commitText() {
-	editing.value = false;
+	editing.value = false
 	if (textBuffer.value !== props.data.text) {
-		props.data.onTextChange(props.data.noteId, textBuffer.value);
+		props.data.onTextChange(props.data.noteId, textBuffer.value)
 	}
 }
 </script>
@@ -29,10 +29,14 @@ function commitText() {
 		:style="{ width: `${data.width}px`, height: `${data.height}px` }"
 		@dblclick="editing = true"
 	>
-		<div class="text-warning flex h-7 shrink-0 cursor-grab items-center gap-1.5 px-3">
+		<div
+			class="text-warning flex h-7 shrink-0 cursor-grab items-center gap-1.5 px-3"
+		>
 			<UIcon name="i-ph-note-pencil" class="size-3.5" />
-			<span class="font-mono text-[10px] font-semibold tracking-[0.12em] uppercase">
-				{{ $t("dms_database.diagram.notes.label") }}
+			<span
+				class="font-mono text-[10px] font-semibold uppercase tracking-[0.12em]"
+			>
+				{{ $t('dms_database.diagram.notes.label') }}
 			</span>
 			<button
 				v-if="selected"
@@ -56,10 +60,10 @@ function commitText() {
 		/>
 		<div
 			v-else
-			class="w-full flex-1 cursor-text overflow-auto px-3 pb-3 text-[12.5px] leading-normal break-words whitespace-pre-wrap"
+			class="w-full flex-1 cursor-text overflow-auto whitespace-pre-wrap break-words px-3 pb-3 text-[12.5px] leading-normal"
 			:class="data.text ? '' : 'text-dimmed'"
 		>
-			{{ data.text || $t("dms_database.diagram.notes.placeholder") }}
+			{{ data.text || $t('dms_database.diagram.notes.placeholder') }}
 		</div>
 	</div>
 </template>

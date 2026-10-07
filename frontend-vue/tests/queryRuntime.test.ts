@@ -1,6 +1,6 @@
 import { expect, it } from 'vitest'
-import type { SchemaSummary } from '../app/composables/useDatabaseSchemas'
-import { prepareQueryPayload } from '../app/composables/useQueryRuntime'
+import type { SchemaSummary } from '../app/build/composables/useDatabaseSchemas'
+import { prepareQueryPayload } from '../app/build/composables/useQueryRuntime'
 
 const schema: SchemaSummary = {
 	id: 'parity',

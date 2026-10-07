@@ -5,48 +5,48 @@ import {
 	type CompletionContext,
 	type CompletionResult,
 	completionKeymap,
-} from "@codemirror/autocomplete";
+} from '@codemirror/autocomplete'
 import {
 	defaultKeymap,
 	history,
 	historyKeymap,
 	indentWithTab,
-} from "@codemirror/commands";
-import { javascript } from "@codemirror/lang-javascript";
+} from '@codemirror/commands'
+import { javascript } from '@codemirror/lang-javascript'
 import {
 	bracketMatching,
 	defaultHighlightStyle,
 	indentOnInput,
 	syntaxHighlighting,
-} from "@codemirror/language";
-import { Compartment, EditorState } from "@codemirror/state";
-import { oneDark } from "@codemirror/theme-one-dark";
+} from '@codemirror/language'
+import { Compartment, EditorState } from '@codemirror/state'
+import { oneDark } from '@codemirror/theme-one-dark'
 import {
 	EditorView,
 	keymap,
 	lineNumbers,
 	placeholder as cmPlaceholder,
-} from "@codemirror/view";
-import { useColorMode } from "@vueuse/core";
-import type { SchemaSummary } from "../composables/useDatabaseSchemas";
-import { tableAccess } from "../utils/databaseLinks";
+} from '@codemirror/view'
+import { useColorMode } from '@vueuse/core'
+import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
+import { tableAccess } from '../build/utils/databaseLinks'
 
 // The query editor (D-12): AQL with completion of the workspace's own
 // schemas, tables (with their row counts) and columns, snippets to insert at
 // the cursor, and the cursor position.
 
 interface Props {
-	modelValue: string;
-	executing?: boolean;
+	modelValue: string
+	executing?: boolean
 	// Drives the schema-aware autocomplete (table/field names + the query DSL).
-	schemas?: SchemaSummary[];
+	schemas?: SchemaSummary[]
 	/** Rows per table, keyed `schema.table`, shown next to table completions. */
-	tableCounts?: Record<string, number>;
+	tableCounts?: Record<string, number>
 	/** The saved query open in the editor, if any. */
-	savedName?: string;
-	savedShared?: boolean;
+	savedName?: string
+	savedShared?: boolean
 	/** Whether the editor differs from the saved query it opened. */
-	edited?: boolean;
+	edited?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -56,59 +56,59 @@ const props = withDefaults(defineProps<Props>(), {
 	savedName: undefined,
 	savedShared: false,
 	edited: false,
-});
+})
 
 const emit = defineEmits<{
-	"update:modelValue": [value: string];
-	execute: [];
-	save: [];
-	new: [];
-}>();
+	'update:modelValue': [value: string]
+	execute: []
+	save: []
+	new: []
+}>()
 
-const { t, n } = useI18n();
+const { t, n } = useI18n()
 
 const internalValue = computed<string>({
 	get: () => props.modelValue,
-	set: (value) => emit("update:modelValue", value),
-});
+	set: (value) => emit('update:modelValue', value),
+})
 
 // The placeholder starts from a table of the workspace, not a made-up one.
 const placeholderExample = computed(() => {
-	const schema = props.schemas.find((candidate) => candidate.tables.length > 0);
-	const table = schema?.tables[0]?.name;
+	const schema = props.schemas.find((candidate) => candidate.tables.length > 0)
+	const table = schema?.tables[0]?.name
 	return schema && table
 		? `${tableAccess({ schema: schema.id, table })}.slice(0, 10)`
-		: "schemas.<schema>.instance().table(\"<table>\").slice(0, 10)";
-});
+		: 'schemas.<schema>.instance().table("<table>").slice(0, 10)'
+})
 
 interface Snippet {
-	label: string;
-	insert: string;
+	label: string
+	insert: string
 }
 
 const SNIPPETS: Snippet[] = [
-	{ label: "table()", insert: '.table("")' },
-	{ label: "filter()", insert: '.filter((row) => row.key("").eq(""))' },
-	{ label: "orderBy()", insert: '.orderBy("", "desc")' },
-	{ label: "slice()", insert: ".slice(0, 50)" },
-	{ label: "count()", insert: ".count()" },
-	{ label: "get(id)", insert: '.get("")' },
-];
+	{ label: 'table()', insert: '.table("")' },
+	{ label: 'filter()', insert: '.filter((row) => row.key("").eq(""))' },
+	{ label: 'orderBy()', insert: '.orderBy("", "desc")' },
+	{ label: 'slice()', insert: '.slice(0, 50)' },
+	{ label: 'count()', insert: '.count()' },
+	{ label: 'get(id)', insert: '.get("")' },
+]
 
-const cursor = ref({ line: 1, column: 1 });
+const cursor = ref({ line: 1, column: 1 })
 
 function canExecute(): boolean {
-	return Boolean(internalValue.value.trim()) && !props.executing;
+	return Boolean(internalValue.value.trim()) && !props.executing
 }
 
 // Light tidy: strip trailing whitespace and surrounding blank lines.
 function runFormat() {
 	internalValue.value = internalValue.value
-		.split("\n")
-		.map((line) => line.replace(/\s+$/, ""))
-		.join("\n")
-		.replace(/^\n+/, "")
-		.replace(/\n+$/, "");
+		.split('\n')
+		.map((line) => line.replace(/\s+$/, ''))
+		.join('\n')
+		.replace(/^\n+/, '')
+		.replace(/\n+$/, '')
 }
 
 // --- autocomplete -----------------------------------------------------------
@@ -116,34 +116,34 @@ function runFormat() {
 // completions are offered by position in that chain rather than as one flat list.
 // Schema also exposes createInstance/destroyInstance/listInstances, but only
 // instance(id?) continues the browse chain, so it is the only one offered.
-const SCHEMA_METHODS = ["instance"];
-const INSTANCE_METHODS = ["table"]; // a SchemaInstance only exposes table(name)
+const SCHEMA_METHODS = ['instance']
+const INSTANCE_METHODS = ['table'] // a SchemaInstance only exposes table(name)
 const QUERY_METHODS = [
-	"slice",
-	"orderBy",
-	"filter",
-	"map",
-	"pluck",
-	"get",
-	"getAll",
-	"between",
-	"count",
-	"limit",
-	"insert",
-	"update",
-	"replace",
-	"delete",
-	"do",
-	"default",
-	"key",
-	"lookup",
-	"changes",
-];
+	'slice',
+	'orderBy',
+	'filter',
+	'map',
+	'pluck',
+	'get',
+	'getAll',
+	'between',
+	'count',
+	'limit',
+	'insert',
+	'update',
+	'replace',
+	'delete',
+	'do',
+	'default',
+	'key',
+	'lookup',
+	'changes',
+]
 
 interface CompletionItem {
-	label: string;
-	type: string;
-	detail?: string;
+	label: string
+	type: string
+	detail?: string
 	// What is actually inserted, when it differs from the label: a string (e.g.
 	// auto-quoting a table name) or a function (e.g. rewriting `schemas.<id>` to
 	// bracket form for ids that aren't valid identifiers).
@@ -154,46 +154,50 @@ interface CompletionItem {
 				completion: Completion,
 				from: number,
 				to: number,
-		  ) => void);
+		  ) => void)
 }
 
 const opt = (label: string, type: string, detail?: string): CompletionItem => ({
 	label,
 	type,
 	detail,
-});
+})
 
 // Schema-derived names, indexed per schema so completions can be scoped to the
 // schema in the current chain. Rebuilt whenever the live schema list changes; the
 // completion source reads `.value` lazily, so no editor reconfigure is needed.
 const completionData = computed(() => {
-	const schemaIds: string[] = [];
-	const tablesBySchema: Record<string, string[]> = {};
-	const fieldsBySchema: Record<string, string[]> = {};
-	const instancesBySchema: Record<string, string[]> = {};
-	const allTables = new Set<string>();
-	const allFields = new Set<string>();
-	const counts = props.tableCounts;
-	const tableDetails: Record<string, string> = {};
+	const schemaIds: string[] = []
+	const tablesBySchema: Record<string, string[]> = {}
+	const fieldsBySchema: Record<string, string[]> = {}
+	const instancesBySchema: Record<string, string[]> = {}
+	const allTables = new Set<string>()
+	const allFields = new Set<string>()
+	const counts = props.tableCounts
+	const tableDetails: Record<string, string> = {}
 	for (const schema of props.schemas ?? []) {
-		schemaIds.push(schema.id);
-		instancesBySchema[schema.id] = schema.instances ?? [];
-		const tables: string[] = [];
-		const fields = new Set<string>();
+		schemaIds.push(schema.id)
+		instancesBySchema[schema.id] = schema.instances ?? []
+		const tables: string[] = []
+		const fields = new Set<string>()
 		for (const table of schema.tables ?? []) {
-			tables.push(table.name);
-			allTables.add(table.name);
-			const count = counts[`${schema.id}.${table.name}`];
+			tables.push(table.name)
+			allTables.add(table.name)
+			const count = counts[`${schema.id}.${table.name}`]
 			if (count !== undefined) {
-				tableDetails[`${schema.id}.${table.name}`] = t("dms_database.query.editor.table_rows", { count: n(count) }, count);
+				tableDetails[`${schema.id}.${table.name}`] = t(
+					'dms_database.query.editor.table_rows',
+					{ count: n(count) },
+					count,
+				)
 			}
 			for (const field of Object.keys(table.fields ?? {})) {
-				fields.add(field);
-				allFields.add(field);
+				fields.add(field)
+				allFields.add(field)
 			}
 		}
-		tablesBySchema[schema.id] = tables;
-		fieldsBySchema[schema.id] = [...fields];
+		tablesBySchema[schema.id] = tables
+		fieldsBySchema[schema.id] = [...fields]
 	}
 	return {
 		schemaIds,
@@ -203,23 +207,19 @@ const completionData = computed(() => {
 		allTables: [...allTables],
 		allFields: [...allFields],
 		tableDetails,
-	};
-});
+	}
+})
 
 // `schemas.demo` (dot) or `schemas["dms-core"]` (bracket — required for ids that
 // aren't valid JS identifiers). Used to scope table/field/instance completions.
 function currentSchemaId(before: string): string | null {
 	const re =
-		/schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])/g;
-	let last: string | null = null;
-	for (
-		let match = re.exec(before);
-		match !== null;
-		match = re.exec(before)
-	) {
-		last = match[1] ?? match[2] ?? null;
+		/schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])/g
+	let last: string | null = null
+	for (let match = re.exec(before); match !== null; match = re.exec(before)) {
+		last = match[1] ?? match[2] ?? null
 	}
-	return last;
+	return last
 }
 
 function listFor(
@@ -227,95 +227,95 @@ function listFor(
 	schemaId: string | null,
 	fallback: string[],
 ): string[] {
-	return (schemaId && map[schemaId]) || fallback;
+	return (schemaId && map[schemaId]) || fallback
 }
 
 function completionSource(ctx: CompletionContext): CompletionResult | null {
-	const data = completionData.value;
+	const data = completionData.value
 	// A bounded look-behind window covers multi-line chains without scanning the
 	// whole document on every keystroke.
-	const before = ctx.state.sliceDoc(Math.max(0, ctx.pos - 240), ctx.pos);
+	const before = ctx.state.sliceDoc(Math.max(0, ctx.pos - 240), ctx.pos)
 
 	// `instance(<id>)` argument → that schema's instance ids (+ CROSS_INSTANCE).
 	// Acts as parameter help: it surfaces what instance() accepts. Quote-aware.
 	const inInstance =
 		/(?:^|[^\w$.])schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])\s*\.\s*instance\(\s*(["'`])?([\w$-]*)$/.exec(
 			before,
-		);
+		)
 	if (inInstance) {
-		const schemaId = inInstance[1] ?? inInstance[2] ?? "";
-		const quote = inInstance[3];
-		const typed = inInstance[4] ?? "";
+		const schemaId = inInstance[1] ?? inInstance[2] ?? ''
+		const quote = inInstance[3]
+		const typed = inInstance[4] ?? ''
 		const options: CompletionItem[] = (
 			data.instancesBySchema[schemaId] ?? []
 		).map((id) => ({
 			label: id,
-			type: "enum",
-			detail: "instance id",
+			type: 'enum',
+			detail: 'instance id',
 			apply: quote ? id : `"${id}"`,
-		}));
+		}))
 		// CROSS_INSTANCE is a bare identifier, so only when not inside a quote.
 		if (!quote) {
 			options.push({
-				label: "CROSS_INSTANCE",
-				type: "constant",
-				detail: "all instances (read-only)",
-			});
+				label: 'CROSS_INSTANCE',
+				type: 'constant',
+				detail: 'all instances (read-only)',
+			})
 		}
-		if (!options.length) return null;
-		return { from: ctx.pos - typed.length, validFor: /[\w$-]*/, options };
+		if (!options.length) return null
+		return { from: ctx.pos - typed.length, validFor: /[\w$-]*/, options }
 	}
 	// Schema id inside bracket access: `schemas["…`.
-	const inSchemaBracket = /schemas\s*\[\s*["'`]([\w$-]*)$/.exec(before);
+	const inSchemaBracket = /schemas\s*\[\s*["'`]([\w$-]*)$/.exec(before)
 	if (inSchemaBracket) {
-		const typed = inSchemaBracket[1] ?? "";
+		const typed = inSchemaBracket[1] ?? ''
 		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$-]*/,
-			options: data.schemaIds.map((id) => opt(id, "namespace", "schema")),
-		};
+			options: data.schemaIds.map((id) => opt(id, 'namespace', 'schema')),
+		}
 	}
 	// `table(<name>)` argument → that schema's table names. Quote-aware.
-	const inTable = /\.table\(\s*(["'`])?([\w$-]*)$/.exec(before);
+	const inTable = /\.table\(\s*(["'`])?([\w$-]*)$/.exec(before)
 	if (inTable) {
-		const quote = inTable[1];
-		const typed = inTable[2] ?? "";
-		const schemaId = currentSchemaId(before);
-		const tables = listFor(data.tablesBySchema, schemaId, data.allTables);
+		const quote = inTable[1]
+		const typed = inTable[2] ?? ''
+		const schemaId = currentSchemaId(before)
+		const tables = listFor(data.tablesBySchema, schemaId, data.allTables)
 		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$-]*/,
 			options: tables.map((name) => ({
 				label: name,
-				type: "class",
-				detail: data.tableDetails[`${schemaId}.${name}`] ?? "table",
+				type: 'class',
+				detail: data.tableDetails[`${schemaId}.${name}`] ?? 'table',
 				apply: quote ? name : `"${name}"`,
 			})),
-		};
+		}
 	}
 	// Quoted field name inside a field selector (`pluck` / `orderBy` / `key`).
-	const inField = /\.(?:pluck|orderBy|key)\([^)]*["'`]([\w$]*)$/.exec(before);
+	const inField = /\.(?:pluck|orderBy|key)\([^)]*["'`]([\w$]*)$/.exec(before)
 	if (inField) {
-		const typed = inField[1] ?? "";
+		const typed = inField[1] ?? ''
 		const fields = listFor(
 			data.fieldsBySchema,
 			currentSchemaId(before),
 			data.allFields,
-		);
+		)
 		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$]*/,
-			options: fields.map((name) => opt(name, "property", "field")),
-		};
+			options: fields.map((name) => opt(name, 'property', 'field')),
+		}
 	}
 
 	// Member access / bare identifier.
-	const typed = before.match(/[\w$]*$/)?.[0] ?? "";
-	const upto = before.slice(0, before.length - typed.length);
-	const from = ctx.pos - typed.length;
+	const typed = before.match(/[\w$]*$/)?.[0] ?? ''
+	const upto = before.slice(0, before.length - typed.length)
+	const from = ctx.pos - typed.length
 
-	if (upto.endsWith(".")) {
-		const chain = upto.slice(0, -1).trimEnd();
+	if (upto.endsWith('.')) {
+		const chain = upto.slice(0, -1).trimEnd()
 		if (/(?:^|[^\w$.])schemas$/.test(chain)) {
 			// `schemas.` → schema ids. Ids that aren't valid identifiers rewrite the
 			// dot to bracket form (`schemas["dms-core"]`).
@@ -324,12 +324,12 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 				validFor: /[\w$]*/,
 				options: data.schemaIds.map((id) => {
 					if (/^[A-Z_$][\w$]*$/i.test(id)) {
-						return opt(id, "namespace", "schema");
+						return opt(id, 'namespace', 'schema')
 					}
 					return {
 						label: id,
-						type: "namespace",
-						detail: "schema",
+						type: 'namespace',
+						detail: 'schema',
 						apply: (view, _completion, fromPos, toPos) =>
 							view.dispatch({
 								changes: {
@@ -338,9 +338,9 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 									insert: `[${JSON.stringify(id)}]`,
 								},
 							}),
-					};
+					}
 				}),
-			};
+			}
 		}
 		if (
 			/(?:^|[^\w$.])schemas\s*(?:\.\s*[A-Za-z_$][\w$]*|\[\s*["'`][\w$-]+["'`]\s*\])$/.test(
@@ -351,54 +351,58 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 			return {
 				from,
 				validFor: /[\w$]*/,
-				options: SCHEMA_METHODS.map((m) => opt(m, "method", "Schema")),
-			};
+				options: SCHEMA_METHODS.map((m) => opt(m, 'method', 'Schema')),
+			}
 		}
-		if (chain.endsWith(")")) {
+		if (chain.endsWith(')')) {
 			// A completed call → its result's methods.
 			const options = /\binstance\s*\([^()]*\)$/.test(chain)
-				? INSTANCE_METHODS.map((m) => opt(m, "method", "SchemaInstance"))
-				: QUERY_METHODS.map((m) => opt(m, "method", "Query"));
-			return { from, validFor: /[\w$]*/, options };
+				? INSTANCE_METHODS.map((m) => opt(m, 'method', 'SchemaInstance'))
+				: QUERY_METHODS.map((m) => opt(m, 'method', 'Query'))
+			return { from, validFor: /[\w$]*/, options }
 		}
 		// A `.` after a bare, uncalled method (e.g. `…instance.`) is not a DSL step.
-		return null;
+		return null
 	}
 
 	// Top level: the entry point only.
-	if (!typed && !ctx.explicit) return null;
-	return { from, validFor: /[\w$]*/, options: [opt("schemas", "variable", "root")] };
+	if (!typed && !ctx.explicit) return null
+	return {
+		from,
+		validFor: /[\w$]*/,
+		options: [opt('schemas', 'variable', 'root')],
+	}
 }
 
 // --- editor -----------------------------------------------------------------
-const editorContainer = ref<HTMLElement | null>(null);
-let view: EditorView | null = null;
-const themeCompartment = new Compartment();
-const placeholderCompartment = new Compartment();
-const colorMode = useColorMode();
+const editorContainer = ref<HTMLElement | null>(null)
+let view: EditorView | null = null
+const themeCompartment = new Compartment()
+const placeholderCompartment = new Compartment()
+const colorMode = useColorMode()
 
 // Transparent surfaces so the editor blends into the DmsCard (bg-default).
 const baseTheme = EditorView.theme({
-	"&": { backgroundColor: "transparent", height: "100%", fontSize: "13px" },
-	"&.cm-focused": { outline: "none" },
-	".cm-scroller": {
+	'&': { backgroundColor: 'transparent', height: '100%', fontSize: '13px' },
+	'&.cm-focused': { outline: 'none' },
+	'.cm-scroller': {
 		fontFamily:
 			"ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace",
-		lineHeight: "1.6",
+		lineHeight: '1.6',
 	},
-	".cm-content": { padding: "12px 0" },
-	".cm-gutters": { backgroundColor: "transparent", border: "none" },
-	".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "transparent" },
-});
+	'.cm-content': { padding: '12px 0' },
+	'.cm-gutters': { backgroundColor: 'transparent', border: 'none' },
+	'.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'transparent' },
+})
 
 function themeExtension() {
-	return colorMode.value === "dark"
+	return colorMode.value === 'dark'
 		? oneDark
-		: syntaxHighlighting(defaultHighlightStyle, { fallback: true });
+		: syntaxHighlighting(defaultHighlightStyle, { fallback: true })
 }
 
 onMounted(() => {
-	if (!editorContainer.value) return;
+	if (!editorContainer.value) return
 	const state = EditorState.create({
 		doc: internalValue.value,
 		extensions: [
@@ -412,19 +416,19 @@ onMounted(() => {
 			EditorView.lineWrapping,
 			keymap.of([
 				{
-					key: "Mod-Enter",
+					key: 'Mod-Enter',
 					preventDefault: true,
 					run: () => {
-						if (canExecute()) emit("execute");
-						return true;
+						if (canExecute()) emit('execute')
+						return true
 					},
 				},
 				{
-					key: "Mod-s",
+					key: 'Mod-s',
 					preventDefault: true,
 					run: () => {
-						if (internalValue.value.trim()) emit("save");
-						return true;
+						if (internalValue.value.trim()) emit('save')
+						return true
 					},
 				},
 				indentWithTab,
@@ -436,18 +440,18 @@ onMounted(() => {
 			baseTheme,
 			EditorView.updateListener.of((update) => {
 				if (update.selectionSet || update.docChanged) {
-					const head = update.state.selection.main.head;
-					const line = update.state.doc.lineAt(head);
-					cursor.value = { line: line.number, column: head - line.from + 1 };
+					const head = update.state.selection.main.head
+					const line = update.state.doc.lineAt(head)
+					cursor.value = { line: line.number, column: head - line.from + 1 }
 				}
-				if (!update.docChanged) return;
-				const text = update.state.doc.toString();
-				if (text !== props.modelValue) emit("update:modelValue", text);
+				if (!update.docChanged) return
+				const text = update.state.doc.toString()
+				if (text !== props.modelValue) emit('update:modelValue', text)
 			}),
 		],
-	});
-	view = new EditorView({ state, parent: editorContainer.value });
-});
+	})
+	view = new EditorView({ state, parent: editorContainer.value })
+})
 
 // External edits (history load, format, clear) → push into the editor.
 watch(
@@ -456,14 +460,16 @@ watch(
 		if (view && value !== view.state.doc.toString()) {
 			view.dispatch({
 				changes: { from: 0, to: view.state.doc.length, insert: value },
-			});
+			})
 		}
 	},
-);
+)
 
 watch(placeholderExample, (example) => {
-	view?.dispatch({ effects: placeholderCompartment.reconfigure(cmPlaceholder(example)) });
-});
+	view?.dispatch({
+		effects: placeholderCompartment.reconfigure(cmPlaceholder(example)),
+	})
+})
 
 // Swap the syntax theme when the app toggles light/dark.
 watch(
@@ -471,43 +477,52 @@ watch(
 	() => {
 		view?.dispatch({
 			effects: themeCompartment.reconfigure(themeExtension()),
-		});
+		})
 	},
-);
+)
 
 onBeforeUnmount(() => {
-	view?.destroy();
-	view = null;
-});
+	view?.destroy()
+	view = null
+})
 
 // Inserts a snippet at the cursor, the cursor landing inside its first quotes.
 function insertSnippet(snippet: Snippet) {
-	if (!view) return;
-	const { from, to } = view.state.selection.main;
-	const quote = snippet.insert.indexOf('""');
-	const anchor = from + (quote >= 0 ? quote + 1 : snippet.insert.length);
+	if (!view) return
+	const { from, to } = view.state.selection.main
+	const quote = snippet.insert.indexOf('""')
+	const anchor = from + (quote >= 0 ? quote + 1 : snippet.insert.length)
 	view.dispatch({
 		changes: { from, to, insert: snippet.insert },
 		selection: { anchor },
-	});
-	view.focus();
+	})
+	view.focus()
 }
 
-defineExpose({ focus: () => view?.focus() });
+defineExpose({ focus: () => view?.focus() })
 </script>
 
 <template>
 	<DmsCard :padded="false" class="overflow-hidden">
-		<div class="border-default flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5">
-			<span v-if="savedName" class="text-highlighted flex min-w-0 items-center gap-1.5 text-sm font-medium">
+		<div
+			class="border-default flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5"
+		>
+			<span
+				v-if="savedName"
+				class="text-highlighted flex min-w-0 items-center gap-1.5 text-sm font-medium"
+			>
 				<UIcon name="i-ph-star-fill" class="text-warning size-4 shrink-0" />
 				<span class="truncate">{{ savedName }}</span>
 				<UBadge v-if="savedShared" color="neutral" variant="outline" size="sm">
-					{{ t("dms_database.query.editor.shared") }}
+					{{ t('dms_database.query.editor.shared') }}
 				</UBadge>
-				<span v-if="edited" class="text-dimmed text-xs font-normal">· {{ t("dms_database.query.editor.edited") }}</span>
+				<span v-if="edited" class="text-dimmed text-xs font-normal">
+					· {{ t('dms_database.query.editor.edited') }}
+				</span>
 			</span>
-			<span v-else class="text-muted text-sm">{{ t("dms_database.query.editor.untitled") }}</span>
+			<span v-else class="text-muted text-sm">
+				{{ t('dms_database.query.editor.untitled') }}
+			</span>
 			<span class="flex-1" />
 			<UTooltip :text="t('dms_database.query.editor.new_hint')">
 				<UButton
@@ -536,8 +551,9 @@ defineExpose({ focus: () => view?.focus() });
 				:disabled="!internalValue.trim()"
 				@click="emit('save')"
 			>
-				{{ t("dms_database.query.editor.save") }}
-				<UKbd value="meta" size="sm" class="ml-1" /><UKbd value="s" size="sm" />
+				{{ t('dms_database.query.editor.save') }}
+				<UKbd value="meta" size="sm" class="ml-1" />
+				<UKbd value="s" size="sm" />
 			</UButton>
 			<UButton
 				size="sm"
@@ -546,15 +562,21 @@ defineExpose({ focus: () => view?.focus() });
 				:disabled="!internalValue.trim() || executing"
 				@click="emit('execute')"
 			>
-				{{ t("dms_database.query.editor.run") }}
-				<UKbd value="meta" size="sm" class="ml-1" /><UKbd value="enter" size="sm" />
+				{{ t('dms_database.query.editor.run') }}
+				<UKbd value="meta" size="sm" class="ml-1" />
+				<UKbd value="enter" size="sm" />
 			</UButton>
 		</div>
 
 		<!-- CodeMirror mounts here on the client. -->
-		<div ref="editorContainer" class="bg-default text-toned h-60 overflow-auto" />
+		<div
+			ref="editorContainer"
+			class="bg-default text-toned h-60 overflow-auto"
+		/>
 
-		<div class="border-default text-dimmed flex flex-wrap items-center gap-2 border-t px-3.5 py-2 text-[11.5px]">
+		<div
+			class="border-default text-dimmed flex flex-wrap items-center gap-2 border-t px-3.5 py-2 text-[11.5px]"
+		>
 			<DmsEyebrow :label="t('dms_database.query.editor.insert')" />
 			<button
 				v-for="snippet in SNIPPETS"
@@ -566,10 +588,17 @@ defineExpose({ focus: () => view?.focus() });
 				{{ snippet.label }}
 			</button>
 			<span class="ml-auto flex items-center gap-1">
-				<UKbd value="ctrl" size="sm" /><UKbd value="space" size="sm" />{{ t("dms_database.query.editor.complete") }}
+				<UKbd value="ctrl" size="sm" />
+				<UKbd value="space" size="sm" />
+				{{ t('dms_database.query.editor.complete') }}
 			</span>
 			<span class="font-mono">
-				{{ t("dms_database.query.editor.position", { line: cursor.line, column: cursor.column }) }}
+				{{
+					t('dms_database.query.editor.position', {
+						line: cursor.line,
+						column: cursor.column,
+					})
+				}}
 			</span>
 		</div>
 	</DmsCard>

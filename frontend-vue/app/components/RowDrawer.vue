@@ -1,69 +1,80 @@
 <script setup lang="ts">
-import { onKeyStroke } from "@vueuse/core";
-import { cellText, isStructured, parseDraft } from "../build/data/cellValues";
-import { useStagedEdits } from "../build/data/stagedEdits";
-import type { TableSummary } from "../composables/useDatabaseSchemas";
-import type { BrowserTab } from "../composables/useDataBrowserTabs";
-import type { GridColumn } from "../composables/useDataBrowserGrid";
-import { tableLink } from "../utils/databaseLinks";
-import { describeRuntimeType } from "../utils/fieldTypes";
+import {
+	CROSS_INSTANCE_VALUE,
+	DEFAULT_INSTANCE_VALUE,
+} from '../build/composables/useDataBrowserTabs'
+import { browseSelectionQuery } from '../build/composables/useDataBrowserGrid'
+import { onKeyStroke } from '@vueuse/core'
+import { cellText, isStructured, parseDraft } from '../build/data/cellValues'
+import { useStagedEdits } from '../build/data/stagedEdits'
+import type { TableSummary } from '../build/composables/useDatabaseSchemas'
+import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
+import type { GridColumn } from '../build/composables/useDataBrowserGrid'
+import { tableLink } from '../build/utils/databaseLinks'
+import { describeRuntimeType } from '../build/utils/fieldTypes'
 
 // One row of the data browser in a drawer: its fields, editable and staged
 // like the grid's cells, its JSON, and the rows of other tables pointing at
 // it. J and K step to the next and previous row of the page.
 
 interface RowNavigation {
-	index: number;
-	total: number;
-	hasPrev: boolean;
-	hasNext: boolean;
-	prev: () => void;
-	next: () => void;
+	index: number
+	total: number
+	hasPrev: boolean
+	hasNext: boolean
+	prev: () => void
+	next: () => void
 }
 
 interface RowReference {
-	schema: string;
-	table: string;
-	field: string;
-	count: number;
+	schema: string
+	table: string
+	field: string
+	count: number
 }
 
-type DrawerTab = "fields" | "json" | "references";
+type DrawerTab = 'fields' | 'json' | 'references'
 
 const props = defineProps<{
-	tab: BrowserTab;
-	row: Record<string, unknown>;
-	rowId: string | null;
-	columns: GridColumn[];
-	table?: TableSummary;
-	readOnly: boolean;
-	navigation?: RowNavigation;
-	onStage: (rowId: string, field: string, value: unknown) => void;
-	onReview: () => void;
-}>();
+	tab: BrowserTab
+	row: Record<string, unknown>
+	rowId: string | null
+	columns: GridColumn[]
+	table?: TableSummary
+	readOnly: boolean
+	navigation?: RowNavigation
+	onStage: (rowId: string, field: string, value: unknown) => void
+	onReview: () => void
+}>()
 
-const { t, n } = useI18n();
-const { $authFetch } = useAuthFetch();
-const staged = useStagedEdits();
+const { t, n } = useI18n()
+const { $authFetch } = useAuthFetch()
+const staged = useStagedEdits()
 
-const active = ref<DrawerTab>("fields");
-const drafts = reactive<Record<string, string>>({});
-const errors = reactive<Record<string, string>>({});
+const active = ref<DrawerTab>('fields')
+const drafts = reactive<Record<string, string>>({})
+const errors = reactive<Record<string, string>>({})
 
 const relations = computed(
-	() => new Map((props.table?.relations ?? []).map((relation) => [relation.fromField, relation])),
-);
+	() =>
+		new Map(
+			(props.table?.relations ?? []).map((relation) => [
+				relation.fromField,
+				relation,
+			]),
+		),
+)
 
 function valueOf(field: string): unknown {
-	if (!props.rowId) return props.row[field];
-	const cell = staged.get(props.tab.id, props.rowId, field);
-	return cell ? cell.after : props.row[field];
+	if (!props.rowId) return props.row[field]
+	const cell = staged.get(props.tab.id, props.rowId, field)
+	return cell ? cell.after : props.row[field]
 }
 
 const fields = computed(() =>
 	props.columns.map((column) => {
-		const relation = relations.value.get(column.name);
-		const value = valueOf(column.name);
+		const relation = relations.value.get(column.name)
+		const value = valueOf(column.name)
 		return {
 			name: column.name,
 			column,
@@ -71,111 +82,149 @@ const fields = computed(() =>
 			key: column.isPrimaryKey,
 			relation,
 			structured: isStructured(value),
-			type: relation ? relation.toTable : describeRuntimeType(column.type, column.name).label,
-			icon: column.isPrimaryKey ? "i-ph-key" : relation ? "i-ph-arrow-right" : describeRuntimeType(column.type, column.name).icon,
-			staged: props.rowId ? staged.get(props.tab.id, props.rowId, column.name) : undefined,
-			editable: !props.readOnly && !column.isPrimaryKey && column.name !== "_instance" && props.rowId !== null,
-		};
+			type: relation
+				? relation.toTable
+				: describeRuntimeType(column.type, column.name).label,
+			icon: column.isPrimaryKey
+				? 'i-ph-key'
+				: relation
+					? 'i-ph-arrow-right'
+					: describeRuntimeType(column.type, column.name).icon,
+			staged: props.rowId
+				? staged.get(props.tab.id, props.rowId, column.name)
+				: undefined,
+			editable:
+				!props.readOnly &&
+				!column.isPrimaryKey &&
+				column.name !== '_instance' &&
+				props.rowId !== null,
+		}
 	}),
-);
+)
 
-const pending = computed(() => (props.rowId ? staged.rowCount(props.tab.id, props.rowId) : 0));
+const pending = computed(() =>
+	props.rowId ? staged.rowCount(props.tab.id, props.rowId) : 0,
+)
 // The review writes every staged change of the table, this row's and others'.
-const tabPending = computed(() => staged.count(props.tab.id));
+const tabPending = computed(() => staged.count(props.tab.id))
 const stagedRow = computed(() =>
-	Object.fromEntries(props.columns.map((column) => [column.name, valueOf(column.name)])),
-);
-const json = computed(() => JSON.stringify(stagedRow.value, null, 2));
+	Object.fromEntries(
+		props.columns.map((column) => [column.name, valueOf(column.name)]),
+	),
+)
+const json = computed(() => JSON.stringify(stagedRow.value, null, 2))
 
 function draftOf(field: string, value: unknown): string {
-	return drafts[field] ?? (isStructured(value) ? JSON.stringify(value, null, 2) : cellText(value));
+	return (
+		drafts[field] ??
+		(isStructured(value) ? JSON.stringify(value, null, 2) : cellText(value))
+	)
 }
 
 function commit(field: (typeof fields.value)[number]) {
-	const draft = drafts[field.name];
-	if (draft === undefined || !props.rowId) return;
-	Reflect.deleteProperty(errors, field.name);
+	const draft = drafts[field.name]
+	if (draft === undefined || !props.rowId) return
+	Reflect.deleteProperty(errors, field.name)
 	if (field.structured) {
 		try {
-			props.onStage(props.rowId, field.name, JSON.parse(draft));
+			props.onStage(props.rowId, field.name, JSON.parse(draft))
 		} catch {
-			errors[field.name] = t("dms_database.data.row.invalid_json");
-			return;
+			errors[field.name] = t('dms_database.data.row.invalid_json')
+			return
 		}
 	} else {
-		const result = parseDraft(draft, field.value, field.column.type);
+		const result = parseDraft(draft, field.value, field.column.type)
 		if (!result.ok) {
-			errors[field.name] = t(`dms_database.data.grid.invalid_${result.reason}`);
-			return;
+			errors[field.name] = t(`dms_database.data.grid.invalid_${result.reason}`)
+			return
 		}
-		if (!result.unchanged) props.onStage(props.rowId, field.name, result.value);
+		if (!result.unchanged) props.onStage(props.rowId, field.name, result.value)
 	}
-	Reflect.deleteProperty(drafts, field.name);
+	Reflect.deleteProperty(drafts, field.name)
 }
 
 function setNull(field: string) {
-	if (!props.rowId) return;
-	Reflect.deleteProperty(drafts, field);
-	props.onStage(props.rowId, field, null);
+	if (!props.rowId) return
+	Reflect.deleteProperty(drafts, field)
+	props.onStage(props.rowId, field, null)
 }
 
 function setBoolean(field: string, value: boolean) {
-	if (props.rowId) props.onStage(props.rowId, field, value);
+	if (props.rowId) props.onStage(props.rowId, field, value)
 }
 
 // --- referenced by ---
-const references = ref<RowReference[] | null>(null);
-const referencesFailed = ref(false);
+const references = ref<RowReference[] | null>(null)
+const referencesFailed = ref(false)
 
 async function loadReferences() {
-	if (!props.rowId || props.readOnly) return;
-	referencesFailed.value = false;
+	if (!props.rowId || props.readOnly) return
+	referencesFailed.value = false
 	try {
-		const res = await $authFetch<{ items: RowReference[] }>("/api/database/browse/references", {
-			query: { ...browseSelectionQuery(props.tab), id: props.rowId },
-		});
-		references.value = res.items;
+		const res = await $authFetch<{ items: RowReference[] }>(
+			'/api/database/browse/references',
+			{
+				query: { ...browseSelectionQuery(props.tab), id: props.rowId },
+			},
+		)
+		references.value = res.items
 	} catch {
-		referencesFailed.value = true;
+		referencesFailed.value = true
 	}
 }
 
-onMounted(loadReferences);
+onMounted(loadReferences)
 
 const referenceTotal = computed(() =>
 	(references.value ?? []).reduce((sum, reference) => sum + reference.count, 0),
-);
+)
 
 const tabs = computed(() => [
-	{ value: "fields", label: t("dms_database.data.row.fields"), badge: props.columns.length },
-	{ value: "json", label: t("dms_database.data.row.json") },
+	{
+		value: 'fields',
+		label: t('dms_database.data.row.fields'),
+		badge: props.columns.length,
+	},
+	{ value: 'json', label: t('dms_database.data.row.json') },
 	...(props.readOnly
 		? []
-		: [{ value: "references", label: t("dms_database.data.row.references"), badge: referenceTotal.value }]),
-]);
+		: [
+				{
+					value: 'references',
+					label: t('dms_database.data.row.references'),
+					badge: referenceTotal.value,
+				},
+			]),
+])
 
 const scope = computed(() => {
-	const instance = props.tab.instance === DEFAULT_INSTANCE_VALUE ? "" : ` @${props.tab.instance === CROSS_INSTANCE_VALUE ? "*" : props.tab.instance}`;
-	return `${props.tab.schema}.${props.tab.table}${instance}`;
-});
+	const instance =
+		props.tab.instance === DEFAULT_INSTANCE_VALUE
+			? ''
+			: ` @${props.tab.instance === CROSS_INSTANCE_VALUE ? '*' : props.tab.instance}`
+	return `${props.tab.schema}.${props.tab.table}${instance}`
+})
 
 // The instance a link to a table of the same schema keeps.
 const scopedInstance = computed(() =>
-	props.tab.instance === DEFAULT_INSTANCE_VALUE || props.tab.instance === CROSS_INSTANCE_VALUE
+	props.tab.instance === DEFAULT_INSTANCE_VALUE ||
+	props.tab.instance === CROSS_INSTANCE_VALUE
 		? undefined
 		: props.tab.instance,
-);
+)
 
 function typing(event: KeyboardEvent): boolean {
-	return Boolean((event.target as HTMLElement | null)?.closest("input, textarea, select"));
+	return Boolean(
+		(event.target as HTMLElement | null)?.closest('input, textarea, select'),
+	)
 }
 
-onKeyStroke("j", (event) => {
-	if (!typing(event) && props.navigation?.hasNext) props.navigation.next();
-});
-onKeyStroke("k", (event) => {
-	if (!typing(event) && props.navigation?.hasPrev) props.navigation.prev();
-});
+onKeyStroke('j', (event) => {
+	if (!typing(event) && props.navigation?.hasNext) props.navigation.next()
+})
+onKeyStroke('k', (event) => {
+	if (!typing(event) && props.navigation?.hasPrev) props.navigation.prev()
+})
 </script>
 
 <template>
@@ -185,7 +234,9 @@ onKeyStroke("k", (event) => {
 				<DmsEyebrow :label="t('dms_database.data.row.eyebrow', { scope })" />
 				<span class="flex-1" />
 				<template v-if="navigation">
-					<span class="text-dimmed mr-1 font-mono text-[11px] tabular-nums">{{ navigation.index + 1 }} / {{ navigation.total }}</span>
+					<span class="text-dimmed mr-1 font-mono text-[11px] tabular-nums">
+						{{ navigation.index + 1 }} / {{ navigation.total }}
+					</span>
 					<UButton
 						icon="i-ph-caret-up"
 						color="neutral"
@@ -208,8 +259,16 @@ onKeyStroke("k", (event) => {
 					/>
 				</template>
 			</div>
-			<h3 class="text-highlighted font-mono text-lg font-semibold">{{ rowId ?? t("dms_database.data.row.no_id") }}</h3>
-			<UTabs v-model="active" :items="tabs" variant="link" size="sm" :content="false" />
+			<h3 class="text-highlighted font-mono text-lg font-semibold">
+				{{ rowId ?? t('dms_database.data.row.no_id') }}
+			</h3>
+			<UTabs
+				v-model="active"
+				:items="tabs"
+				variant="link"
+				size="sm"
+				:content="false"
+			/>
 		</header>
 
 		<div class="min-h-0 flex-1 overflow-y-auto">
@@ -219,17 +278,38 @@ onKeyStroke("k", (event) => {
 						<b class="text-toned font-mono text-[12.5px]">{{ field.name }}</b>
 						<span
 							class="flex items-center gap-1 font-mono text-[11px]"
-							:class="field.key ? 'text-warning' : field.relation ? 'text-primary' : 'text-dimmed'"
+							:class="
+								field.key
+									? 'text-warning'
+									: field.relation
+										? 'text-primary'
+										: 'text-dimmed'
+							"
 						>
-							<UIcon :name="field.icon" class="size-3" />{{ field.key ? t("dms_database.inspector.primary_key") : field.type }}
+							<UIcon :name="field.icon" class="size-3" />
+							{{
+								field.key ? t('dms_database.inspector.primary_key') : field.type
+							}}
 						</span>
-						<span v-if="field.staged" class="text-warning ml-auto font-mono text-[11px]">
-							{{ t("dms_database.data.row.was", { value: cellText(field.staged.before) || "null" }) }}
+						<span
+							v-if="field.staged"
+							class="text-warning ml-auto font-mono text-[11px]"
+						>
+							{{
+								t('dms_database.data.row.was', {
+									value: cellText(field.staged.before) || 'null',
+								})
+							}}
 						</span>
 					</div>
-					<p v-if="!field.editable" class="text-muted font-mono text-[12.5px] break-all">
-						{{ cellText(field.value) || "null" }}
-						<span v-if="field.key" class="text-dimmed font-sans">· {{ t("dms_database.data.row.not_editable") }}</span>
+					<p
+						v-if="!field.editable"
+						class="text-muted break-all font-mono text-[12.5px]"
+					>
+						{{ cellText(field.value) || 'null' }}
+						<span v-if="field.key" class="text-dimmed font-sans">
+							· {{ t('dms_database.data.row.not_editable') }}
+						</span>
 					</p>
 					<USwitch
 						v-else-if="typeof field.value === 'boolean'"
@@ -250,15 +330,28 @@ onKeyStroke("k", (event) => {
 					<UInput
 						v-else
 						:model-value="draftOf(field.name, field.value)"
-						:placeholder="field.value === null || field.value === undefined ? 'null' : undefined"
+						:placeholder="
+							field.value === null || field.value === undefined
+								? 'null'
+								: undefined
+						"
 						class="w-full font-mono"
-						:color="errors[field.name] ? 'error' : field.staged ? 'warning' : 'primary'"
+						:color="
+							errors[field.name]
+								? 'error'
+								: field.staged
+									? 'warning'
+									: 'primary'
+						"
 						:highlight="Boolean(field.staged || errors[field.name])"
 						@update:model-value="drafts[field.name] = String($event)"
 						@blur="commit(field)"
 						@keydown.enter.prevent="commit(field)"
 					>
-						<template v-if="field.value !== null && field.value !== undefined" #trailing>
+						<template
+							v-if="field.value !== null && field.value !== undefined"
+							#trailing
+						>
 							<UButton
 								size="xs"
 								color="neutral"
@@ -268,21 +361,44 @@ onKeyStroke("k", (event) => {
 							/>
 						</template>
 					</UInput>
-					<p v-if="errors[field.name]" class="text-error text-xs">{{ errors[field.name] }}</p>
+					<p v-if="errors[field.name]" class="text-error text-xs">
+						{{ errors[field.name] }}
+					</p>
 					<DmsAutoLink
-						v-if="field.relation && field.value !== null && field.value !== undefined"
-						:to="tableLink('data', { schema: field.relation.toSchema, table: field.relation.toTable, instance: field.relation.toSchema === tab.schema ? scopedInstance : undefined, match: { field: field.relation.toField, value: cellText(field.value) } })"
+						v-if="
+							field.relation &&
+							field.value !== null &&
+							field.value !== undefined
+						"
+						:to="
+							tableLink('data', {
+								schema: field.relation.toSchema,
+								table: field.relation.toTable,
+								instance:
+									field.relation.toSchema === tab.schema
+										? scopedInstance
+										: undefined,
+								match: {
+									field: field.relation.toField,
+									value: cellText(field.value),
+								},
+							})
+						"
 						class="text-primary inline-flex items-center gap-1 text-xs hover:underline"
 					>
 						<UIcon name="i-ph-arrow-square-out" class="size-3" />
-						{{ t("dms_database.data.row.open_relation", { table: field.relation.toTable }) }}
+						{{
+							t('dms_database.data.row.open_relation', {
+								table: field.relation.toTable,
+							})
+						}}
 					</DmsAutoLink>
 				</div>
 			</div>
 
 			<pre
 				v-else-if="active === 'json'"
-				class="border-default bg-elevated/40 text-toned overflow-auto rounded-lg border p-4 font-mono text-xs whitespace-pre"
+				class="border-default bg-elevated/40 text-toned overflow-auto whitespace-pre rounded-lg border p-4 font-mono text-xs"
 				>{{ json }}</pre
 			>
 
@@ -292,7 +408,9 @@ onKeyStroke("k", (event) => {
 					size="sm"
 					variant="error"
 					:title="t('dms_database.data.row.references_failed')"
-					:actions="[{ label: t('dms_database.common.retry'), onClick: loadReferences }]"
+					:actions="[
+						{ label: t('dms_database.common.retry'), onClick: loadReferences },
+					]"
 				/>
 				<DmsEmptyState
 					v-else-if="references && references.length === 0"
@@ -302,22 +420,51 @@ onKeyStroke("k", (event) => {
 				<DmsAutoLink
 					v-for="reference in references ?? []"
 					:key="`${reference.schema}.${reference.table}.${reference.field}`"
-					:to="tableLink('data', { schema: reference.schema, table: reference.table, instance: reference.schema === tab.schema ? scopedInstance : undefined, match: rowId ? { field: reference.field, value: rowId } : undefined })"
+					:to="
+						tableLink('data', {
+							schema: reference.schema,
+							table: reference.table,
+							instance:
+								reference.schema === tab.schema ? scopedInstance : undefined,
+							match: rowId
+								? { field: reference.field, value: rowId }
+								: undefined,
+						})
+					"
 					class="border-default hover:bg-elevated/50 flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12.5px]"
 				>
 					<UIcon name="i-ph-table" class="text-primary size-3.5" />
-					<span class="text-toned">{{ reference.schema === tab.schema ? reference.table : `${reference.schema}.${reference.table}` }}</span>
+					<span class="text-toned">
+						{{
+							reference.schema === tab.schema
+								? reference.table
+								: `${reference.schema}.${reference.table}`
+						}}
+					</span>
 					<span class="text-dimmed ml-auto text-xs">
-						{{ t("dms_database.data.row.reference_count", { count: n(reference.count), field: reference.field }, reference.count) }}
+						{{
+							t(
+								'dms_database.data.row.reference_count',
+								{ count: n(reference.count), field: reference.field },
+								reference.count,
+							)
+						}}
 					</span>
 				</DmsAutoLink>
 			</div>
 		</div>
 
-		<footer v-if="!readOnly" class="border-default flex items-center gap-2 border-t pt-3">
+		<footer
+			v-if="!readOnly"
+			class="border-default flex items-center gap-2 border-t pt-3"
+		>
 			<span class="text-dimmed flex items-center gap-1.5 text-xs">
 				<span v-if="pending" class="bg-warning size-1.5 rounded-full" />
-				{{ pending ? t("dms_database.data.tabs.unsaved", pending) : t("dms_database.data.row.no_change") }}
+				{{
+					pending
+						? t('dms_database.data.tabs.unsaved', pending)
+						: t('dms_database.data.row.no_change')
+				}}
 			</span>
 			<UButton
 				v-if="tabPending > 0"

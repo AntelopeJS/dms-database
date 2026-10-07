@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import { computed, ref } from 'vue'
-import { useDataBrowserTabs } from '../app/composables/useDataBrowserTabs'
+import { useDataBrowserTabs } from '../app/build/composables/useDataBrowserTabs'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -57,7 +57,12 @@ it('does not revisit an already selected deep link while restoring tabs', () => 
 	const replace = vi.fn()
 	vi.stubGlobal('useDmsRouter', () => ({ replace }))
 	vi.stubGlobal('useDmsRoute', () => ({
-		query: { schema: 'sales', table: 'orders', instance: 'eu', panel: 'detail' },
+		query: {
+			schema: 'sales',
+			table: 'orders',
+			instance: 'eu',
+			panel: 'detail',
+		},
 	}))
 	const browser = useDataBrowserTabs()
 	browser.restore()
@@ -65,6 +70,11 @@ it('does not revisit an already selected deep link while restoring tabs', () => 
 	expect(replace).not.toHaveBeenCalled()
 	browser.openTab('sales', 'us', 'orders', false)
 	expect(replace).toHaveBeenCalledExactlyOnceWith({
-		query: { schema: 'sales', table: 'orders', instance: 'us', panel: 'detail' },
+		query: {
+			schema: 'sales',
+			table: 'orders',
+			instance: 'us',
+			panel: 'detail',
+		},
 	})
 })

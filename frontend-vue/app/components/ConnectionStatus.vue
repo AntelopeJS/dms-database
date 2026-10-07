@@ -1,92 +1,96 @@
 <script setup lang="ts">
-import { useIntervalFn, useNow } from "@vueuse/core";
+import { useDatabaseHealth } from '../build/composables/useDatabaseHealth'
+import { useIntervalFn, useNow } from '@vueuse/core'
 
 // The overview's health hero: whether the database answers, how fast, and
 // what it holds. The probe runs again every PROBE_INTERVAL_MS while the page
 // is open, so a lost connection shows up without a reload.
-const PROBE_INTERVAL_MS = 30_000;
-const SECOND_MS = 1000;
-const MINUTE_S = 60;
+const PROBE_INTERVAL_MS = 30_000
+const SECOND_MS = 1000
+const MINUTE_S = 60
 
-const { t, n, locale } = useI18n();
-const { health, isLoading, error, refresh } = useDatabaseHealth();
-const now = useNow({ interval: SECOND_MS });
+const { t, n, locale } = useI18n()
+const { health, isLoading, error, refresh } = useDatabaseHealth()
+const now = useNow({ interval: SECOND_MS })
 
-useIntervalFn(() => refresh(), PROBE_INTERVAL_MS);
+useIntervalFn(() => refresh(), PROBE_INTERVAL_MS)
 
 // A failed health request is a lost connection too: the route answers
 // whenever the backend is up.
 const isDown = computed(
-	() => Boolean(error.value) || health.value.status === "down",
-);
+	() => Boolean(error.value) || health.value.status === 'down',
+)
 
 const checkedAgo = computed(() => {
-	const checkedAt = health.value.checkedAt;
-	if (!checkedAt) return "";
+	const checkedAt = health.value.checkedAt
+	if (!checkedAt) return ''
 	const seconds = Math.max(
 		0,
-		Math.round((now.value.getTime() - new Date(checkedAt).getTime()) / SECOND_MS),
-	);
+		Math.round(
+			(now.value.getTime() - new Date(checkedAt).getTime()) / SECOND_MS,
+		),
+	)
 	return seconds < MINUTE_S
-		? t("dms_database.overview.connection.checked_seconds", { count: seconds })
-		: t("dms_database.overview.connection.checked_minutes", {
+		? t('dms_database.overview.connection.checked_seconds', { count: seconds })
+		: t('dms_database.overview.connection.checked_minutes', {
 				count: Math.round(seconds / MINUTE_S),
-			});
-});
+			})
+})
 
 const since = computed(() => {
-	const parts = [health.value.driver, checkedAgo.value].filter(Boolean);
-	return parts.join(" · ");
-});
+	const parts = [health.value.driver, checkedAgo.value].filter(Boolean)
+	return parts.join(' · ')
+})
 
 function compact(value: number): string {
 	return new Intl.NumberFormat(locale.value, {
-		notation: "compact",
+		notation: 'compact',
 		maximumFractionDigits: 1,
-	}).format(value);
+	}).format(value)
 }
 
 const healthyMetrics = computed(() => {
-	const h = health.value;
+	const h = health.value
 	return [
 		{
-			label: t("dms_database.overview.connection.latency"),
-			value: h.latencyMs ?? "—",
-			unit: h.latencyMs === null ? undefined : "ms",
-			sub: t("dms_database.overview.connection.latency_sub"),
-			tone: "success" as const,
+			label: t('dms_database.overview.connection.latency'),
+			value: h.latencyMs ?? '—',
+			unit: h.latencyMs === null ? undefined : 'ms',
+			sub: t('dms_database.overview.connection.latency_sub'),
+			tone: 'success' as const,
 		},
 		{
-			label: t("dms_database.overview.connection.tables"),
+			label: t('dms_database.overview.connection.tables'),
 			value: n(h.tableCount),
-			sub: t("dms_database.overview.connection.tables_sub", h.schemaCount),
+			sub: t('dms_database.overview.connection.tables_sub', h.schemaCount),
 		},
 		{
-			label: t("dms_database.overview.connection.rows"),
+			label: t('dms_database.overview.connection.rows'),
 			value: compact(h.totalRows),
-			sub: t("dms_database.overview.connection.rows_sub", h.relationCount),
+			sub: t('dms_database.overview.connection.rows_sub', h.relationCount),
 		},
 		{
-			label: t("dms_database.overview.connection.indexes"),
+			label: t('dms_database.overview.connection.indexes'),
 			value: n(h.indexCount),
-			sub: t("dms_database.overview.connection.indexes_sub"),
+			sub: t('dms_database.overview.connection.indexes_sub'),
 		},
-	];
-});
+	]
+})
 
 const downMetrics = computed(() => [
 	{
-		label: t("dms_database.overview.connection.last_error"),
-		value: health.value.error ?? t("dms_database.overview.connection.no_answer"),
-		tone: "error" as const,
+		label: t('dms_database.overview.connection.last_error'),
+		value:
+			health.value.error ?? t('dms_database.overview.connection.no_answer'),
+		tone: 'error' as const,
 	},
 	{
-		label: t("dms_database.overview.connection.next_probe"),
+		label: t('dms_database.overview.connection.next_probe'),
 		value: Math.round(PROBE_INTERVAL_MS / SECOND_MS),
-		unit: "s",
-		sub: t("dms_database.overview.connection.next_probe_sub"),
+		unit: 's',
+		sub: t('dms_database.overview.connection.next_probe_sub'),
 	},
-]);
+])
 </script>
 
 <template>

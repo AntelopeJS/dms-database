@@ -1,18 +1,20 @@
 <script setup lang="ts">
-import { Handle, Position } from "@vue-flow/core";
+import { Handle, Position } from '@vue-flow/core'
 
-import type { StubNodeData } from "../build/diagram/graph";
+import type { StubNodeData } from '../build/diagram/graph'
 
 // A table of another schema a relation points to: a dashed chip that opens
 // that schema's diagram.
-defineProps<{ data: StubNodeData }>();
+defineProps<{ data: StubNodeData }>()
 </script>
 
 <template>
 	<button
 		type="button"
 		class="diagram-stub-node border-accented bg-muted text-muted hover:border-primary hover:text-highlighted relative flex h-7 items-center gap-1.5 rounded-sm border border-dashed px-2.5 font-mono text-[11.5px] transition-colors"
-		:title="$t('dms_database.diagram.stub_title', { schema: data.targetSchema })"
+		:title="
+			$t('dms_database.diagram.stub_title', { schema: data.targetSchema })
+		"
 		@click="data.onOpenSchema(data.targetSchema)"
 	>
 		<Handle id="stub::left::target" type="target" :position="Position.Left" />

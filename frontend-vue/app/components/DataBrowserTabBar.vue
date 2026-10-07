@@ -1,6 +1,11 @@
 <script setup lang="ts">
-import { useStagedEdits } from "../build/data/stagedEdits";
-import type { BrowserTab } from "../composables/useDataBrowserTabs";
+import {
+	CROSS_INSTANCE_VALUE,
+	DEFAULT_INSTANCE_VALUE,
+	useDataBrowserTabs,
+} from '../build/composables/useDataBrowserTabs'
+import { useStagedEdits } from '../build/data/stagedEdits'
+import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
 
 // The open tables (D-05). A preview tab, in italics, is replaced by the next
 // table opened from the list; its pin keeps it, and the bar says so. A tab
@@ -14,23 +19,23 @@ const {
 	closeTab,
 	pinTab,
 	moveTab,
-} = useDataBrowserTabs();
-const { t } = useI18n();
-const staged = useStagedEdits();
-const { confirm } = useConfirm();
+} = useDataBrowserTabs()
+const { t } = useI18n()
+const staged = useStagedEdits()
+const { confirm } = useConfirm()
 
 const closeButtonClass =
-	"rounded p-0.5 text-dimmed opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-elevated hover:text-default";
+	'rounded p-0.5 text-dimmed opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-elevated hover:text-default'
 const pinButtonClass =
-	"rounded p-0.5 text-muted hover:bg-elevated hover:text-highlighted";
-const hasPreview = computed(() => tabs.value.some((tab) => tab.preview));
+	'rounded p-0.5 text-muted hover:bg-elevated hover:text-highlighted'
+const hasPreview = computed(() => tabs.value.some((tab) => tab.preview))
 
 // The label doubles as the accessible name; a preview tab announces its
 // ephemeral state, which the italic styling alone cannot convey.
 function tabAriaLabel(tab: BrowserTab): string {
 	return tab.preview
-		? t("dms_database.data.tabs.preview", { name: label(tab) })
-		: label(tab);
+		? t('dms_database.data.tabs.preview', { name: label(tab) })
+		: label(tab)
 }
 
 // Pinning from the pin button unmounts the button under focus (v-if), which
@@ -38,32 +43,32 @@ function tabAriaLabel(tab: BrowserTab): string {
 // label button — but only when focus actually fell to the body, so a mouse
 // click doesn't get focus stolen elsewhere.
 function pinFromButton(tab: BrowserTab, event: MouseEvent) {
-	const tabEl = (event.currentTarget as HTMLElement).closest("[data-tab]");
-	pinTab(tab.id);
+	const tabEl = (event.currentTarget as HTMLElement).closest('[data-tab]')
+	pinTab(tab.id)
 	nextTick(() => {
 		if (document.activeElement === document.body) {
-			tabEl?.querySelector("button")?.focus();
+			tabEl?.querySelector('button')?.focus()
 		}
-	});
+	})
 }
 
 // --- drag & drop reorder ---
-const draggedId = ref<string | null>(null);
-const dropTargetId = ref<string | null>(null);
+const draggedId = ref<string | null>(null)
+const dropTargetId = ref<string | null>(null)
 
 function onDragStart(tab: BrowserTab, event: DragEvent) {
-	draggedId.value = tab.id;
+	draggedId.value = tab.id
 	// Firefox refuses to start a drag without data attached.
-	event.dataTransfer?.setData("text/plain", tab.id);
-	if (event.dataTransfer) event.dataTransfer.effectAllowed = "move";
+	event.dataTransfer?.setData('text/plain', tab.id)
+	if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
 function onDragOver(tab: BrowserTab, event: DragEvent) {
-	if (!draggedId.value || draggedId.value === tab.id) return;
+	if (!draggedId.value || draggedId.value === tab.id) return
 	// preventDefault marks the tab as a valid drop target.
-	event.preventDefault();
-	if (event.dataTransfer) event.dataTransfer.dropEffect = "move";
-	dropTargetId.value = tab.id;
+	event.preventDefault()
+	if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+	dropTargetId.value = tab.id
 }
 
 function onDrop(tab: BrowserTab) {
@@ -71,49 +76,49 @@ function onDrop(tab: BrowserTab) {
 	// the dragged tab as a valid target, so this is belt-and-braces.)
 	if (draggedId.value && draggedId.value !== tab.id) {
 		// An arranged tab is kept (VS Code): a completed drag-reorder pins.
-		pinTab(draggedId.value);
-		moveTab(draggedId.value, tab.id);
+		pinTab(draggedId.value)
+		moveTab(draggedId.value, tab.id)
 	}
-	onDragEnd();
+	onDragEnd()
 }
 
 function onDragEnd() {
-	draggedId.value = null;
-	dropTargetId.value = null;
+	draggedId.value = null
+	dropTargetId.value = null
 }
 
 function label(tab: BrowserTab): string {
-	return hasMultipleSchemas.value ? `${tab.schema}.${tab.table}` : tab.table;
+	return hasMultipleSchemas.value ? `${tab.schema}.${tab.table}` : tab.table
 }
 
 function instanceBadge(tab: BrowserTab): string | null {
-	if (tab.instance === DEFAULT_INSTANCE_VALUE) return null;
-	if (tab.instance === CROSS_INSTANCE_VALUE) return "*";
-	return `@${tab.instance}`;
+	if (tab.instance === DEFAULT_INSTANCE_VALUE) return null
+	if (tab.instance === CROSS_INSTANCE_VALUE) return '*'
+	return `@${tab.instance}`
 }
 
 async function close(tab: BrowserTab) {
-	const pending = staged.count(tab.id);
+	const pending = staged.count(tab.id)
 	if (pending > 0) {
 		const discard = await confirm({
-			title: t("dms_database.data.tabs.close_title", { table: tab.table }),
-			description: t("dms_database.data.tabs.close_description", pending),
-			confirmLabel: t("dms_database.data.tabs.close_discard"),
-			cancelLabel: t("dms_database.data.tabs.close_keep"),
-			color: "warning",
-			initialFocus: "cancel",
-		});
-		if (!discard) return;
-		staged.discard(tab.id);
+			title: t('dms_database.data.tabs.close_title', { table: tab.table }),
+			description: t('dms_database.data.tabs.close_description', pending),
+			confirmLabel: t('dms_database.data.tabs.close_discard'),
+			cancelLabel: t('dms_database.data.tabs.close_keep'),
+			color: 'warning',
+			initialFocus: 'cancel',
+		})
+		if (!discard) return
+		staged.discard(tab.id)
 	}
-	closeTab(tab.id);
+	closeTab(tab.id)
 }
 </script>
 
 <template>
 	<div
 		v-if="tabs.length > 0"
-		class="flex items-end gap-1 overflow-x-auto border-b border-default bg-elevated/50 px-2 pt-1.5"
+		class="border-default bg-elevated/50 flex items-end gap-1 overflow-x-auto border-b px-2 pt-1.5"
 	>
 		<div
 			v-for="tab in tabs"
@@ -124,9 +129,9 @@ async function close(tab: BrowserTab) {
 			:class="[
 				tab.id === activeId
 					? 'border-default bg-default'
-					: 'border-transparent bg-transparent hover:bg-default/60',
+					: 'hover:bg-default/60 border-transparent bg-transparent',
 				tab.id === draggedId ? 'opacity-40' : '',
-				tab.id === dropTargetId ? 'ring-1 ring-primary ring-inset' : '',
+				tab.id === dropTargetId ? 'ring-primary ring-1 ring-inset' : '',
 			]"
 			@dragstart="onDragStart(tab, $event)"
 			@dragover="onDragOver(tab, $event)"
@@ -179,7 +184,10 @@ async function close(tab: BrowserTab) {
 			     nothing may reflow into the pointer's position — a double-click's
 			     second click would otherwise land on the close button and destroy
 			     the tab the user just pinned. -->
-			<UTooltip v-if="tab.preview" :text="t('dms_database.data.tabs.keep_hint')">
+			<UTooltip
+				v-if="tab.preview"
+				:text="t('dms_database.data.tabs.keep_hint')"
+			>
 				<button
 					type="button"
 					:class="pinButtonClass"
@@ -190,9 +198,14 @@ async function close(tab: BrowserTab) {
 				</button>
 			</UTooltip>
 		</div>
-		<span v-if="hasPreview" class="text-dimmed ml-auto shrink-0 self-center pb-1 pl-3 text-[11px]">
+		<span
+			v-if="hasPreview"
+			class="text-dimmed ml-auto shrink-0 self-center pb-1 pl-3 text-[11px]"
+		>
 			<i18n-t keypath="dms_database.data.tabs.hint" tag="span">
-				<template #italic><em>{{ t("dms_database.data.tabs.italic") }}</em></template>
+				<template #italic>
+					<em>{{ t('dms_database.data.tabs.italic') }}</em>
+				</template>
 			</i18n-t>
 		</span>
 	</div>

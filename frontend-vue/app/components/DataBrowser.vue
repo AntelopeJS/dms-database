@@ -1,48 +1,69 @@
 <script setup lang="ts">
-import { readRecentTables } from "../build/data/recentTables";
-import { useStagedEdits } from "../build/data/stagedEdits";
-import DataBrowserSidebar from "./DataBrowserSidebar.vue";
-import DataBrowserTabBar from "./DataBrowserTabBar.vue";
-import DataGrid from "./DataGrid.vue";
+import {
+	CROSS_INSTANCE_VALUE,
+	DEFAULT_INSTANCE_VALUE,
+	useDataBrowserTabs,
+} from '../build/composables/useDataBrowserTabs'
+import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
+import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
+import { readRecentTables } from '../build/data/recentTables'
+import { useStagedEdits } from '../build/data/stagedEdits'
+import DataBrowserSidebar from './DataBrowserSidebar.vue'
+import DataBrowserTabBar from './DataBrowserTabBar.vue'
+import DataGrid from './DataGrid.vue'
 
 // The data browser: a table list scoped to one schema and instance, the open
 // tables as tabs, and the grid of the active one. Edits are staged per tab
 // and written only when saved; leaving with staged edits asks first.
 
-const { t, locale } = useI18n();
-const { schemas, findTable } = useDatabaseSchemas();
-const { tabs, activeTab, restore, openTab, openFromRoute } = useDataBrowserTabs();
-const staged = useStagedEdits();
-const route = useDmsRoute();
+const { t, locale } = useI18n()
+const { schemas, findTable } = useDatabaseSchemas()
+const { tabs, activeTab, restore, openTab, openFromRoute } =
+	useDataBrowserTabs()
+const staged = useStagedEdits()
+const route = useDmsRoute()
 
-onMounted(() => restore());
+onMounted(() => restore())
 // A link from this page to another table (a relation) keeps the page mounted.
 watch(
-	() => [route.query.schema, route.query.table, route.query.instance, route.query.match],
+	() => [
+		route.query.schema,
+		route.query.table,
+		route.query.instance,
+		route.query.match,
+	],
 	() => openFromRoute(),
-);
+)
 
-const hasStagedEdits = computed(() => tabs.value.some((tab) => staged.count(tab.id) > 0));
-useUnsavedChanges({ dirty: hasStagedEdits });
+const hasStagedEdits = computed(() =>
+	tabs.value.some((tab) => staged.count(tab.id) > 0),
+)
+useUnsavedChanges({ dirty: hasStagedEdits })
 
 // Schema-introspected columns of the active table: the grid falls back to
 // them when sampling finds no row, and reads its relation columns from them.
 const activeTableSummary = computed(() =>
-	activeTab.value ? findTable(activeTab.value.schema, activeTab.value.table) : undefined,
-);
+	activeTab.value
+		? findTable(activeTab.value.schema, activeTab.value.table)
+		: undefined,
+)
 
-const recent = ref(readRecentTables());
+const recent = ref(readRecentTables())
 watch(activeTab, () => {
-	recent.value = readRecentTables();
-});
+	recent.value = readRecentTables()
+})
 
 function instanceLabel(instance: string): string {
-	return instance === DEFAULT_INSTANCE_VALUE ? "" : `@${instance === CROSS_INSTANCE_VALUE ? "*" : instance}`;
+	return instance === DEFAULT_INSTANCE_VALUE
+		? ''
+		: `@${instance === CROSS_INSTANCE_VALUE ? '*' : instance}`
 }
 </script>
 
 <template>
-	<div class="border-default bg-default flex min-h-0 flex-1 overflow-hidden rounded-xl border">
+	<div
+		class="border-default bg-default flex min-h-0 flex-1 overflow-hidden rounded-xl border"
+	>
 		<DataBrowserSidebar :schemas="schemas" />
 		<section class="flex min-w-0 flex-1 flex-col">
 			<DataBrowserTabBar />
@@ -66,12 +87,23 @@ function instanceLabel(instance: string): string {
 								:key="`${entry.schema}.${entry.instance}.${entry.table}`"
 								type="button"
 								class="border-default hover:bg-elevated flex items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[12.5px]"
-								@click="openTab(entry.schema, entry.instance, entry.table, false)"
+								@click="
+									openTab(entry.schema, entry.instance, entry.table, false)
+								"
 							>
 								<UIcon name="i-ph-table" class="text-primary size-3.5" />
-								<span class="text-toned">{{ entry.schema }}.{{ entry.table }}</span>
-								<span v-if="instanceLabel(entry.instance)" class="text-primary text-[11px]">{{ instanceLabel(entry.instance) }}</span>
-								<span class="text-dimmed ml-auto font-sans text-xs">{{ formatDatabaseRelativeTime(entry.openedAt, locale) }}</span>
+								<span class="text-toned">
+									{{ entry.schema }}.{{ entry.table }}
+								</span>
+								<span
+									v-if="instanceLabel(entry.instance)"
+									class="text-primary text-[11px]"
+								>
+									{{ instanceLabel(entry.instance) }}
+								</span>
+								<span class="text-dimmed ml-auto font-sans text-xs">
+									{{ formatDatabaseRelativeTime(entry.openedAt, locale) }}
+								</span>
 							</button>
 						</div>
 					</template>

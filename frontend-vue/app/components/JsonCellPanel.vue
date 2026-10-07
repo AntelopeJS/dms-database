@@ -1,53 +1,53 @@
 <script setup lang="ts">
 const props = defineProps<{
-	open: boolean;
-	column: string;
-	value: unknown;
-	readOnly: boolean;
-}>();
+	open: boolean
+	column: string
+	value: unknown
+	readOnly: boolean
+}>()
 
 const emit = defineEmits<{
-	"update:open": [open: boolean];
-	save: [value: unknown];
-}>();
+	'update:open': [open: boolean]
+	save: [value: unknown]
+}>()
 
 // Edits a structured cell (an object or a list) as JSON; applying stages the
 // value like any other cell.
-const { t } = useI18n();
+const { t } = useI18n()
 
-const draft = ref("");
+const draft = ref('')
 
 watch(
 	() => props.open,
 	(open) => {
-		if (!open) return;
+		if (!open) return
 		try {
-			draft.value = JSON.stringify(props.value, null, 2) ?? "";
+			draft.value = JSON.stringify(props.value, null, 2) ?? ''
 		} catch {
-			draft.value = "";
+			draft.value = ''
 		}
 	},
 	{ immediate: true },
-);
+)
 
 const parseError = computed(() => {
 	try {
-		const parsed = JSON.parse(draft.value);
-		if (parsed === null || typeof parsed !== "object") {
-			return t("dms_database.data.json.not_structured");
+		const parsed = JSON.parse(draft.value)
+		if (parsed === null || typeof parsed !== 'object') {
+			return t('dms_database.data.json.not_structured')
 		}
-		return null;
+		return null
 	} catch (error) {
 		// Localized prefix + the engine's parse detail (position, token…).
 		return error instanceof Error
-			? `${t("dms_database.data.json.invalid")} — ${error.message}`
-			: t("dms_database.data.json.invalid");
+			? `${t('dms_database.data.json.invalid')} — ${error.message}`
+			: t('dms_database.data.json.invalid')
 	}
-});
+})
 
 function save() {
-	if (parseError.value || props.readOnly) return;
-	emit("save", JSON.parse(draft.value));
+	if (parseError.value || props.readOnly) return
+	emit('save', JSON.parse(draft.value))
 }
 </script>
 
@@ -62,7 +62,7 @@ function save() {
 				<textarea
 					v-model="draft"
 					:readonly="readOnly"
-					class="min-h-96 flex-1 resize-none rounded-md border border-default bg-default p-3 font-mono text-xs outline-none focus:border-primary"
+					class="border-default bg-default focus:border-primary min-h-96 flex-1 resize-none rounded-md border p-3 font-mono text-xs outline-none"
 					spellcheck="false"
 				/>
 				<UAlert
