@@ -139,10 +139,10 @@ export function isPrimaryKey(
 /** What a column is for the structure: its colour role in every view. */
 export type ColumnRole = "key" | "relation" | "plain";
 
-/** The CSS colour class of each role: warning for keys, info for relations. */
+/** The CSS colour class of each role: warning for keys, primary for relations. */
 export const COLUMN_ROLE_CLASSES: Record<ColumnRole, string> = {
 	key: "text-warning",
-	relation: "text-info",
+	relation: "text-primary",
 	plain: "text-muted",
 };
 

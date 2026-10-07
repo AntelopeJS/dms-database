@@ -223,33 +223,61 @@
 		"diagram": {
 			"title": "Diagram",
 			"description": "Tables and relations of a schema. Drag tables to arrange them; the layout is saved for the whole team.",
-			"recomputeLayout": "Recompute layout",
-			"tooManyTables": "Showing {shown} of {total} tables. Use the schema filter to narrow down.",
 			"toolbar": {
-				"autoLayout": "Auto layout",
-				"help": "Help",
-				"helpText": "Automatically rearranges the schema tables with a hierarchical layout (dagre) and refits the view.",
-				"undo": "Undo",
-				"redo": "Redo",
-				"cancel": "Cancel",
-				"apply": "Apply",
-				"pointer": "Select",
-				"hand": "Pan",
-				"zoomIn": "Zoom in",
-				"zoomOut": "Zoom out",
-				"resetZoom": "Reset zoom",
-				"fitView": "Fit view",
-				"notes": "Note"
+				"undo": "Undo (⌘Z)",
+				"redo": "Redo (⇧⌘Z)",
+				"auto_layout": "Auto layout",
+				"auto_layout_hint": "Rearrange every table; you preview it before keeping it",
+				"select": "Select (V)",
+				"pan": "Pan (H)",
+				"zoom_out": "Zoom out",
+				"zoom_in": "Zoom in",
+				"reset_zoom": "Reset zoom (0)",
+				"fit": "Fit view (1)",
+				"note": "Note",
+				"note_hint": "Add a note (N)"
 			},
 			"notes": {
-				"placeholder": "Double-click to edit",
-				"delete": "Delete note"
+				"placeholder": "Double-click to write",
+				"delete": "Delete note",
+				"label": "Note"
 			},
-			"unsavedConfirm": "You have unsaved diagram changes. Leave anyway?",
 			"meta": "Schema diagram",
 			"meta_description": "The tables of a schema and their relations, with notes.",
 			"actions": {
 				"list": "List"
+			},
+			"schema": "Schema",
+			"search": "Find a table or column",
+			"stub_title": "Open the {schema} diagram",
+			"large": "{count} tables: select one and focus on it to read its relations.",
+			"save": {
+				"idle": "Layout saved",
+				"saving": "Saving…",
+				"error": "Couldn't save the layout",
+				"just_now": "Layout saved · just now",
+				"minutes": "Layout saved · {count} min ago"
+			},
+			"preview": {
+				"title": "Previewing auto layout.",
+				"moved": "{count} table moved. | {count} tables moved.",
+				"discard": "Discard",
+				"keep": "Keep layout"
+			},
+			"selection": {
+				"inspect": "Inspect",
+				"focus": "Focus",
+				"show_all": "Show all tables"
+			},
+			"legend": {
+				"key": "Primary key",
+				"relation": "Relation",
+				"object": "Object"
+			},
+			"empty": {
+				"no_schema": "No schema registered yet",
+				"title": "No tables in {schema}",
+				"description": "This schema is registered but declares no table yet."
 			}
 		},
 		"query": {

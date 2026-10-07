@@ -1,86 +1,104 @@
 <script setup lang="ts">
 import { Handle, Position } from "@vue-flow/core";
+import type { TableNodeData } from "../build/diagram/graph";
+import {
+	COLUMN_ROLE_CLASSES,
+	type ColumnRole,
+	describeField,
+	describeModifier,
+	isPrimaryKey,
+} from "../utils/fieldTypes";
 
-interface NodeData {
-	tableName: string;
-	fields: Record<string, unknown>;
-	indexes: Record<string, { fields?: string[]; multi?: boolean }>;
-	modifiers?: Record<string, string[]>;
-}
+// One table of the diagram (D-09): each column with its type as mono text and
+// a neutral icon. Colour only marks structure: the primary key, and the
+// relation columns, which light up with the selected table's relations.
 
-defineProps<{ data: NodeData }>();
+const props = defineProps<{ data: TableNodeData; selected?: boolean }>();
+
+const SIDES = ["left", "right"] as const;
+const KINDS = ["source", "target"] as const;
+const HANDLE_POSITIONS = { left: Position.Left, right: Position.Right } as const;
+
+const relationTargets = computed(
+	() => new Map(props.data.table.relations.map((relation) => [relation.fromField, relation])),
+);
+
+const rows = computed(() =>
+	Object.entries(props.data.table.fields).map(([name, descriptor]) => {
+		const key = isPrimaryKey(name, props.data.table.indexes ?? {});
+		const relation = relationTargets.value.get(name);
+		const role: ColumnRole = key ? "key" : relation ? "relation" : "plain";
+		const type = describeField(descriptor, name);
+		return {
+			name,
+			role,
+			icon: key ? "i-ph-key" : relation ? "i-ph-arrow-right" : type.icon,
+			type: relation ? relation.toTable : type.label,
+			modifiers: (props.data.table.modifiers?.[name] ?? []).map(describeModifier),
+			highlighted: props.data.highlighted.includes(name),
+		};
+	}),
+);
 </script>
 
 <template>
-	<div class="diagram-table-node bg-elevated border border-default rounded-lg w-60 shadow-md">
-		<!-- Fallback handles on the node body for edges that reference a non-existent field -->
-		<Handle id="__node__::left::source" type="source" :position="Position.Left" />
-		<Handle id="__node__::left::target" type="target" :position="Position.Left" />
-		<Handle id="__node__::right::source" type="source" :position="Position.Right" />
-		<Handle id="__node__::right::target" type="target" :position="Position.Right" />
+	<div
+		class="diagram-table-node bg-default w-[232px] cursor-grab rounded-md border text-xs shadow-sm transition-[opacity,border-color,box-shadow]"
+		:class="[
+			selected ? 'border-primary shadow-[0_0_0_3px_var(--ui-color-primary-500)]/20 ring-primary/30 ring-2' : 'border-accented',
+			data.dimmed ? 'opacity-45' : '',
+		]"
+	>
+		<template v-for="side in SIDES" :key="side">
+			<Handle
+				v-for="kind in KINDS"
+				:id="`__node__::${side}::${kind}`"
+				:key="kind"
+				:type="kind"
+				:position="HANDLE_POSITIONS[side]"
+			/>
+		</template>
 
-		<div class="px-3 py-2 border-b border-default flex items-center gap-2">
-			<UIcon name="i-ph-table" />
-			<span class="font-mono text-sm">{{ data.tableName }}</span>
+		<div class="border-default flex h-9 items-center gap-2 border-b pr-2.5 pl-3">
+			<UIcon name="i-ph-table" class="text-primary size-[15px] shrink-0" />
+			<span class="text-highlighted truncate font-mono text-[12.5px] font-semibold">
+				{{ data.tableName }}
+			</span>
 		</div>
 
 		<ul class="py-1">
 			<li
-				v-for="(fieldType, fieldName) in data.fields"
-				:key="fieldName"
-				class="relative flex items-center justify-between px-3 py-1 text-sm"
+				v-for="row in rows"
+				:key="row.name"
+				class="relative flex h-6 items-center gap-1.5 pr-2.5 pl-3 font-mono"
+				:class="[
+					row.role === 'relation' ? 'text-primary' : 'text-toned',
+					row.highlighted ? 'bg-primary/10' : '',
+				]"
 			>
-				<Handle
-					:id="`${fieldName}::left::source`"
-					type="source"
-					:position="Position.Left"
-				/>
-				<Handle
-					:id="`${fieldName}::left::target`"
-					type="target"
-					:position="Position.Left"
-				/>
-				<Handle
-					:id="`${fieldName}::right::source`"
-					type="source"
-					:position="Position.Right"
-				/>
-				<Handle
-					:id="`${fieldName}::right::target`"
-					type="target"
-					:position="Position.Right"
-				/>
-
-				<span class="flex items-center gap-0.5 font-mono min-w-0">
-					<UTooltip
-						v-if="isPrimaryKey(String(fieldName), data.indexes)"
-						text="Primary key"
-					>
-						<UIcon name="i-ph-key" class="text-amber-500 size-4 shrink-0" />
-					</UTooltip>
-					<template
-						v-for="modifierId in data.modifiers?.[String(fieldName)] ?? []"
-						:key="modifierId"
-					>
-						<UTooltip :text="resolveModifierIcon(modifierId).label">
-							<UIcon
-								:name="resolveModifierIcon(modifierId).icon"
-								:class="[resolveModifierIcon(modifierId).color, 'size-4 shrink-0']"
-							/>
-						</UTooltip>
-					</template>
-					<span class="truncate ml-1">{{ fieldName }}</span>
-				</span>
-
-				<UTooltip :text="inferFieldTypeIcon(fieldType, String(fieldName)).label">
-					<UIcon
-						:name="inferFieldTypeIcon(fieldType, String(fieldName)).icon"
-						:class="[
-							inferFieldTypeIcon(fieldType, String(fieldName)).color,
-							'size-4 shrink-0',
-						]"
+				<template v-for="side in SIDES" :key="side">
+					<Handle
+						v-for="kind in KINDS"
+						:id="`${row.name}::${side}::${kind}`"
+						:key="kind"
+						:type="kind"
+						:position="HANDLE_POSITIONS[side]"
 					/>
-				</UTooltip>
+				</template>
+				<UIcon
+					:name="row.icon"
+					class="size-3 shrink-0"
+					:class="row.role === 'plain' ? 'text-dimmed' : COLUMN_ROLE_CLASSES[row.role]"
+				/>
+				<span class="truncate">{{ row.name }}</span>
+				<UIcon
+					v-for="modifier in row.modifiers"
+					:key="modifier.id"
+					:name="modifier.icon"
+					class="text-dimmed size-3 shrink-0"
+					:title="modifier.labelKey ? $t(modifier.labelKey) : modifier.id"
+				/>
+				<span class="text-dimmed ml-auto max-w-24 truncate pl-2 text-[10.5px]">{{ row.type }}</span>
 			</li>
 		</ul>
 	</div>

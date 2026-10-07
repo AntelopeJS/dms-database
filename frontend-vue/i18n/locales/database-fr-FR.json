@@ -223,33 +223,61 @@
 		"diagram": {
 			"title": "Diagramme",
 			"description": "Les tables d'un schéma et leurs relations. Déplacez les tables pour les arranger ; la disposition est enregistrée pour toute l'équipe.",
-			"recomputeLayout": "Recalculer la disposition",
-			"tooManyTables": "Affichage de {shown} sur {total} tables. Utilisez le filtre de schéma pour affiner.",
 			"toolbar": {
-				"autoLayout": "Auto layout",
-				"help": "Aide",
-				"helpText": "Réorganise automatiquement les tables du schéma avec un placement hiérarchique (dagre) et recadre la vue.",
-				"undo": "Annuler la dernière action",
-				"redo": "Refaire",
-				"cancel": "Annuler",
-				"apply": "Appliquer",
-				"pointer": "Sélection",
-				"hand": "Déplacer",
-				"zoomIn": "Zoom avant",
-				"zoomOut": "Zoom arrière",
-				"resetZoom": "Réinitialiser le zoom",
-				"fitView": "Ajuster",
-				"notes": "Note"
+				"undo": "Annuler (⌘Z)",
+				"redo": "Rétablir (⇧⌘Z)",
+				"auto_layout": "Disposition auto",
+				"auto_layout_hint": "Réorganise toutes les tables ; vous voyez le résultat avant de le garder",
+				"select": "Sélection (V)",
+				"pan": "Déplacement (H)",
+				"zoom_out": "Dézoomer",
+				"zoom_in": "Zoomer",
+				"reset_zoom": "Zoom à 100 % (0)",
+				"fit": "Tout afficher (1)",
+				"note": "Note",
+				"note_hint": "Ajouter une note (N)"
 			},
 			"notes": {
-				"placeholder": "Double-cliquez pour modifier",
-				"delete": "Supprimer la note"
+				"placeholder": "Double-cliquez pour écrire",
+				"delete": "Supprimer la note",
+				"label": "Note"
 			},
-			"unsavedConfirm": "Des modifications du diagramme n'ont pas été enregistrées. Quitter quand même ?",
 			"meta": "Diagramme du schéma",
 			"meta_description": "Les tables d'un schéma et leurs relations, avec des notes.",
 			"actions": {
 				"list": "Liste"
+			},
+			"schema": "Schéma",
+			"search": "Chercher une table ou une colonne",
+			"stub_title": "Ouvrir le diagramme de {schema}",
+			"large": "{count} tables : sélectionnez-en une et isolez-la pour lire ses relations.",
+			"save": {
+				"idle": "Disposition enregistrée",
+				"saving": "Enregistrement…",
+				"error": "Impossible d'enregistrer la disposition",
+				"just_now": "Disposition enregistrée · à l'instant",
+				"minutes": "Disposition enregistrée · il y a {count} min"
+			},
+			"preview": {
+				"title": "Aperçu de la disposition auto.",
+				"moved": "{count} table déplacée. | {count} tables déplacées.",
+				"discard": "Annuler",
+				"keep": "Garder la disposition"
+			},
+			"selection": {
+				"inspect": "Inspecter",
+				"focus": "Isoler",
+				"show_all": "Afficher toutes les tables"
+			},
+			"legend": {
+				"key": "Clé primaire",
+				"relation": "Relation",
+				"object": "Objet"
+			},
+			"empty": {
+				"no_schema": "Aucun schéma déclaré",
+				"title": "Aucune table dans {schema}",
+				"description": "Ce schéma est déclaré mais ne contient encore aucune table."
 			}
 		},
 		"query": {

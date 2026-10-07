@@ -17,7 +17,8 @@ import { tableLink } from "../utils/databaseLinks";
 interface TableRow {
 	schema: string;
 	name: string;
-	elementCount: number;
+	/** Rows in the default instance; unknown when opened from the diagram. */
+	elementCount?: number;
 }
 
 interface RowNavigation {
@@ -122,13 +123,16 @@ const incoming = computed(() =>
 	})),
 );
 
+const rowsFact = computed(() => {
+	const count = props.rowData?.elementCount;
+	return count === undefined
+		? []
+		: [t("dms_database.inspector.facts.rows", { count: n(count) }, count)];
+});
+
 const facts = computed(() =>
 	[
-		t(
-			"dms_database.inspector.facts.rows",
-			{ count: n(props.rowData?.elementCount ?? 0) },
-			props.rowData?.elementCount ?? 0,
-		),
+		...rowsFact.value,
 		t("dms_database.inspector.facts.columns", columns.value.length),
 		t("dms_database.inspector.facts.indexes", indexes.value.length),
 		t(

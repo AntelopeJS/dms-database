@@ -1,7 +1,18 @@
 <script setup lang="ts">
 import { BaseEdge, type EdgeProps, Position, getBezierPath } from "@vue-flow/core";
+import type { EdgeEnds } from "../build/diagram/graph";
 
-const props = defineProps<EdgeProps>();
+// A relation column pointing at a table. The relations of the selected table
+// are drawn in the primary colour; the others stay quiet.
+const props = defineProps<EdgeProps<EdgeEnds>>();
+
+const ACTIVE_STROKE = "var(--ui-primary)";
+
+const edgeStyle = computed(() =>
+	props.data?.active
+		? { ...(props.style as object), stroke: ACTIVE_STROKE, strokeWidth: 2 }
+		: props.style,
+);
 
 const ARC_MIN_OFFSET = 60;
 const ARC_DY_FACTOR = 0.35;
@@ -48,7 +59,7 @@ const computedPath = computed<[string, number, number]>(() => {
 		:path="computedPath[0]"
 		:marker-end="markerEnd"
 		:marker-start="markerStart"
-		:style="style"
+		:style="edgeStyle"
 		:label-x="computedPath[1]"
 		:label-y="computedPath[2]"
 		:label="undefined"
@@ -61,7 +72,7 @@ const computedPath = computed<[string, number, number]>(() => {
 		:y="computedPath[2]"
 		text-anchor="middle"
 		dominant-baseline="middle"
-		:style="labelStyle"
+		:style="data?.active ? { fill: ACTIVE_STROKE } : labelStyle"
 	>
 		{{ label }}
 	</text>
