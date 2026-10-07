@@ -16,7 +16,13 @@ import {
 } from "@antelopejs/interface-database";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
-import { getTablePrimaryKey } from "../service/introspect";
+import {
+  getTableElementCount,
+  getTablePrimaryKey,
+  listSchemaSummaries,
+} from "../service/introspect";
+import type { ListResult } from "../types/responses";
+import { listRowReferences, type RowReference } from "../service/references";
 import {
   applyFilterToList,
   asNonEmptyString,
@@ -46,6 +52,12 @@ interface BrowseSelection {
   schema: string;
   instance: InstanceId | undefined;
   table: string;
+}
+
+/** One table of the data browser's list, counted in the browsed instance. */
+interface BrowseTableEntry {
+  name: string;
+  elementCount: number;
 }
 
 interface ColumnFilter {
@@ -231,7 +243,7 @@ const READONLY_FIELDS = new Set(["_id"]);
 // Turn a form-submitted edit body (a map of field → new value) into a sanitised
 // update set. The data browser edits one cell at a time, so the body usually
 // holds a single field. Kept out of the update set:
-//   - cleared / untouched optional fields (null / undefined),
+//   - untouched fields (undefined) and nulls over a cell already empty,
 //   - the read-only primary key,
 //   - synthetic browse-only fields,
 //   - non-finite numbers, and
@@ -266,6 +278,54 @@ function sameJson(a: unknown, b: unknown): boolean {
 // Sentinel: the field must not be written (protected, unchanged, or invalid).
 const SKIP_FIELD = Symbol("skip");
 
+// Fields a write never touches: the primary key, `_id` and the browse-only
+// synthetic columns.
+function isProtectedField(field: string, primaryKey: string | undefined) {
+  return (
+    field === primaryKey ||
+    SYNTHETIC_FIELDS.has(field) ||
+    READONLY_FIELDS.has(field)
+  );
+}
+
+// `null` clears a cell, which is also how an undo restores an empty one.
+function resolveClearedValue(
+  current: Record<string, unknown>,
+  field: string,
+): unknown {
+  return current[field] === null || current[field] === undefined
+    ? SKIP_FIELD
+    : null;
+}
+
+function resolveStructuredValue(
+  current: Record<string, unknown>,
+  field: string,
+  // `object` for the same reason as normalizeJsonValue: a JSON-editor cell
+  // is any non-null object, and that is what the caller narrowed it to.
+  // oxlint-disable-next-line anti-slop/no-object-parameters
+  value: object,
+): unknown {
+  const normalized = normalizeJsonValue(value);
+  if (normalized === null || typeof normalized !== "object") {
+    return SKIP_FIELD;
+  }
+  const before = current[field];
+  if (
+    before !== null &&
+    typeof before === "object" &&
+    sameJson(before, normalized)
+  ) {
+    return SKIP_FIELD;
+  }
+  return normalized;
+}
+
+function isWritableScalar(value: unknown): value is string | number | boolean {
+  if (typeof value === "number") return Number.isFinite(value);
+  return typeof value === "string" || typeof value === "boolean";
+}
+
 // Decide the value to persist for a single edited field, or SKIP_FIELD to drop
 // the write.
 function resolveEditValue(
@@ -274,34 +334,14 @@ function resolveEditValue(
   value: unknown,
   primaryKey: string | undefined,
 ): unknown {
-  if (value === null || value === undefined) return SKIP_FIELD;
-  if (field === primaryKey) return SKIP_FIELD;
-  if (SYNTHETIC_FIELDS.has(field) || READONLY_FIELDS.has(field)) {
+  if (value === undefined || isProtectedField(field, primaryKey)) {
     return SKIP_FIELD;
   }
+  if (value === null) return resolveClearedValue(current, field);
   if (typeof value === "object") {
-    const normalized = normalizeJsonValue(value);
-    if (normalized === null || typeof normalized !== "object") {
-      return SKIP_FIELD;
-    }
-    const before = current[field];
-    if (
-      before !== null &&
-      typeof before === "object" &&
-      sameJson(before, normalized)
-    ) {
-      return SKIP_FIELD;
-    }
-    return normalized;
+    return resolveStructuredValue(current, field, value);
   }
-  if (
-    typeof value !== "string" &&
-    typeof value !== "number" &&
-    typeof value !== "boolean"
-  ) {
-    return SKIP_FIELD;
-  }
-  if (typeof value === "number" && !Number.isFinite(value)) return SKIP_FIELD;
+  if (!isWritableScalar(value)) return SKIP_FIELD;
   const before = current[field];
   // Skip cells echoed back unchanged. The string comparison also covers an
   // object cell echoed as its string form by a whole-row client ("1,2" for
@@ -416,6 +456,72 @@ export class DatabaseBrowseController extends Controller(
       // and keep the primary-key column read-only.
       primaryKey: getTablePrimaryKey(selection.schema, selection.table) ?? null,
     };
+  }
+
+  /**
+   * The tables of a schema with their row counts in the browsed instance,
+   * for the data browser's table list.
+   */
+  @Get("/tables")
+  async tables(
+    @AuthRawUser() _user: User,
+    @Parameter("filter_schema", "query") schemaFilter: unknown,
+    @Parameter("filter_instance", "query") instanceFilter: unknown,
+  ): Promise<ListResult<BrowseTableEntry>> {
+    const schemaId = unwrapIsFilter(schemaFilter);
+    assert(schemaId, 400, "Missing 'schema' filter");
+    const instance = decodeInstanceFilter(instanceFilter);
+    const summary = (await listSchemaSummaries()).find(
+      (candidate) => candidate.id === schemaId,
+    );
+    assert(summary, 404, `Unknown schema: ${schemaId}`);
+    const items = await Promise.all(
+      summary.tables.map(async (table) => ({
+        name: table.name,
+        elementCount: await getTableElementCount(
+          schemaId,
+          table.name,
+          instance,
+        ),
+      })),
+    );
+    return { items };
+  }
+
+  /** Rows of other tables pointing at one row, per relation column. */
+  @Get("/references")
+  // Each parameter is bound to a request input by its decorator, so
+  // the framework hands them in positionally: an options object is not
+  // expressible here.
+  // oxlint-disable-next-line eslint/max-params
+  async references(
+    @AuthRawUser() _user: User,
+    @Parameter("filter_schema", "query") schemaFilter: unknown,
+    @Parameter("filter_instance", "query") instanceFilter: unknown,
+    @Parameter("filter_table", "query") tableFilter: unknown,
+    @Parameter("id", "query") idRaw: unknown,
+  ): Promise<ListResult<RowReference>> {
+    const selection = resolveSelection(
+      schemaFilter,
+      instanceFilter,
+      tableFilter,
+    );
+    assert(
+      selection.instance !== CROSS_INSTANCE,
+      400,
+      "Pick one instance to read a row's references",
+    );
+    const id = asNonEmptyString(idRaw);
+    assert(id, 400, "Missing 'id'");
+    const row = await resolveTable(selection).get(id as never);
+    assert(row && typeof row === "object", 404, "Row not found");
+    const items = await listRowReferences(
+      selection.schema,
+      selection.table,
+      row as Record<string, unknown>,
+      selection.instance,
+    );
+    return { items };
   }
 
   @Get("/get")

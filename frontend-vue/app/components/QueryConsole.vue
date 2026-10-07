@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { prepareQueryPayload } from "../../composables/useQueryRuntime";
+import { prepareQueryPayload } from "../composables/useQueryRuntime";
 import type {
 	ExecuteResult,
 	HistoryEntry,
 	QueryLanguage,
 	QueryScope,
 	SavedQuery,
-} from "../../composables/useQueryStore";
+} from "../composables/useQueryStore";
 
 const HISTORY_PAGE_SIZE = 5;
 const MUTATION_SKIP_KEY = "dms-db-query.skipMutationWarning";

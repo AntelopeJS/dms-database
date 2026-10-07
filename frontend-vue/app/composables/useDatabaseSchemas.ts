@@ -47,6 +47,12 @@ type SchemaLabelColor =
 	| "error"
 	| "neutral";
 
+/** A relation seen from the table it points to. */
+interface InboundRelation extends RelationDeclaration {
+	fromSchema: string;
+	fromTable: string;
+}
+
 interface SchemaLabel {
 	text: string;
 	color?: SchemaLabelColor;
@@ -76,8 +82,36 @@ export function useDatabaseSchemas() {
 		schemas: SchemaSummary[];
 	}>(SCHEMAS_ENDPOINT, { default: () => EMPTY_SCHEMAS });
 
+	const schemas = computed(() => data.value?.schemas ?? []);
+
+	function findTable(schemaId: string, tableName: string): TableSummary | undefined {
+		return schemas.value
+			.find((schema) => schema.id === schemaId)
+			?.tables.find((table) => table.name === tableName);
+	}
+
+	/** Relations of every table that point at `schemaId.tableName`. */
+	function inboundRelations(schemaId: string, tableName: string): InboundRelation[] {
+		return schemas.value.flatMap((schema) =>
+			schema.tables.flatMap((table) =>
+				table.relations
+					.filter(
+						(relation) =>
+							relation.toSchema === schemaId && relation.toTable === tableName,
+					)
+					.map((relation) => ({
+						...relation,
+						fromSchema: schema.id,
+						fromTable: table.name,
+					})),
+			),
+		);
+	}
+
 	return {
-		schemas: computed(() => data.value?.schemas ?? []),
+		schemas,
+		findTable,
+		inboundRelations,
 		isLoading: pending,
 		error,
 		refresh,
@@ -86,6 +120,7 @@ export function useDatabaseSchemas() {
 
 export type {
 	FieldDescriptor,
+	InboundRelation,
 	RelationDeclaration,
 	SchemaSummary,
 	TableSummary,

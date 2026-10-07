@@ -1,117 +1,110 @@
 import { Controller, Get, Parameter } from "@antelopejs/interface-api";
-import type { InstanceId } from "@antelopejs/interface-database";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
+import { formatModifier, localeOf, type ServerLocale } from "../i18n/messages";
 import {
   getTableElementCount,
   listSchemaSummaries,
 } from "../service/introspect";
-import {
-  applyFilterToList,
-  applySearchToList,
-  applySortToList,
-  clamp,
-  decodeInstanceFilter,
-  parseInteger,
-} from "../utils/query";
+import type { TableSummary } from "../service/types";
+import { applyFilterToList, asNonEmptyString } from "../utils/query";
 
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 200;
-
-interface TableRow {
-  // Stable, globally-unique row id (`schema::name`): table names alone collide
-  // across schemas, so this is what DmsTableView uses for row identity.
+/** One table of the Schemas page, as its source table view lists it. */
+export interface TableSourceRow {
+  // `schema::name`: table names alone collide across schemas.
   id: string;
   schema: string;
   name: string;
+  elementCount: number;
   columnCount: number;
   indexCount: number;
-  relationCount: number;
-  elementCount: number;
+  /** The tables this one points to, `schema.table` outside its schema. */
+  relations: string[];
+  modifiers: string[];
 }
 
-async function listAllTables(instance?: InstanceId): Promise<TableRow[]> {
+interface TableSourceResult {
+  results: TableSourceRow[];
+  total: number;
+}
+
+function relationTargets(schemaId: string, table: TableSummary): string[] {
+  const targets = table.relations.map((relation) =>
+    relation.toSchema === schemaId
+      ? relation.toTable
+      : `${relation.toSchema}.${relation.toTable}`,
+  );
+  return [...new Set(targets)];
+}
+
+function modifierNames(table: TableSummary, locale: ServerLocale): string[] {
+  const ids = new Set(Object.values(table.modifiers).flat());
+  return [...ids].map((id) => formatModifier(locale, id));
+}
+
+// A search names a table or one of its columns (D-06): "where is the
+// invoice number" finds the table holding it.
+function matchesSearch(
+  row: TableSourceRow,
+  table: TableSummary,
+  needle: string,
+): boolean {
+  if (row.name.toLowerCase().includes(needle)) return true;
+  return Object.keys(table.fields).some((field) =>
+    field.toLowerCase().includes(needle),
+  );
+}
+
+export async function listTableSourceRows(
+  locale: ServerLocale,
+  search?: string,
+): Promise<TableSourceRow[]> {
+  const needle = search?.trim().toLowerCase();
   const summaries = await listSchemaSummaries();
-  const rows: TableRow[] = [];
+  const rows: TableSourceRow[] = [];
   for (const summary of summaries) {
-    // Element counts follow the requested instance (a named instance paired
-    // with a schema it doesn't belong to safely counts 0). Default: base
-    // instance.
     const counts = await Promise.all(
       summary.tables.map((table) =>
-        getTableElementCount(summary.id, table.name, instance),
+        getTableElementCount(summary.id, table.name),
       ),
     );
-    summary.tables.forEach((table, idx) => {
-      rows.push({
+    summary.tables.forEach((table, index) => {
+      const row: TableSourceRow = {
         id: `${summary.id}::${table.name}`,
         schema: summary.id,
         name: table.name,
+        elementCount: counts[index] ?? 0,
         columnCount: Object.keys(table.fields).length,
-        indexCount: Object.keys(table.indexes).length,
-        relationCount: (table.relations ?? []).length,
-        elementCount: counts[idx] ?? 0,
-      });
+        indexCount: Object.keys(table.indexes ?? {}).length,
+        relations: relationTargets(summary.id, table),
+        modifiers: modifierNames(table, locale),
+      };
+      if (!needle || matchesSearch(row, table, needle)) rows.push(row);
     });
   }
   return rows;
-}
-
-async function selectMatchingTables(
-  schemaFilter: unknown,
-  instanceFilter: unknown,
-  search: unknown,
-): Promise<TableRow[]> {
-  const all = await listAllTables(decodeInstanceFilter(instanceFilter));
-  const bySchema = applyFilterToList(all, "schema", schemaFilter);
-  return applySearchToList(bySchema, "name", search);
 }
 
 @AuthOwnerOnly()
 export class DatabaseTablesController extends Controller(
   "/api/database/tables",
 ) {
-  @Get("/list")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
-  async list(
-    @AuthRawUser() _user: User,
-    @Parameter("filter_schema", "query") schemaFilter: unknown,
-    @Parameter("filter_instance", "query") instanceFilter: unknown,
+  /**
+   * Every registered table, for the Schemas page's source table view: it
+   * searches table and column names and filters on the schema; the browser
+   * sorts and pages the rows.
+   */
+  @Get("/source")
+  async source(
+    @AuthRawUser() user: User,
     @Parameter("search", "query") search: unknown,
-    @Parameter("offset", "query") offsetRaw: unknown,
-    @Parameter("limit", "query") limitRaw: unknown,
-    @Parameter("sortKey", "query") sortKey: unknown,
-    @Parameter("sortDirection", "query") sortDirection: unknown,
-  ) {
-    const matching = await selectMatchingTables(
-      schemaFilter,
-      instanceFilter,
-      search,
+    @Parameter("filter_schema", "query") schemaFilter: unknown,
+  ): Promise<TableSourceResult> {
+    const rows = await listTableSourceRows(
+      localeOf(user),
+      asNonEmptyString(search),
     );
-    const sorted = applySortToList(matching, sortKey, sortDirection);
-    const offset = Math.max(0, parseInteger(offsetRaw, 0));
-    const limit = clamp(parseInteger(limitRaw, DEFAULT_LIMIT), 1, MAX_LIMIT);
-    return {
-      results: sorted.slice(offset, offset + limit),
-      total: sorted.length,
-      offset,
-      limit,
-    };
-  }
-
-  @Get("/count")
-  async count(
-    @AuthRawUser() _user: User,
-    @Parameter("filter_schema", "query") schemaFilter: unknown,
-    @Parameter("filter_instance", "query") instanceFilter: unknown,
-    @Parameter("search", "query") search: unknown,
-  ) {
-    return {
-      total: (await selectMatchingTables(schemaFilter, instanceFilter, search))
-        .length,
-    };
+    const results = applyFilterToList(rows, "schema", schemaFilter);
+    return { results, total: results.length };
   }
 }

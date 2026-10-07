@@ -1,17 +1,21 @@
 {
 	"dms_database": {
 		"title": "Database",
-		"description": "Inspect schemas, browse data, view the schema diagram, and check connection configuration.",
+		"description": "Inspect schemas and tables, browse and fix rows, map relations and run queries.",
 		"overview": {
 			"title": "Overview",
-			"description": "Connection health, storage and recent activity across your database.",
+			"description": "Connection health, schemas and recent activity of the database.",
 			"beta": {
-				"title": "This module is in beta",
-				"body": "Today the database console is read-only — it lets you explore schemas, browse table data and run queries. In an upcoming release you'll be able to **edit tables directly**, change their structure, **add or rename columns and adjust their types**, **create and manage indexes**, define relations and constraints — all **without writing a single migration**. Antelope is actively building this; it ships alongside the **Module Builder**, the upcoming way to configure the whole platform without writing code."
+				"title": "Beta",
+				"body": "Saved edits in the data browser are written straight to the database. Structure editing (columns, indexes, relations) comes with the Module Builder.",
+				"meta": "Beta notice",
+				"meta_description": "The one-line notice about writes and what is coming."
 			},
 			"actions": {
 				"schema": "Schema",
-				"openData": "Open Data Browser"
+				"openData": "Open Data Browser",
+				"query": "Open query console",
+				"browse": "Browse data"
 			},
 			"health": {
 				"connection": "Connection",
@@ -38,10 +42,16 @@
 			},
 			"recent": {
 				"title": "Recent queries",
-				"console": "Query Console",
+				"console": "Query console",
 				"rowsUnit": "rows",
 				"justNow": "just now",
-				"empty": "No recent queries yet."
+				"empty": "No recent queries yet.",
+				"duration": "{duration} ms",
+				"rows": "{count} rows",
+				"changed": "{count} changed",
+				"failed": "Failed",
+				"empty_title": "No query run yet",
+				"empty_description": "Queries you run in the query console show up here."
 			},
 			"tables": {
 				"title": "Tables",
@@ -53,11 +63,46 @@
 					"columns": "Columns",
 					"indexes": "Indexes"
 				}
-			}
+			},
+			"connection": {
+				"meta": "Connection status",
+				"meta_description": "Whether the database answers, its probe latency and what it holds.",
+				"label": "Connection",
+				"healthy": "Healthy",
+				"down": "Unavailable",
+				"checked_seconds": "checked {count} s ago",
+				"checked_minutes": "checked {count} min ago",
+				"latency": "Probe latency",
+				"latency_sub": "last probe",
+				"tables": "Tables",
+				"tables_sub": "in {count} schema | in {count} schemas",
+				"rows": "Rows",
+				"rows_sub": "{count} relation | {count} relations",
+				"indexes": "Indexes",
+				"indexes_sub": "declared in code",
+				"last_error": "Last error",
+				"no_answer": "No answer",
+				"next_probe": "Next probe",
+				"next_probe_sub": "while this page is open",
+				"retry": "Check again"
+			},
+			"schemas": {
+				"title": "Schemas",
+				"description": "Registered by modules. Open one to see its tables.",
+				"cards_meta": "Schema cards",
+				"empty_title": "No schema registered yet",
+				"empty_description": "Schemas appear here when a module declares tables with @RegisterTable. The connection itself is healthy."
+			},
+			"largest": {
+				"title": "Largest tables",
+				"description": "Rows per table, default instance",
+				"empty": "No table holds rows yet."
+			},
+			"activity_meta": "Tables and queries"
 		},
 		"schemas": {
 			"title": "Schemas",
-			"description": "Explore tables as a list or a visual map. Click a table to inspect its columns, indexes and relations.",
+			"description": "Every table registered by your modules. Open one to inspect its columns, indexes and relations.",
 			"tableCount": "{count} table | {count} tables",
 			"collections": "{count} collection | {count} collections",
 			"selectSchema": "Schema selection",
@@ -68,7 +113,13 @@
 				"diagram": "Diagram"
 			},
 			"cols": {
-				"relations": "Relations"
+				"relations": "Relations",
+				"table": "Table",
+				"schema": "Schema",
+				"rows": "Rows",
+				"columns": "Columns",
+				"indexes": "Indexes",
+				"modifiers": "Modifiers"
 			},
 			"inspector": {
 				"columns": "Columns",
@@ -85,7 +136,10 @@
 				"noIndexes": "No indexes defined.",
 				"previewError": "Could not load a sample document.",
 				"previewEmpty": "This table has no rows to preview.",
-				"healthy": "Healthy"
+				"healthy": "Healthy",
+				"title": "Table",
+				"meta": "Table inspector",
+				"meta_description": "Columns, indexes, relations and a sample row of one table."
 			},
 			"stats": {
 				"tables": "Tables",
@@ -110,11 +164,27 @@
 				"elementCount": "Elements",
 				"columnCount": "Columns",
 				"indexCount": "Indexes"
+			},
+			"caption": "Tables",
+			"table_meta_description": "Every registered table, by schema, with its inspector.",
+			"search": "Find a table or column",
+			"footer_hint": "J / K step through tables in the inspector",
+			"actions": {
+				"inspect": "Inspect",
+				"browse": "Browse data",
+				"query": "Query this table",
+				"diagram": "Show in diagram"
+			},
+			"empty": {
+				"first_title": "No table registered yet",
+				"first_description": "Tables appear here when a module declares them with @RegisterTable.",
+				"filtered_title": "No table or column matches",
+				"filtered_description": "Search also looks inside column names. Try another schema or clear the search."
 			}
 		},
 		"data": {
-			"title": "Data Browser",
-			"description": "Browse rows from a selected schema, instance, and table.",
+			"title": "Data browser",
+			"description": "Browse and fix rows. Edits are staged and written only when you save them.",
 			"instanceDefault": "Default",
 			"instanceCross": "All instances (read-only)",
 			"schema": "Schema",
@@ -146,11 +216,13 @@
 			"cancel": "Cancel",
 			"closeTab": "Close tab",
 			"keepTab": "Keep tab open",
-			"previewTab": "{name} (preview tab)"
+			"previewTab": "{name} (preview tab)",
+			"meta": "Data browser",
+			"meta_description": "Tables, rows and staged edits of one schema instance."
 		},
 		"diagram": {
 			"title": "Diagram",
-			"description": "Visualization of registered schemas and their tables.",
+			"description": "Tables and relations of a schema. Drag tables to arrange them; the layout is saved for the whole team.",
 			"recomputeLayout": "Recompute layout",
 			"tooManyTables": "Showing {shown} of {total} tables. Use the schema filter to narrow down.",
 			"toolbar": {
@@ -173,11 +245,16 @@
 				"placeholder": "Double-click to edit",
 				"delete": "Delete note"
 			},
-			"unsavedConfirm": "You have unsaved diagram changes. Leave anyway?"
+			"unsavedConfirm": "You have unsaved diagram changes. Leave anyway?",
+			"meta": "Schema diagram",
+			"meta_description": "The tables of a schema and their relations, with notes.",
+			"actions": {
+				"list": "List"
+			}
 		},
 		"query": {
-			"title": "Query Console",
-			"description": "Write, run and save queries against your database with live results.",
+			"title": "Query console",
+			"description": "Write and run AQL against any schema. Queries that change data always show what they will touch first.",
 			"builder": "Query builder",
 			"result": "Result",
 			"favorites": "Saved",
@@ -233,6 +310,76 @@
 				"dontRemind": "Don't ask me again",
 				"confirm": "Run query",
 				"cancel": "Cancel"
+			},
+			"meta": "Query console",
+			"meta_description": "The editor, its results and the library of past and saved queries.",
+			"actions": {
+				"data": "Data browser"
+			}
+		},
+		"catalog_category": "Data",
+		"nav": {
+			"explore": "Explore",
+			"work": "Work with data"
+		},
+		"common": {
+			"retry": "Try again",
+			"copy": "Copy",
+			"cancel": "Cancel",
+			"close": "Close"
+		},
+		"modifiers": {
+			"hashed": "Hashed",
+			"localized": "Localized",
+			"encrypted": "Encrypted"
+		},
+		"inspector": {
+			"eyebrow": "Schema · {schema}",
+			"previous": "Previous table (K)",
+			"next": "Next table (J)",
+			"instances": "{count} instance | {count} instances",
+			"copy_name": "Copy table name",
+			"copied": "{name} copied",
+			"primary_key": "primary key",
+			"facts": {
+				"rows": "{count} row | {count} rows",
+				"columns": "{count} column | {count} columns",
+				"indexes": "{count} index | {count} indexes",
+				"relations": "{count} relation | {count} relations"
+			},
+			"actions": {
+				"browse": "Browse data",
+				"query": "Query this table",
+				"diagram": "Show in diagram"
+			},
+			"tabs": {
+				"columns": "Columns",
+				"indexes": "Indexes",
+				"relations": "Relations",
+				"sample": "Sample row"
+			},
+			"cols": {
+				"column": "Column",
+				"type": "Type",
+				"null": "Null",
+				"notes": "Notes"
+			},
+			"index": {
+				"compound": "compound",
+				"single": "single",
+				"empty": "No index declared on this table."
+			},
+			"relations": {
+				"out": "References · {count}",
+				"in": "Referenced by · {count}",
+				"none_out": "This table points to no other table.",
+				"none_in": "No table points to this one."
+			},
+			"sample": {
+				"position": "Row {position} of {total} · default instance",
+				"another": "Another row",
+				"error": "Couldn't load a row of this table.",
+				"empty": "This table has no row yet."
 			}
 		}
 	}

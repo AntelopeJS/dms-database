@@ -1,17 +1,21 @@
 {
 	"dms_database": {
 		"title": "Base de données",
-		"description": "Inspecter les schémas, parcourir les données, visualiser le diagramme et vérifier la configuration de la connexion.",
+		"description": "Inspectez les schémas et les tables, parcourez et corrigez les lignes, cartographiez les relations et lancez des requêtes.",
 		"overview": {
 			"title": "Vue d'ensemble",
-			"description": "Santé de la connexion, stockage et activité récente de votre base de données.",
+			"description": "Santé de la connexion, schémas et activité récente de la base.",
 			"beta": {
-				"title": "Ce module est en bêta",
-				"body": "Aujourd'hui la console de base de données est en lecture seule — elle permet d'explorer les schémas, de parcourir les données et d'exécuter des requêtes. Dans une prochaine version, vous pourrez **modifier les tables directement**, changer leur structure, **ajouter ou renommer des colonnes et ajuster leurs types**, **créer et gérer des index**, définir des relations et des contraintes — le tout **sans écrire la moindre migration**. Antelope développe activement cette fonctionnalité ; elle arrivera avec le **Module Builder**, la future façon de configurer toute la plateforme sans écrire de code."
+				"title": "Bêta",
+				"body": "Les modifications enregistrées dans l'explorateur de données sont écrites directement en base. L'édition de la structure (colonnes, index, relations) arrive avec le Module Builder.",
+				"meta": "Avertissement bêta",
+				"meta_description": "L'avertissement d'une ligne sur les écritures et ce qui arrive."
 			},
 			"actions": {
 				"schema": "Schéma",
-				"openData": "Ouvrir l'explorateur"
+				"openData": "Ouvrir l'explorateur",
+				"query": "Ouvrir la console",
+				"browse": "Parcourir les données"
 			},
 			"health": {
 				"connection": "Connexion",
@@ -41,7 +45,13 @@
 				"console": "Console de requêtes",
 				"rowsUnit": "lignes",
 				"justNow": "à l'instant",
-				"empty": "Aucune requête récente."
+				"empty": "Aucune requête récente.",
+				"duration": "{duration} ms",
+				"rows": "{count} lignes",
+				"changed": "{count} modifiées",
+				"failed": "Échec",
+				"empty_title": "Aucune requête lancée",
+				"empty_description": "Les requêtes lancées dans la console apparaissent ici."
 			},
 			"tables": {
 				"title": "Tables",
@@ -53,11 +63,46 @@
 					"columns": "Colonnes",
 					"indexes": "Index"
 				}
-			}
+			},
+			"connection": {
+				"meta": "État de la connexion",
+				"meta_description": "Si la base répond, la latence de la sonde et ce qu'elle contient.",
+				"label": "Connexion",
+				"healthy": "Opérationnelle",
+				"down": "Indisponible",
+				"checked_seconds": "vérifiée il y a {count} s",
+				"checked_minutes": "vérifiée il y a {count} min",
+				"latency": "Latence de la sonde",
+				"latency_sub": "dernière sonde",
+				"tables": "Tables",
+				"tables_sub": "dans {count} schéma | dans {count} schémas",
+				"rows": "Lignes",
+				"rows_sub": "{count} relation | {count} relations",
+				"indexes": "Index",
+				"indexes_sub": "déclarés dans le code",
+				"last_error": "Dernière erreur",
+				"no_answer": "Pas de réponse",
+				"next_probe": "Prochaine sonde",
+				"next_probe_sub": "tant que la page est ouverte",
+				"retry": "Vérifier à nouveau"
+			},
+			"schemas": {
+				"title": "Schémas",
+				"description": "Déclarés par les modules. Ouvrez-en un pour voir ses tables.",
+				"cards_meta": "Cartes des schémas",
+				"empty_title": "Aucun schéma déclaré",
+				"empty_description": "Les schémas apparaissent ici quand un module déclare des tables avec @RegisterTable. La connexion elle-même fonctionne."
+			},
+			"largest": {
+				"title": "Plus grandes tables",
+				"description": "Lignes par table, instance par défaut",
+				"empty": "Aucune table ne contient de ligne."
+			},
+			"activity_meta": "Tables et requêtes"
 		},
 		"schemas": {
 			"title": "Schémas",
-			"description": "Explorez les tables sous forme de liste ou de carte visuelle. Cliquez sur une table pour inspecter ses colonnes, index et relations.",
+			"description": "Toutes les tables déclarées par vos modules. Ouvrez-en une pour voir ses colonnes, index et relations.",
 			"tableCount": "{count} table | {count} tables",
 			"collections": "{count} collection | {count} collections",
 			"selectSchema": "Sélection du schéma",
@@ -68,7 +113,13 @@
 				"diagram": "Diagramme"
 			},
 			"cols": {
-				"relations": "Relations"
+				"relations": "Relations",
+				"table": "Table",
+				"schema": "Schéma",
+				"rows": "Lignes",
+				"columns": "Colonnes",
+				"indexes": "Index",
+				"modifiers": "Modificateurs"
 			},
 			"inspector": {
 				"columns": "Colonnes",
@@ -85,7 +136,10 @@
 				"noIndexes": "Aucun index défini.",
 				"previewError": "Impossible de charger un document exemple.",
 				"previewEmpty": "Cette table n'a aucune ligne à prévisualiser.",
-				"healthy": "En bonne santé"
+				"healthy": "En bonne santé",
+				"title": "Table",
+				"meta": "Inspecteur de table",
+				"meta_description": "Colonnes, index, relations et ligne exemple d'une table."
 			},
 			"stats": {
 				"tables": "Tables",
@@ -110,11 +164,27 @@
 				"elementCount": "Éléments",
 				"columnCount": "Colonnes",
 				"indexCount": "Index"
+			},
+			"caption": "Tables",
+			"table_meta_description": "Toutes les tables déclarées, par schéma, avec leur inspecteur.",
+			"search": "Chercher une table ou une colonne",
+			"footer_hint": "J / K pour passer d'une table à l'autre dans l'inspecteur",
+			"actions": {
+				"inspect": "Inspecter",
+				"browse": "Parcourir les données",
+				"query": "Interroger cette table",
+				"diagram": "Voir dans le diagramme"
+			},
+			"empty": {
+				"first_title": "Aucune table déclarée",
+				"first_description": "Les tables apparaissent ici quand un module les déclare avec @RegisterTable.",
+				"filtered_title": "Aucune table ni colonne ne correspond",
+				"filtered_description": "La recherche porte aussi sur les noms de colonnes. Essayez un autre schéma ou effacez la recherche."
 			}
 		},
 		"data": {
 			"title": "Explorateur de données",
-			"description": "Parcourir les lignes d'un schéma, d'une instance et d'une table sélectionnés.",
+			"description": "Parcourez et corrigez les lignes. Les modifications sont préparées et écrites seulement quand vous les enregistrez.",
 			"instanceDefault": "Par défaut",
 			"instanceCross": "Toutes les instances (lecture seule)",
 			"schema": "Schéma",
@@ -146,11 +216,13 @@
 			"cancel": "Annuler",
 			"closeTab": "Fermer l'onglet",
 			"keepTab": "Garder l'onglet ouvert",
-			"previewTab": "{name} (onglet d'aperçu)"
+			"previewTab": "{name} (onglet d'aperçu)",
+			"meta": "Explorateur de données",
+			"meta_description": "Les tables, les lignes et les modifications préparées d'une instance de schéma."
 		},
 		"diagram": {
 			"title": "Diagramme",
-			"description": "Visualisation des schémas enregistrés et de leurs tables.",
+			"description": "Les tables d'un schéma et leurs relations. Déplacez les tables pour les arranger ; la disposition est enregistrée pour toute l'équipe.",
 			"recomputeLayout": "Recalculer la disposition",
 			"tooManyTables": "Affichage de {shown} sur {total} tables. Utilisez le filtre de schéma pour affiner.",
 			"toolbar": {
@@ -173,11 +245,16 @@
 				"placeholder": "Double-cliquez pour modifier",
 				"delete": "Supprimer la note"
 			},
-			"unsavedConfirm": "Des modifications du diagramme n'ont pas été enregistrées. Quitter quand même ?"
+			"unsavedConfirm": "Des modifications du diagramme n'ont pas été enregistrées. Quitter quand même ?",
+			"meta": "Diagramme du schéma",
+			"meta_description": "Les tables d'un schéma et leurs relations, avec des notes.",
+			"actions": {
+				"list": "Liste"
+			}
 		},
 		"query": {
 			"title": "Console de requêtes",
-			"description": "Écrivez, exécutez et sauvegardez des requêtes sur votre base de données avec des résultats en direct.",
+			"description": "Écrivez et lancez de l'AQL sur n'importe quel schéma. Les requêtes qui modifient des données montrent toujours d'abord ce qu'elles touchent.",
 			"builder": "Constructeur de requête",
 			"result": "Résultat",
 			"favorites": "Sauvegardées",
@@ -233,6 +310,76 @@
 				"dontRemind": "Ne plus me demander",
 				"confirm": "Exécuter",
 				"cancel": "Annuler"
+			},
+			"meta": "Console de requêtes",
+			"meta_description": "L'éditeur, ses résultats et la bibliothèque des requêtes passées et enregistrées.",
+			"actions": {
+				"data": "Explorateur de données"
+			}
+		},
+		"catalog_category": "Données",
+		"nav": {
+			"explore": "Explorer",
+			"work": "Travailler les données"
+		},
+		"common": {
+			"retry": "Réessayer",
+			"copy": "Copier",
+			"cancel": "Annuler",
+			"close": "Fermer"
+		},
+		"modifiers": {
+			"hashed": "Haché",
+			"localized": "Traduit",
+			"encrypted": "Chiffré"
+		},
+		"inspector": {
+			"eyebrow": "Schéma · {schema}",
+			"previous": "Table précédente (K)",
+			"next": "Table suivante (J)",
+			"instances": "{count} instance | {count} instances",
+			"copy_name": "Copier le nom de la table",
+			"copied": "{name} copié",
+			"primary_key": "clé primaire",
+			"facts": {
+				"rows": "{count} ligne | {count} lignes",
+				"columns": "{count} colonne | {count} colonnes",
+				"indexes": "{count} index | {count} index",
+				"relations": "{count} relation | {count} relations"
+			},
+			"actions": {
+				"browse": "Parcourir les données",
+				"query": "Interroger cette table",
+				"diagram": "Voir dans le diagramme"
+			},
+			"tabs": {
+				"columns": "Colonnes",
+				"indexes": "Index",
+				"relations": "Relations",
+				"sample": "Ligne exemple"
+			},
+			"cols": {
+				"column": "Colonne",
+				"type": "Type",
+				"null": "Null",
+				"notes": "Notes"
+			},
+			"index": {
+				"compound": "composé",
+				"single": "simple",
+				"empty": "Aucun index déclaré sur cette table."
+			},
+			"relations": {
+				"out": "Référence · {count}",
+				"in": "Référencée par · {count}",
+				"none_out": "Cette table ne pointe vers aucune autre.",
+				"none_in": "Aucune table ne pointe vers celle-ci."
+			},
+			"sample": {
+				"position": "Ligne {position} sur {total} · instance par défaut",
+				"another": "Une autre ligne",
+				"error": "Impossible de charger une ligne de cette table.",
+				"empty": "Cette table n'a encore aucune ligne."
 			}
 		}
 	}

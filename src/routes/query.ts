@@ -18,6 +18,11 @@ import {
   SavedQueryModel,
   type SavedQueryRow,
 } from "../db";
+import {
+  containsMutation,
+  type DryRunResult,
+  dryRun,
+} from "../service/queryInspection";
 import { decodeStaged } from "../service/stagedSerialization";
 import type {
   ExecuteResult,
@@ -34,6 +39,8 @@ import { clamp, parseInteger } from "../utils/query";
 import { asNonEmptyString, asString } from "../utils/requestValidation";
 
 const DEFAULT_HISTORY_LIMIT = 25;
+// Rows a run sends back at most; the console says when it cut the rest.
+const MAX_RESULT_ROWS = 1000;
 const MAX_HISTORY_LIMIT = 200;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
 
@@ -163,7 +170,7 @@ function normaliseRows(raw: unknown): Record<string, unknown>[] {
 }
 
 function toHistoryWire(row: QueryHistoryRow & { _id: string }): HistoryEntry {
-  return {
+  const entry: HistoryEntry = {
     id: row._id,
     userId: row.userId,
     query: row.query,
@@ -175,7 +182,34 @@ function toHistoryWire(row: QueryHistoryRow & { _id: string }): HistoryEntry {
         : new Date(row.executedAt).toISOString(),
     durationMs: row.durationMs,
     rowCount: row.rowCount,
+    // Rows stored before failed runs were recorded only hold successes.
+    status: row.status ?? "ok",
+    mutation: row.mutation ?? false,
   };
+  if (row.error) entry.error = row.error;
+  return entry;
+}
+
+interface ExecuteBodyParsed {
+  query: Record<string, unknown>;
+  source: string;
+  language: QueryLanguage;
+  root: Query<unknown>;
+}
+
+function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
+  const query = asRecord(body?.query);
+  return {
+    query,
+    source: asNonEmptyString(body?.source),
+    language: asLanguage(body?.language),
+    root: decodeRunnable(query),
+  };
+}
+
+function errorMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  return message || "Query execution failed";
 }
 
 @AuthOwnerOnly()
@@ -185,23 +219,33 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @AuthRawUser() user: User,
     @JSONBody() body: ExecuteBody,
   ): Promise<ExecuteResult> {
-    const query = asRecord(body?.query);
-    const source = asNonEmptyString(body?.source);
-    const language = asLanguage(body?.language);
-    const root = decodeRunnable(query);
-
+    const { query, source, language, root } = parseExecuteBody(body);
+    const mutation = containsMutation(root);
+    const historyModel = GetModel(QueryHistoryModel);
     const executedAt = new Date();
     const startedAt = Date.now();
     let raw: unknown;
     try {
       raw = await root.run();
-    } catch (err) {
-      assert(false, 400, (err as Error).message ?? "Query execution failed");
+    } catch (error) {
+      const message = errorMessage(error);
+      await historyModel.addAndPrune({
+        userId: user._id,
+        query,
+        source,
+        language,
+        executedAt,
+        durationMs: Date.now() - startedAt,
+        rowCount: 0,
+        status: "error",
+        mutation,
+        error: message,
+      });
+      assert(false, 400, message);
     }
     const durationMs = Date.now() - startedAt;
     const rows = normaliseRows(raw);
 
-    const historyModel = GetModel(QueryHistoryModel);
     await historyModel.addAndPrune({
       userId: user._id,
       query,
@@ -210,13 +254,35 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       executedAt,
       durationMs,
       rowCount: rows.length,
+      status: "ok",
+      mutation,
     });
 
     return {
-      rows,
+      rows: rows.slice(0, MAX_RESULT_ROWS),
+      rowCount: rows.length,
+      truncated: rows.length > MAX_RESULT_ROWS,
+      mutation,
       executedAt: executedAt.toISOString(),
       durationMs,
     };
+  }
+
+  /**
+   * Measures what a query would change without running it: the console's
+   * guard names the operation, its target and the rows it touches.
+   */
+  @Post("/dry-run")
+  async dryRun(
+    @AuthRawUser() _user: User,
+    @JSONBody() body: ExecuteBody,
+  ): Promise<DryRunResult> {
+    const root = decodeRunnable(asRecord(body?.query));
+    try {
+      return await dryRun(root);
+    } catch (error) {
+      assert(false, 400, errorMessage(error));
+    }
   }
 
   @Post("/saved")
@@ -279,6 +345,21 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const existing = await getOwnedSavedQuery(id, user._id);
     await GetModel(SavedQueryModel).delete(existing._id);
     return { success: true };
+  }
+
+  @Get("/history/:id")
+  async getHistoryEntry(
+    @AuthRawUser() user: User,
+    @Parameter("id", "param") id: unknown,
+  ): Promise<HistoryEntry> {
+    const row = await GetModel(QueryHistoryModel).get(asNonEmptyString(id));
+    // Another user's run answers like a missing one.
+    assert(
+      row !== undefined && row.userId === user._id,
+      404,
+      "History entry not found",
+    );
+    return toHistoryWire(row as QueryHistoryRow & { _id: string });
   }
 
   @Get("/history")
