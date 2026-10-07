@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import type { ColumnFilterState, GridColumn } from "../composables/useDataBrowserGrid";
+import { COLUMN_ROLE_CLASSES, type ColumnRole, describeRuntimeType } from "../utils/fieldTypes";
+
+// A column header (D-14): its type as a neutral icon, colour only for the key
+// and relation columns, and the sort arrow and funnel shown whenever they are
+// on. The funnel opens the column's filter; the active filters are also chips
+// under the toolbar.
 
 const props = defineProps<{
 	column: GridColumn;
+	role: ColumnRole;
 	sortKey: string | null;
 	sortDirection: "asc" | "desc";
 	filter: ColumnFilterState | null;
@@ -17,15 +24,18 @@ const emit = defineEmits<{
 
 const { t } = useI18n();
 
-// Shared icon set (utils/databaseFieldTypeIcons) so runtime-sampled columns
-// carry the same glyph, color and named-field overrides as the inspector.
-const typeIcon = computed(() =>
-	runtimeTypeIcon(props.column.type, props.column.name),
-);
+const ROLE_ICONS: Record<ColumnRole, string | null> = {
+	key: "i-ph-key",
+	relation: "i-ph-arrow-right",
+	plain: null,
+};
+
+const type = computed(() => describeRuntimeType(props.column.type, props.column.name));
+const icon = computed(() => ROLE_ICONS[props.role] ?? type.value.icon);
 
 const sortIcon = computed(() => {
 	if (props.sortKey !== props.column.name) return null;
-	return props.sortDirection === "asc" ? "i-ph-caret-up" : "i-ph-caret-down";
+	return props.sortDirection === "asc" ? "i-ph-arrow-up" : "i-ph-arrow-down";
 });
 
 // --- filter popover ---
@@ -40,8 +50,8 @@ watch(filterOpen, (open) => {
 });
 
 const modeOptions = computed(() => [
-	{ label: t("dms_database.data.filterModeContains"), value: "contains" },
-	{ label: t("dms_database.data.filterModeIs"), value: "is" },
+	{ label: t("dms_database.data.filters.contains"), value: "contains" },
+	{ label: t("dms_database.data.filters.is"), value: "is" },
 ]);
 
 function applyFilter() {
@@ -96,35 +106,30 @@ onBeforeUnmount(() => detachResize?.());
 
 <template>
 	<th
-		class="group relative select-none border-r border-b border-default bg-elevated p-0 text-left font-medium"
+		class="group border-default bg-elevated relative border-r border-b p-0 text-left font-medium select-none"
 		scope="col"
+		:aria-sort="sortIcon ? (sortDirection === 'asc' ? 'ascending' : 'descending') : undefined"
 	>
 		<div class="flex items-center gap-1.5 px-2.5 py-1.5">
 			<UIcon
-				v-if="column.isPrimaryKey"
-				name="i-ph-key"
-				class="size-3 shrink-0 text-amber-500"
-			/>
-			<UIcon
-				v-else
-				:name="typeIcon.icon"
+				:name="icon"
 				class="size-3 shrink-0"
-				:class="typeIcon.color"
-				:title="typeIcon.label"
+				:class="role === 'plain' ? 'text-dimmed' : COLUMN_ROLE_CLASSES[role]"
+				:title="type.label"
 			/>
 			<button
 				type="button"
-				class="min-w-0 flex-1 truncate text-left font-mono text-xs text-toned hover:text-highlighted"
+				class="min-w-0 flex-1 truncate text-left font-mono text-xs hover:text-highlighted"
+				:class="role === 'relation' ? 'text-primary' : 'text-toned'"
+				:title="t('dms_database.data.grid.sort_hint')"
 				@click="emit('sort')"
 			>
 				{{ column.name }}
 			</button>
-			<UIcon v-if="sortIcon" :name="sortIcon" class="size-3 shrink-0 text-primary" />
-			<!--
-				Data filters on columns named after the wire protocol's selection
-				params (schema / table / instance) are silently dropped server-side,
-				so don't offer the filter button on those columns at all.
-			-->
+			<UIcon v-if="sortIcon" :name="sortIcon" class="text-primary size-3 shrink-0" />
+			<!-- Columns named after the selection parameters (schema, table,
+			     instance) cannot be filtered: the server reads those as the
+			     table to browse. -->
 			<UPopover v-if="!isReservedFilterField(column.name)" v-model:open="filterOpen">
 				<button
 					type="button"
@@ -132,15 +137,16 @@ onBeforeUnmount(() => detachResize?.());
 					:class="
 						filter
 							? 'text-primary opacity-100'
-							: 'text-dimmed opacity-0 group-hover:opacity-100'
+							: 'text-dimmed opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
 					"
-					:aria-label="t('dms_database.data.filterTitle', { column: column.name })"
+					:aria-label="t('dms_database.data.filters.column_title', { column: column.name })"
+					:title="t('dms_database.data.filters.column_title', { column: column.name })"
 				>
 					<UIcon name="i-ph-funnel" class="size-3" />
 				</button>
 				<template #content>
-					<div class="w-56 space-y-2 p-3">
-						<p class="font-mono text-xs text-muted">{{ column.name }}</p>
+					<div class="w-60 space-y-2 p-3">
+						<p class="text-muted font-mono text-xs">{{ column.name }}</p>
 						<USelect v-model="draftMode" :items="modeOptions" size="xs" class="w-full" />
 						<UInput
 							v-model="draftValue"
@@ -154,12 +160,12 @@ onBeforeUnmount(() => detachResize?.());
 								size="xs"
 								variant="ghost"
 								color="neutral"
-								:label="t('dms_database.data.filterClear')"
+								:label="t('dms_database.data.filters.remove')"
 								@click="clearFilter"
 							/>
 							<UButton
 								size="xs"
-								:label="t('dms_database.data.filterApply')"
+								:label="t('dms_database.data.filters.apply')"
 								@click="applyFilter"
 							/>
 						</div>
@@ -168,7 +174,7 @@ onBeforeUnmount(() => detachResize?.());
 			</UPopover>
 		</div>
 		<span
-			class="absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize hover:bg-primary/40"
+			class="hover:bg-primary/40 absolute top-0 right-0 z-10 h-full w-1 cursor-col-resize"
 			@mousedown="startResize"
 		/>
 	</th>

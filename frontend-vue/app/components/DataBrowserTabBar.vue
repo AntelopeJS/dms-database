@@ -1,5 +1,10 @@
 <script setup lang="ts">
+import { useStagedEdits } from "../build/data/stagedEdits";
 import type { BrowserTab } from "../composables/useDataBrowserTabs";
+
+// The open tables (D-05). A preview tab, in italics, is replaced by the next
+// table opened from the list; its pin keeps it, and the bar says so. A tab
+// holding staged edits carries a dot and asks before it is closed.
 
 const {
 	tabs,
@@ -11,17 +16,20 @@ const {
 	moveTab,
 } = useDataBrowserTabs();
 const { t } = useI18n();
+const staged = useStagedEdits();
+const { confirm } = useConfirm();
 
-// Shared by the pin and close buttons — they are a hover-reveal pair on the
-// same tab and must render identically.
-const tabActionClass =
+const closeButtonClass =
 	"rounded p-0.5 text-dimmed opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 hover:bg-elevated hover:text-default";
+const pinButtonClass =
+	"rounded p-0.5 text-muted hover:bg-elevated hover:text-highlighted";
+const hasPreview = computed(() => tabs.value.some((tab) => tab.preview));
 
 // The label doubles as the accessible name; a preview tab announces its
 // ephemeral state, which the italic styling alone cannot convey.
 function tabAriaLabel(tab: BrowserTab): string {
 	return tab.preview
-		? t("dms_database.data.previewTab", { name: label(tab) })
+		? t("dms_database.data.tabs.preview", { name: label(tab) })
 		: label(tab);
 }
 
@@ -84,7 +92,20 @@ function instanceBadge(tab: BrowserTab): string | null {
 	return `@${tab.instance}`;
 }
 
-function close(tab: BrowserTab) {
+async function close(tab: BrowserTab) {
+	const pending = staged.count(tab.id);
+	if (pending > 0) {
+		const discard = await confirm({
+			title: t("dms_database.data.tabs.close_title", { table: tab.table }),
+			description: t("dms_database.data.tabs.close_description", pending),
+			confirmLabel: t("dms_database.data.tabs.close_discard"),
+			cancelLabel: t("dms_database.data.tabs.close_keep"),
+			color: "warning",
+			initialFocus: "cancel",
+		});
+		if (!discard) return;
+		staged.discard(tab.id);
+	}
 	closeTab(tab.id);
 }
 </script>
@@ -135,15 +156,21 @@ function close(tab: BrowserTab) {
 				</span>
 				<span
 					v-if="instanceBadge(tab)"
-					class="rounded bg-primary/10 px-1 font-mono text-[10px] text-primary"
+					class="text-primary font-mono text-[10.5px]"
 				>
 					{{ instanceBadge(tab) }}
 				</span>
+				<span
+					v-if="staged.count(tab.id) > 0"
+					class="bg-warning size-1.5 rounded-full"
+					:title="t('dms_database.data.tabs.unsaved', staged.count(tab.id))"
+				/>
 			</button>
 			<button
 				type="button"
-				:class="[tabActionClass, { 'opacity-100': tab.id === activeId }]"
-				:aria-label="$t('dms_database.data.closeTab')"
+				:class="[closeButtonClass, { 'opacity-100': tab.id === activeId }]"
+				:aria-label="t('dms_database.data.tabs.close')"
+				:title="t('dms_database.data.tabs.close')"
 				@click.stop="close(tab)"
 			>
 				<UIcon name="i-ph-x" class="size-3" />
@@ -152,15 +179,21 @@ function close(tab: BrowserTab) {
 			     nothing may reflow into the pointer's position — a double-click's
 			     second click would otherwise land on the close button and destroy
 			     the tab the user just pinned. -->
-			<button
-				v-if="tab.preview"
-				type="button"
-				:class="[tabActionClass, { 'opacity-100': tab.id === activeId }]"
-				:aria-label="$t('dms_database.data.keepTab')"
-				@click.stop="pinFromButton(tab, $event)"
-			>
-				<UIcon name="i-ph-push-pin" class="size-3" />
-			</button>
+			<UTooltip v-if="tab.preview" :text="t('dms_database.data.tabs.keep_hint')">
+				<button
+					type="button"
+					:class="pinButtonClass"
+					:aria-label="t('dms_database.data.tabs.keep')"
+					@click.stop="pinFromButton(tab, $event)"
+				>
+					<UIcon name="i-ph-push-pin" class="size-3" />
+				</button>
+			</UTooltip>
 		</div>
+		<span v-if="hasPreview" class="text-dimmed ml-auto shrink-0 self-center pb-1 pl-3 text-[11px]">
+			<i18n-t keypath="dms_database.data.tabs.hint" tag="span">
+				<template #italic><em>{{ t("dms_database.data.tabs.italic") }}</em></template>
+			</i18n-t>
+		</span>
 	</div>
 </template>

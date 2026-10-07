@@ -1,10 +1,20 @@
 <script setup lang="ts">
+import { cellText, isStructured } from "../build/data/cellValues";
+import type { StagedCell } from "../build/data/stagedEdits";
+import type { ColumnRole } from "../utils/fieldTypes";
+
+// One cell of the data grid. A staged cell is tinted, with the stored value
+// struck through before the new one; nothing is written until the changes
+// are saved.
+
 const props = defineProps<{
 	value: unknown;
+	staged?: StagedCell;
+	role: ColumnRole;
 	editable: boolean;
 	editing: boolean;
-	pending: boolean;
-	invalid: boolean;
+	/** Why the draft was refused, shown under the editor. */
+	invalid?: string;
 	focused: boolean;
 }>();
 
@@ -13,31 +23,23 @@ const emit = defineEmits<{
 	"start-edit": [];
 	commit: [draft: string | boolean, source: "enter" | "blur"];
 	cancel: [];
-	"open-json": [];
 }>();
 
-const isJson = computed(
-	() => props.value !== null && props.value !== undefined && typeof props.value === "object",
-);
-const isNull = computed(() => props.value === null || props.value === undefined);
-
-const display = computed(() => {
-	if (isNull.value) return "";
-	if (isJson.value) {
-		try {
-			return JSON.stringify(props.value);
-		} catch {
-			return String(props.value);
-		}
-	}
-	return String(props.value);
+const shown = computed(() => (props.staged ? props.staged.after : props.value));
+const isNull = computed(() => shown.value === null || shown.value === undefined);
+const structured = computed(() => isStructured(shown.value));
+const isNumber = computed(() => typeof shown.value === "number");
+// "{3}" for an object of three keys, "[2]" for a list of two items.
+const sizeTag = computed(() => {
+	if (!structured.value) return "";
+	const size = Object.keys(shown.value as object).length;
+	return Array.isArray(shown.value) ? `[${size}]` : `{${size}}`;
 });
 
-// --- inline editing ---
 const draft = ref("");
 const boolDraft = ref(false);
 const cellInput = useTemplateRef<HTMLInputElement | HTMLSelectElement>("cellInput");
-// Set before blurring on Escape so the blur-commit does not fire after a cancel.
+// Set before blurring on Escape so the blur does not commit after a cancel.
 const cancelling = ref(false);
 
 watch(
@@ -45,11 +47,8 @@ watch(
 	(editing) => {
 		if (!editing) return;
 		cancelling.value = false;
-		if (typeof props.value === "boolean") {
-			boolDraft.value = props.value;
-		} else {
-			draft.value = isNull.value ? "" : String(props.value);
-		}
+		if (typeof shown.value === "boolean") boolDraft.value = shown.value;
+		else draft.value = cellText(shown.value);
 		nextTick(() => {
 			cellInput.value?.focus();
 			if (cellInput.value instanceof HTMLInputElement) cellInput.value.select();
@@ -57,49 +56,38 @@ watch(
 	},
 );
 
-// The parent needs the trigger: Enter keeps an invalid draft open for fixing,
-// while a blur (click-away) discards it so the grid never holds an unfocused
-// editor hostage.
 function commit(source: "enter" | "blur") {
 	if (cancelling.value) return;
-	emit(
-		"commit",
-		typeof props.value === "boolean" ? boolDraft.value : draft.value,
-		source,
-	);
+	emit("commit", typeof shown.value === "boolean" ? boolDraft.value : draft.value, source);
 }
 
 function cancel() {
 	cancelling.value = true;
 	emit("cancel");
 }
-
-function onDoubleClick() {
-	if (isJson.value) emit("open-json");
-	else if (props.editable) emit("start-edit");
-}
 </script>
 
 <template>
 	<td
-		class="relative cursor-default border-r border-b border-default p-0 align-middle"
+		class="border-default relative cursor-default border-r border-b p-0 align-middle"
 		:class="[
 			invalid
-				? 'ring-2 ring-error ring-inset'
+				? 'ring-error ring-2 ring-inset'
 				: focused
-					? 'ring-2 ring-primary ring-inset'
+					? 'ring-primary ring-2 ring-inset'
 					: '',
-			editing ? 'bg-primary/5' : '',
+			staged ? 'bg-warning/10' : editing ? 'bg-primary/5' : '',
 		]"
+		:title="staged ? $t('dms_database.data.grid.staged_title', { before: cellText(staged.before) || 'null' }) : undefined"
 		@click="emit('select')"
-		@dblclick="onDoubleClick"
+		@dblclick="editable && emit('start-edit')"
 	>
 		<template v-if="editing">
 			<select
-				v-if="typeof value === 'boolean'"
+				v-if="typeof shown === 'boolean'"
 				ref="cellInput"
 				v-model="boolDraft"
-				class="w-full bg-default px-2 py-1 font-mono text-[12.5px] outline-none"
+				class="bg-default w-full px-2 py-1 font-mono text-[12.5px] outline-none"
 				@change="commit('enter')"
 				@keydown.esc.stop="cancel"
 				@keydown.stop
@@ -113,35 +101,48 @@ function onDoubleClick() {
 				ref="cellInput"
 				v-model="draft"
 				type="text"
-				class="w-full bg-default px-2 py-1 font-mono text-[12.5px] outline-none"
+				class="bg-default w-full px-2 py-1 font-mono text-[12.5px] outline-none"
+				:aria-invalid="invalid ? true : undefined"
 				@keydown.enter.prevent="commit('enter')"
 				@keydown.esc.stop="cancel"
 				@keydown.stop
 				@blur="commit('blur')"
 			>
+			<span
+				v-if="invalid"
+				class="bg-error text-inverted absolute top-full left-0 z-20 mt-1 rounded px-2 py-1 text-[11px] whitespace-nowrap shadow"
+			>
+				{{ invalid }}
+			</span>
 		</template>
 		<div
 			v-else
-			class="flex items-center gap-1 overflow-hidden px-2.5 py-1 whitespace-nowrap"
+			class="flex items-center gap-1.5 overflow-hidden px-2.5 py-1 whitespace-nowrap"
+			:class="isNumber ? 'justify-end' : ''"
 		>
+			<s v-if="staged" class="text-dimmed font-mono text-[11.5px]">{{ cellText(staged.before) || "null" }}</s>
 			<span
 				v-if="isNull"
-				class="rounded bg-elevated px-1 font-mono text-[10px] tracking-wide text-dimmed uppercase"
+				class="text-dimmed rounded border border-dashed border-current px-1 font-mono text-[10px]"
+				>null</span
 			>
-				null
-			</span>
+			<template v-else-if="structured">
+				<span class="bg-elevated text-muted shrink-0 rounded px-1 font-mono text-[10px]">
+					{{ sizeTag }}
+				</span>
+				<span class="text-muted overflow-hidden font-mono text-[12px] text-ellipsis">{{ cellText(shown) }}</span>
+			</template>
 			<span
 				v-else
-				class="overflow-hidden font-mono text-[12.5px] text-ellipsis"
-				:class="isJson ? 'cursor-pointer text-info' : 'text-toned'"
+				class="overflow-hidden font-mono text-[12.5px] text-ellipsis tabular-nums"
+				:class="[
+					role === 'key' ? 'text-muted' : role === 'relation' ? 'text-primary' : 'text-toned',
+					staged ? 'text-highlighted font-medium' : '',
+				]"
 			>
-				{{ display }}
+				{{ cellText(shown) }}
 			</span>
-			<UIcon
-				v-if="pending"
-				name="i-ph-circle-notch"
-				class="size-3 shrink-0 animate-spin text-primary"
-			/>
+			<UIcon v-if="role === 'relation' && !isNull" name="i-ph-arrow-up-right" class="text-primary size-3 shrink-0" />
 		</div>
 	</td>
 </template>

@@ -1,3 +1,6 @@
+import { rememberTable } from "../build/data/recentTables";
+import { decodeMatch } from "../utils/databaseLinks";
+
 // Shared state for the data-browser tabs: each tab pins a (schema, instance,
 // table) triplet. The active tab is mirrored to the URL query (deep-links) and
 // the whole tab set is persisted to sessionStorage (survives a page refresh,
@@ -113,6 +116,7 @@ export function useDataBrowserTabs() {
 		delete query.schema;
 		delete query.instance;
 		delete query.table;
+		delete query.match;
 		if (tab) {
 			query.schema = tab.schema;
 			query.table = tab.table;
@@ -126,7 +130,9 @@ export function useDataBrowserTabs() {
 	}
 
 	function activateTab(id: string) {
-		if (!tabs.value.some((tab) => tab.id === id)) return;
+		const tab = tabs.value.find((candidate) => candidate.id === id);
+		if (!tab) return;
+		rememberTable({ schema: tab.schema, instance: tab.instance, table: tab.table });
 		activeId.value = id;
 		syncUrl();
 		persist();
@@ -207,37 +213,39 @@ export function useDataBrowserTabs() {
 		persist();
 	}
 
-	// Restore persisted tabs, then let the URL win for the active selection so
-	// existing deep-links keep working. Call exactly once, from the page's
-	// onMounted.
+	// Opens the table the URL names (overview links, the inspector's "Browse
+	// data", relation links, shared URLs): permanently, since the preview
+	// slot is for casual browsing from the list.
+	function openFromRoute() {
+		const schema = route.query.schema;
+		const table = route.query.table;
+		if (typeof schema !== "string" || !schema || typeof table !== "string" || !table) return false;
+		const instance =
+			typeof route.query.instance === "string" && route.query.instance
+				? route.query.instance
+				: DEFAULT_INSTANCE_VALUE;
+		// A link to one row (a relation, a reference) opens the table filtered
+		// on it; the filter shows as a chip the user removes.
+		const match = decodeMatch(route.query.match);
+		if (match) {
+			const state = grid.getState(browserTabId(schema, instance, table));
+			state.filters = { [match.field]: { mode: "is", value: match.value } };
+			state.page = 0;
+		}
+		openTab(schema, instance, table, false);
+		return true;
+	}
+
+	// Restore persisted tabs, then let the URL win for the active selection.
+	// Call once, from the page's onMounted.
 	function restore() {
 		const persisted = readPersisted();
 		if (persisted) {
 			tabs.value = persisted.tabs;
 			activeId.value = persisted.activeId;
 		}
-		const schema = route.query.schema;
-		const table = route.query.table;
-		if (
-			typeof schema === "string" &&
-			schema &&
-			typeof table === "string" &&
-			table
-		) {
-			const instance =
-				typeof route.query.instance === "string" && route.query.instance
-					? route.query.instance
-					: DEFAULT_INSTANCE_VALUE;
-			// Deep-links carry explicit intent (overview row double-click, the
-			// inspector's "browse data" button, shared URLs): open permanently, the
-			// preview slot is for casual sidebar browsing only.
-			openTab(schema, instance, table, false);
-		} else if (!schema && activeTab.value) {
-			// Only reclaim the URL when it carries no selection at all: a
-			// schema-only deep-link (?schema=X) is the sidebar's to honour and
-			// must not be clobbered by the restored tab.
-			syncUrl();
-		}
+		// A schema-only link (?schema=X) is the sidebar's to honour.
+		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl();
 	}
 
 	return {
@@ -251,5 +259,6 @@ export function useDataBrowserTabs() {
 		pinTab,
 		moveTab,
 		restore,
+		openFromRoute,
 	};
 }

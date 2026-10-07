@@ -1,18 +1,15 @@
-const relativeFormatter = new Intl.RelativeTimeFormat(undefined, {
-	numeric: "auto",
-});
+const MINUTE_MS = 60_000;
+const MINUTES_PER_HOUR = 60;
+const HOURS_PER_DAY = 24;
 
-// Human "3 minutes ago" style label for an ISO timestamp, relative to now.
-// Shared by the query history and favorites panels.
-// Deliberately not named `formatRelativeTime`: the DMS core layer exports a
-// translation-aware helper under that name, and auto-imports across layers
-// would shadow one with the other.
-export function formatDatabaseRelativeTime(iso: string): string {
-	const diffMs = new Date(iso).getTime() - Date.now();
-	const minutes = Math.round(diffMs / 60_000);
-	if (Math.abs(minutes) < 60) return relativeFormatter.format(minutes, "minute");
-	const hours = Math.round(minutes / 60);
-	if (Math.abs(hours) < 24) return relativeFormatter.format(hours, "hour");
-	const days = Math.round(hours / 24);
-	return relativeFormatter.format(days, "day");
+// Human "3 minutes ago" style label for an ISO timestamp, relative to now, in
+// the interface language. Not named `formatRelativeTime`: the DMS core layer
+// auto-imports a helper of that name, and the two would shadow each other.
+export function formatDatabaseRelativeTime(iso: string, locale?: string): string {
+	const formatter = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+	const minutes = Math.round((new Date(iso).getTime() - Date.now()) / MINUTE_MS);
+	if (Math.abs(minutes) < MINUTES_PER_HOUR) return formatter.format(minutes, "minute");
+	const hours = Math.round(minutes / MINUTES_PER_HOUR);
+	if (Math.abs(hours) < HOURS_PER_DAY) return formatter.format(hours, "hour");
+	return formatter.format(Math.round(hours / HOURS_PER_DAY), "day");
 }

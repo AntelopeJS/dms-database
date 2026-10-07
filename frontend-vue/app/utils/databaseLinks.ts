@@ -12,16 +12,38 @@ export const DATABASE_PAGES = {
 
 export type DatabasePage = keyof typeof DATABASE_PAGES;
 
+/** A column value the data browser filters the table on when it opens. */
+export interface TableMatch {
+	field: string;
+	value: string;
+}
+
 export interface TableAddress {
 	schema: string;
 	table: string;
 	instance?: string;
+	match?: TableMatch;
+}
+
+const MATCH_SEPARATOR = ":";
+
+export function encodeMatch(match: TableMatch): string {
+	return `${match.field}${MATCH_SEPARATOR}${match.value}`;
+}
+
+/** `field:value` back to its parts; the value may hold separators itself. */
+export function decodeMatch(raw: unknown): TableMatch | null {
+	if (typeof raw !== "string") return null;
+	const index = raw.indexOf(MATCH_SEPARATOR);
+	if (index <= 0) return null;
+	return { field: raw.slice(0, index), value: raw.slice(index + 1) };
 }
 
 /** A page of the module opened on one table, e.g. the data browser on it. */
 export function tableLink(page: DatabasePage, address: TableAddress): string {
 	const query = new URLSearchParams({ schema: address.schema, table: address.table });
 	if (address.instance) query.set("instance", address.instance);
+	if (address.match) query.set("match", encodeMatch(address.match));
 	return `${DATABASE_PAGES[page]}?${query.toString()}`;
 }
 

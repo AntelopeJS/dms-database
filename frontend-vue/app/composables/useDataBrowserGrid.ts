@@ -40,7 +40,7 @@ export const GRID_PAGE_SIZES = [25, 50, 100, 200];
 function defaultGridState(): GridState {
 	return {
 		page: 0,
-		pageSize: 25,
+		pageSize: 50,
 		sortKey: null,
 		sortDirection: "asc",
 		search: "",

@@ -1,254 +1,227 @@
 <script setup lang="ts">
+import { onKeyStroke } from "@vueuse/core";
 import type { SchemaSummary } from "../composables/useDatabaseSchemas";
 
-const TABLES_LIST_ENDPOINT = "/api/database/tables/list";
-// Row-count fetch cap; mirrors the backend MAX_LIMIT for /api/database/tables.
-const ROW_COUNT_FETCH_LIMIT = 200;
+// The data browser's scope (D-04): a labelled schema picker, the instance as
+// a segmented control explained in place ("all" is read-only), and the
+// schema's tables with their row count in that instance. Open tables carry a
+// dot.
 
-interface TableListRow {
-	schema: string;
+const TABLES_ENDPOINT = "/api/database/browse/tables";
+
+interface TableEntry {
 	name: string;
-	columnCount: number;
-	indexCount: number;
 	elementCount: number;
 }
 
 const props = defineProps<{ schemas: SchemaSummary[] }>();
 
-const { t } = useI18n();
+const { t, n } = useI18n();
 const { $authFetch } = useAuthFetch();
-const { activeTab, openTab } = useDataBrowserTabs();
+const { tabs, activeTab, openTab } = useDataBrowserTabs();
 const route = useDmsRoute();
 
-const selectedSchemaId = ref<string | null>(null);
-const selectedInstanceId = ref<string>(DEFAULT_INSTANCE_VALUE);
-const tableSearch = ref("");
+const schemaId = ref<string | null>(null);
+const instance = ref<string>(DEFAULT_INSTANCE_VALUE);
+const filter = ref("");
+const filterInput = useTemplateRef<{ inputRef?: HTMLInputElement }>("filterInput");
 
-// A schema-only deep-link (?schema=X without table, e.g. "Open in data
-// browser" on a schema card) pre-selects the pickers. Captured at setup:
-// the tab restore may rewrite the URL before the schemas fetch resolves.
-const initialQuerySchema =
-	typeof route.query.schema === "string" && route.query.schema
-		? route.query.schema
-		: null;
-const initialQueryInstance =
-	typeof route.query.instance === "string" && route.query.instance
-		? route.query.instance
-		: null;
-const initialQueryHasTable =
-	typeof route.query.table === "string" && route.query.table.length > 0;
-
-// How the pickers were last set. The active tab (restored tabs, deep-links)
-// may override an automatic selection but never a user-driven one — so
-// browsing another schema never loses the user's place, while a restore that
-// lands AFTER the first-schema fallback still wins (the sidebar setup runs
-// before the page's onMounted restore()).
-type SelectionSource = "none" | "fallback" | "tab" | "user";
-const selectionSource = ref<SelectionSource>("none");
+// A schema-only link (?schema=X with no table) picks the schema; otherwise
+// the active tab leads, then the first schema.
+const linkedSchema =
+	typeof route.query.schema === "string" && !route.query.table ? route.query.schema : null;
+let userPicked = false;
 
 watch(
 	activeTab,
 	(tab) => {
-		if (!tab || selectionSource.value === "user") return;
-		selectedSchemaId.value = tab.schema;
-		selectedInstanceId.value = tab.instance;
-		selectionSource.value = "tab";
+		if (!tab || userPicked) return;
+		schemaId.value = tab.schema;
+		instance.value = tab.instance;
 	},
 	{ immediate: true },
 );
+
 watch(
 	() => props.schemas,
-	(schemas) => {
-		if (selectionSource.value !== "none" || schemas.length === 0) return;
-		// A schema-only deep-link wins over the first-schema fallback and, being
-		// an explicit user request, is not overridden by a restored tab either.
-		if (
-			initialQuerySchema &&
-			!initialQueryHasTable &&
-			schemas.some((schema) => schema.id === initialQuerySchema)
-		) {
-			selectedSchemaId.value = initialQuerySchema;
-			selectedInstanceId.value = initialQueryInstance ?? DEFAULT_INSTANCE_VALUE;
-			selectionSource.value = "user";
-			return;
-		}
-		selectedSchemaId.value = schemas[0]?.id ?? null;
-		selectionSource.value = "fallback";
+	(list) => {
+		if (schemaId.value || list.length === 0) return;
+		const linked = list.find((schema) => schema.id === linkedSchema);
+		schemaId.value = linked?.id ?? list[0]?.id ?? null;
 	},
 	{ immediate: true },
 );
 
-// User-driven picker changes (the USelects emit update:model-value only for
-// user interaction, not for the programmatic assignments above).
-function onUserSchemaChange() {
-	selectionSource.value = "user";
-	// Named instances belong to one schema; reset when the user switches.
-	selectedInstanceId.value = DEFAULT_INSTANCE_VALUE;
-}
-function onUserInstanceChange() {
-	selectionSource.value = "user";
+function pickSchema(id: string) {
+	userPicked = true;
+	schemaId.value = id;
+	// Named instances belong to one schema.
+	instance.value = DEFAULT_INSTANCE_VALUE;
 }
 
-const currentSchema = computed(
-	() => props.schemas.find((schema) => schema.id === selectedSchemaId.value) ?? null,
+function pickInstance(id: string | number) {
+	userPicked = true;
+	instance.value = String(id);
+}
+
+const schema = computed(() => props.schemas.find((s) => s.id === schemaId.value) ?? null);
+const schemaItems = computed(() =>
+	props.schemas.map((s) => ({ label: s.id, value: s.id, icon: "i-ph-stack" })),
+);
+const instanceItems = computed(() => [
+	{ label: t("dms_database.data.scope.default"), value: DEFAULT_INSTANCE_VALUE },
+	...(schema.value?.instances ?? []).map((id) => ({ label: id, value: id })),
+	{ label: t("dms_database.data.scope.all"), value: CROSS_INSTANCE_VALUE, icon: "i-ph-lock-simple" },
+]);
+const instanceName = computed(() =>
+	instanceItems.value.find((item) => item.value === instance.value)?.label ?? instance.value,
 );
 
-const schemaOptions = computed(() =>
-	props.schemas.map((schema) => ({ label: schema.id, value: schema.id })),
-);
-const instanceOptions = computed(() => {
-	const options = [
-		{ label: t("dms_database.data.instanceDefault"), value: DEFAULT_INSTANCE_VALUE },
-	];
-	for (const id of currentSchema.value?.instances ?? []) {
-		options.push({ label: id, value: id });
-	}
-	options.push({
-		label: t("dms_database.data.instanceCross"),
-		value: CROSS_INSTANCE_VALUE,
-	});
-	return options;
-});
-
-// --- row counts (best effort, display only) ---
-const rowCounts = ref<Record<string, number>>({});
-// No explicit locale: let the runtime format with the browser's preference.
-const countFormatter = new Intl.NumberFormat();
+// --- tables and their counts in the picked instance ---
+const counts = ref<Record<string, number>>({});
+const countsFailed = ref(false);
 
 watch(
-	[selectedSchemaId, selectedInstanceId],
-	async ([schemaId, instanceId]) => {
-		rowCounts.value = {};
-		if (!schemaId) return;
-		const query: Record<string, string | number> = {
-			filter_schema: isFilterToken(schemaId),
-			limit: ROW_COUNT_FETCH_LIMIT,
-		};
-		// Counts follow the instance picker (backend defaults to the base
-		// instance when the filter is absent).
-		if (instanceId !== DEFAULT_INSTANCE_VALUE) {
-			query.filter_instance = isFilterToken(instanceId);
-		}
-		const isCurrent = () =>
-			selectedSchemaId.value === schemaId &&
-			selectedInstanceId.value === instanceId;
+	[schemaId, instance],
+	async ([id, picked]) => {
+		counts.value = {};
+		countsFailed.value = false;
+		if (!id) return;
+		const query: Record<string, string> = { filter_schema: isFilterToken(id) };
+		if (picked !== DEFAULT_INSTANCE_VALUE) query.filter_instance = isFilterToken(picked);
 		try {
-			const res = await $authFetch<{ results: TableListRow[] }>(
-				TABLES_LIST_ENDPOINT,
-				{ query },
-			);
-			// Ignore a response that arrived after the user switched selection.
-			if (!isCurrent()) return;
-			const counts: Record<string, number> = {};
-			for (const row of res.results ?? []) counts[row.name] = row.elementCount;
-			rowCounts.value = counts;
+			const res = await $authFetch<{ items: TableEntry[] }>(TABLES_ENDPOINT, { query });
+			if (schemaId.value !== id || instance.value !== picked) return;
+			counts.value = Object.fromEntries(res.items.map((item) => [item.name, item.elementCount]));
 		} catch {
-			// Only clear when the failure concerns the current selection — a late
-			// failure from a previous one must not wipe fresh counts.
-			if (isCurrent()) rowCounts.value = {};
+			if (schemaId.value === id) countsFailed.value = true;
 		}
 	},
 	{ immediate: true },
 );
 
-const visibleTables = computed(() => {
-	const needle = tableSearch.value.trim().toLowerCase();
-	const tables = currentSchema.value?.tables ?? [];
-	const filtered = needle
-		? tables.filter((table) => table.name.toLowerCase().includes(needle))
-		: tables;
-	return filtered.map((table) => ({
-		name: table.name,
-		count: rowCounts.value[table.name] ?? null,
-	}));
+const openIds = computed(() => new Set(tabs.value.map((tab) => tab.id)));
+
+const tables = computed(() => {
+	const needle = filter.value.trim().toLowerCase();
+	return (schema.value?.tables ?? [])
+		.filter((table) => !needle || table.name.toLowerCase().includes(needle))
+		.map((table) => ({
+			name: table.name,
+			count: counts.value[table.name],
+			open: openIds.value.has(`${schemaId.value}::${instance.value}::${table.name}`),
+			active:
+				activeTab.value?.schema === schemaId.value &&
+				activeTab.value?.instance === instance.value &&
+				activeTab.value?.table === table.name,
+		}));
 });
 
-function isActive(tableName: string): boolean {
-	const tab = activeTab.value;
-	return (
-		tab !== null &&
-		tab.schema === selectedSchemaId.value &&
-		tab.instance === selectedInstanceId.value &&
-		tab.table === tableName
-	);
+// A click opens a preview tab, a double-click (or a modified click) keeps it.
+function open(name: string, event?: MouseEvent) {
+	if (!schemaId.value) return;
+	const keep = Boolean(event && (event.metaKey || event.ctrlKey || event.altKey));
+	openTab(schemaId.value, instance.value, name, !keep);
 }
 
-// Single click opens as a preview; double-click opens permanently (VS Code
-// explorer behaviour — the first click already opened the preview, the second
-// pins it). A modified click (cmd/ctrl/alt) also opens permanently: it is the
-// keyboard path to a pinned open, since Enter can never produce a dblclick.
-function open(tableName: string, preview = true) {
-	if (!selectedSchemaId.value) return;
-	openTab(selectedSchemaId.value, selectedInstanceId.value, tableName, preview);
+function keep(name: string) {
+	if (schemaId.value) openTab(schemaId.value, instance.value, name, false);
 }
+
+onKeyStroke("t", (event) => {
+	const target = event.target as HTMLElement | null;
+	if (target?.closest("input, textarea, [contenteditable=true]")) return;
+	if (event.metaKey || event.ctrlKey || event.altKey) return;
+	event.preventDefault();
+	filterInput.value?.inputRef?.focus();
+});
 </script>
 
 <template>
-	<aside class="flex h-full w-[270px] shrink-0 flex-col border-r border-default bg-default">
-		<div class="space-y-2 border-b border-default p-3">
+	<aside class="border-default bg-default flex h-full w-[264px] shrink-0 flex-col border-r">
+		<div class="border-default grid gap-2 border-b p-3">
+			<DmsEyebrow :label="t('dms_database.data.scope.schema')" />
 			<USelect
-				v-model="selectedSchemaId"
-				:items="schemaOptions"
-				:placeholder="$t('dms_database.data.schema')"
+				:model-value="schemaId ?? undefined"
+				:items="schemaItems"
+				:placeholder="t('dms_database.data.scope.schema')"
 				icon="i-ph-stack"
 				size="sm"
-				class="w-full"
-				@update:model-value="onUserSchemaChange"
+				class="w-full font-mono"
+				@update:model-value="pickSchema(String($event))"
 			/>
-			<USelect
-				v-model="selectedInstanceId"
-				:items="instanceOptions"
-				:disabled="!selectedSchemaId"
-				icon="i-ph-tree-structure"
+			<div class="mt-1 flex items-center justify-between">
+				<DmsEyebrow :label="t('dms_database.data.scope.instance')" />
+				<UTooltip :text="t('dms_database.data.scope.instance_help')">
+					<span class="text-dimmed cursor-help text-[11px]">{{ t("dms_database.data.scope.whats_this") }}</span>
+				</UTooltip>
+			</div>
+			<DmsSegmented
+				:model-value="instance"
+				:items="instanceItems"
+				:aria-label="t('dms_database.data.scope.instance')"
 				size="sm"
-				class="w-full"
-				@update:model-value="onUserInstanceChange"
-			/>
-			<UInput
-				v-model="tableSearch"
-				:placeholder="$t('dms_database.data.findTable')"
-				:disabled="!selectedSchemaId"
-				icon="i-ph-magnifying-glass"
-				size="sm"
-				class="w-full"
+				variant="mono"
+				overflow="wrap"
+				block
+				:disabled="!schemaId"
+				@update:model-value="pickInstance"
 			/>
 		</div>
-		<nav class="flex-1 overflow-y-auto p-1.5">
-			<button
-				v-for="table in visibleTables"
-				:key="table.name"
-				type="button"
-				class="flex w-full select-none items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors"
-				:class="
-					isActive(table.name)
-						? 'bg-primary/10 text-primary'
-						: 'text-toned hover:bg-elevated'
-				"
-				@click="open(table.name, !($event.metaKey || $event.ctrlKey || $event.altKey))"
-				@dblclick="open(table.name, false)"
+
+		<div class="flex min-h-0 flex-1 flex-col p-2">
+			<UInput
+				ref="filterInput"
+				v-model="filter"
+				icon="i-ph-magnifying-glass"
+				size="sm"
+				class="mb-2 w-full"
+				:placeholder="t('dms_database.data.scope.find_table')"
+				:disabled="!schemaId"
 			>
-				<UIcon
-					name="i-ph-table"
-					class="size-3.5 shrink-0"
-					:class="isActive(table.name) ? 'text-primary' : 'text-dimmed'"
-				/>
-				<span class="min-w-0 flex-1 truncate font-mono text-xs">{{ table.name }}</span>
-				<span
-					v-if="table.count !== null"
-					class="shrink-0 text-[10px] tabular-nums text-dimmed"
+				<template #trailing><UKbd value="T" size="sm" /></template>
+			</UInput>
+			<div class="flex items-center justify-between px-2 pb-1">
+				<DmsEyebrow :label="t('dms_database.data.scope.tables', { count: tables.length })" />
+				<DmsEyebrow :label="t('dms_database.data.scope.rows')" />
+			</div>
+			<nav class="min-h-0 flex-1 overflow-y-auto">
+				<button
+					v-for="table in tables"
+					:key="table.name"
+					type="button"
+					class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left transition-colors select-none"
+					:class="table.active ? 'bg-primary/10 text-primary' : 'text-toned hover:bg-elevated'"
+					:title="t('dms_database.data.scope.open_hint')"
+					@click="open(table.name, $event)"
+					@dblclick="keep(table.name)"
 				>
-					{{ countFormatter.format(table.count) }}
-				</span>
-			</button>
-			<p
-				v-if="selectedSchemaId && visibleTables.length === 0"
-				class="px-2 py-4 text-center text-xs text-muted"
-			>
-				{{ $t("dms_database.overview.tables.empty") }}
-			</p>
-			<p v-else-if="!selectedSchemaId" class="px-2 py-4 text-center text-xs text-muted">
-				{{ $t("dms_database.data.pickPrompt") }}
-			</p>
-		</nav>
+					<UIcon
+						name="i-ph-table"
+						class="size-3.5 shrink-0"
+						:class="table.active ? 'text-primary' : 'text-dimmed'"
+					/>
+					<span class="min-w-0 flex-1 truncate font-mono text-xs">{{ table.name }}</span>
+					<span
+						v-if="table.open && !table.active"
+						class="bg-primary size-1.5 shrink-0 rounded-full"
+						:title="t('dms_database.data.scope.open_tab')"
+					/>
+					<span v-if="table.count !== undefined" class="text-dimmed shrink-0 font-mono text-[10.5px] tabular-nums">
+						{{ n(table.count) }}
+					</span>
+				</button>
+				<p v-if="schemaId && tables.length === 0" class="text-muted px-2 py-4 text-center text-xs">
+					{{ t("dms_database.data.scope.no_table") }}
+				</p>
+			</nav>
+		</div>
+		<footer class="border-default text-dimmed flex items-center gap-1.5 border-t px-3 py-2 text-[11.5px]">
+			<UIcon :name="countsFailed ? 'i-ph-warning' : 'i-ph-info'" class="size-3.5 shrink-0" />
+			<span v-if="countsFailed">{{ t("dms_database.data.scope.counts_failed") }}</span>
+			<i18n-t v-else keypath="dms_database.data.scope.counts_for" tag="span">
+				<template #instance><span class="text-primary font-mono">{{ instanceName }}</span></template>
+			</i18n-t>
+		</footer>
 	</aside>
 </template>

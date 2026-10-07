@@ -228,6 +228,7 @@ async function fetchColumns(selection: BrowseSelection): Promise<ColumnsMeta> {
 // editability itself does not depend on the type.
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
+  if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
   return typeof value;
 }
@@ -326,6 +327,13 @@ function isWritableScalar(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "boolean";
 }
 
+function resolveDateValue(before: Date, value: string | number | boolean) {
+  if (typeof value === "boolean") return SKIP_FIELD;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return SKIP_FIELD;
+  return date.getTime() === before.getTime() ? SKIP_FIELD : date;
+}
+
 // Decide the value to persist for a single edited field, or SKIP_FIELD to drop
 // the write.
 function resolveEditValue(
@@ -343,6 +351,8 @@ function resolveEditValue(
   }
   if (!isWritableScalar(value)) return SKIP_FIELD;
   const before = current[field];
+  // Dates travel as ISO text: a date cell stays a date.
+  if (before instanceof Date) return resolveDateValue(before, value);
   // Skip cells echoed back unchanged. The string comparison also covers an
   // object cell echoed as its string form by a whole-row client ("1,2" for
   // [1, 2]): dropping that write protects the structured value from an

@@ -117,6 +117,7 @@ const RUNTIME_KINDS = new Set(["string", "number", "boolean", "array", "object",
  * declared columns share one vocabulary.
  */
 export function describeRuntimeType(type: string, fieldName: string): FieldTypeView {
+	if (type === "date") return describeField({ kind: "date" }, fieldName);
 	if (type === "object") return describeField({ kind: "object", fields: {} }, fieldName);
 	if (type === "array") return describeField({ kind: "array" }, fieldName);
 	return describeField(

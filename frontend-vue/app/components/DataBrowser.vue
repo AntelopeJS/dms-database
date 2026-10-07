@@ -1,41 +1,82 @@
 <script setup lang="ts">
-const { schemas } = useDatabaseSchemas();
-const { activeTab, restore } = useDataBrowserTabs();
+import { readRecentTables } from "../build/data/recentTables";
+import { useStagedEdits } from "../build/data/stagedEdits";
+import DataBrowserSidebar from "./DataBrowserSidebar.vue";
+import DataBrowserTabBar from "./DataBrowserTabBar.vue";
+import DataGrid from "./DataGrid.vue";
+
+// The data browser: a table list scoped to one schema and instance, the open
+// tables as tabs, and the grid of the active one. Edits are staged per tab
+// and written only when saved; leaving with staged edits asks first.
+
+const { t, locale } = useI18n();
+const { schemas, findTable } = useDatabaseSchemas();
+const { tabs, activeTab, restore, openTab, openFromRoute } = useDataBrowserTabs();
+const staged = useStagedEdits();
+const route = useDmsRoute();
 
 onMounted(() => restore());
+// A link from this page to another table (a relation) keeps the page mounted.
+watch(
+	() => [route.query.schema, route.query.table, route.query.instance, route.query.match],
+	() => openFromRoute(),
+);
 
-// Schema-introspected field names for the active tab's table: the grid falls
-// back to them when the backend column sampling returns nothing (empty table).
-const fallbackFields = computed(() => {
-	const tab = activeTab.value;
-	if (!tab) return [];
-	const schema = schemas.value.find((s) => s.id === tab.schema);
-	const table = schema?.tables.find((tbl) => tbl.name === tab.table);
-	return Object.keys(table?.fields ?? {});
+const hasStagedEdits = computed(() => tabs.value.some((tab) => staged.count(tab.id) > 0));
+useUnsavedChanges({ dirty: hasStagedEdits });
+
+// Schema-introspected columns of the active table: the grid falls back to
+// them when sampling finds no row, and reads its relation columns from them.
+const activeTableSummary = computed(() =>
+	activeTab.value ? findTable(activeTab.value.schema, activeTab.value.table) : undefined,
+);
+
+const recent = ref(readRecentTables());
+watch(activeTab, () => {
+	recent.value = readRecentTables();
 });
+
+function instanceLabel(instance: string): string {
+	return instance === DEFAULT_INSTANCE_VALUE ? "" : `@${instance === CROSS_INSTANCE_VALUE ? "*" : instance}`;
+}
 </script>
 
 <template>
-	<!-- Studio layout: the page fills the panel (`fillHeight` in
-	     src/pages/data.ts) and only the grid scrolls. -->
-	<div
-		class="flex min-h-0 flex-1 overflow-hidden rounded-lg border border-default bg-default"
-	>
-		<DmsDatabaseDataBrowserSidebar :schemas="schemas" />
-		<div class="flex min-w-0 flex-1 flex-col">
-			<DmsDatabaseDataBrowserTabBar />
-			<DmsDatabaseDataGrid
+	<div class="border-default bg-default flex min-h-0 flex-1 overflow-hidden rounded-xl border">
+		<DataBrowserSidebar :schemas="schemas" />
+		<section class="flex min-w-0 flex-1 flex-col">
+			<DataBrowserTabBar />
+			<DataGrid
 				v-if="activeTab"
 				:key="activeTab.id"
 				:tab="activeTab"
-				:fallback-fields="fallbackFields"
+				:table="activeTableSummary"
 			/>
-			<div
-				v-else
-				class="flex flex-1 items-center justify-center text-sm text-muted"
-			>
-				{{ $t("dms_database.data.pickPrompt") }}
+			<div v-else class="grid flex-1 place-items-center p-6">
+				<DmsEmptyState
+					icon="i-ph-rows"
+					:title="t('dms_database.data.empty.pick_title')"
+					:description="t('dms_database.data.empty.pick_description')"
+				>
+					<template v-if="recent.length" #actions>
+						<div class="grid w-full max-w-sm gap-1.5">
+							<DmsEyebrow :label="t('dms_database.data.empty.recent')" />
+							<button
+								v-for="entry in recent"
+								:key="`${entry.schema}.${entry.instance}.${entry.table}`"
+								type="button"
+								class="border-default hover:bg-elevated flex items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[12.5px]"
+								@click="openTab(entry.schema, entry.instance, entry.table, false)"
+							>
+								<UIcon name="i-ph-table" class="text-primary size-3.5" />
+								<span class="text-toned">{{ entry.schema }}.{{ entry.table }}</span>
+								<span v-if="instanceLabel(entry.instance)" class="text-primary text-[11px]">{{ instanceLabel(entry.instance) }}</span>
+								<span class="text-dimmed ml-auto font-sans text-xs">{{ formatDatabaseRelativeTime(entry.openedAt, locale) }}</span>
+							</button>
+						</div>
+					</template>
+				</DmsEmptyState>
 			</div>
-		</div>
+		</section>
 	</div>
 </template>
