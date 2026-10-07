@@ -53,7 +53,7 @@ const rows = computed(() =>
 	<div
 		class="diagram-table-node bg-default w-[232px] cursor-grab rounded-md border text-xs shadow-sm transition-[opacity,border-color,box-shadow]"
 		:class="[
-			selected
+			selected || data.selected
 				? 'border-primary shadow-[0_0_0_3px_var(--ui-color-primary-500)]/20 ring-primary/30 ring-2'
 				: 'border-accented',
 			data.dimmed ? 'opacity-45' : '',

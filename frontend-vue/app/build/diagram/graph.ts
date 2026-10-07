@@ -44,6 +44,8 @@ export interface TableNodeData {
 	/** Columns of the selected table's relations, drawn highlighted. */
 	highlighted: string[]
 	dimmed: boolean
+	/** Picked on the canvas, by a search or from a link. */
+	selected: boolean
 }
 
 export interface NoteNodeData {
@@ -305,6 +307,7 @@ function tableNodes(
 				tableName: table.name,
 				table,
 				highlighted,
+				selected: input.selectedId === id,
 				// Tables unrelated to the selected one step back.
 				dimmed:
 					input.selectedId !== null &&

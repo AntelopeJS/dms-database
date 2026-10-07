@@ -455,6 +455,29 @@
 				"error": "Couldn't load a row of this table.",
 				"empty": "This table has no row yet."
 			}
+		},
+		"shortcuts": {
+			"data_browser": "Database · data browser",
+			"diagram": "Database · diagram",
+			"query_console": "Database · query console",
+			"find_table": "Find a table",
+			"search_rows": "Search the rows",
+			"refresh": "Refresh the rows",
+			"edit_cell": "Edit the focused cell",
+			"open_row": "Open the focused row",
+			"next_row": "Next row, in the row drawer",
+			"previous_row": "Previous row, in the row drawer",
+			"review_save": "Review and save the staged changes",
+			"add_note": "Add a note",
+			"select": "Select tool",
+			"pan": "Pan tool",
+			"fit": "Fit the view",
+			"reset_zoom": "Zoom to 100 %",
+			"undo": "Undo",
+			"redo": "Redo",
+			"run": "Run the query",
+			"save": "Save the query",
+			"complete": "Complete the query"
 		}
 	}
 }

@@ -43,8 +43,11 @@ not apply. What applies:
 Both apply and both break the layer today (`ajs dms verify-source` reports 60
 type errors on `main` once the DMS is bumped):
 - 0.4 auto-imports nothing from a module without `dms.frontend.build.ts`. The
-  layer relies on auto-imports of its own `app/composables` and `app/utils`, so
-  it declares them there.
+  layer relied on auto-imports of its own `app/composables` and `app/utils`.
+  Declaring them would make `useQueryStore`, `isFilterToken` and the rest
+  global names of every module's code; they move under `app/build/` instead,
+  private by the DMS convention and imported by path, and the layer declares no
+  auto-import at all.
 - 0.5 puts a `componentPrefix` in front of every registered name and no longer
   strips a leading `Dms`. The layer declares `componentPrefix: "DmsDatabase"`
   and registers bare file names, so `DataGrid.vue` keeps resolving as
@@ -136,7 +139,8 @@ route (`limit=1`), so tab counters come for free.
 It opens the table inspector, a custom row action marked `isDefault` with
 `deepLink: true`, whose target is a drawer rendering the custom
 `DmsDatabaseTableInspector`. J / K step through the tables (built into row
-drawers). The inspector follows D-07: no fake "Healthy" footer; facts (rows,
+drawers). The DMS opens a row action's drawer from the bottom; the diagram
+opens the same inspector from the right, through `useDrawer`. The inspector follows D-07: no fake "Healthy" footer; facts (rows,
 columns, indexes, relations, instances); tabs Columns, Indexes, Relations
 (references and referenced-by), Sample row; actions Browse data, Query this
 table, Show in diagram, Copy name. The other row actions (Browse data, Query,
@@ -220,8 +224,10 @@ staged query, finds the first mutating stage and counts the rows the stages
 before it select (an insert counts its documents). The modal names the
 operation, `table @instance` and the row count, and the button says what will
 happen ("Update 1 row", "Delete 214 rows"). Deletes and multi-row changes
-always ask and need the table name typed. Only single-row updates can be
-skipped, until sign-out (session storage, not local storage).
+always ask and need the table name typed (the DMS confirm dialog's
+`confirmText`). Only single-row updates can be skipped, until the browser tab
+is closed (session storage, not local storage): the browser cannot tell a
+sign-out from here, so the wording says what really happens.
 
 **Q26. History and saved queries (D-11)?**
 One library rail with tabs History · Saved · Team, one search field, entries
@@ -243,6 +249,12 @@ that the result was cut: the execute route caps the rows it returns at 1,000
 and says how many there were. The chart gets explicit X and Y pickers. When
 the query targets one table, "Open in data browser" links to it.
 
+**Q28b. Keyboard shortcuts (D-17)?**
+Every shortcut the module binds is listed on the dashboard's Shortcuts
+settings page through `app/config/shortcuts-registry.ts`, the DMS convention.
+The row search takes ⌘ / (Ctrl / elsewhere) like every DMS page search: "/"
+alone belongs to the navigation search.
+
 ## 8. Vocabulary and i18n (D-16)
 
 **Q29. Which words?**
@@ -250,6 +262,21 @@ the query targets one table, "Open in data browser" links to it.
 happens. Every new string exists in en-GB and fr-FR.
 
 ## 9. Testing
+
+**Q29b. Which bugs did the pass find in the existing module?**
+- A query reaching every instance (`instance(CROSS_INSTANCE)`) lost the symbol
+  on the way to the server (JSON drops symbols) and ran on the default
+  instance: it now travels as a sentinel.
+- A store answers no row for a table that does not exist, so a mistyped table
+  read as an empty one: the console now names the unknown table, records the
+  failed run, and offers the closest table.
+- A schema whose rows all live in named instances showed only its decorated
+  columns: column inference now samples a named instance when the default one
+  is empty, and ignores the `_instance` tag.
+- Editing a date cell stored it back as text: the edit route keeps a date a
+  date. And a cell could not be cleared: `null` now clears it.
+- The overview linked rows with `NuxtLink`, which the Vue frontend does not
+  have: every link now goes through the DMS link components.
 
 **Q30. What proves it works?**
 - `pnpm lint`, `pnpm typecheck`, `pnpm knip`, `pnpm build`.

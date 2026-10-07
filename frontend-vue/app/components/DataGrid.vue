@@ -561,16 +561,18 @@ const hasRefinements = computed(
 		Object.values(state.filters).some((filter) => filter.value),
 )
 
+// ⌘ / (Ctrl / elsewhere) focuses the row search, as every DMS page search:
+// "/" alone belongs to the navigation search.
 useEventListener('keydown', (event: KeyboardEvent) => {
+	if (event.key === '/' && (event.metaKey || event.ctrlKey)) {
+		event.preventDefault()
+		searchInput.value?.inputRef?.focus()
+		return
+	}
 	const target = event.target as HTMLElement | null
 	if (target?.closest('input, textarea, select, [contenteditable=true]')) return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
-	if (event.key === '/') {
-		event.preventDefault()
-		searchInput.value?.inputRef?.focus()
-	} else if (event.key === 'r' && !editing.value) {
-		reload()
-	}
+	if (event.key === 'r' && !editing.value) reload()
 })
 </script>
 
@@ -595,7 +597,10 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 				class="w-64"
 				:placeholder="t('dms_database.data.grid.search')"
 			>
-				<template #trailing><UKbd value="/" size="sm" /></template>
+				<template #trailing>
+					<UKbd value="meta" size="sm" />
+					<UKbd value="/" size="sm" />
+				</template>
 			</UInput>
 			<div class="ml-auto flex items-center gap-1.5">
 				<UTooltip :text="t('dms_database.data.grid.refresh')">

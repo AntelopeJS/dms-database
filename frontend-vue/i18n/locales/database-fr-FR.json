@@ -455,6 +455,29 @@
 				"error": "Impossible de charger une ligne de cette table.",
 				"empty": "Cette table n'a encore aucune ligne."
 			}
+		},
+		"shortcuts": {
+			"data_browser": "Base de données · explorateur",
+			"diagram": "Base de données · diagramme",
+			"query_console": "Base de données · console",
+			"find_table": "Chercher une table",
+			"search_rows": "Chercher dans les lignes",
+			"refresh": "Actualiser les lignes",
+			"edit_cell": "Modifier la cellule sélectionnée",
+			"open_row": "Ouvrir la ligne sélectionnée",
+			"next_row": "Ligne suivante, dans le panneau de ligne",
+			"previous_row": "Ligne précédente, dans le panneau de ligne",
+			"review_save": "Vérifier et enregistrer les modifications",
+			"add_note": "Ajouter une note",
+			"select": "Outil de sélection",
+			"pan": "Outil de déplacement",
+			"fit": "Tout afficher",
+			"reset_zoom": "Zoom à 100 %",
+			"undo": "Annuler",
+			"redo": "Rétablir",
+			"run": "Lancer la requête",
+			"save": "Enregistrer la requête",
+			"complete": "Compléter la requête"
 		}
 	}
 }
