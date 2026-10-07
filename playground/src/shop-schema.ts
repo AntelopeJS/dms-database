@@ -101,7 +101,10 @@ function orders(region: string, now: number) {
     total: Math.round((50 + ((index * 137) % 3000)) * 100) / 100,
     currency: region === "eu" ? "EUR" : "USD",
     coupon_id: index % 9 === 0 ? "cpn_AUTUMN10" : null,
-    shipping: { carrier: pick(CARRIERS, index), eta: new Date(now + (index % 6) * DAY_MS).toISOString().slice(0, 10) },
+    shipping: {
+      carrier: pick(CARRIERS, index),
+      eta: new Date(now + (index % 6) * DAY_MS).toISOString().slice(0, 10),
+    },
     created_at: new Date(now - index * (DAY_MS / 3)),
   }));
 }
@@ -151,7 +154,10 @@ export async function seedShop(): Promise<void> {
   if (!schema) return;
   const now = Date.now();
   for (const region of REGIONS) {
-    await schema.createInstance(region).run().catch(() => undefined);
+    await schema
+      .createInstance(region)
+      .run()
+      .catch(() => undefined);
     await seedTable(schema, region, "customers", customers(region));
     await seedTable(schema, region, "products", products(region));
     await seedTable(schema, region, "orders", orders(region, now));
