@@ -1,7 +1,15 @@
+<script lang="ts">
+export type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
+</script>
+
 <script setup lang="ts">
-import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { useClipboard } from '@vueuse/core'
-import type { FieldDescriptor } from '../build/composables/useDatabaseSchemas'
+import {
+	findTableIn,
+	inboundRelationsIn,
+	type FieldDescriptor,
+	type SchemaSummary,
+} from '../build/composables/useDatabaseSchemas'
 import {
 	COLUMN_ROLE_CLASSES,
 	type ColumnRole,
@@ -12,13 +20,15 @@ import {
 import { tableLink } from '../build/utils/databaseLinks'
 
 // The Schemas page's row drawer (D-07): the facts of one table, its columns,
-// indexes and relations both ways, and a sample row. The table view hands it
-// the row it lists and the means to step to the next one (J / K).
+// indexes and relations both ways, and a sample row. Whoever opens it loads
+// the schemas once and hands them in, so stepping to the next table (J / K)
+// shows it at once; it keeps the open tab across those steps through
+// `initialTab` and `tab-change`.
 
 interface TableRow {
 	schema: string
 	name: string
-	/** Rows in the default instance; unknown when opened from the diagram. */
+	/** Rows in every instance; unknown when opened from the diagram. */
 	elementCount?: number
 }
 
@@ -31,15 +41,26 @@ interface RowNavigation {
 	next: () => void
 }
 
+/** The table's rows, in all and per instance, from `/tables/counts`. */
+interface TableRowCounts {
+	total: number
+	instances: { instance: string | null; count: number }[]
+	uncounted: number
+}
+
 const props = defineProps<{
 	rowData?: TableRow
 	navigation?: RowNavigation
+	/** Every schema; undefined while they load. */
+	schemas?: SchemaSummary[]
+	initialTab?: InspectorTab
 }>()
 
 // A link out closes the drawer: the page it opens may be this one.
-const emit = defineEmits<{ success: [] }>()
-
-type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
+const emit = defineEmits<{
+	success: []
+	'tab-change': [tab: InspectorTab]
+}>()
 
 // Descriptor kinds that admit an empty value on their own.
 const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
@@ -49,19 +70,25 @@ const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
 	'unknown',
 ])
 const BROWSE_LIST = '/api/database/browse/list'
+const TABLE_COUNTS = '/api/database/tables/counts'
 
 const { t, n } = useI18n()
 const { $authFetch } = useAuthFetch()
-const { schemas, findTable, inboundRelations } = useDatabaseSchemas()
 const { copy } = useClipboard()
 const toast = useToast()
 
-const tab = ref<InspectorTab>('columns')
+const tab = ref<InspectorTab>(props.initialTab ?? 'columns')
+watch(tab, (value) => emit('tab-change', value))
+
+const loading = computed(() => props.schemas === undefined)
 const schemaId = computed(() => props.rowData?.schema ?? '')
 const tableName = computed(() => props.rowData?.name ?? '')
-const table = computed(() => findTable(schemaId.value, tableName.value))
+const tableKey = computed(() => `${schemaId.value}::${tableName.value}`)
+const table = computed(() =>
+	findTableIn(props.schemas ?? [], schemaId.value, tableName.value),
+)
 const schema = computed(() =>
-	schemas.value.find((s) => s.id === schemaId.value),
+	props.schemas?.find((s) => s.id === schemaId.value),
 )
 const instanceCount = computed(() => schema.value?.stats.instanceCount ?? 1)
 const address = computed(() => ({
@@ -113,35 +140,87 @@ const indexes = computed(() =>
 	})),
 )
 
+// A table outside the inspected one's schema is named with its schema.
+function qualified(schemaOf: string, name: string): string {
+	return schemaOf === schemaId.value ? name : `${schemaOf}.${name}`
+}
+
 const outgoing = computed(() =>
 	(table.value?.relations ?? []).map((r) => ({
 		key: `out-${r.fromField}`,
 		from: `${tableName.value}.${r.fromField}`,
-		to: `${r.toSchema === schemaId.value ? '' : `${r.toSchema}.`}${r.toTable}.${r.toField}`,
+		to: `${qualified(r.toSchema, r.toTable)}.${r.toField}`,
 		cardinality: r.many ? 'N : N' : 'N : 1',
 		link: tableLink('schemas', { schema: r.toSchema, table: r.toTable }),
 	})),
 )
 
 const incoming = computed(() =>
-	inboundRelations(schemaId.value, tableName.value).map((r) => ({
-		key: `in-${r.fromSchema}-${r.fromTable}-${r.fromField}`,
-		from: `${r.fromSchema === schemaId.value ? '' : `${r.fromSchema}.`}${r.fromTable}.${r.fromField}`,
-		to: `${tableName.value}.${r.toField}`,
-		cardinality: r.many ? 'N : N' : 'N : 1',
-	})),
+	inboundRelationsIn(props.schemas ?? [], schemaId.value, tableName.value).map(
+		(r) => ({
+			key: `in-${r.fromSchema}-${r.fromTable}-${r.fromField}`,
+			from: `${qualified(r.fromSchema, r.fromTable)}.${r.fromField}`,
+			to: `${tableName.value}.${r.toField}`,
+			cardinality: r.many ? 'N : N' : 'N : 1',
+			link: tableLink('schemas', {
+				schema: r.fromSchema,
+				table: r.fromTable,
+			}),
+		}),
+	),
 )
 
+// --- rows: the total at once, then the share of each instance ---
+const counts = ref<TableRowCounts | null>(null)
+
+async function loadCounts(key: string) {
+	counts.value = null
+	if (!schemaId.value || !tableName.value) return
+	try {
+		const result = await $authFetch<TableRowCounts>(TABLE_COUNTS, {
+			query: { schema: schemaId.value, table: tableName.value },
+		})
+		if (key === tableKey.value) counts.value = result
+	} catch {
+		// The total the list gave stays: the breakdown is a bonus.
+	}
+}
+
+watch(tableKey, loadCounts, { immediate: true })
+
 const rowsFact = computed(() => {
-	const count = props.rowData?.elementCount
-	return count === undefined
-		? []
-		: [t('dms_database.inspector.facts.rows', { count: n(count) }, count)]
+	const total = counts.value?.total ?? props.rowData?.elementCount
+	if (total === undefined) return ''
+	const parts = [
+		t('dms_database.inspector.facts.rows', { count: n(total) }, total),
+	]
+	const breakdown = counts.value
+	// A schema without named instances needs no breakdown.
+	if (breakdown && breakdown.instances.length + breakdown.uncounted > 1) {
+		for (const { instance, count } of breakdown.instances) {
+			if (count === 0) continue
+			parts.push(
+				t('dms_database.inspector.facts.instance_rows', {
+					instance:
+						instance ?? t('dms_database.inspector.facts.default_instance'),
+					count: n(count),
+				}),
+			)
+		}
+		if (breakdown.uncounted > 0)
+			parts.push(
+				t(
+					'dms_database.inspector.facts.uncounted',
+					{ count: n(breakdown.uncounted) },
+					breakdown.uncounted,
+				),
+			)
+	}
+	return parts.join(' · ')
 })
 
-const facts = computed(() =>
+const structureFacts = computed(() =>
 	[
-		...rowsFact.value,
 		t('dms_database.inspector.facts.columns', columns.value.length),
 		t('dms_database.inspector.facts.indexes', indexes.value.length),
 		t(
@@ -155,17 +234,19 @@ const tabs = computed(() => [
 	{
 		value: 'columns',
 		label: t('dms_database.inspector.tabs.columns'),
-		badge: columns.value.length,
+		badge: loading.value ? undefined : columns.value.length,
 	},
 	{
 		value: 'indexes',
 		label: t('dms_database.inspector.tabs.indexes'),
-		badge: indexes.value.length,
+		badge: loading.value ? undefined : indexes.value.length,
 	},
 	{
 		value: 'relations',
 		label: t('dms_database.inspector.tabs.relations'),
-		badge: outgoing.value.length + incoming.value.length,
+		badge: loading.value
+			? undefined
+			: outgoing.value.length + incoming.value.length,
 	},
 	{ value: 'sample', label: t('dms_database.inspector.tabs.sample') },
 ])
@@ -185,6 +266,14 @@ interface SamplePage {
 // The instance the sample is read from: the default one, or the first named
 // instance holding rows when the default one holds none.
 const sampleInstance = ref<string | null>(null)
+
+const sampleInstanceLabel = computed(() =>
+	sampleInstance.value === null
+		? t('dms_database.inspector.sample.default_instance')
+		: t('dms_database.inspector.sample.named_instance', {
+				name: sampleInstance.value,
+			}),
+)
 
 function fetchSample(instance: string | null) {
 	const query: Record<string, string | number> = {
@@ -235,9 +324,14 @@ function nextSample() {
 	loadSample()
 }
 
-watch(tab, (value) => {
-	if (value === 'sample' && !sample.value && !sampleLoading.value) loadSample()
-})
+// The sample waits for the schemas: they name the instances to look in.
+watch(
+	() => tab.value === 'sample' && !loading.value,
+	(ready) => {
+		if (ready && !sample.value && !sampleLoading.value) loadSample()
+	},
+	{ immediate: true },
+)
 
 // The `_instance` tag the store adds to rows of named instances is not a
 // column of the table.
@@ -258,15 +352,20 @@ async function copyName() {
 </script>
 
 <template>
-	<div class="flex h-full w-full flex-col gap-4">
-		<header class="grid gap-3">
-			<div class="flex items-center gap-2">
+	<!-- A stable width, whatever the open tab holds; the viewport less its
+		gutters on a phone. -->
+	<div
+		class="flex h-full w-[min(40rem,calc(100vw-2rem))] min-w-0 max-w-full flex-col gap-4"
+	>
+		<header class="grid grid-cols-[minmax(0,1fr)] gap-3">
+			<div class="flex min-w-0 items-center gap-2">
 				<DmsEyebrow
+					class="min-w-0 truncate"
 					:label="t('dms_database.inspector.eyebrow', { schema: schemaId })"
 				/>
 				<span class="flex-1" />
 				<template v-if="navigation">
-					<span class="text-dimmed font-mono text-[11px] tabular-nums">
+					<span class="text-dimmed shrink-0 font-mono text-[11px] tabular-nums">
 						{{ navigation.index + 1 }} / {{ navigation.total }}
 					</span>
 					<UButton
@@ -291,11 +390,19 @@ async function copyName() {
 					/>
 				</template>
 			</div>
-			<div class="flex flex-wrap items-center gap-2">
-				<h3 class="text-highlighted font-mono text-lg font-semibold">
+			<div class="flex min-w-0 flex-wrap items-center gap-2">
+				<h3
+					class="text-highlighted min-w-0 break-all font-mono text-lg font-semibold"
+				>
 					{{ tableName }}
 				</h3>
-				<UBadge color="neutral" variant="outline" size="sm" class="font-mono">
+				<UBadge
+					v-if="!loading"
+					color="neutral"
+					variant="outline"
+					size="sm"
+					class="font-mono"
+				>
 					{{ t('dms_database.inspector.instances', instanceCount) }}
 				</UBadge>
 				<UButton
@@ -308,7 +415,14 @@ async function copyName() {
 					@click="copyName"
 				/>
 			</div>
-			<p class="text-muted text-sm tabular-nums">{{ facts }}</p>
+			<div v-if="loading" class="grid gap-2" aria-busy="true">
+				<USkeleton class="h-4 w-40" />
+				<USkeleton class="h-4 w-64 max-w-full" />
+			</div>
+			<div v-else class="text-muted grid gap-0.5 text-sm tabular-nums">
+				<p v-if="rowsFact">{{ rowsFact }}</p>
+				<p>{{ structureFacts }}</p>
+			</div>
 			<div class="flex flex-wrap gap-2">
 				<UButton
 					:to="tableLink('data', address)"
@@ -336,17 +450,24 @@ async function copyName() {
 					:label="t('dms_database.inspector.actions.diagram')"
 				/>
 			</div>
+			<!-- The tab list scrolls sideways on its own: held to the header's
+				width, the four tabs scroll on a phone rather than overflow. -->
 			<UTabs
 				v-model="tab"
 				:items="tabs"
 				variant="link"
 				size="sm"
 				:content="false"
+				class="min-w-0"
 			/>
 		</header>
 
-		<div class="min-h-0 flex-1 overflow-y-auto">
-			<table v-if="tab === 'columns'" class="w-full text-sm">
+		<div class="min-h-0 min-w-0 flex-1 overflow-auto">
+			<div v-if="loading" class="grid gap-3" aria-busy="true">
+				<USkeleton v-for="line in 6" :key="line" class="h-7 w-full" />
+			</div>
+
+			<table v-else-if="tab === 'columns'" class="w-full text-sm">
 				<thead>
 					<tr class="border-default border-b text-left">
 						<th class="text-dimmed py-2 pr-3 text-xs font-semibold">
@@ -369,7 +490,9 @@ async function copyName() {
 						:key="column.name"
 						class="border-default/60 border-b last:border-0"
 					>
-						<td class="text-highlighted py-2 pr-3 font-mono text-[12.5px]">
+						<td
+							class="text-highlighted break-all py-2 pr-3 font-mono text-[12.5px]"
+						>
 							{{ column.name }}
 						</td>
 						<td class="px-3 py-2">
@@ -408,7 +531,7 @@ async function copyName() {
 				<div
 					v-for="index in indexes"
 					:key="index.name"
-					class="border-default flex items-center gap-3 rounded-md border px-3 py-2.5"
+					class="border-default flex min-w-0 items-center gap-3 rounded-md border px-3 py-2.5"
 				>
 					<UBadge
 						:color="index.compound ? 'primary' : 'neutral'"
@@ -422,7 +545,7 @@ async function copyName() {
 								: t('dms_database.inspector.index.single')
 						}}
 					</UBadge>
-					<span class="text-toned font-mono text-[12.5px]">
+					<span class="text-toned min-w-0 truncate font-mono text-[12.5px]">
 						{{ index.name }}
 					</span>
 					<span class="ml-auto flex flex-wrap justify-end gap-1">
@@ -457,7 +580,7 @@ async function copyName() {
 						v-for="relation in outgoing"
 						:key="relation.key"
 						:to="relation.link"
-						class="border-default hover:bg-elevated/50 grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
+						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
 					>
 						<span class="text-toned truncate">{{ relation.from }}</span>
 						<UIcon name="i-ph-arrow-right" class="text-info size-3.5" />
@@ -478,10 +601,12 @@ async function copyName() {
 							})
 						"
 					/>
-					<div
+					<DmsAutoLink
+						@click="emit('success')"
 						v-for="relation in incoming"
 						:key="relation.key"
-						class="border-default grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
+						:to="relation.link"
+						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
 					>
 						<span class="text-info truncate">{{ relation.from }}</span>
 						<UIcon name="i-ph-arrow-right" class="text-info size-3.5" />
@@ -489,7 +614,7 @@ async function copyName() {
 						<span class="text-dimmed text-[10.5px]">
 							{{ relation.cardinality }}
 						</span>
-					</div>
+					</DmsAutoLink>
 					<p v-if="incoming.length === 0" class="text-dimmed text-sm">
 						{{ t('dms_database.inspector.relations.none_in') }}
 					</p>
@@ -497,14 +622,18 @@ async function copyName() {
 			</div>
 
 			<div v-else class="grid gap-3">
-				<div class="flex items-center justify-between gap-2">
+				<!-- Nothing to page through in an empty table. -->
+				<div
+					v-if="sampleTotal > 0"
+					class="flex min-w-0 items-center justify-between gap-2"
+				>
 					<DmsEyebrow
+						class="min-w-0 truncate"
 						:label="
 							t('dms_database.inspector.sample.position', {
-								position: sampleTotal ? sampleOffset + 1 : 0,
+								position: sampleOffset + 1,
 								total: sampleTotal,
-								instance:
-									sampleInstance ?? t('dms_database.data.scope.default'),
+								instance: sampleInstanceLabel,
 							})
 						"
 					/>
@@ -532,13 +661,20 @@ async function copyName() {
 						},
 					]"
 				/>
+				<div
+					v-else-if="sampleLoading && !sample"
+					class="grid gap-2"
+					aria-busy="true"
+				>
+					<USkeleton v-for="line in 5" :key="line" class="h-4 w-full" />
+				</div>
 				<DmsEmptyState
-					v-else-if="!sampleLoading && !sample"
+					v-else-if="!sample"
 					size="sm"
 					:title="t('dms_database.inspector.sample.empty')"
 				/>
 				<pre
-					v-else-if="sample"
+					v-else
 					class="border-default bg-elevated/40 text-toned overflow-auto whitespace-pre rounded-lg border p-4 font-mono text-xs"
 					>{{ sampleJson }}</pre
 				>

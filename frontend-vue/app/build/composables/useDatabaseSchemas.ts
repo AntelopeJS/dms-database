@@ -76,49 +76,56 @@ interface SchemaSummary {
 const SCHEMAS_ENDPOINT = '/api/database/schemas'
 const EMPTY_SCHEMAS = { schemas: [] as SchemaSummary[] }
 
+/** A table of the given schemas, by schema id and table name. */
+export function findTableIn(
+	schemas: SchemaSummary[],
+	schemaId: string,
+	tableName: string,
+): TableSummary | undefined {
+	return schemas
+		.find((schema) => schema.id === schemaId)
+		?.tables.find((table) => table.name === tableName)
+}
+
+/** Relations of every table that point at `schemaId.tableName`. */
+export function inboundRelationsIn(
+	schemas: SchemaSummary[],
+	schemaId: string,
+	tableName: string,
+): InboundRelation[] {
+	return schemas.flatMap((schema) =>
+		schema.tables.flatMap((table) =>
+			table.relations
+				.filter(
+					(relation) =>
+						relation.toSchema === schemaId && relation.toTable === tableName,
+				)
+				.map((relation) => ({
+					...relation,
+					fromSchema: schema.id,
+					fromTable: table.name,
+				})),
+		),
+	)
+}
+
 export function useDatabaseSchemas() {
 	const { useFetchAuth } = useAuthFetch()
-	const { data, pending, error, refresh } = useFetchAuth<{
+	const { data, pending, error, status, refresh } = useFetchAuth<{
 		schemas: SchemaSummary[]
 	}>(SCHEMAS_ENDPOINT, { default: () => EMPTY_SCHEMAS })
 
 	const schemas = computed(() => data.value?.schemas ?? [])
 
-	function findTable(
-		schemaId: string,
-		tableName: string,
-	): TableSummary | undefined {
-		return schemas.value
-			.find((schema) => schema.id === schemaId)
-			?.tables.find((table) => table.name === tableName)
-	}
-
-	/** Relations of every table that point at `schemaId.tableName`. */
-	function inboundRelations(
-		schemaId: string,
-		tableName: string,
-	): InboundRelation[] {
-		return schemas.value.flatMap((schema) =>
-			schema.tables.flatMap((table) =>
-				table.relations
-					.filter(
-						(relation) =>
-							relation.toSchema === schemaId && relation.toTable === tableName,
-					)
-					.map((relation) => ({
-						...relation,
-						fromSchema: schema.id,
-						fromTable: table.name,
-					})),
-			),
-		)
-	}
-
 	return {
 		schemas,
-		findTable,
-		inboundRelations,
+		findTable: (schemaId: string, tableName: string) =>
+			findTableIn(schemas.value, schemaId, tableName),
 		isLoading: pending,
+		/** The schemas arrived, or failed to: the list is what there is. */
+		isSettled: computed(
+			() => status.value === 'success' || status.value === 'error',
+		),
 		error,
 		refresh,
 	}

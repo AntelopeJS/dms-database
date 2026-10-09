@@ -40,6 +40,11 @@ export default [
 		[['K'], 'previous_row'],
 		[[META, 'S'], 'review_save'],
 	]),
+	group('$dms_database.shortcuts.schemas', [
+		[['/'], 'find_table_or_column'],
+		[['J'], 'next_table'],
+		[['K'], 'previous_table'],
+	]),
 	group('$dms_database.shortcuts.diagram', [
 		[['F'], 'find_table'],
 		[['N'], 'add_note'],
