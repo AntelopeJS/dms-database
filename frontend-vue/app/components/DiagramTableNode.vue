@@ -13,7 +13,9 @@ import {
 // a neutral icon. Colour only marks structure: the primary key, and the
 // relation columns, which light up with the selected table's relations.
 
-const props = defineProps<{ data: TableNodeData; selected?: boolean }>()
+// The canvas keeps the selection in `data.selected`: Vue Flow's own one is
+// off for tables, so one table at most is drawn selected.
+const props = defineProps<{ data: TableNodeData }>()
 
 const SIDES = ['left', 'right'] as const
 const KINDS = ['source', 'target'] as const
@@ -53,7 +55,7 @@ const rows = computed(() =>
 	<div
 		class="diagram-table-node bg-default w-[232px] cursor-grab rounded-md border text-xs shadow-sm transition-[opacity,border-color,box-shadow]"
 		:class="[
-			selected || data.selected
+			data.selected
 				? 'border-primary shadow-[0_0_0_3px_var(--ui-color-primary-500)]/20 ring-primary/30 ring-2'
 				: 'border-accented',
 			data.dimmed ? 'opacity-45' : '',

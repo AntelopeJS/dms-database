@@ -70,13 +70,31 @@ const computedPath = computed<[string, number, number]>(() => {
 	/>
 	<text
 		v-if="label"
-		class="vue-flow__edge-text"
+		class="diagram-edge-label"
+		:class="{ 'diagram-edge-label--active': data?.active }"
 		:x="computedPath[1]"
 		:y="computedPath[2]"
 		text-anchor="middle"
 		dominant-baseline="middle"
-		:style="data?.active ? { fill: ACTIVE_STROKE } : labelStyle"
 	>
 		{{ label }}
 	</text>
 </template>
+
+<style scoped>
+/* Theme tokens, with a halo of the canvas colour so the line that crosses
+   the label does not run through its letters. */
+.diagram-edge-label {
+	fill: var(--ui-text-muted);
+	stroke: var(--ui-bg-muted);
+	stroke-width: 4px;
+	stroke-linejoin: round;
+	paint-order: stroke;
+	font: 500 10.5px var(--font-mono, ui-monospace, monospace);
+	pointer-events: none;
+	user-select: none;
+}
+.diagram-edge-label--active {
+	fill: var(--ui-primary);
+}
+</style>

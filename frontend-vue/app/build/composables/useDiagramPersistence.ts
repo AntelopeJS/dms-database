@@ -33,6 +33,13 @@ export type DiagramNoteUpdate = Partial<
 >
 
 const BASE = '/api/database/diagram'
+// A request that hangs fails after this, so the canvas shows the error and
+// its "Try again" instead of "Saving…" forever.
+export const DIAGRAM_REQUEST_TIMEOUT_MS = 15_000
+
+function timeout(): AbortSignal {
+	return AbortSignal.timeout(DIAGRAM_REQUEST_TIMEOUT_MS)
+}
 
 export function useDiagramPersistence() {
 	const { $authFetch } = useAuthFetch()
@@ -40,6 +47,7 @@ export function useDiagramPersistence() {
 	async function fetchLayout(schema: string): Promise<DiagramPositions> {
 		const res = await $authFetch<{ positions: DiagramPositions }>(
 			`${BASE}/layout/${encodeURIComponent(schema)}`,
+			{ signal: timeout() },
 		)
 		return res.positions ?? {}
 	}
@@ -53,6 +61,7 @@ export function useDiagramPersistence() {
 			{
 				method: 'PUT',
 				body: { positions },
+				signal: timeout(),
 			},
 		)
 	}
@@ -60,6 +69,7 @@ export function useDiagramPersistence() {
 	async function fetchNotes(schema: string): Promise<DiagramNote[]> {
 		const res = await $authFetch<{ items: DiagramNote[] }>(`${BASE}/notes`, {
 			query: { schema },
+			signal: timeout(),
 		})
 		return res.items ?? []
 	}
@@ -68,6 +78,7 @@ export function useDiagramPersistence() {
 		return $authFetch<DiagramNote>(`${BASE}/notes`, {
 			method: 'POST',
 			body: payload,
+			signal: timeout(),
 		})
 	}
 
@@ -78,13 +89,14 @@ export function useDiagramPersistence() {
 		return $authFetch<DiagramNote>(`${BASE}/notes/${encodeURIComponent(id)}`, {
 			method: 'PUT',
 			body: patch,
+			signal: timeout(),
 		})
 	}
 
 	async function deleteNote(id: string): Promise<void> {
 		await $authFetch<{ success: boolean }>(
 			`${BASE}/notes/${encodeURIComponent(id)}`,
-			{ method: 'DELETE' },
+			{ method: 'DELETE', signal: timeout() },
 		)
 	}
 

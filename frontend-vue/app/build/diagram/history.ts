@@ -175,12 +175,4 @@ export class DiagramHistory {
 		this.cursor += 1
 		return true
 	}
-
-	/** Swaps a note's temporary id for the id its save gave it. */
-	renameNote(fromId: string, toId: string) {
-		for (const op of this.operations) {
-			if ('noteId' in op && op.noteId === fromId) op.noteId = toId
-			if ('snapshot' in op && op.snapshot.id === fromId) op.snapshot.id = toId
-		}
-	}
 }

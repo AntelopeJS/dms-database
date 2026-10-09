@@ -9,6 +9,7 @@ import { clonePositions, type DiagramState } from './history'
 
 // Saves the diagram as it changes (D-10): the layout and the notes are
 // compared with what was last stored, and only the differences are written.
+// One DiagramSync belongs to one schema: it only ever writes under its id.
 
 export interface DiagramStore {
 	saveLayout(schema: string, positions: DiagramPositions): Promise<void>
@@ -16,9 +17,6 @@ export interface DiagramStore {
 	updateNote(id: string, patch: DiagramNoteUpdate): Promise<DiagramNote>
 	deleteNote(id: string): Promise<void>
 }
-
-/** Called when a note created on the canvas gets its stored id. */
-export type NoteRenamed = (fromId: string, toId: string) => void
 
 const NOTE_FIELDS = ['text', 'x', 'y', 'width', 'height', 'color'] as const
 
@@ -53,18 +51,21 @@ export function noteFromStored(note: DiagramNote): NoteDraft {
 
 export class DiagramSync {
 	private saved: DiagramState = { positions: {}, notes: [] }
+	// The id the store gave each note created on the canvas, by its temporary
+	// id. The canvas keeps the temporary one, so the note's node is not
+	// remounted (and its edit lost) when it is first saved.
+	private readonly created = new Map<string, string>()
 
 	constructor(
 		private readonly store: DiagramStore,
-		private readonly schemaId: string,
-		private readonly onRenamed: NoteRenamed,
+		readonly schemaId: string,
 	) {}
 
 	/** What is stored now, as loaded or as last written. */
 	reset(state: DiagramState) {
 		this.saved = {
 			positions: clonePositions(state.positions),
-			notes: state.notes.map((note) => ({ ...note })),
+			notes: state.notes.map((note) => ({ ...note, id: this.idOf(note) })),
 		}
 	}
 
@@ -72,6 +73,7 @@ export class DiagramSync {
 		return this.layoutChanged(state) || this.notesChanged(state)
 	}
 
+	/** Writes the differences; `state` should be a copy the canvas won't change. */
 	async save(state: DiagramState): Promise<void> {
 		if (this.layoutChanged(state)) {
 			await this.store.saveLayout(
@@ -81,6 +83,10 @@ export class DiagramSync {
 		}
 		await this.saveNotes(state)
 		this.reset(state)
+	}
+
+	private idOf(note: NoteDraft): string {
+		return this.created.get(note.id) ?? note.id
 	}
 
 	private layoutChanged(state: DiagramState): boolean {
@@ -94,7 +100,7 @@ export class DiagramSync {
 		return (
 			saved.size !== state.notes.length ||
 			state.notes.some((note) => {
-				const before = saved.get(note.id)
+				const before = saved.get(this.idOf(note))
 				return !before || noteChanged(before, note)
 			})
 		)
@@ -102,15 +108,16 @@ export class DiagramSync {
 
 	private async saveNotes(state: DiagramState) {
 		const saved = new Map(this.saved.notes.map((note) => [note.id, note]))
-		const current = new Set(state.notes.map((note) => note.id))
+		const current = new Set(state.notes.map((note) => this.idOf(note)))
 		for (const note of this.saved.notes) {
 			if (!current.has(note.id)) await this.store.deleteNote(note.id)
 		}
 		for (const note of state.notes) {
-			const before = saved.get(note.id)
+			const id = this.idOf(note)
+			const before = saved.get(id)
 			if (!before) await this.createNote(note)
 			else if (noteChanged(before, note))
-				await this.store.updateNote(note.id, notePatch(note))
+				await this.store.updateNote(id, notePatch(note))
 		}
 	}
 
@@ -124,8 +131,7 @@ export class DiagramSync {
 			height: note.height,
 			color: note.color ?? undefined,
 		})
-		const previousId = note.id
+		this.created.set(note.id, created.id)
 		Object.assign(note, noteFromStored(created))
-		this.onRenamed(previousId, created.id)
 	}
 }
