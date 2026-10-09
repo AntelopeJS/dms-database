@@ -2,9 +2,11 @@
 import {
 	dayLabel,
 	groupByDay,
+	HISTORY_KEPT,
 	RUN_DOT_CLASSES,
 	runKind,
 } from '../build/query/runs'
+import { describeTarget, runTarget } from '../build/query/target'
 import type {
 	HistoryEntry,
 	SavedQuery,
@@ -25,6 +27,10 @@ const props = defineProps<{
 	activeSavedId: string | null
 	activeHistoryId: string | null
 	loading: boolean
+	/** Runs kept on the server, of which `history` holds the latest. */
+	historyTotal?: number
+	/** Older runs are on their way. */
+	loadingMore?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -34,6 +40,7 @@ const emit = defineEmits<{
 	'edit-saved': [query: SavedQuery]
 	'delete-saved': [query: SavedQuery]
 	'clear-history': []
+	'more-history': []
 }>()
 
 const { t, n, locale } = useI18n()
@@ -60,10 +67,20 @@ function matches(...texts: (string | undefined)[]): boolean {
 	return !needle || texts.some((text) => text?.toLowerCase().includes(needle))
 }
 
+// Each run leads with where it pointed: runs on one schema all start alike.
+const runs = computed(() =>
+	props.history.map((entry) => ({
+		entry,
+		target: describeTarget(runTarget(entry)),
+	})),
+)
+
 const historyGroups = computed(() =>
 	groupByDay(
-		props.history.filter((entry) => matches(entry.source, entry.error)),
-		(entry) => entry.executedAt,
+		runs.value.filter(({ entry, target }) =>
+			matches(entry.source, entry.error, target),
+		),
+		({ entry }) => entry.executedAt,
 	).map((group) => ({
 		...group,
 		label: dayLabel(group.date, locale.value, {
@@ -100,7 +117,7 @@ function runMeta(entry: HistoryEntry): string {
 				{ count: n(entry.rowCount) },
 				entry.rowCount,
 			)
-	return `${time(entry.executedAt)} · ${entry.durationMs} ms · ${outcome}`
+	return `${time(entry.executedAt)} · ${n(entry.durationMs)} ms · ${outcome}`
 }
 
 function savedMeta(query: SavedQuery): string {
@@ -147,7 +164,7 @@ function initials(name?: string): string {
 				<section v-for="group in historyGroups" :key="group.key" class="mb-2">
 					<DmsEyebrow :label="group.label" class="px-2 pb-1 pt-2" />
 					<div
-						v-for="entry in group.items"
+						v-for="{ entry, target } in group.items"
 						:key="entry.id"
 						class="group/run focus-within:bg-elevated hover:bg-elevated relative grid cursor-pointer grid-cols-[auto_1fr_auto] items-start gap-x-2 rounded-md px-2 py-1.5"
 						:class="entry.id === activeHistoryId ? 'bg-primary/10' : ''"
@@ -160,11 +177,18 @@ function initials(name?: string): string {
 							class="mt-1.5 size-2 rounded-full"
 							:class="RUN_DOT_CLASSES[runKind(entry)]"
 						/>
-						<span
-							class="text-toned truncate font-mono text-[12px]"
-							:title="entry.source"
-						>
-							{{ entry.source }}
+						<span class="min-w-0" :title="entry.source">
+							<span
+								v-if="target"
+								class="text-highlighted block truncate font-mono text-[12px] font-medium"
+							>
+								{{ target }}
+							</span>
+							<span
+								class="text-muted line-clamp-2 break-all font-mono text-[11px]"
+							>
+								{{ entry.source }}
+							</span>
 						</span>
 						<UButton
 							icon="i-ph-star"
@@ -184,6 +208,17 @@ function initials(name?: string): string {
 						</span>
 					</div>
 				</section>
+				<UButton
+					v-if="!search && history.length < (historyTotal ?? 0)"
+					block
+					size="xs"
+					color="neutral"
+					variant="ghost"
+					icon="i-ph-clock-counter-clockwise"
+					:loading="loadingMore"
+					:label="t('dms_database.query.library.more')"
+					@click="emit('more-history')"
+				/>
 				<DmsEmptyState
 					v-if="historyGroups.length === 0 && !loading"
 					size="sm"
@@ -274,7 +309,13 @@ function initials(name?: string): string {
 			v-if="tab === 'history'"
 			class="border-default text-dimmed flex items-center gap-2 border-t px-3 py-2 text-[11.5px]"
 		>
-			{{ t('dms_database.query.library.history_kept') }}
+			{{
+				t(
+					'dms_database.query.library.history_kept',
+					{ count: n(HISTORY_KEPT) },
+					HISTORY_KEPT,
+				)
+			}}
 			<UButton
 				class="ml-auto"
 				size="xs"

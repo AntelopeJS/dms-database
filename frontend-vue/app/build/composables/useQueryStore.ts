@@ -124,6 +124,14 @@ export function useQueryStore() {
 		})
 	}
 
+	/** Records a run that failed before reaching the server. */
+	async function recordFailure(source: string, error: string): Promise<void> {
+		await $authFetch<{ success: boolean }>(`${QUERY_BASE}/history`, {
+			method: 'POST',
+			body: { source, error, language: 'aql' },
+		})
+	}
+
 	async function saveQuery(input: SaveQueryInput): Promise<SavedQuery> {
 		return $authFetch<SavedQuery>(`${QUERY_BASE}/saved`, {
 			method: 'POST',
@@ -158,6 +166,7 @@ export function useQueryStore() {
 		clearHistory,
 		dryRun,
 		executeQuery,
+		recordFailure,
 		saveQuery,
 		updateSaved,
 		deleteSaved,

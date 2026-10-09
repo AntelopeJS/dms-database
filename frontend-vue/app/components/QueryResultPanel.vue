@@ -1,8 +1,24 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
-import { downloadText, resultColumns, toCsv } from '../build/query/csv'
-import { closestTable, unknownTable } from '../build/query/runs'
-import { describeTarget, type QueryTarget } from '../build/query/target'
+import {
+	downloadText,
+	filledColumns,
+	numericColumns as numericOnly,
+	resultColumns,
+	toCsv,
+} from '../build/query/csv'
+import { latestOrderField } from '../build/query/examples'
+import {
+	closestName,
+	unknownName,
+	type UnknownKind,
+	type UnknownName,
+} from '../build/query/runs'
+import {
+	describeTarget,
+	rowInstance,
+	type QueryTarget,
+} from '../build/query/target'
 import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
 import type { ExecuteResult } from '../build/composables/useQueryStore'
 import {
@@ -20,7 +36,10 @@ type ResultMode = 'table' | 'json' | 'chart'
 
 export interface QueryFailure {
 	message: string
-	durationMs: number
+	/** How long the server ran it; null when it never reached the server. */
+	durationMs: number | null
+	/** The unknown name the failure is about, when the console found it. */
+	unknown?: UnknownName | null
 }
 
 const props = defineProps<{
@@ -28,16 +47,23 @@ const props = defineProps<{
 	failure: QueryFailure | null
 	target: QueryTarget
 	schemas: SchemaSummary[]
+	/** A run is on its way: what shows is the previous one's. */
+	running?: boolean
 }>()
 
 const emit = defineEmits<{
 	'use-source': [source: string]
-	'replace-table': [from: string, to: string]
+	'replace-name': [kind: UnknownKind, from: string, to: string]
 }>()
 
 const MAX_TABLE_ROWS = 200
 const EXAMPLE_ROWS = 10
 const CHART_ROWS = 50
+// Bars past this many are drawn sideways, a fixed height each, so their
+// labels stay apart.
+const UPRIGHT_BARS = 20
+const BAR_HEIGHT = 22
+const CHART_HEIGHT = 280
 
 const { t, n } = useI18n()
 const { copy } = useClipboard()
@@ -64,8 +90,15 @@ const modeItems = computed(() => [
 
 const rows = computed(() => props.result?.rows ?? [])
 const columns = computed(() => resultColumns(rows.value))
+const tableColumns = computed(() => filledColumns(rows.value, columns.value))
+const rightAligned = computed(
+	() => new Set(numericOnly(rows.value, tableColumns.value)),
+)
 const shownRows = computed(() => rows.value.slice(0, MAX_TABLE_ROWS))
 const targetLabel = computed(() => describeTarget(props.target))
+const tableCut = computed(
+	() => mode.value === 'table' && rows.value.length > MAX_TABLE_ROWS,
+)
 
 function renderCell(value: unknown): string {
 	if (value === null || value === undefined) return 'null'
@@ -74,26 +107,27 @@ function renderCell(value: unknown): string {
 }
 
 // --- links to the data browser ---
-const browsable = computed(
-	() =>
-		Boolean(props.target.schema && props.target.table) &&
-		props.target.instance !== '*',
+// A row of a read across every instance opens in its own instance.
+const browsable = computed(() =>
+	Boolean(props.target.schema && props.target.table),
 )
 
 function rowLink(row: Record<string, unknown>): string | null {
 	const id = row._id
 	if (!browsable.value || (typeof id !== 'string' && typeof id !== 'number'))
 		return null
+	const instance = rowInstance(props.target, row)
+	if (instance === null) return null
 	return tableLink('data', {
 		schema: props.target.schema ?? '',
 		table: props.target.table ?? '',
-		instance: props.target.instance || undefined,
+		instance: instance || undefined,
 		match: { field: '_id', value: String(id) },
 	})
 }
 
 const tableBrowserLink = computed(() =>
-	browsable.value
+	browsable.value && props.target.instance !== '*'
 		? tableLink('data', {
 				schema: props.target.schema ?? '',
 				table: props.target.table ?? '',
@@ -140,6 +174,11 @@ watch(
 )
 
 const chartRows = computed(() => rows.value.slice(0, CHART_ROWS))
+const sideways = computed(() => chartRows.value.length > UPRIGHT_BARS)
+const chartHeight = computed(
+	() =>
+		`${sideways.value ? Math.max(CHART_HEIGHT, chartRows.value.length * BAR_HEIGHT) : CHART_HEIGHT}px`,
+)
 const chartDataset = computed(() => {
 	const y = yColumn.value
 	if (!y) return []
@@ -159,13 +198,24 @@ const examples = computed(() => {
 	const schema = props.schemas.find((candidate) => candidate.tables.length > 0)
 	if (!schema) return []
 	const [first, second] = schema.tables
+	const firstTable = `${schema.id}.${first?.name}`
+	const access = tableAccess({ schema: schema.id, table: first?.name ?? '' })
+	// "Latest" rows only when a date orders them; else the first ones.
+	const dated = first ? latestOrderField(first) : null
 	const items = [
-		{
-			label: t('dms_database.query.result.example_latest', {
-				table: `${schema.id}.${first?.name}`,
-			}),
-			source: `${tableAccess({ schema: schema.id, table: first?.name ?? '' })}.slice(0, ${EXAMPLE_ROWS})`,
-		},
+		dated
+			? {
+					label: t('dms_database.query.result.example_latest', {
+						table: firstTable,
+					}),
+					source: `${access}.orderBy(${JSON.stringify(dated)}, "desc").slice(0, ${EXAMPLE_ROWS})`,
+				}
+			: {
+					label: t('dms_database.query.result.example_first', {
+						table: firstTable,
+					}),
+					source: `${access}.slice(0, ${EXAMPLE_ROWS})`,
+				},
 	]
 	const counted = second ?? first
 	if (counted) {
@@ -189,18 +239,30 @@ const exampleActions = computed(() =>
 	})),
 )
 
-const mistypedTable = computed(() =>
-	props.failure ? unknownTable(props.failure.message) : null,
+// A mistyped schema, instance or table, and the closest name the workspace
+// has: the console offers to use it, as for a table.
+const mistyped = computed<UnknownName | null>(() =>
+	props.failure
+		? (props.failure.unknown ?? unknownName(props.failure.message))
+		: null,
 )
-const suggestedTable = computed(() => {
-	const mistyped = mistypedTable.value
+const suggestion = computed(() => {
+	const unknown = mistyped.value
+	if (!unknown) return null
+	if (unknown.kind === 'schema')
+		return closestName(
+			unknown.name,
+			props.schemas.map((schema) => schema.id),
+		)
 	const schema = props.schemas.find(
 		(candidate) => candidate.id === props.target.schema,
 	)
-	if (!mistyped || !schema) return null
-	return closestTable(
-		mistyped,
-		schema.tables.map((table) => table.name),
+	if (!schema) return null
+	return closestName(
+		unknown.name,
+		unknown.kind === 'table'
+			? schema.tables.map((table) => table.name)
+			: (schema.instances ?? []),
 	)
 })
 </script>
@@ -211,16 +273,31 @@ const suggestedTable = computed(() => {
 			class="border-default flex flex-wrap items-center gap-2.5 border-b px-4 py-2.5"
 		>
 			<UIcon
-				:name="failure ? 'i-ph-x-circle' : 'i-ph-check-circle'"
+				:name="
+					running
+						? 'i-ph-circle-notch'
+						: failure
+							? 'i-ph-x-circle'
+							: 'i-ph-check-circle'
+				"
 				:class="
-					failure ? 'text-error' : result ? 'text-success' : 'text-dimmed'
+					running
+						? 'text-dimmed animate-spin'
+						: failure
+							? 'text-error'
+							: result
+								? 'text-success'
+								: 'text-dimmed'
 				"
 				class="size-4"
 			/>
 			<b class="text-highlighted text-sm">
 				{{ t('dms_database.query.result.title') }}
 			</b>
-			<template v-if="result">
+			<span v-if="running" class="text-muted text-xs" role="status">
+				{{ t('dms_database.query.result.running') }}
+			</span>
+			<template v-else-if="result">
 				<UBadge
 					:color="result.mutation ? 'info' : 'success'"
 					variant="soft"
@@ -242,7 +319,7 @@ const suggestedTable = computed(() => {
 					}}
 				</UBadge>
 				<span class="text-dimmed font-mono text-xs">
-					{{ result.durationMs }} ms ·
+					{{ n(result.durationMs) }} ms ·
 					{{
 						result.mutation
 							? t('dms_database.query.result.wrote')
@@ -252,8 +329,8 @@ const suggestedTable = computed(() => {
 				</span>
 			</template>
 			<div
-				v-if="result && rows.length > 0"
-				class="ml-auto flex items-center gap-1.5"
+				v-if="result && rows.length > 0 && !running"
+				class="ml-auto flex flex-wrap items-center gap-1.5"
 			>
 				<DmsSegmented
 					v-model="mode"
@@ -282,7 +359,11 @@ const suggestedTable = computed(() => {
 			</div>
 		</div>
 
-		<div class="min-h-56">
+		<div
+			class="min-h-56 transition-opacity"
+			:class="running ? 'pointer-events-none opacity-50' : ''"
+			:aria-busy="running"
+		>
 			<div v-if="failure" class="grid gap-3 p-4">
 				<div class="border-error/40 bg-error/10 rounded-lg border px-4 py-3">
 					<p class="text-error text-sm font-semibold">
@@ -290,9 +371,11 @@ const suggestedTable = computed(() => {
 					</p>
 					<p class="text-muted text-xs">
 						{{
-							t('dms_database.query.result.failed_detail', {
-								ms: failure.durationMs,
-							})
+							failure.durationMs === null
+								? t('dms_database.query.result.failed_local')
+								: t('dms_database.query.result.failed_detail', {
+										ms: n(failure.durationMs),
+									})
 						}}
 					</p>
 					<p
@@ -301,18 +384,20 @@ const suggestedTable = computed(() => {
 						{{ failure.message }}
 					</p>
 				</div>
-				<div v-if="mistypedTable" class="flex flex-wrap gap-2">
+				<div v-if="mistyped" class="flex flex-wrap gap-2">
 					<UButton
-						v-if="suggestedTable"
+						v-if="suggestion"
 						size="sm"
 						icon="i-ph-arrow-right"
 						:label="
-							t('dms_database.query.result.replace', { table: suggestedTable })
+							t('dms_database.query.result.replace', { table: suggestion })
 						"
-						@click="emit('replace-table', mistypedTable, suggestedTable)"
+						@click="
+							emit('replace-name', mistyped.kind, mistyped.name, suggestion)
+						"
 					/>
 					<UButton
-						v-if="target.schema"
+						v-if="target.schema && mistyped.kind === 'table'"
 						size="sm"
 						color="neutral"
 						variant="ghost"
@@ -355,9 +440,10 @@ const suggestedTable = computed(() => {
 					<thead class="bg-elevated sticky top-0">
 						<tr class="border-default border-b text-left">
 							<th
-								v-for="column in columns"
+								v-for="column in tableColumns"
 								:key="column"
 								class="text-dimmed whitespace-nowrap px-3 py-2 font-mono text-xs font-semibold"
+								:class="rightAligned.has(column) ? 'text-right' : ''"
 							>
 								{{ column }}
 							</th>
@@ -371,7 +457,7 @@ const suggestedTable = computed(() => {
 							class="group/result border-default/60 hover:bg-elevated/40 border-b last:border-0"
 						>
 							<td
-								v-for="column in columns"
+								v-for="column in tableColumns"
 								:key="column"
 								class="max-w-80 truncate whitespace-nowrap px-3 py-1.5 font-mono text-[12.5px]"
 								:class="[
@@ -445,10 +531,14 @@ const suggestedTable = computed(() => {
 				</div>
 				<DmsChart
 					v-if="yColumn"
+					:key="sideways ? 'sideways' : 'upright'"
+					page-id="query"
+					component-id="query-result-chart"
 					type="bar"
 					:static-dataset="chartDataset"
 					color="primary"
-					height="280px"
+					:height="chartHeight"
+					:orientation="sideways ? 'horizontal' : 'vertical'"
 					:show-legend="false"
 					xaxis-type="category"
 				/>
@@ -470,6 +560,8 @@ const suggestedTable = computed(() => {
 				:class="result.truncated ? 'text-warning' : ''"
 				class="size-3.5"
 			/>
+			<!-- The server cut the result and the table shows fewer still: both
+			     limits are said. -->
 			<span v-if="result.truncated">
 				{{
 					t('dms_database.query.result.truncated', {
@@ -478,7 +570,7 @@ const suggestedTable = computed(() => {
 					})
 				}}
 			</span>
-			<span v-else-if="mode === 'table' && rows.length > MAX_TABLE_ROWS">
+			<span v-if="tableCut">
 				{{
 					t('dms_database.query.result.table_first', {
 						shown: n(MAX_TABLE_ROWS),
@@ -486,7 +578,7 @@ const suggestedTable = computed(() => {
 					})
 				}}
 			</span>
-			<span v-else>
+			<span v-if="!result.truncated && !tableCut">
 				{{
 					t(
 						'dms_database.query.result.all_shown',

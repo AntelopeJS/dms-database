@@ -15,12 +15,17 @@ export function runKind(entry: HistoryEntry): RunKind {
 	return entry.durationMs > SLOW_QUERY_MS ? 'slow' : 'fast'
 }
 
+// A run that changed data reads apart from a fast one by its shape too: a
+// ring, as the info and success tones sit close in some themes.
 export const RUN_DOT_CLASSES: Record<RunKind, string> = {
 	fast: 'bg-success',
 	slow: 'bg-warning',
 	failed: 'bg-error',
-	changed: 'bg-info',
+	changed: 'bg-default ring-2 ring-inset ring-info',
 }
+
+/** Runs the server keeps per user (MAX_HISTORY_PER_USER). */
+export const HISTORY_KEPT = 500
 
 export interface DayGroup<T> {
 	key: string
@@ -69,9 +74,30 @@ export function dayLabel(
 	}).format(date)
 }
 
+export type UnknownKind = 'schema' | 'instance' | 'table'
+
+/** A name a query used that its schema does not know. */
+export interface UnknownName {
+	kind: UnknownKind
+	name: string
+}
+
+/** What an "Unknown schema / instance / table" error names, if it names one. */
+export function unknownName(message: string): UnknownName | null {
+	const match = /unknown (schema|instance|table):?\s*["“'«]?\s*([\w$-]+)/i.exec(
+		message,
+	)
+	if (!match) return null
+	return {
+		kind: (match[1] as string).toLowerCase() as UnknownKind,
+		name: match[2] as string,
+	}
+}
+
 /** The table named by an "Unknown table" error, if the message names one. */
 export function unknownTable(message: string): string | null {
-	return /unknown table:?\s*["“']?([\w$-]+)/i.exec(message)?.[1] ?? null
+	const unknown = unknownName(message)
+	return unknown?.kind === 'table' ? unknown.name : null
 }
 
 function distance(left: string, right: string): number {
@@ -96,16 +122,56 @@ function distance(left: string, right: string): number {
 // Two edits away at most: "invoice" for "invoices", "oders" for "orders".
 const MAX_SUGGESTION_DISTANCE = 2
 
-/** The table name closest to a mistyped one, when one is close enough. */
-export function closestTable(name: string, tables: string[]): string | null {
+/** The name closest to a mistyped one, when one is close enough. */
+export function closestName(name: string, candidates: string[]): string | null {
 	let best: string | null = null
 	let bestDistance = MAX_SUGGESTION_DISTANCE + 1
-	for (const table of tables) {
-		const score = distance(name.toLowerCase(), table.toLowerCase())
+	for (const candidate of candidates) {
+		if (candidate === name) continue
+		const score = distance(name.toLowerCase(), candidate.toLowerCase())
 		if (score < bestDistance) {
-			best = table
+			best = candidate
 			bestDistance = score
 		}
 	}
 	return best
+}
+
+/** The table name closest to a mistyped one, when one is close enough. */
+export const closestTable = closestName
+
+function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const IDENTIFIER = /^[A-Z_$][\w$]*$/i
+
+/**
+ * The query with a mistyped schema, instance or table name replaced, in the
+ * call or access that names it: `table("oders")`, `instance("zz")`,
+ * `schemas.shoop` or `schemas["shoop"]`.
+ */
+export function replaceName(
+	source: string,
+	kind: UnknownKind,
+	from: string,
+	to: string,
+): string {
+	const name = escapeRegExp(from)
+	if (kind === 'schema') {
+		const access = IDENTIFIER.test(to)
+			? `schemas.${to}`
+			: `schemas[${JSON.stringify(to)}]`
+		return source.replace(
+			new RegExp(
+				`schemas\\s*(?:\\.\\s*${name}(?![\\w$])|\\[\\s*(["'\`])${name}\\1\\s*\\])`,
+				'g',
+			),
+			access,
+		)
+	}
+	return source.replace(
+		new RegExp(`${kind}\\(\\s*(["'\`])${name}\\1\\s*\\)`, 'g'),
+		(_, quote: string) => `${kind}(${quote}${to}${quote})`,
+	)
 }

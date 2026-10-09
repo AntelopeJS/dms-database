@@ -134,3 +134,56 @@ export function describeUnknownTarget(target: QueryTarget): string | null {
   }
   return null;
 }
+
+// Instances named in an unknown-instance error, so the message stays short
+// on a schema with one instance per tenant.
+const LISTED_INSTANCES = 10;
+
+/** The named instances of a schema; null when the driver cannot list them. */
+async function namedInstances(schema: Schema): Promise<string[] | null> {
+  try {
+    const named = await schema.listInstances().run();
+    return Array.isArray(named)
+      ? named.filter((id): id is string => typeof id === "string")
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Why a query cannot run where it points, instance included: a store reading
+ * an instance that was never created answers no row, like an empty table.
+ */
+export async function describeUnknownQueryTarget(
+  target: QueryTarget,
+): Promise<string | null> {
+  const unknown = describeUnknownTarget(target);
+  if (unknown || !target.schema) return unknown;
+  // The default instance ("") and every instance at once ("*") always exist.
+  const instance = target.instance;
+  if (!instance || instance === "*") return null;
+  const schema = Schema.get(target.schema);
+  const named = schema ? await namedInstances(schema) : null;
+  if (!named || named.includes(instance)) return null;
+  const listed = named.slice(0, LISTED_INSTANCES).map((id) => `"${id}"`);
+  const more = named.length > listed.length ? ", …" : "";
+  const known = listed.length
+    ? ` (instances: ${listed.join(", ")}${more})`
+    : " (it has no named instance)";
+  return `Unknown instance "${instance}" in schema ${target.schema}${known}`;
+}
+
+/**
+ * Rows a run changed or answered: update, replace and delete answer the
+ * number of rows they touched, not rows.
+ */
+export function affectedRows(
+  raw: unknown,
+  rows: number,
+  mutation: boolean,
+): number {
+  return mutation && typeof raw === "number" && Number.isFinite(raw)
+    ? raw
+    : rows;
+}

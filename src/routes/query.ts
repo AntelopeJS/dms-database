@@ -2,6 +2,7 @@ import {
   Controller,
   Delete,
   Get,
+  HTTPResult,
   JSONBody,
   Parameter,
   Post,
@@ -19,8 +20,9 @@ import {
   type SavedQueryRow,
 } from "../db";
 import {
+  affectedRows,
   containsMutation,
-  describeUnknownTarget,
+  describeUnknownQueryTarget,
   type DryRunResult,
   dryRun,
   readQueryTarget,
@@ -37,13 +39,17 @@ import type {
   PaginatedResult,
   SuccessResponse,
 } from "../types/responses";
+import { MAX_HISTORY_PER_USER } from "../types/constants";
 import { clamp, parseInteger } from "../utils/query";
 import { asNonEmptyString, asString } from "../utils/requestValidation";
 
 const DEFAULT_HISTORY_LIMIT = 25;
 // Rows a run sends back at most; the console says when it cut the rest.
 const MAX_RESULT_ROWS = 1000;
-const MAX_HISTORY_LIMIT = 200;
+// Every kept run can be listed: the console pages through them.
+const MAX_HISTORY_LIMIT = MAX_HISTORY_PER_USER;
+// A failure the console met before sending the query, kept that long.
+const MAX_ERROR_LENGTH = 2000;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
 
 type SavedScope = "me" | "shared";
@@ -52,6 +58,12 @@ interface ExecuteBody {
   query?: unknown;
   source?: unknown;
   language?: unknown;
+}
+
+interface FailureBody {
+  source?: unknown;
+  language?: unknown;
+  error?: unknown;
 }
 
 interface SaveBody {
@@ -233,6 +245,11 @@ function errorMessage(error: unknown): string {
   return message || "Query execution failed";
 }
 
+/** A failed run answers what failed and how long it took. */
+function runFailure(message: string, durationMs: number): HTTPResult {
+  return new HTTPResult(400, { message, durationMs });
+}
+
 @AuthOwnerOnly()
 export class DatabaseQueryController extends Controller("/api/database/query") {
   @Post("/execute")
@@ -247,27 +264,31 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const startedAt = Date.now();
     let raw: unknown;
     try {
-      const unknownTarget = describeUnknownTarget(readQueryTarget(root));
+      const unknownTarget = await describeUnknownQueryTarget(
+        readQueryTarget(root),
+      );
       if (unknownTarget) throw new Error(unknownTarget);
       raw = await root.run();
     } catch (error) {
       const message = errorMessage(error);
+      const durationMs = Date.now() - startedAt;
       await historyModel.addAndPrune({
         userId: user._id,
         query,
         source,
         language,
         executedAt,
-        durationMs: Date.now() - startedAt,
+        durationMs,
         rowCount: 0,
         status: "error",
         mutation,
         error: message,
       });
-      assert(false, 400, message);
+      throw runFailure(message, durationMs);
     }
     const durationMs = Date.now() - startedAt;
     const rows = normaliseRows(raw);
+    const rowCount = affectedRows(raw, rows.length, mutation);
 
     await historyModel.addAndPrune({
       userId: user._id,
@@ -276,14 +297,14 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       language,
       executedAt,
       durationMs,
-      rowCount: rows.length,
+      rowCount,
       status: "ok",
       mutation,
     });
 
     return {
       rows: rows.slice(0, MAX_RESULT_ROWS),
-      rowCount: rows.length,
+      rowCount,
       truncated: rows.length > MAX_RESULT_ROWS,
       mutation,
       executedAt: executedAt.toISOString(),
@@ -301,7 +322,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @JSONBody() body: ExecuteBody,
   ): Promise<DryRunResult> {
     const root = decodeRunnable(asRecord(body?.query));
-    const unknownTarget = describeUnknownTarget(readQueryTarget(root));
+    const unknownTarget = await describeUnknownQueryTarget(
+      readQueryTarget(root),
+    );
     assert(!unknownTarget, 400, unknownTarget ?? "");
     try {
       return await dryRun(root);
@@ -392,6 +415,31 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   @Delete("/history")
   async clearHistory(@AuthRawUser() user: User): Promise<SuccessResponse> {
     await GetModel(QueryHistoryModel).clearForUser(user._id);
+    return { success: true };
+  }
+
+  /**
+   * Records a run the console could not send: a syntax error, an unknown
+   * schema or a method the query language lacks. It reached no table.
+   */
+  @Post("/history")
+  async recordFailure(
+    @AuthRawUser() user: User,
+    @JSONBody() body: FailureBody,
+  ): Promise<SuccessResponse> {
+    const error = asNonEmptyString(body?.error).slice(0, MAX_ERROR_LENGTH);
+    await GetModel(QueryHistoryModel).addAndPrune({
+      userId: user._id,
+      query: {},
+      source: asNonEmptyString(body?.source),
+      language: asLanguage(body?.language),
+      executedAt: new Date(),
+      durationMs: 0,
+      rowCount: 0,
+      status: "error",
+      mutation: false,
+      error,
+    });
     return { success: true };
   }
 

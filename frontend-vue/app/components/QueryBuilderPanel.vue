@@ -29,6 +29,15 @@ import {
 } from '@codemirror/view'
 import { useColorMode } from '@vueuse/core'
 import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
+import {
+	buildCompletionIndex,
+	countedInstance,
+	fieldsAt,
+	INSTANCE_METHODS,
+	QUERY_METHODS,
+	SCHEMA_METHODS,
+} from '../build/query/completion'
+import { targetFromSource } from '../build/query/target'
 import { tableAccess } from '../build/utils/databaseLinks'
 
 // The query editor (D-12): AQL with completion of the workspace's own
@@ -40,8 +49,14 @@ interface Props {
 	executing?: boolean
 	// Drives the schema-aware autocomplete (table/field names + the query DSL).
 	schemas?: SchemaSummary[]
-	/** Rows per table, keyed `schema.table`, shown next to table completions. */
-	tableCounts?: Record<string, number>
+	/**
+	 * Rows per table of a schema in one instance (`''` default, `'*'` all),
+	 * shown next to table completions.
+	 */
+	countsFor?: (
+		schema: string,
+		instance: string,
+	) => Promise<Record<string, number>>
 	/** The saved query open in the editor, if any. */
 	savedName?: string
 	savedShared?: boolean
@@ -52,7 +67,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
 	executing: false,
 	schemas: () => [],
-	tableCounts: () => ({}),
+	countsFor: undefined,
 	savedName: undefined,
 	savedShared: false,
 	edited: false,
@@ -114,31 +129,6 @@ function runFormat() {
 // --- autocomplete -----------------------------------------------------------
 // The DSL is a fluent chain — `schemas.<id>.instance().table("…").slice(…)` — so
 // completions are offered by position in that chain rather than as one flat list.
-// Schema also exposes createInstance/destroyInstance/listInstances, but only
-// instance(id?) continues the browse chain, so it is the only one offered.
-const SCHEMA_METHODS = ['instance']
-const INSTANCE_METHODS = ['table'] // a SchemaInstance only exposes table(name)
-const QUERY_METHODS = [
-	'slice',
-	'orderBy',
-	'filter',
-	'map',
-	'pluck',
-	'get',
-	'getAll',
-	'between',
-	'count',
-	'limit',
-	'insert',
-	'update',
-	'replace',
-	'delete',
-	'do',
-	'default',
-	'key',
-	'lookup',
-	'changes',
-]
 
 interface CompletionItem {
 	label: string
@@ -163,52 +153,21 @@ const opt = (label: string, type: string, detail?: string): CompletionItem => ({
 	detail,
 })
 
-// Schema-derived names, indexed per schema so completions can be scoped to the
-// schema in the current chain. Rebuilt whenever the live schema list changes; the
-// completion source reads `.value` lazily, so no editor reconfigure is needed.
-const completionData = computed(() => {
-	const schemaIds: string[] = []
-	const tablesBySchema: Record<string, string[]> = {}
-	const fieldsBySchema: Record<string, string[]> = {}
-	const instancesBySchema: Record<string, string[]> = {}
-	const allTables = new Set<string>()
-	const allFields = new Set<string>()
-	const counts = props.tableCounts
-	const tableDetails: Record<string, string> = {}
-	for (const schema of props.schemas ?? []) {
-		schemaIds.push(schema.id)
-		instancesBySchema[schema.id] = schema.instances ?? []
-		const tables: string[] = []
-		const fields = new Set<string>()
-		for (const table of schema.tables ?? []) {
-			tables.push(table.name)
-			allTables.add(table.name)
-			const count = counts[`${schema.id}.${table.name}`]
-			if (count !== undefined) {
-				tableDetails[`${schema.id}.${table.name}`] = t(
-					'dms_database.query.editor.table_rows',
-					{ count: n(count) },
-					count,
-				)
-			}
-			for (const field of Object.keys(table.fields ?? {})) {
-				fields.add(field)
-				allFields.add(field)
-			}
-		}
-		tablesBySchema[schema.id] = tables
-		fieldsBySchema[schema.id] = [...fields]
-	}
-	return {
-		schemaIds,
-		tablesBySchema,
-		fieldsBySchema,
-		instancesBySchema,
-		allTables: [...allTables],
-		allFields: [...allFields],
-		tableDetails,
-	}
-})
+// Schema-derived names, indexed per schema and per table so completions are
+// scoped to the chain's own schema and table. Rebuilt whenever the live schema
+// list changes; the completion source reads `.value` lazily, so no editor
+// reconfigure is needed.
+const completionData = computed(() => buildCompletionIndex(props.schemas ?? []))
+
+function tableDetail(count: number | undefined): string {
+	return count === undefined
+		? 'table'
+		: t('dms_database.query.editor.table_rows', { count: n(count) }, count)
+}
+
+// How far back the chain the cursor is in is read: a long multi-line chain
+// still names its schema, instance and table.
+const CHAIN_WINDOW = 2000
 
 // `schemas.demo` (dot) or `schemas["dms-core"]` (bracket — required for ids that
 // aren't valid JS identifiers). Used to scope table/field/instance completions.
@@ -230,7 +189,13 @@ function listFor(
 	return (schemaId && map[schemaId]) || fallback
 }
 
-function completionSource(ctx: CompletionContext): CompletionResult | null {
+function chainText(ctx: CompletionContext): string {
+	return ctx.state.sliceDoc(Math.max(0, ctx.pos - CHAIN_WINDOW), ctx.pos)
+}
+
+function completionSource(
+	ctx: CompletionContext,
+): CompletionResult | Promise<CompletionResult> | null {
 	const data = completionData.value
 	// A bounded look-behind window covers multi-line chains without scanning the
 	// whole document on every keystroke.
@@ -282,26 +247,31 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 		const typed = inTable[2] ?? ''
 		const schemaId = currentSchemaId(before)
 		const tables = listFor(data.tablesBySchema, schemaId, data.allTables)
-		return {
+		const tableOptions = (counts: Record<string, number> = {}) => ({
 			from: ctx.pos - typed.length,
 			validFor: /[\w$-]*/,
 			options: tables.map((name) => ({
 				label: name,
 				type: 'class',
-				detail: data.tableDetails[`${schemaId}.${name}`] ?? 'table',
+				detail: tableDetail(counts[name]),
 				apply: quote ? name : `"${name}"`,
 			})),
-		}
+		})
+		// The counts of the instance the chain names, not the default one's.
+		const chain = targetFromSource(chainText(ctx))
+		const instance = countedInstance(data, chain)
+		if (!props.countsFor || !chain.schema || instance === undefined)
+			return tableOptions()
+		return props
+			.countsFor(chain.schema, instance)
+			.then(tableOptions, () => tableOptions())
 	}
-	// Quoted field name inside a field selector (`pluck` / `orderBy` / `key`).
+	// Quoted field name inside a field selector (`pluck` / `orderBy` / `key`):
+	// the fields of the chain's table.
 	const inField = /\.(?:pluck|orderBy|key)\([^)]*["'`]([\w$]*)$/.exec(before)
 	if (inField) {
 		const typed = inField[1] ?? ''
-		const fields = listFor(
-			data.fieldsBySchema,
-			currentSchemaId(before),
-			data.allFields,
-		)
+		const fields = fieldsAt(data, targetFromSource(chainText(ctx)))
 		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$]*/,
@@ -414,6 +384,9 @@ onMounted(() => {
 			autocompletion({ override: [completionSource], activateOnTyping: true }),
 			placeholderCompartment.of(cmPlaceholder(placeholderExample.value)),
 			EditorView.lineWrapping,
+			EditorView.contentAttributes.of({
+				'aria-label': t('dms_database.query.editor.aria_label'),
+			}),
 			keymap.of([
 				{
 					key: 'Mod-Enter',
@@ -552,7 +525,11 @@ defineExpose({ focus: () => view?.focus() })
 				@click="emit('save')"
 			>
 				{{ t('dms_database.query.editor.save') }}
-				<UKbd value="meta" size="sm" class="ml-1" />
+				<!-- `meta` and `ctrl` read ⌘ or Ctrl from the browser, which the
+				     server cannot tell: rendered on the client only. -->
+				<DmsClientOnly>
+					<UKbd value="meta" size="sm" class="ml-1" />
+				</DmsClientOnly>
 				<UKbd value="s" size="sm" />
 			</UButton>
 			<UButton
@@ -563,7 +540,9 @@ defineExpose({ focus: () => view?.focus() })
 				@click="emit('execute')"
 			>
 				{{ t('dms_database.query.editor.run') }}
-				<UKbd value="meta" size="sm" class="ml-1" />
+				<DmsClientOnly>
+					<UKbd value="meta" size="sm" class="ml-1" />
+				</DmsClientOnly>
 				<UKbd value="enter" size="sm" />
 			</UButton>
 		</div>
@@ -588,7 +567,9 @@ defineExpose({ focus: () => view?.focus() })
 				{{ snippet.label }}
 			</button>
 			<span class="ml-auto flex items-center gap-1">
-				<UKbd value="ctrl" size="sm" />
+				<DmsClientOnly>
+					<UKbd value="ctrl" size="sm" />
+				</DmsClientOnly>
 				<UKbd value="space" size="sm" />
 				{{ t('dms_database.query.editor.complete') }}
 			</span>
