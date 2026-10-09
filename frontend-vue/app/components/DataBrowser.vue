@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import {
-	CROSS_INSTANCE_VALUE,
-	DEFAULT_INSTANCE_VALUE,
+	instanceBadge,
+	routeTableKey,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
-import { readRecentTables } from '../build/data/recentTables'
+import { type RecentTable, readRecentTables } from '../build/data/recentTables'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import DataBrowserSidebar from './DataBrowserSidebar.vue'
 import DataBrowserTabBar from './DataBrowserTabBar.vue'
@@ -17,7 +17,13 @@ import DataGrid from './DataGrid.vue'
 // and written only when saved; leaving with staged edits asks first.
 
 const { t, locale } = useI18n()
-const { schemas, findTable } = useDatabaseSchemas()
+const {
+	schemas,
+	findTable,
+	isLoading: schemasLoading,
+	error: schemasError,
+	refresh: refreshSchemas,
+} = useDatabaseSchemas()
 const { tabs, activeTab, restore, openTab, openFromRoute } =
 	useDataBrowserTabs()
 const staged = useStagedEdits()
@@ -25,13 +31,10 @@ const route = useDmsRoute()
 
 onMounted(() => restore())
 // A link from this page to another table (a relation) keeps the page mounted.
+// Compared by value: the route is re-assigned with unchanged values whenever
+// a component reads it (see routeTableKey).
 watch(
-	() => [
-		route.query.schema,
-		route.query.table,
-		route.query.instance,
-		route.query.match,
-	],
+	() => routeTableKey(route.query),
 	() => openFromRoute(),
 )
 
@@ -48,15 +51,18 @@ const activeTableSummary = computed(() =>
 		: undefined,
 )
 
-const recent = ref(readRecentTables())
+// Read once mounted: the server renders without the browser's storage, and
+// a list only the client has would not match its markup.
+const recent = ref<RecentTable[]>([])
+onMounted(() => {
+	recent.value = readRecentTables()
+})
 watch(activeTab, () => {
 	recent.value = readRecentTables()
 })
 
 function instanceLabel(instance: string): string {
-	return instance === DEFAULT_INSTANCE_VALUE
-		? ''
-		: `@${instance === CROSS_INSTANCE_VALUE ? '*' : instance}`
+	return instanceBadge(instance, t('dms_database.data.scope.all')) ?? ''
 }
 </script>
 
@@ -64,7 +70,12 @@ function instanceLabel(instance: string): string {
 	<div
 		class="border-default bg-default flex min-h-0 flex-1 overflow-hidden rounded-xl border"
 	>
-		<DataBrowserSidebar :schemas="schemas" />
+		<DataBrowserSidebar
+			:schemas="schemas"
+			:loading="schemasLoading"
+			:error="Boolean(schemasError)"
+			@retry="refreshSchemas()"
+		/>
 		<section class="flex min-w-0 flex-1 flex-col">
 			<DataBrowserTabBar />
 			<DataGrid
@@ -74,10 +85,17 @@ function instanceLabel(instance: string): string {
 				:table="activeTableSummary"
 			/>
 			<div v-else class="grid flex-1 place-items-center p-6">
+				<!-- Keyed: the list arrives once mounted, and the empty state only
+				     looks for its actions slot when it renders first. -->
 				<DmsEmptyState
+					:key="recent.length > 0 ? 'recent' : 'first'"
 					icon="i-ph-rows"
 					:title="t('dms_database.data.empty.pick_title')"
-					:description="t('dms_database.data.empty.pick_description')"
+					:description="
+						recent.length
+							? t('dms_database.data.empty.pick_description')
+							: t('dms_database.data.empty.pick_description_first')
+					"
 				>
 					<template v-if="recent.length" #actions>
 						<div class="grid w-full max-w-sm gap-1.5">

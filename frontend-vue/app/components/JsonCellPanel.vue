@@ -12,7 +12,7 @@ const emit = defineEmits<{
 }>()
 
 // Edits a structured cell (an object or a list) as JSON; applying stages the
-// value like any other cell.
+// value like any other cell. null empties the cell.
 const { t } = useI18n()
 
 const draft = ref('')
@@ -33,7 +33,7 @@ watch(
 const parseError = computed(() => {
 	try {
 		const parsed = JSON.parse(draft.value)
-		if (parsed === null || typeof parsed !== 'object') {
+		if (parsed !== null && typeof parsed !== 'object') {
 			return t('dms_database.data.json.not_structured')
 		}
 		return null
@@ -61,6 +61,7 @@ function save() {
 			<div class="flex h-full flex-col gap-3">
 				<textarea
 					v-model="draft"
+					:aria-label="t('dms_database.data.json.title', { column })"
 					:readonly="readOnly"
 					class="border-default bg-default focus:border-primary min-h-96 flex-1 resize-none rounded-md border p-3 font-mono text-xs outline-none"
 					spellcheck="false"

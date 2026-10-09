@@ -2,10 +2,17 @@
 import {
 	CROSS_INSTANCE_VALUE,
 	DEFAULT_INSTANCE_VALUE,
+	instanceBadge,
 } from '../build/composables/useDataBrowserTabs'
 import { browseSelectionQuery } from '../build/composables/useDataBrowserGrid'
 import { onKeyStroke } from '@vueuse/core'
-import { cellText, isStructured, parseDraft } from '../build/data/cellValues'
+import {
+	cellLabel,
+	cellText,
+	draftText,
+	isStructured,
+	parseDraft,
+} from '../build/data/cellValues'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
@@ -120,7 +127,7 @@ const json = computed(() => JSON.stringify(stagedRow.value, null, 2))
 function draftOf(field: string, value: unknown): string {
 	return (
 		drafts[field] ??
-		(isStructured(value) ? JSON.stringify(value, null, 2) : cellText(value))
+		(isStructured(value) ? JSON.stringify(value, null, 2) : draftText(value))
 	)
 }
 
@@ -201,11 +208,11 @@ const tabs = computed(() => [
 ])
 
 const scope = computed(() => {
-	const instance =
-		props.tab.instance === DEFAULT_INSTANCE_VALUE
-			? ''
-			: ` @${props.tab.instance === CROSS_INSTANCE_VALUE ? '*' : props.tab.instance}`
-	return `${props.tab.schema}.${props.tab.table}${instance}`
+	const badge = instanceBadge(
+		props.tab.instance,
+		t('dms_database.data.scope.all'),
+	)
+	return `${props.tab.schema}.${props.tab.table}${badge ? ` ${badge}` : ''}`
 })
 
 // The instance a link to a table of the same schema keeps.
@@ -300,7 +307,7 @@ onKeyStroke('k', (event) => {
 						>
 							{{
 								t('dms_database.data.row.was', {
-									value: cellText(field.staged.before) || 'null',
+									value: cellLabel(field.staged.before),
 								})
 							}}
 						</span>
@@ -309,7 +316,7 @@ onKeyStroke('k', (event) => {
 						v-if="!field.editable"
 						class="text-muted break-all font-mono text-[12.5px]"
 					>
-						{{ cellText(field.value) || 'null' }}
+						{{ cellLabel(field.value) }}
 						<span v-if="field.key" class="text-dimmed font-sans">
 							· {{ t('dms_database.data.row.not_editable') }}
 						</span>
@@ -333,6 +340,8 @@ onKeyStroke('k', (event) => {
 					<UInput
 						v-else
 						:model-value="draftOf(field.name, field.value)"
+						:aria-label="field.name"
+						:title="t('dms_database.data.grid.null_hint')"
 						:placeholder="
 							field.value === null || field.value === undefined
 								? 'null'

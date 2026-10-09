@@ -1,13 +1,20 @@
 <script setup lang="ts">
-import { cellText, isStructured } from '../build/data/cellValues'
+import {
+	cellLabel,
+	cellText,
+	draftText,
+	isStructured,
+} from '../build/data/cellValues'
 import type { StagedCell } from '../build/data/stagedEdits'
 import type { ColumnRole } from '../build/utils/fieldTypes'
 
 // One cell of the data grid. A staged cell is tinted, with the stored value
 // struck through before the new one; nothing is written until the changes
-// are saved.
+// are saved. An empty cell reads null, an empty text "".
 
 const props = defineProps<{
+	/** The column's name, which names the editor for assistive technology. */
+	column: string
 	value: unknown
 	staged?: StagedCell
 	role: ColumnRole
@@ -27,6 +34,7 @@ const emit = defineEmits<{
 
 const shown = computed(() => (props.staged ? props.staged.after : props.value))
 const isNull = computed(() => shown.value === null || shown.value === undefined)
+const isEmptyText = computed(() => shown.value === '')
 const structured = computed(() => isStructured(shown.value))
 const isNumber = computed(() => typeof shown.value === 'number')
 // "{3}" for an object of three keys, "[2]" for a list of two items.
@@ -50,7 +58,7 @@ watch(
 		if (!editing) return
 		cancelling.value = false
 		if (typeof shown.value === 'boolean') boolDraft.value = shown.value
-		else draft.value = cellText(shown.value)
+		else draft.value = draftText(shown.value)
 		nextTick(() => {
 			cellInput.value?.focus()
 			if (cellInput.value instanceof HTMLInputElement) cellInput.value.select()
@@ -87,7 +95,7 @@ function cancel() {
 		:title="
 			staged
 				? $t('dms_database.data.grid.staged_title', {
-						before: cellText(staged.before) || 'null',
+						before: cellLabel(staged.before),
 					})
 				: undefined
 		"
@@ -100,6 +108,7 @@ function cancel() {
 				ref="cellInput"
 				v-model="boolDraft"
 				class="bg-default w-full px-2 py-1 font-mono text-[12.5px] outline-none"
+				:aria-label="$t('dms_database.data.grid.edit_cell', { column })"
 				@change="commit('enter')"
 				@keydown.esc.stop="cancel"
 				@keydown.stop
@@ -114,6 +123,8 @@ function cancel() {
 				v-model="draft"
 				type="text"
 				class="bg-default w-full px-2 py-1 font-mono text-[12.5px] outline-none"
+				:aria-label="$t('dms_database.data.grid.edit_cell', { column })"
+				:title="$t('dms_database.data.grid.null_hint')"
 				:aria-invalid="invalid ? true : undefined"
 				@keydown.enter.prevent="commit('enter')"
 				@keydown.esc.stop="cancel"
@@ -133,13 +144,20 @@ function cancel() {
 			:class="isNumber ? 'justify-end' : ''"
 		>
 			<s v-if="staged" class="text-dimmed font-mono text-[11.5px]">
-				{{ cellText(staged.before) || 'null' }}
+				{{ cellLabel(staged.before) }}
 			</s>
 			<span
 				v-if="isNull"
 				class="text-dimmed rounded border border-dashed border-current px-1 font-mono text-[10px]"
 			>
 				null
+			</span>
+			<span
+				v-else-if="isEmptyText"
+				class="text-dimmed font-mono text-[12.5px]"
+				:title="$t('dms_database.data.grid.empty_text')"
+			>
+				""
 			</span>
 			<template v-else-if="structured">
 				<span

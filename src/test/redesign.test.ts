@@ -113,17 +113,18 @@ after(cleanUp);
 describe("[integration] v2 redesign: browsing", () => {
   it("finds a table by one of its column names and filters on the schema", async () => {
     const controller = new DatabaseTablesController();
-    const byColumn = await controller.source(
-      USER,
-      "customer_id",
-      `is:${SCHEMA}`,
-    );
+    const list = (search?: string, scope?: string, has?: string) =>
+      controller.source(USER, search, scope, undefined, undefined, has);
+    const byColumn = await list("customer_id", `is:${SCHEMA}`);
     assert.deepEqual(
       byColumn.results.map((row) => row.name),
       ["orders"],
     );
     assert.deepEqual(byColumn.results[0]?.relations, ["customers"]);
-    const other = await controller.source(USER, undefined, "is:no-such-schema");
+    const withRelations = await list(undefined, `is:${SCHEMA}`, "is:relations");
+    assert.ok(withRelations.results.every((row) => row.relations.length > 0));
+    assert.ok(withRelations.results.some((row) => row.name === "orders"));
+    const other = await list(undefined, "is:no-such-schema");
     assert.equal(other.total, 0);
   });
   it("counts the rows of other tables pointing at a row", async () => {
@@ -162,6 +163,22 @@ describe("[integration] v2 redesign: browsing", () => {
     assert.equal(
       (row.created_at as Date).toISOString(),
       "2026-10-05T08:00:00.000Z",
+    );
+  });
+  it("refuses a value that is not a date for a date cell", async () => {
+    const controller = new DatabaseBrowseController();
+    await assert.rejects(
+      controller.edit(
+        USER,
+        `is:${SCHEMA}`,
+        `is:${INSTANCE}`,
+        "is:orders",
+        "o3",
+        {
+          created_at: "not a date",
+        },
+      ),
+      (error: { getStatus(): number }) => error.getStatus() === 400,
     );
   });
   it("describes each schema as a card in the reader's language", async () => {

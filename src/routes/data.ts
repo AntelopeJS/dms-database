@@ -327,10 +327,19 @@ function isWritableScalar(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "boolean";
 }
 
-function resolveDateValue(before: Date, value: string | number | boolean) {
-  if (typeof value === "boolean") return SKIP_FIELD;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return SKIP_FIELD;
+// A date cell takes a date or nothing: a value that is not one is refused
+// (400) rather than dropped, which would answer a save that wrote nothing.
+function resolveDateValue(
+  field: string,
+  before: Date,
+  value: string | number | boolean,
+) {
+  const date = typeof value === "boolean" ? null : new Date(value);
+  assert(
+    date && !Number.isNaN(date.getTime()),
+    400,
+    `Invalid date for '${field}': ${JSON.stringify(value)}`,
+  );
   return date.getTime() === before.getTime() ? SKIP_FIELD : date;
 }
 
@@ -352,7 +361,7 @@ function resolveEditValue(
   if (!isWritableScalar(value)) return SKIP_FIELD;
   const before = current[field];
   // Dates travel as ISO text: a date cell stays a date.
-  if (before instanceof Date) return resolveDateValue(before, value);
+  if (before instanceof Date) return resolveDateValue(field, before, value);
   // Skip cells echoed back unchanged. The string comparison also covers an
   // object cell echoed as its string form by a whole-row client ("1,2" for
   // [1, 2]): dropping that write protects the structured value from an

@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
-	CROSS_INSTANCE_VALUE,
-	DEFAULT_INSTANCE_VALUE,
+	instanceBadge as badgeOf,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
 import { useStagedEdits } from '../build/data/stagedEdits'
@@ -87,15 +86,54 @@ function onDragEnd() {
 	dropTargetId.value = null
 }
 
+// Labels name the schema while tabs span several. Closing the last tab of a
+// schema would drop the prefix from every other label at once, so the tabs
+// shrink and slide under the pointer that is closing them: as browsers keep
+// tab widths, the prefix stays until the pointer leaves the bar.
+const pointerInBar = ref(false)
+const showSchema = ref(hasMultipleSchemas.value)
+watch(hasMultipleSchemas, (several) => {
+	if (several || !pointerInBar.value) showSchema.value = several
+})
+
+function leaveBar() {
+	pointerInBar.value = false
+	showSchema.value = hasMultipleSchemas.value
+}
+
+// Closing the last tab removes the bar before the pointer can leave it.
+watch(
+	() => tabs.value.length === 0,
+	(empty) => {
+		if (empty) leaveBar()
+	},
+)
+
 function label(tab: BrowserTab): string {
-	return hasMultipleSchemas.value ? `${tab.schema}.${tab.table}` : tab.table
+	return showSchema.value ? `${tab.schema}.${tab.table}` : tab.table
 }
 
 function instanceBadge(tab: BrowserTab): string | null {
-	if (tab.instance === DEFAULT_INSTANCE_VALUE) return null
-	if (tab.instance === CROSS_INSTANCE_VALUE) return '*'
-	return `@${tab.instance}`
+	return badgeOf(tab.instance, t('dms_database.data.scope.all'))
 }
+
+// The active tab stays in view when it changes or the bar fills up: a tab
+// opened at the end of a full bar would otherwise open out of sight.
+const strip = useTemplateRef<HTMLDivElement>('strip')
+watch(
+	[activeId, () => tabs.value.length],
+	() => {
+		nextTick(() => {
+			const id = activeId.value
+			if (!id) return
+			const active = [
+				...(strip.value?.querySelectorAll<HTMLElement>('[data-tab]') ?? []),
+			].find((element) => element.dataset.tabId === id)
+			active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+		})
+	},
+	{ immediate: true, flush: 'post' },
+)
 
 async function close(tab: BrowserTab) {
 	const pending = staged.count(tab.id)
@@ -118,89 +156,97 @@ async function close(tab: BrowserTab) {
 <template>
 	<div
 		v-if="tabs.length > 0"
-		class="border-default bg-elevated/50 flex items-end gap-1 overflow-x-auto border-b px-2 pt-1.5"
+		class="border-default bg-elevated/50 flex items-end border-b"
+		@pointerenter="pointerInBar = true"
+		@pointerleave="leaveBar"
 	>
 		<div
-			v-for="tab in tabs"
-			:key="tab.id"
-			data-tab
-			draggable="true"
-			class="group flex shrink-0 select-none items-center gap-1.5 rounded-t-md border border-b-0 px-2.5 py-1.5"
-			:class="[
-				tab.id === activeId
-					? 'border-default bg-default'
-					: 'hover:bg-default/60 border-transparent bg-transparent',
-				tab.id === draggedId ? 'opacity-40' : '',
-				tab.id === dropTargetId ? 'ring-primary ring-1 ring-inset' : '',
-			]"
-			@dragstart="onDragStart(tab, $event)"
-			@dragover="onDragOver(tab, $event)"
-			@drop.prevent="onDrop(tab)"
-			@dragend="onDragEnd"
+			ref="strip"
+			class="flex min-w-0 flex-1 items-end gap-1 overflow-x-auto px-2 pt-1.5 [scrollbar-width:thin]"
 		>
-			<button
-				type="button"
-				class="flex items-center gap-1.5"
-				:aria-label="tabAriaLabel(tab)"
-				@click="activateTab(tab.id)"
-				@dblclick="pinTab(tab.id)"
-			>
-				<UIcon
-					name="i-ph-table"
-					class="size-3.5"
-					:class="tab.id === activeId ? 'text-primary' : 'text-dimmed'"
-				/>
-				<span
-					class="max-w-48 truncate font-mono text-xs"
-					:class="[
-						tab.id === activeId ? 'text-highlighted' : 'text-muted',
-						tab.preview ? 'italic' : '',
-					]"
-				>
-					{{ label(tab) }}
-				</span>
-				<span
-					v-if="instanceBadge(tab)"
-					class="text-primary font-mono text-[10.5px]"
-				>
-					{{ instanceBadge(tab) }}
-				</span>
-				<span
-					v-if="staged.count(tab.id) > 0"
-					class="bg-warning size-1.5 rounded-full"
-					:title="t('dms_database.data.tabs.unsaved', staged.count(tab.id))"
-				/>
-			</button>
-			<button
-				type="button"
-				:class="[closeButtonClass, { 'opacity-100': tab.id === activeId }]"
-				:aria-label="t('dms_database.data.tabs.close')"
-				:title="t('dms_database.data.tabs.close')"
-				@click.stop="close(tab)"
-			>
-				<UIcon name="i-ph-x" class="size-3" />
-			</button>
-			<!-- The pin button sits AFTER the close button: pinning unmounts it, and
-			     nothing may reflow into the pointer's position — a double-click's
-			     second click would otherwise land on the close button and destroy
-			     the tab the user just pinned. -->
-			<UTooltip
-				v-if="tab.preview"
-				:text="t('dms_database.data.tabs.keep_hint')"
+			<div
+				v-for="tab in tabs"
+				:key="tab.id"
+				data-tab
+				:data-tab-id="tab.id"
+				draggable="true"
+				class="group flex shrink-0 select-none items-center gap-1.5 rounded-t-md border border-b-0 px-2.5 py-1.5"
+				:class="[
+					tab.id === activeId
+						? 'border-default bg-default'
+						: 'hover:bg-default/60 border-transparent bg-transparent',
+					tab.id === draggedId ? 'opacity-40' : '',
+					tab.id === dropTargetId ? 'ring-primary ring-1 ring-inset' : '',
+				]"
+				@dragstart="onDragStart(tab, $event)"
+				@dragover="onDragOver(tab, $event)"
+				@drop.prevent="onDrop(tab)"
+				@dragend="onDragEnd"
 			>
 				<button
 					type="button"
-					:class="pinButtonClass"
-					:aria-label="t('dms_database.data.tabs.keep')"
-					@click.stop="pinFromButton(tab, $event)"
+					class="flex items-center gap-1.5"
+					:aria-label="tabAriaLabel(tab)"
+					@click="activateTab(tab.id)"
+					@dblclick="pinTab(tab.id)"
 				>
-					<UIcon name="i-ph-push-pin" class="size-3" />
+					<UIcon
+						name="i-ph-table"
+						class="size-3.5"
+						:class="tab.id === activeId ? 'text-primary' : 'text-dimmed'"
+					/>
+					<span
+						class="max-w-48 truncate font-mono text-xs"
+						:class="[
+							tab.id === activeId ? 'text-highlighted' : 'text-muted',
+							tab.preview ? 'italic' : '',
+						]"
+					>
+						{{ label(tab) }}
+					</span>
+					<span
+						v-if="instanceBadge(tab)"
+						class="text-primary font-mono text-[10.5px]"
+					>
+						{{ instanceBadge(tab) }}
+					</span>
+					<span
+						v-if="staged.count(tab.id) > 0"
+						class="bg-warning size-1.5 rounded-full"
+						:title="t('dms_database.data.tabs.unsaved', staged.count(tab.id))"
+					/>
 				</button>
-			</UTooltip>
+				<button
+					type="button"
+					:class="[closeButtonClass, { 'opacity-100': tab.id === activeId }]"
+					:aria-label="t('dms_database.data.tabs.close')"
+					:title="t('dms_database.data.tabs.close')"
+					@click.stop="close(tab)"
+				>
+					<UIcon name="i-ph-x" class="size-3" />
+				</button>
+				<!-- The pin button sits AFTER the close button: pinning unmounts it, and
+			     nothing may reflow into the pointer's position — a double-click's
+			     second click would otherwise land on the close button and destroy
+			     the tab the user just pinned. -->
+				<UTooltip
+					v-if="tab.preview"
+					:text="t('dms_database.data.tabs.keep_hint')"
+				>
+					<button
+						type="button"
+						:class="pinButtonClass"
+						:aria-label="t('dms_database.data.tabs.keep')"
+						@click.stop="pinFromButton(tab, $event)"
+					>
+						<UIcon name="i-ph-push-pin" class="size-3" />
+					</button>
+				</UTooltip>
+			</div>
 		</div>
 		<span
 			v-if="hasPreview"
-			class="text-dimmed ml-auto shrink-0 self-center pb-1 pl-3 text-[11px]"
+			class="text-dimmed hidden shrink-0 self-center whitespace-nowrap px-3 pb-1 pt-1.5 text-[11px] lg:inline"
 		>
 			<i18n-t keypath="dms_database.data.tabs.hint" tag="span">
 				<template #italic>

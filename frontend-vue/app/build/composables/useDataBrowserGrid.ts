@@ -83,7 +83,21 @@ export function useDataBrowserGrid() {
 		Reflect.deleteProperty(cache.value, tabId)
 	}
 
-	return { getState, getCache, setCache, invalidate, drop }
+	// A tab switched to another instance keeps what the user narrowed the
+	// rows to (search, filters, sort, page size, widths), from its first page.
+	function carry(fromId: string, toId: string) {
+		const from = states.value[fromId]
+		if (!from) return
+		states.value[toId] = {
+			...from,
+			filters: { ...from.filters },
+			columnWidths: { ...from.columnWidths },
+			page: 0,
+		}
+		Reflect.deleteProperty(cache.value, toId)
+	}
+
+	return { getState, getCache, setCache, invalidate, drop, carry }
 }
 
 // --- query helpers shared by the grid ---

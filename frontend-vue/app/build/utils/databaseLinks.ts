@@ -27,6 +27,26 @@ export interface TableAddress {
 
 const MATCH_SEPARATOR = ':'
 
+/** The URL's `instance` for every instance at once (the data browser's "all"). */
+export const ALL_INSTANCES_PARAM = 'all'
+// Prefixed to a named instance that would read as "all", or as escaped.
+const INSTANCE_ESCAPE = '~'
+
+/**
+ * A named instance as the URL's `instance` carries it: an instance really
+ * named "all" is written "~all", and one starting with "~" gets one more.
+ */
+export function encodeNamedInstance(id: string): string {
+	return id === ALL_INSTANCES_PARAM || id.startsWith(INSTANCE_ESCAPE)
+		? `${INSTANCE_ESCAPE}${id}`
+		: id
+}
+
+/** The named instance an `instance` parameter other than "all" stands for. */
+export function decodeNamedInstance(param: string): string {
+	return param.startsWith(INSTANCE_ESCAPE) ? param.slice(1) : param
+}
+
 export function encodeMatch(match: TableMatch): string {
 	return `${match.field}${MATCH_SEPARATOR}${match.value}`
 }
@@ -45,7 +65,8 @@ export function tableLink(page: DatabasePage, address: TableAddress): string {
 		schema: address.schema,
 		table: address.table,
 	})
-	if (address.instance) query.set('instance', address.instance)
+	if (address.instance)
+		query.set('instance', encodeNamedInstance(address.instance))
 	if (address.match) query.set('match', encodeMatch(address.match))
 	return `${DATABASE_PAGES[page]}?${query.toString()}`
 }

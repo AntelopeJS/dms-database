@@ -33,7 +33,7 @@ import RowDrawer from './RowDrawer.vue'
 
 // The grid of one open table. Rows are read a page at a time; a committed
 // cell is staged, not written (D-02): the save bar offers a review of every
-// change before it is written, and the toast after the save an undo.
+// change before it is written, then the save and its undo for a few seconds.
 
 const BROWSE_ENDPOINT = '/api/database/browse'
 // Browse-only columns: the source instance of a cross-instance read.
@@ -67,7 +67,7 @@ const { $authFetch } = useAuthFetch()
 const router = useDmsRouter()
 const grid = useDataBrowserGrid()
 const staged = useStagedEdits()
-const { tabs: browserTabs, pinTab, openTab } = useDataBrowserTabs()
+const { tabs: browserTabs, pinTab, openTab, replaceTab } = useDataBrowserTabs()
 const { open: openDrawer } = useDrawer()
 const { schemas } = useDatabaseSchemas()
 
@@ -335,8 +335,14 @@ const namedInstances = computed(
 		[],
 )
 
+// The tab moves to the other instance in place; a tab holding staged edits
+// keeps them, and the instance opens next to it instead.
 function switchInstance(instance: string) {
-	openTab(props.tab.schema, instance, props.tab.table, false)
+	if (staged.count(props.tab.id) > 0) {
+		openTab(props.tab.schema, instance, props.tab.table, false)
+		return
+	}
+	replaceTab(props.tab.id, props.tab.schema, instance, props.tab.table)
 }
 
 // --- cell focus and keyboard ---
@@ -486,10 +492,15 @@ const pendingCount = computed(() => staged.count(props.tab.id))
 const changedFields = computed(() => [
 	...new Set(staged.list(props.tab.id).map((change) => change.field)),
 ])
-const { saving, review } = useStagedSave({
+const {
+	saving,
+	review,
+	notice: saveNotice,
+	undoSeconds,
+	undo,
+} = useStagedSave({
 	tab: () => props.tab,
 	onSaved: reload,
-	onRowGone: reload,
 })
 
 onKeyStroke('s', (event) => {
@@ -731,6 +742,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 							v-for="(column, c) in visibleColumns"
 							:key="column.name"
 							:data-cell="`${r}:${c}`"
+							:column="column.name"
 							:value="row[column.name]"
 							:staged="stagedCell(row, column.name)"
 							:role="roleOf(column)"
@@ -828,8 +840,12 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 			</div>
 		</div>
 
-		<div v-if="pendingCount > 0" class="border-default border-t px-3 py-2">
+		<div
+			v-if="pendingCount > 0 || saveNotice"
+			class="border-default border-t px-3 py-2"
+		>
 			<DmsSaveBar
+				v-if="pendingCount > 0"
 				variant="band"
 				dirty
 				:saving="saving"
@@ -838,6 +854,53 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 				@discard="staged.discard(tab.id)"
 				@save="review"
 			/>
+			<div
+				v-else-if="saveNotice"
+				role="status"
+				class="flex min-h-9 items-center gap-2 text-[13px]"
+			>
+				<UIcon
+					:name="
+						saveNotice.state === 'undone'
+							? 'i-ph-arrow-counter-clockwise'
+							: 'i-ph-check-circle'
+					"
+					class="size-4 shrink-0"
+					:class="saveNotice.state === 'undone' ? 'text-muted' : 'text-success'"
+				/>
+				<span class="text-toned truncate">
+					{{
+						saveNotice.state === 'undone'
+							? t('dms_database.data.save.undone', saveNotice.changes.length)
+							: t(
+									'dms_database.data.save.saved',
+									{ scope: saveNotice.scope },
+									saveNotice.changes.length,
+								)
+					}}
+				</span>
+				<template v-if="saveNotice.state !== 'undone'">
+					<span
+						v-if="saveNotice.state === 'saved'"
+						class="text-dimmed hidden shrink-0 tabular-nums sm:inline"
+					>
+						·
+						{{
+							t('dms_database.data.save.undo_window', { seconds: undoSeconds })
+						}}
+					</span>
+					<UButton
+						class="ms-auto"
+						:label="t('dms_database.data.save.undo')"
+						icon="i-ph-arrow-counter-clockwise"
+						color="neutral"
+						variant="outline"
+						size="lg"
+						:loading="saveNotice.state === 'undoing'"
+						@click="undo"
+					/>
+				</template>
+			</div>
 		</div>
 
 		<footer
