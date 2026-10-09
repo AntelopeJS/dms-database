@@ -52,7 +52,7 @@
 				"description": "Déclarés par les modules. Ouvrez-en un pour voir ses tables.",
 				"cards_meta": "Cartes des schémas",
 				"empty_title": "Aucun schéma déclaré",
-				"empty_description": "Les schémas apparaissent ici quand un module déclare des tables avec @RegisterTable. La connexion elle-même fonctionne."
+				"empty_description": "Les schémas apparaissent ici quand un module déclare des tables avec {'@'}RegisterTable. La connexion elle-même fonctionne."
 			},
 			"largest": {
 				"title": "Plus grandes tables",
@@ -63,7 +63,7 @@
 		},
 		"schemas": {
 			"title": "Schémas",
-			"description": "Toutes les tables déclarées par vos modules. Ouvrez-en une pour voir ses colonnes, index et relations.",
+			"description": "Toutes les tables déclarées par vos modules, avec leurs lignes comptées dans toutes les instances. Ouvrez-en une pour voir ses colonnes, index et relations.",
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
@@ -76,7 +76,8 @@
 			"inspector": {
 				"title": "Table",
 				"meta": "Inspecteur de table",
-				"meta_description": "Colonnes, index, relations et ligne exemple d'une table."
+				"meta_description": "Colonnes, index, relations et ligne exemple d'une table.",
+				"not_found": "Table introuvable"
 			},
 			"caption": "Tables",
 			"table_meta_description": "Toutes les tables déclarées, par schéma, avec leur inspecteur.",
@@ -90,9 +91,29 @@
 			},
 			"empty": {
 				"first_title": "Aucune table déclarée",
-				"first_description": "Les tables apparaissent ici quand un module les déclare avec @RegisterTable.",
+				"first_description": "Les tables apparaissent ici quand un module les déclare avec {'@'}RegisterTable.",
 				"filtered_title": "Aucune table ni colonne ne correspond",
-				"filtered_description": "La recherche porte aussi sur les noms de colonnes. Essayez un autre schéma ou effacez la recherche."
+				"filtered_description": "La recherche porte aussi sur les noms de colonnes. Essayez un autre schéma ou effacez la recherche.",
+				"no_result_title": "Aucun résultat",
+				"no_result_description": "Aucune table ne correspond à ces filtres.",
+				"clear_filters": "Effacer les filtres"
+			},
+			"filters": {
+				"meta": "Barre de filtres",
+				"meta_description": "Filtre les tables par schéma, instance, nom et structure.",
+				"label": "Filtrer les tables",
+				"has": {
+					"relations": "Avec relations",
+					"modifiers": "Avec modificateurs",
+					"empty": "Vides"
+				},
+				"has_hint": {
+					"relations": "Tables qui pointent vers une autre table",
+					"modifiers": "Tables avec des colonnes hachées, traduites ou chiffrées",
+					"empty": "Tables sans ligne dans l’instance choisie"
+				},
+				"count": "{shown} tables sur {total}",
+				"clear": "Effacer"
 			}
 		},
 		"data": {
@@ -103,8 +124,7 @@
 			"scope": {
 				"schema": "Schéma",
 				"instance": "Instance",
-				"whats_this": "Qu'est-ce que c'est ?",
-				"instance_help": "Une instance est une copie à part des tables du schéma, par exemple une par boutique ou par région. « toutes » lit toutes les instances à la fois, en lecture seule.",
+				"search": "Recherche",
 				"default": "défaut",
 				"all": "toutes",
 				"find_table": "Chercher une table",
@@ -114,7 +134,9 @@
 				"open_hint": "Un clic pour prévisualiser, un double-clic pour garder l'onglet",
 				"no_table": "Aucune table ne correspond.",
 				"counts_for": "Comptes de l'instance {instance}",
-				"counts_failed": "Les nombres de lignes n'ont pas pu être chargés."
+				"counts_failed": "Les nombres de lignes n'ont pas pu être chargés.",
+				"loading_schemas": "Chargement des schémas…",
+				"schemas_failed": "Impossible de charger les schémas"
 			},
 			"tabs": {
 				"close": "Fermer l'onglet",
@@ -149,7 +171,11 @@
 				"kbd_save": "vérifier et enregistrer",
 				"staged_title": "Non enregistré · valait {before}",
 				"invalid_number": "Un nombre est attendu, par ex. 860.50 · Échap pour annuler",
-				"invalid_boolean": "true ou false est attendu · Échap pour annuler"
+				"invalid_boolean": "true ou false est attendu · Échap pour annuler",
+				"invalid_date": "Une date est attendue, par ex. 2026-10-09 ou 2026-10-09T14:30Z · Échap pour annuler",
+				"edit_cell": "Valeur de {column}",
+				"null_hint": "Tapez null pour vider la cellule, \\null pour le texte null",
+				"empty_text": "Texte vide"
 			},
 			"filters": {
 				"add": "Ajouter un filtre",
@@ -165,6 +191,7 @@
 			"empty": {
 				"pick_title": "Choisissez une table à parcourir",
 				"pick_description": "Choisissez une table à gauche, ou repartez d'une table ouverte récemment.",
+				"pick_description_first": "Choisissez une table à gauche pour voir ses lignes.",
 				"recent": "Ouvertes récemment",
 				"error_title": "Impossible de charger {table}",
 				"error_description": "Vos filtres et vos modifications non enregistrées sont conservés.",
@@ -179,14 +206,19 @@
 			"save": {
 				"review": "Vérifier et enregistrer {count} modification | Vérifier et enregistrer {count} modifications",
 				"title": "Enregistrer {count} modification dans {table} ? | Enregistrer {count} modifications dans {table} ?",
-				"description": "Elles sont écrites dans {scope}.",
+				"description": "Elle est écrite dans {scope}. | Elles sont écrites dans {scope}.",
 				"confirm": "Enregistrer {count} modification | Enregistrer {count} modifications",
 				"keep_editing": "Continuer à modifier",
 				"saved": "{count} modification enregistrée dans {scope} | {count} modifications enregistrées dans {scope}",
-				"saved_description": "Vous pouvez l'annuler pendant quelques secondes.",
+				"undo_window": "Annulable encore {seconds} s",
 				"undo": "Annuler",
 				"undone": "{count} modification annulée | {count} modifications annulées",
-				"undo_failed": "Impossible d'annuler les modifications"
+				"undo_failed": "Impossible d'annuler les modifications",
+				"partial_title": "{saved} sur {total} modification enregistrée | {saved} sur {total} modifications enregistrées",
+				"rows_gone": "{count} ligne n'existe plus : ses modifications ont été abandonnées. | {count} lignes n'existent plus : leurs modifications ont été abandonnées.",
+				"not_written": "{count} modification n'a pas été écrite et reste préparée ({error}). | {count} modifications n'ont pas été écrites et restent préparées ({error}).",
+				"undo_partial": "{count} modification n'a pas pu être annulée | {count} modifications n'ont pas pu être annulées",
+				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus."
 			},
 			"row": {
 				"title": "Ligne de {table}",
@@ -210,7 +242,7 @@
 			"json": {
 				"title": "Modifier {column}",
 				"invalid": "JSON invalide",
-				"not_structured": "La valeur doit être un objet ou un tableau JSON.",
+				"not_structured": "La valeur doit être un objet JSON, un tableau ou null.",
 				"apply": "Appliquer"
 			}
 		},
@@ -218,18 +250,18 @@
 			"title": "Diagramme",
 			"description": "Les tables d'un schéma et leurs relations. Déplacez les tables pour les arranger ; la disposition est enregistrée pour toute l'équipe.",
 			"toolbar": {
-				"undo": "Annuler (⌘Z)",
-				"redo": "Rétablir (⇧⌘Z)",
+				"undo": "Annuler",
+				"redo": "Rétablir",
 				"auto_layout": "Disposition auto",
 				"auto_layout_hint": "Réorganise toutes les tables ; vous voyez le résultat avant de le garder",
-				"select": "Sélection (V)",
-				"pan": "Déplacement (H)",
+				"select": "Sélection",
+				"pan": "Déplacement",
 				"zoom_out": "Dézoomer",
 				"zoom_in": "Zoomer",
-				"reset_zoom": "Zoom à 100 % (0)",
-				"fit": "Tout afficher (1)",
+				"reset_zoom": "Zoom à 100 %",
+				"fit": "Tout afficher",
 				"note": "Note",
-				"note_hint": "Ajouter une note (N)"
+				"note_hint": "Ajouter une note"
 			},
 			"notes": {
 				"placeholder": "Double-cliquez pour écrire",
@@ -243,12 +275,18 @@
 			},
 			"schema": "Schéma",
 			"search": "Chercher une table ou une colonne",
-			"stub_title": "Ouvrir le diagramme de {schema}",
+			"search_empty": "Aucune table ni colonne",
+			"stub_title": "Ouvrir {schema}.{table}",
+			"not_found": {
+				"schema": "Schéma {schema} introuvable",
+				"table": "Table {table} introuvable dans {schema}"
+			},
 			"large": "{count} tables : sélectionnez-en une et isolez-la pour lire ses relations.",
 			"save": {
 				"idle": "Disposition enregistrée",
 				"saving": "Enregistrement…",
 				"error": "Impossible d'enregistrer la disposition",
+				"error_other": "Impossible d'enregistrer le diagramme de {schema}",
 				"just_now": "Disposition enregistrée · à l'instant",
 				"minutes": "Disposition enregistrée · il y a {count} min"
 			},
@@ -291,7 +329,7 @@
 				"yesterday": "Hier",
 				"failed": "Échec",
 				"rows": "{count} ligne | {count} lignes",
-				"changed": "{count} modifiées",
+				"changed": "{count} modifiée | {count} modifiées",
 				"save": "Enregistrer la requête",
 				"edit": "Modifier",
 				"delete": "Supprimer",
@@ -300,8 +338,9 @@
 				"history_empty": "Les requêtes que vous lancez apparaissent ici.",
 				"saved_empty": "Les requêtes que vous enregistrez apparaissent ici.",
 				"team_empty": "Les requêtes partagées par l'équipe apparaissent ici.",
-				"history_kept": "Vos 500 dernières exécutions sont conservées.",
-				"clear": "Vider l'historique"
+				"history_kept": "Vos {count} dernières exécutions sont conservées.",
+				"clear": "Vider l'historique",
+				"more": "Afficher les exécutions plus anciennes"
 			},
 			"editor": {
 				"untitled": "Requête sans titre",
@@ -315,7 +354,8 @@
 				"insert": "Insérer",
 				"complete": "compléter",
 				"position": "AQL · L {line}, Col {column}",
-				"table_rows": "{count} ligne | {count} lignes"
+				"table_rows": "{count} ligne | {count} lignes",
+				"aria_label": "Éditeur de requête (AQL)"
 			},
 			"result": {
 				"title": "Résultat",
@@ -323,7 +363,7 @@
 				"json": "JSON",
 				"chart": "Graphique",
 				"rows": "{count} ligne | {count} lignes",
-				"changed": "{count} modifiées",
+				"changed": "{count} modifiée | {count} modifiées",
 				"read_only": "lecture seule",
 				"wrote": "données modifiées",
 				"copy": "Copier en JSON",
@@ -346,9 +386,12 @@
 				"y_axis": "Axe Y",
 				"chart_first": "Les {count} premières sur {total}",
 				"chart_unavailable": "Aucune colonne numérique à tracer.",
-				"all_shown": "Les {count} lignes sont affichées. Au-delà de 1 000 lignes le résultat est coupé ; ajoutez .slice() pour paginer. | Les {count} lignes sont affichées. Au-delà de 1 000 lignes le résultat est coupé ; ajoutez .slice() pour paginer.",
+				"all_shown": "{count} ligne affichée. | Les {count} lignes sont affichées. Au-delà de 1 000 lignes le résultat est coupé ; ajoutez .slice() pour paginer.",
 				"truncated": "{shown} lignes affichées sur {total} : le résultat est coupé à 1 000. Ajoutez .slice() pour paginer.",
-				"table_first": "Le tableau montre les {shown} premières lignes sur {total} ; le JSON et l'export CSV les contiennent toutes."
+				"table_first": "Le tableau montre les {shown} premières lignes sur {total} ; le JSON et l'export CSV les contiennent toutes.",
+				"running": "Exécution…",
+				"failed_local": "La requête n'a pas été envoyée · rien n'a été modifié",
+				"example_first": "Les 10 premières lignes de {table}"
 			},
 			"guard": {
 				"description": "Cette requête modifie des données. Un essai à blanc a trouvé ce qu'elle touche :",
@@ -366,7 +409,12 @@
 				"confirm_delete": "Supprimer {count} ligne | Supprimer {count} lignes",
 				"confirm_unknown": "Lancer la requête",
 				"skip": "Ne plus demander pour les modifications d'une seule ligne",
-				"skip_detail": "Jusqu'à la fermeture de cet onglet. Les suppressions et les modifications de plusieurs lignes demandent toujours."
+				"skip_detail": "Jusqu'à la fermeture de cet onglet. Les suppressions et les modifications de plusieurs lignes demandent toujours.",
+				"op_read": "lecture",
+				"op_insert": "insertion",
+				"op_update": "modification",
+				"op_replace": "remplacement",
+				"op_delete": "suppression"
 			},
 			"save": {
 				"title": "Enregistrer la requête",
@@ -391,6 +439,13 @@
 				"title": "Vider votre historique de requêtes ?",
 				"description": "Vos exécutions passées sont supprimées. Les requêtes enregistrées restent.",
 				"confirm": "Vider l'historique"
+			},
+			"errors": {
+				"syntax": "Erreur de syntaxe : {detail}. Vérifiez les parenthèses, les guillemets et les virgules.",
+				"syntax_unclosed": "Erreur de syntaxe : le « {char} » de la ligne {line}, colonne {column} n'est jamais fermé.",
+				"syntax_unexpected": "Erreur de syntaxe : « {char} » inattendu ligne {line}, colonne {column}. Vérifiez les parenthèses et les guillemets.",
+				"syntax_string": "Erreur de syntaxe : la chaîne ouverte ligne {line}, colonne {column} n'est jamais fermée.",
+				"unknown_schema": "Schéma inconnu « {schema} »."
 			}
 		},
 		"catalog_category": "Données",
@@ -400,7 +455,32 @@
 		},
 		"common": {
 			"retry": "Réessayer",
-			"cancel": "Annuler"
+			"cancel": "Annuler",
+			"clear": "Effacer"
+		},
+		"pickers": {
+			"schema": {
+				"label": "Schéma",
+				"all": "Tous les schémas",
+				"find": "Chercher un schéma",
+				"recent": "Récents",
+				"more": "{shown} premiers sur {total}",
+				"no_match": "Aucun schéma ne correspond",
+				"placeholder": "Choisissez un schéma"
+			},
+			"instance": {
+				"label": "Instance",
+				"all": "Toutes les instances",
+				"read_only": "Vue en lecture seule",
+				"default": "default",
+				"find": "Chercher une instance",
+				"more": "{shown} premières sur {total}",
+				"no_match": "Aucune instance ne correspond",
+				"no_named": "Aucune instance nommée",
+				"pick_schema": "Choisissez un schéma pour lister ses instances nommées",
+				"loading": "Chargement des instances…",
+				"failed": "Les instances n’ont pas pu être chargées"
+			}
 		},
 		"modifiers": {
 			"hashed": "Haché",
@@ -419,7 +499,10 @@
 				"rows": "{count} ligne | {count} lignes",
 				"columns": "{count} colonne | {count} colonnes",
 				"indexes": "{count} index | {count} index",
-				"relations": "{count} relation | {count} relations"
+				"relations": "{count} relation | {count} relations",
+				"instance_rows": "{instance} {count}",
+				"default_instance": "par défaut",
+				"uncounted": "{count} autre instance non comptée | {count} autres instances non comptées"
 			},
 			"actions": {
 				"browse": "Parcourir les données",
@@ -444,13 +527,15 @@
 				"empty": "Aucun index déclaré sur cette table."
 			},
 			"relations": {
-				"out": "Référence · {count}",
+				"out": "Références · {count}",
 				"in": "Référencée par · {count}",
 				"none_out": "Cette table ne pointe vers aucune autre.",
 				"none_in": "Aucune table ne pointe vers celle-ci."
 			},
 			"sample": {
-				"position": "Ligne {position} sur {total} · instance {instance}",
+				"position": "Ligne {position} sur {total} · {instance}",
+				"default_instance": "instance par défaut",
+				"named_instance": "instance {name}",
 				"another": "Une autre ligne",
 				"error": "Impossible de charger une ligne de cette table.",
 				"empty": "Cette table n'a encore aucune ligne."
@@ -460,6 +545,10 @@
 			"data_browser": "Base de données · explorateur",
 			"diagram": "Base de données · diagramme",
 			"query_console": "Base de données · console",
+			"schemas": "Base de données · schémas",
+			"next_table": "Table suivante, dans l'inspecteur de table",
+			"previous_table": "Table précédente, dans l'inspecteur de table",
+			"find_table_or_column": "Chercher une table ou une colonne",
 			"find_table": "Chercher une table",
 			"search_rows": "Chercher dans les lignes",
 			"refresh": "Actualiser les lignes",

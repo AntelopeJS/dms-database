@@ -52,7 +52,7 @@
 				"description": "Registered by modules. Open one to see its tables.",
 				"cards_meta": "Schema cards",
 				"empty_title": "No schema registered yet",
-				"empty_description": "Schemas appear here when a module declares tables with @RegisterTable. The connection itself is healthy."
+				"empty_description": "Schemas appear here when a module declares tables with {'@'}RegisterTable. The connection itself is healthy."
 			},
 			"largest": {
 				"title": "Largest tables",
@@ -63,7 +63,7 @@
 		},
 		"schemas": {
 			"title": "Schemas",
-			"description": "Every table registered by your modules. Open one to inspect its columns, indexes and relations.",
+			"description": "Every table registered by your modules, its rows counted across all instances. Open one to inspect its columns, indexes and relations.",
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
@@ -76,7 +76,8 @@
 			"inspector": {
 				"title": "Table",
 				"meta": "Table inspector",
-				"meta_description": "Columns, indexes, relations and a sample row of one table."
+				"meta_description": "Columns, indexes, relations and a sample row of one table.",
+				"not_found": "Table not found"
 			},
 			"caption": "Tables",
 			"table_meta_description": "Every registered table, by schema, with its inspector.",
@@ -90,9 +91,29 @@
 			},
 			"empty": {
 				"first_title": "No table registered yet",
-				"first_description": "Tables appear here when a module declares them with @RegisterTable.",
+				"first_description": "Tables appear here when a module declares them with {'@'}RegisterTable.",
 				"filtered_title": "No table or column matches",
-				"filtered_description": "Search also looks inside column names. Try another schema or clear the search."
+				"filtered_description": "Search also looks inside column names. Try another schema or clear the search.",
+				"no_result_title": "No result",
+				"no_result_description": "No table matches these filters.",
+				"clear_filters": "Clear filters"
+			},
+			"filters": {
+				"meta": "Filter bar",
+				"meta_description": "Narrows the tables by schema, instance, name and structure.",
+				"label": "Filter the tables",
+				"has": {
+					"relations": "With relations",
+					"modifiers": "With modifiers",
+					"empty": "Empty"
+				},
+				"has_hint": {
+					"relations": "Tables pointing to another table",
+					"modifiers": "Tables with hashed, localized or encrypted columns",
+					"empty": "Tables with no row in the picked instance"
+				},
+				"count": "{shown} of {total} tables",
+				"clear": "Clear"
 			}
 		},
 		"data": {
@@ -103,8 +124,7 @@
 			"scope": {
 				"schema": "Schema",
 				"instance": "Instance",
-				"whats_this": "What's this?",
-				"instance_help": "An instance is a separate copy of the schema's tables, for example one per storefront or region. “all” reads every instance at once, read-only.",
+				"search": "Search",
 				"default": "default",
 				"all": "all",
 				"find_table": "Find a table",
@@ -114,7 +134,9 @@
 				"open_hint": "Click to preview, double-click to keep the tab",
 				"no_table": "No table matches.",
 				"counts_for": "Counts for instance {instance}",
-				"counts_failed": "Row counts couldn't be loaded."
+				"counts_failed": "Row counts couldn't be loaded.",
+				"loading_schemas": "Loading schemas…",
+				"schemas_failed": "Couldn't load the schemas"
 			},
 			"tabs": {
 				"close": "Close tab",
@@ -149,7 +171,11 @@
 				"kbd_save": "review and save",
 				"staged_title": "Unsaved · was {before}",
 				"invalid_number": "Expected a number, e.g. 860.50 · Esc to cancel",
-				"invalid_boolean": "Expected true or false · Esc to cancel"
+				"invalid_boolean": "Expected true or false · Esc to cancel",
+				"invalid_date": "Expected a date, e.g. 2026-10-09 or 2026-10-09T14:30Z · Esc to cancel",
+				"edit_cell": "Value of {column}",
+				"null_hint": "Type null to empty the cell, \\null for the text null",
+				"empty_text": "Empty text"
 			},
 			"filters": {
 				"add": "Add filter",
@@ -165,6 +191,7 @@
 			"empty": {
 				"pick_title": "Pick a table to browse",
 				"pick_description": "Choose a table on the left, or start from one you opened lately.",
+				"pick_description_first": "Choose a table on the left to see its rows.",
 				"recent": "Recently opened",
 				"error_title": "Couldn't load {table}",
 				"error_description": "Your filters and unsaved changes are kept.",
@@ -179,14 +206,19 @@
 			"save": {
 				"review": "Review and save {count} change | Review and save {count} changes",
 				"title": "Save {count} change to {table}? | Save {count} changes to {table}?",
-				"description": "They are written to {scope}.",
+				"description": "It is written to {scope}. | They are written to {scope}.",
 				"confirm": "Save {count} change | Save {count} changes",
 				"keep_editing": "Keep editing",
 				"saved": "{count} change saved to {scope} | {count} changes saved to {scope}",
-				"saved_description": "You can undo it for a few seconds.",
+				"undo_window": "Undo for {seconds} s",
 				"undo": "Undo",
 				"undone": "{count} change undone | {count} changes undone",
-				"undo_failed": "Couldn't undo the changes"
+				"undo_failed": "Couldn't undo the changes",
+				"partial_title": "{saved} of {total} change saved | {saved} of {total} changes saved",
+				"rows_gone": "{count} row no longer exists: its changes were dropped. | {count} rows no longer exist: their changes were dropped.",
+				"not_written": "{count} change wasn't written and stays staged ({error}). | {count} changes weren't written and stay staged ({error}).",
+				"undo_partial": "{count} change couldn't be undone | {count} changes couldn't be undone",
+				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist."
 			},
 			"row": {
 				"title": "Row of {table}",
@@ -210,7 +242,7 @@
 			"json": {
 				"title": "Edit {column}",
 				"invalid": "Invalid JSON",
-				"not_structured": "The value must be a JSON object or array.",
+				"not_structured": "The value must be a JSON object, an array or null.",
 				"apply": "Apply"
 			}
 		},
@@ -218,18 +250,18 @@
 			"title": "Diagram",
 			"description": "Tables and relations of a schema. Drag tables to arrange them; the layout is saved for the whole team.",
 			"toolbar": {
-				"undo": "Undo (⌘Z)",
-				"redo": "Redo (⇧⌘Z)",
+				"undo": "Undo",
+				"redo": "Redo",
 				"auto_layout": "Auto layout",
 				"auto_layout_hint": "Rearrange every table; you preview it before keeping it",
-				"select": "Select (V)",
-				"pan": "Pan (H)",
+				"select": "Select",
+				"pan": "Pan",
 				"zoom_out": "Zoom out",
 				"zoom_in": "Zoom in",
-				"reset_zoom": "Reset zoom (0)",
-				"fit": "Fit view (1)",
+				"reset_zoom": "Reset zoom",
+				"fit": "Fit view",
 				"note": "Note",
-				"note_hint": "Add a note (N)"
+				"note_hint": "Add a note"
 			},
 			"notes": {
 				"placeholder": "Double-click to write",
@@ -243,12 +275,18 @@
 			},
 			"schema": "Schema",
 			"search": "Find a table or column",
-			"stub_title": "Open the {schema} diagram",
+			"search_empty": "No table or column",
+			"stub_title": "Open {schema}.{table}",
+			"not_found": {
+				"schema": "Schema {schema} not found",
+				"table": "Table {table} not found in {schema}"
+			},
 			"large": "{count} tables: select one and focus on it to read its relations.",
 			"save": {
 				"idle": "Layout saved",
 				"saving": "Saving…",
 				"error": "Couldn't save the layout",
+				"error_other": "Couldn't save the {schema} diagram",
 				"just_now": "Layout saved · just now",
 				"minutes": "Layout saved · {count} min ago"
 			},
@@ -300,8 +338,9 @@
 				"history_empty": "Queries you run show up here.",
 				"saved_empty": "Queries you save show up here.",
 				"team_empty": "Queries your teammates share show up here.",
-				"history_kept": "Your last 500 runs are kept.",
-				"clear": "Clear history"
+				"history_kept": "Your last {count} runs are kept.",
+				"clear": "Clear history",
+				"more": "Show older runs"
 			},
 			"editor": {
 				"untitled": "Untitled query",
@@ -315,7 +354,8 @@
 				"insert": "Insert",
 				"complete": "complete",
 				"position": "AQL · Ln {line}, Col {column}",
-				"table_rows": "{count} row | {count} rows"
+				"table_rows": "{count} row | {count} rows",
+				"aria_label": "Query editor (AQL)"
 			},
 			"result": {
 				"title": "Result",
@@ -346,9 +386,12 @@
 				"y_axis": "Y axis",
 				"chart_first": "First {count} of {total}",
 				"chart_unavailable": "No numeric column to plot.",
-				"all_shown": "All {count} rows shown. Results over 1,000 rows are cut; add .slice() to page through them. | All {count} rows shown. Results over 1,000 rows are cut; add .slice() to page through them.",
+				"all_shown": "{count} row shown. | All {count} rows shown. Results over 1,000 rows are cut; add .slice() to page through them.",
 				"truncated": "Showing {shown} of {total} rows: results are cut at 1,000. Add .slice() to page through them.",
-				"table_first": "The table shows the first {shown} of {total} rows; JSON and the CSV export hold them all."
+				"table_first": "The table shows the first {shown} of {total} rows; JSON and the CSV export hold them all.",
+				"running": "Running…",
+				"failed_local": "The query was not sent · nothing was changed",
+				"example_first": "First 10 rows of {table}"
 			},
 			"guard": {
 				"description": "This query changes data. A dry run found what it will touch:",
@@ -366,7 +409,12 @@
 				"confirm_delete": "Delete {count} row | Delete {count} rows",
 				"confirm_unknown": "Run query",
 				"skip": "Don't ask again for single-row updates",
-				"skip_detail": "Until you close this browser tab. Deletes and changes to more than one row always ask."
+				"skip_detail": "Until you close this browser tab. Deletes and changes to more than one row always ask.",
+				"op_read": "read",
+				"op_insert": "insert",
+				"op_update": "update",
+				"op_replace": "replace",
+				"op_delete": "delete"
 			},
 			"save": {
 				"title": "Save query",
@@ -391,6 +439,13 @@
 				"title": "Clear your query history?",
 				"description": "Your past runs are removed. Saved queries stay.",
 				"confirm": "Clear history"
+			},
+			"errors": {
+				"syntax": "Syntax error: {detail}. Check parentheses, quotes and commas.",
+				"syntax_unclosed": "Syntax error: the “{char}” at line {line}, column {column} is never closed.",
+				"syntax_unexpected": "Syntax error: unexpected “{char}” at line {line}, column {column}. Check parentheses and quotes.",
+				"syntax_string": "Syntax error: the string opened at line {line}, column {column} is never closed.",
+				"unknown_schema": "Unknown schema “{schema}”."
 			}
 		},
 		"catalog_category": "Data",
@@ -400,7 +455,32 @@
 		},
 		"common": {
 			"retry": "Try again",
-			"cancel": "Cancel"
+			"cancel": "Cancel",
+			"clear": "Clear"
+		},
+		"pickers": {
+			"schema": {
+				"label": "Schema",
+				"all": "All schemas",
+				"find": "Find a schema",
+				"recent": "Recent",
+				"more": "First {shown} of {total}",
+				"no_match": "No schema matches",
+				"placeholder": "Pick a schema"
+			},
+			"instance": {
+				"label": "Instance",
+				"all": "All instances",
+				"read_only": "Read-only view",
+				"default": "default",
+				"find": "Find an instance",
+				"more": "First {shown} of {total}",
+				"no_match": "No instance matches",
+				"no_named": "No named instance",
+				"pick_schema": "Pick a schema to list its named instances",
+				"loading": "Loading instances…",
+				"failed": "The instances could not be loaded"
+			}
 		},
 		"modifiers": {
 			"hashed": "Hashed",
@@ -419,7 +499,10 @@
 				"rows": "{count} row | {count} rows",
 				"columns": "{count} column | {count} columns",
 				"indexes": "{count} index | {count} indexes",
-				"relations": "{count} relation | {count} relations"
+				"relations": "{count} relation | {count} relations",
+				"instance_rows": "{instance} {count}",
+				"default_instance": "default",
+				"uncounted": "{count} more instance not counted | {count} more instances not counted"
 			},
 			"actions": {
 				"browse": "Browse data",
@@ -450,7 +533,9 @@
 				"none_in": "No table points to this one."
 			},
 			"sample": {
-				"position": "Row {position} of {total} · instance {instance}",
+				"position": "Row {position} of {total} · {instance}",
+				"default_instance": "default instance",
+				"named_instance": "instance {name}",
 				"another": "Another row",
 				"error": "Couldn't load a row of this table.",
 				"empty": "This table has no row yet."
@@ -460,6 +545,10 @@
 			"data_browser": "Database · data browser",
 			"diagram": "Database · diagram",
 			"query_console": "Database · query console",
+			"schemas": "Database · schemas",
+			"next_table": "Next table, in the table inspector",
+			"previous_table": "Previous table, in the table inspector",
+			"find_table_or_column": "Find a table or column",
 			"find_table": "Find a table",
 			"search_rows": "Search the rows",
 			"refresh": "Refresh the rows",

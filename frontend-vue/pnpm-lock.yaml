@@ -47,6 +47,9 @@ importers:
         specifier: ^3.5.18
         version: 3.5.34(typescript@5.9.3)
     devDependencies:
+      '@intlify/message-compiler':
+        specifier: 11.4.13
+        version: 11.4.13
       '@nuxt/ui':
         specifier: 4.10.0
         version: 4.10.0(0da953304c977944307a6d86bab47f79)
@@ -838,6 +841,20 @@ packages:
       {
         integrity: sha512-iFgmQaXHE0vytNfpLZWOC2mEJCBRzcUxt53Xf/yCXG93lRvqas237i3r7X4RKMwO3txiyZD4mQjKAByFv6UGSQ==,
       }
+
+  '@intlify/message-compiler@11.4.13':
+    resolution:
+      {
+        integrity: sha512-cjKsDeWUD/i3mj0QtC8hydLCFP5mgZtTU1xZZaN9/O3FG94EXc0rTbecYpifglp26rpoJoIjSlW137VejLKsZw==,
+      }
+    engines: { node: '>= 22' }
+
+  '@intlify/shared@11.4.13':
+    resolution:
+      {
+        integrity: sha512-ZjcNgEED1FtTCFb+ohWBdR21k5kvleKtM9peobQtLB83mNIfEhJK86dEbhfk+OcUrybrEbc4eDeE9UbFUVHsjQ==,
+      }
+    engines: { node: '>= 22' }
 
   '@ioredis/commands@1.5.1':
     resolution:
@@ -5011,6 +5028,13 @@ snapshots:
   '@internationalized/number@3.6.6':
     dependencies:
       '@swc/helpers': 0.5.21
+
+  '@intlify/message-compiler@11.4.13':
+    dependencies:
+      '@intlify/shared': 11.4.13
+      source-map-js: 1.2.1
+
+  '@intlify/shared@11.4.13': {}
 
   '@ioredis/commands@1.5.1':
     optional: true
