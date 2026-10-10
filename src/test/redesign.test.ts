@@ -16,11 +16,12 @@ import { DatabaseTablesController } from "../routes/tables";
 import { listRecentQueries, listSchemaCards } from "../service/overview";
 import {
   containsMutation,
-  describeUnknownTarget,
+  describeUnknownQueryTarget,
   dryRun,
   readQueryTarget,
 } from "../service/queryInspection";
 import { listRowReferences } from "../service/references";
+import { encode } from "./stagedWire";
 
 const SCHEMA = "redesign-shop";
 const INSTANCE = "eu";
@@ -42,15 +43,6 @@ class RedesignOrder extends Table {
 
 // Keeps the decorated classes referenced: the decorators register them.
 const TABLES = [RedesignCustomer, RedesignOrder];
-
-interface StagedLike {
-  stages: unknown[];
-}
-
-// The wire form of a staged query, as the console sends it.
-function encode(staged: StagedLike): Record<string, unknown> {
-  return { __cls: staged.constructor.name, stages: staged.stages };
-}
 
 function shop() {
   const schema = Schema.get(SCHEMA);
@@ -113,9 +105,9 @@ after(cleanUp);
 describe("[integration] v2 redesign: browsing", () => {
   it("finds a table by one of its column names and filters on the schema", async () => {
     const controller = new DatabaseTablesController();
-    const list = (search?: string, scope?: string, has?: string) =>
-      controller.source(USER, search, scope, undefined, undefined, has);
-    const byColumn = await list("customer_id", `is:${SCHEMA}`);
+    const list = (q?: string, scope?: string, has?: string) =>
+      controller.source(USER, scope, undefined, q, has);
+    const byColumn = await list("is:customer_id", `is:${SCHEMA}`);
     assert.deepEqual(
       byColumn.results.map((row) => row.name),
       ["orders"],
@@ -222,7 +214,7 @@ describe("[integration] v2 redesign: queries", () => {
         .table("invoice" as never),
     );
     assert.equal(
-      describeUnknownTarget(target),
+      await describeUnknownQueryTarget(target),
       `Unknown table "invoice" in schema ${SCHEMA}`,
     );
     const controller = new DatabaseQueryController();

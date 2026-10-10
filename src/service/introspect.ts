@@ -453,10 +453,7 @@ export async function getTableElementCount(
   );
 }
 
-/**
- * Rows of a table in every instance at once: one cross-instance count, or
- * the default instance's when the driver cannot count across instances.
- */
+/** Rows of a table in every instance at once: one cross-instance count. */
 export async function getTableTotalCount(
   schemaId: string,
   tableName: string,
@@ -464,51 +461,8 @@ export async function getTableTotalCount(
   const schema = getRegistry().get(schemaId);
   if (!schema) return 0;
   return cachedCount(tableCountKey(schemaId, tableName, CROSS_INSTANCE), () =>
-    countTableRows(schema, tableName, CROSS_INSTANCE).catch(() =>
-      getTableElementCount(schemaId, tableName),
-    ),
+    countTableRows(schema, tableName, CROSS_INSTANCE).catch(() => 0),
   );
-}
-
-// Named instances counted one by one for a table's breakdown: a schema with
-// one instance per tenant may hold thousands.
-const MAX_COUNTED_INSTANCES = 20;
-
-interface InstanceRowCount {
-  /** The named instance, or null for the default one. */
-  instance: string | null;
-  count: number;
-}
-
-export interface TableRowCounts {
-  total: number;
-  /** The default instance, then the first named instances. */
-  instances: InstanceRowCount[];
-  /** Named instances left out of the breakdown. */
-  uncounted: number;
-}
-
-/** A table's rows, in all and per instance; undefined for an unknown table. */
-export async function getTableRowCounts(
-  schemaId: string,
-  tableName: string,
-): Promise<TableRowCounts | undefined> {
-  const schema = getRegistry().get(schemaId);
-  if (!schema || !Object.hasOwn(schema.definition, tableName)) return undefined;
-  const named = await listSchemaInstances(schema);
-  const counted = named.slice(0, MAX_COUNTED_INSTANCES);
-  const [total, ...counts] = await Promise.all([
-    getTableTotalCount(schemaId, tableName),
-    getTableElementCount(schemaId, tableName),
-    ...counted.map((instance) =>
-      getTableElementCount(schemaId, tableName, instance),
-    ),
-  ]);
-  const instances = [null, ...counted].map((instance, index) => ({
-    instance,
-    count: counts[index] ?? 0,
-  }));
-  return { total, instances, uncounted: named.length - counted.length };
 }
 
 interface SchemaInsights {

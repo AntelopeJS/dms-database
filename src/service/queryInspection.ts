@@ -1,5 +1,6 @@
 import { CROSS_INSTANCE, Query, Schema } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import { listSchemaInstances } from "./introspect";
 import type { QueryStage } from "./stagedSerialization";
 
 const MUTATING_STAGES = new Set(["insert", "update", "replace", "delete"]);
@@ -120,52 +121,30 @@ export async function dryRun(root: unknown): Promise<DryRunResult> {
   return { ...target, operation, rows };
 }
 
+// Instances named in an unknown-instance error, so the message stays short
+// on a schema with one instance per tenant.
+const LISTED_INSTANCES = 10;
+
 /**
- * Why a query cannot run on the schema it names: an unknown schema or table.
- * A store reading a missing table answers no row, which reads like an empty
- * table; the console says what is wrong instead.
+ * Why a query cannot run where it points: an unknown schema, table or
+ * instance. A store reading a missing table, or an instance that was never
+ * created, answers no row, which reads like an empty table; the console says
+ * what is wrong instead.
  */
-export function describeUnknownTarget(target: QueryTarget): string | null {
+export async function describeUnknownQueryTarget(
+  target: QueryTarget,
+): Promise<string | null> {
   if (!target.schema) return null;
   const schema = Schema.get(target.schema);
   if (!schema) return `Unknown schema "${target.schema}"`;
   if (target.table && !(target.table in schema.definition)) {
     return `Unknown table "${target.table}" in schema ${target.schema}`;
   }
-  return null;
-}
-
-// Instances named in an unknown-instance error, so the message stays short
-// on a schema with one instance per tenant.
-const LISTED_INSTANCES = 10;
-
-/** The named instances of a schema; null when the driver cannot list them. */
-async function namedInstances(schema: Schema): Promise<string[] | null> {
-  try {
-    const named = await schema.listInstances().run();
-    return Array.isArray(named)
-      ? named.filter((id): id is string => typeof id === "string")
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Why a query cannot run where it points, instance included: a store reading
- * an instance that was never created answers no row, like an empty table.
- */
-export async function describeUnknownQueryTarget(
-  target: QueryTarget,
-): Promise<string | null> {
-  const unknown = describeUnknownTarget(target);
-  if (unknown || !target.schema) return unknown;
   // The default instance ("") and every instance at once ("*") always exist.
   const instance = target.instance;
   if (!instance || instance === "*") return null;
-  const schema = Schema.get(target.schema);
-  const named = schema ? await namedInstances(schema) : null;
-  if (!named || named.includes(instance)) return null;
+  const named = await listSchemaInstances(schema);
+  if (named.includes(instance)) return null;
   const listed = named.slice(0, LISTED_INSTANCES).map((id) => `"${id}"`);
   const more = named.length > listed.length ? ", …" : "";
   const known = listed.length

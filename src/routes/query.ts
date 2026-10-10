@@ -27,7 +27,10 @@ import {
   dryRun,
   readQueryTarget,
 } from "../service/queryInspection";
-import { decodeStaged } from "../service/stagedSerialization";
+import {
+  decodeStaged,
+  StagedDecodeError,
+} from "../service/stagedSerialization";
 import type {
   ExecuteResult,
   HistoryEntry,
@@ -48,8 +51,6 @@ const DEFAULT_HISTORY_LIMIT = 25;
 const MAX_RESULT_ROWS = 1000;
 // Every kept run can be listed: the console pages through them.
 const MAX_HISTORY_LIMIT = MAX_HISTORY_PER_USER;
-// A failure the console met before sending the query, kept that long.
-const MAX_ERROR_LENGTH = 2000;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
 
 type SavedScope = "me" | "shared";
@@ -58,12 +59,6 @@ interface ExecuteBody {
   query?: unknown;
   source?: unknown;
   language?: unknown;
-}
-
-interface FailureBody {
-  source?: unknown;
-  language?: unknown;
-  error?: unknown;
 }
 
 interface SaveBody {
@@ -104,14 +99,28 @@ function asBoolean(value: unknown): boolean {
   return value === true;
 }
 
+/** A failed run answers what failed and how long it took. */
+function runFailure(message: string, durationMs: number): HTTPResult {
+  return new HTTPResult(400, { message, durationMs });
+}
+
+// A body that does not decode to a runnable query reaches no table: it
+// answers like a failed run, in no time.
 function decodeRunnable(query: Record<string, unknown>): Query<unknown> {
-  const root = decodeStaged(query);
-  assert(
-    root instanceof Query,
-    400,
-    "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)",
-  );
-  return root as Query<unknown>;
+  let root: unknown;
+  try {
+    root = decodeStaged(query);
+  } catch (error) {
+    if (error instanceof StagedDecodeError) throw runFailure(error.message, 0);
+    throw error;
+  }
+  if (!(root instanceof Query)) {
+    throw runFailure(
+      "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)",
+      0,
+    );
+  }
+  return root;
 }
 
 interface ParsedSaveBody {
@@ -243,11 +252,6 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
 function errorMessage(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   return message || "Query execution failed";
-}
-
-/** A failed run answers what failed and how long it took. */
-function runFailure(message: string, durationMs: number): HTTPResult {
-  return new HTTPResult(400, { message, durationMs });
 }
 
 @AuthOwnerOnly()
@@ -415,31 +419,6 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   @Delete("/history")
   async clearHistory(@AuthRawUser() user: User): Promise<SuccessResponse> {
     await GetModel(QueryHistoryModel).clearForUser(user._id);
-    return { success: true };
-  }
-
-  /**
-   * Records a run the console could not send: a syntax error, an unknown
-   * schema or a method the query language lacks. It reached no table.
-   */
-  @Post("/history")
-  async recordFailure(
-    @AuthRawUser() user: User,
-    @JSONBody() body: FailureBody,
-  ): Promise<SuccessResponse> {
-    const error = asNonEmptyString(body?.error).slice(0, MAX_ERROR_LENGTH);
-    await GetModel(QueryHistoryModel).addAndPrune({
-      userId: user._id,
-      query: {},
-      source: asNonEmptyString(body?.source),
-      language: asLanguage(body?.language),
-      executedAt: new Date(),
-      durationMs: 0,
-      rowCount: 0,
-      status: "error",
-      mutation: false,
-      error,
-    });
     return { success: true };
   }
 

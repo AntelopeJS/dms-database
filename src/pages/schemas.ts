@@ -22,8 +22,7 @@ const tables = TableView.fromSource({
   fetchUrl: "/api/database/tables/source",
   rowIdKey: "id",
   labelKey: "name",
-  capabilities: { search: true, filter: true },
-  searchPlaceholder: "$dms_database.schemas.search",
+  capabilities: { search: false, filter: true },
   defaultSort: { field: "elementCount", desc: true },
   pageSize: 50,
   // Grows by pages rather than paging: a new filter of the bar (a hidden

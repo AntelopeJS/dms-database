@@ -14,10 +14,11 @@ import {
   describeUnknownQueryTarget,
   readQueryTarget,
 } from "../service/queryInspection";
-import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import { encode } from "./stagedWire";
 
 const SCHEMA = "query-console-qa";
 const INSTANCE = "eu";
+const FORGED_INSTANCE = "forged";
 const USER = { _id: "query-console-user" } as User;
 
 @RegisterTable("tags", SCHEMA)
@@ -28,46 +29,6 @@ class ConsoleTag extends Table {
 
 // Keeps the decorated class referenced: the decorator registers it.
 const TABLES = [ConsoleTag];
-
-const STAGED_CLASS_NAMES = new Set([
-  "Schema",
-  "SchemaInstance",
-  "Table",
-  "Selection",
-  "SingleSelection",
-  "Stream",
-  "Datum",
-  "Query",
-  "ValueProxy",
-]);
-
-function encodeNode(node: unknown): unknown {
-  if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL;
-  if (Array.isArray(node)) return node.map(encodeNode);
-  if (node === null || typeof node !== "object") return node;
-  const cls = node.constructor?.name;
-  if (cls && STAGED_CLASS_NAMES.has(cls)) {
-    const stages = (node as { stages?: unknown[] }).stages ?? [];
-    return { __cls: cls, stages: stages.map(encodeNode) };
-  }
-  return Object.fromEntries(
-    Object.entries(node).map(([key, value]) => [key, encodeNode(value)]),
-  );
-}
-
-interface StagedLike {
-  stages: unknown[];
-}
-
-// The wire form of a staged query, as the console sends it: every staged
-// value nested in a stage (a filter's predicate, say) is encoded too, and the
-// whole travels as JSON.
-function encode(staged: StagedLike): Record<string, unknown> {
-  return JSON.parse(JSON.stringify(encodeNode(staged))) as Record<
-    string,
-    unknown
-  >;
-}
 
 function schema() {
   const registered = Schema.get(SCHEMA);
@@ -88,6 +49,53 @@ async function lastRun() {
     0,
   );
   return items[0];
+}
+
+// Predicate bodies that are not staged values: decoded as plain objects,
+// the driver would read each as an always-true expression.
+const FORGED_BODIES = [
+  { label: "kept" },
+  { __cls: "NoSuchClass", stages: [] },
+  { __cls: "ValueProxy" },
+  { stages: [] },
+  { __cls: "ValueProxy", stages: [{ args: [] }] },
+];
+
+interface WireStage {
+  stage: string;
+  args: { args: unknown[] }[];
+}
+
+// The query's filter predicate swapped for another body.
+function withPredicate(
+  query: Record<string, unknown>,
+  body: unknown,
+): Record<string, unknown> {
+  const stages = query.stages as WireStage[];
+  const filter = stages.find((stage) => stage.stage === "filter");
+  assert.ok(filter, "the query filters");
+  filter.args[0].args[1] = body;
+  return query;
+}
+
+async function assertRefused(query: Record<string, unknown>): Promise<void> {
+  await assert.rejects(
+    new DatabaseQueryController().execute(USER, {
+      query,
+      source: "forged",
+      language: "aql",
+    }),
+    (error: { getStatus(): number; getBody(): string }) => {
+      assert.equal(error.getStatus(), 400);
+      const answer = JSON.parse(error.getBody()) as {
+        message: string;
+        durationMs: number;
+      };
+      assert.match(answer.message, /^Malformed query/);
+      assert.equal(answer.durationMs, 0);
+      return true;
+    },
+  );
 }
 
 describe("[integration] query console", () => {
@@ -201,17 +209,45 @@ describe("[integration] query console", () => {
     assert.equal(run?.status, "error");
     assert.match(run?.error ?? "", /Unknown instance/);
   });
+});
 
-  it("records a failure the console met before sending the query", async () => {
-    const controller = new DatabaseQueryController();
-    await controller.recordFailure(USER, {
-      source: "schemas.shoop.instance()",
-      language: "aql",
-      error: 'Unknown schema "shoop"',
-    });
-    const run = await lastRun();
-    assert.equal(run?.status, "error");
-    assert.equal(run?.source, "schemas.shoop.instance()");
-    assert.equal(run?.error, 'Unknown schema "shoop"');
+describe("[integration] query console: malformed bodies", () => {
+  before(async () => {
+    await schema()
+      .createInstance(FORGED_INSTANCE)
+      .run()
+      .catch(() => undefined);
+    await tags(FORGED_INSTANCE)
+      .insert([
+        { _id: "f1", label: "kept" },
+        { _id: "f2", label: "other" },
+      ] as never)
+      .run();
+  });
+
+  after(async () => {
+    await schema().destroyInstance(FORGED_INSTANCE).run();
+  });
+
+  it("refuses a malformed predicate instead of writing every row", async () => {
+    const before = await tags(FORGED_INSTANCE).count();
+    assert.ok(before > 0, "the table holds rows to protect");
+    const kept = tags(FORGED_INSTANCE).filter((row) =>
+      row.key("label" as never).eq("kept"),
+    );
+    const writes = [
+      kept.delete(),
+      kept.update({ label: "overwritten" } as never),
+    ];
+    for (const write of writes) {
+      for (const body of FORGED_BODIES) {
+        await assertRefused(withPredicate(encode(write as never), body));
+      }
+    }
+    assert.equal(await tags(FORGED_INSTANCE).count(), before);
+    const overwritten = await tags(FORGED_INSTANCE)
+      .filter((row) => row.key("label" as never).eq("overwritten"))
+      .count();
+    assert.equal(overwritten, 0);
   });
 });

@@ -5,11 +5,9 @@ import type { User } from "@antelopejs/interface-dms/auth/db";
 import { formatModifier, localeOf, type ServerLocale } from "../i18n/messages";
 import {
   getTableElementCount,
-  getTableRowCounts,
   getTableTotalCount,
   listSchemaInstances,
   listSchemaSummaries,
-  type TableRowCounts,
 } from "../service/introspect";
 import {
   type InstanceChoice,
@@ -26,7 +24,7 @@ export interface TableSourceRow {
   id: string;
   schema: string;
   name: string;
-  /** Rows in the instance the filter bar picked; every instance by default. */
+  /** Rows in the instance the filter bar picked; the default one when unset. */
   elementCount: number;
   columnCount: number;
   indexCount: number;
@@ -57,32 +55,7 @@ interface InstancesResult {
 
 const INSTANCE_LIMIT_DEFAULT = 100;
 const INSTANCE_LIMIT_MAX = 500;
-const INSTANCES_TTL_MS = 30_000;
 const instanceCollator = new Intl.Collator(undefined, { numeric: true });
-const namedInstancesCache = new Map<
-  string,
-  { value: string[]; expiresAt: number }
->();
-
-/**
- * A schema's named instances, kept a moment: the instance picker searches
- * them on each keystroke. Undefined for an unknown schema.
- */
-async function listNamedInstances(
-  schemaId: string,
-): Promise<string[] | undefined> {
-  const schema = getRegistry().get(schemaId);
-  if (!schema) return undefined;
-  const cached = namedInstancesCache.get(schemaId);
-  const now = Date.now();
-  if (cached && cached.expiresAt > now) return cached.value;
-  const value = await listSchemaInstances(schema);
-  namedInstancesCache.set(schemaId, {
-    value,
-    expiresAt: now + INSTANCES_TTL_MS,
-  });
-  return value;
-}
 
 function relationTargets(schemaId: string, table: TableSummary): string[] {
   const targets = table.relations.map((relation) =>
@@ -122,10 +95,10 @@ function needleOf(text: string | undefined): string | undefined {
 function matchesStructure(
   { schemaId, table }: ListedTable,
   filters: SchemaFilters,
-  needles: string[],
+  needle: string | undefined,
 ): boolean {
   if (filters.scope && schemaId !== filters.scope) return false;
-  if (!needles.every((needle) => matchesSearch(table, needle))) return false;
+  if (needle && !matchesSearch(table, needle)) return false;
   if (filters.has.includes("relations") && table.relations.length === 0)
     return false;
   if (
@@ -147,32 +120,28 @@ function countRows(
   return getTableElementCount(schemaId, tableName, instance.id);
 }
 
-export interface TableSourceListing {
+interface TableSourceListing {
   rows: TableSourceRow[];
   /** Registered tables before any filter. */
   all: number;
 }
 
 /**
- * The tables the Schemas page lists for its filter bar's state (and the
- * table view's own `search`, kept for older links): schema, search and
- * structure first, then the rows counted in the picked instance, then the
- * empty ones when asked.
+ * The tables the Schemas page lists for its filter bar's state: schema,
+ * search and structure first, then the rows counted in the picked instance,
+ * then the empty ones when asked.
  */
-export async function listTableSourceRows(
+async function listTableSourceRows(
   locale: ServerLocale,
   filters: SchemaFilters,
-  search?: string,
 ): Promise<TableSourceListing> {
-  const needles = [needleOf(filters.q), needleOf(search)].filter(
-    (needle): needle is string => !!needle,
-  );
+  const needle = needleOf(filters.q);
   const summaries = await listSchemaSummaries();
   const registered: ListedTable[] = summaries.flatMap((summary) =>
     summary.tables.map((table) => ({ schemaId: summary.id, table })),
   );
   const tables = registered.filter((listed) =>
-    matchesStructure(listed, filters, needles),
+    matchesStructure(listed, filters, needle),
   );
   const counts = await Promise.all(
     tables.map(({ schemaId, table }) =>
@@ -202,13 +171,13 @@ export async function listTableSourceRows(
 }
 
 /** A schema's named instances containing the search, sorted, at most `limit`. */
-export function matchNamedInstances(
+function matchNamedInstances(
   instances: readonly string[],
   search: string | undefined,
   limit: number,
 ): InstancesResult {
   const needle = needleOf(search);
-  const matches = [...new Set(instances)]
+  const matches = instances
     .filter((id) => !needle || id.toLowerCase().includes(needle))
     .sort((left, right) => instanceCollator.compare(left, right));
   return { instances: matches.slice(0, limit), total: matches.length };
@@ -225,10 +194,8 @@ export class DatabaseTablesController extends Controller(
    * and pages the rows.
    */
   @Get("/source")
-  // oxlint-disable-next-line eslint/max-params
   async source(
     @AuthRawUser() user: User,
-    @Parameter("search", "query") search: unknown,
     @Parameter("filter_scope", "query") scope: unknown,
     @Parameter("filter_instance", "query") instance: unknown,
     @Parameter("filter_q", "query") q: unknown,
@@ -237,7 +204,6 @@ export class DatabaseTablesController extends Controller(
     const { rows, all } = await listTableSourceRows(
       localeOf(user),
       readSchemaFilters({ scope, instance, q, has }),
-      asNonEmptyString(search),
     );
     return { results: rows, total: rows.length, all };
   }
@@ -255,30 +221,14 @@ export class DatabaseTablesController extends Controller(
   ): Promise<InstancesResult> {
     const schema = asNonEmptyString(schemaRaw);
     assert(schema, 400, "Missing 'schema'");
-    const named = await listNamedInstances(schema);
-    assert(named, 404, `Unknown schema ${schema}`);
+    const registered = getRegistry().get(schema);
+    assert(registered, 404, `Unknown schema ${schema}`);
+    const named = await listSchemaInstances(registered);
     const limit = clamp(
       parseInteger(limitRaw, INSTANCE_LIMIT_DEFAULT),
       1,
       INSTANCE_LIMIT_MAX,
     );
     return matchNamedInstances(named, asNonEmptyString(search), limit);
-  }
-
-  /**
-   * One table's rows, in all and per instance, for the Schemas page's
-   * inspector: the default instance and the first named ones.
-   */
-  @Get("/counts")
-  async counts(
-    @Parameter("schema", "query") schemaRaw: unknown,
-    @Parameter("table", "query") tableRaw: unknown,
-  ): Promise<TableRowCounts> {
-    const schema = asNonEmptyString(schemaRaw);
-    const table = asNonEmptyString(tableRaw);
-    assert(schema && table, 400, "Missing 'schema' or 'table'");
-    const counts = await getTableRowCounts(schema, table);
-    assert(counts, 404, `Unknown table ${schema}.${table}`);
-    return counts;
   }
 }

@@ -9,17 +9,14 @@ import { parseFilter } from "../utils/query";
 // source route as `filter_<key>=is:<value>`, which reads them back here.
 
 /** The URL keys of the filter bar, each filtering on the field of its name. */
-export const SCHEMA_FILTER_KEYS = ["scope", "instance", "q", "has"] as const;
-export type SchemaFilterKey = (typeof SCHEMA_FILTER_KEYS)[number];
+const SCHEMA_FILTER_KEYS = ["scope", "instance", "q", "has"] as const;
+type SchemaFilterKey = (typeof SCHEMA_FILTER_KEYS)[number];
 
-/** The URL's `instance` for the default instance; no value means all. */
-export const DEFAULT_INSTANCE_PARAM = "default";
-// Prefixed to a named instance that would read as the default one, or as
-// escaped (an instance really named "default" is written "~default").
-const INSTANCE_ESCAPE = "~";
+/** The URL's `instance` for every instance; no value means the default one. */
+const ALL_INSTANCES_PARAM = "all";
 
-export const HAS_FLAGS = ["relations", "modifiers", "empty"] as const;
-export type HasFlag = (typeof HAS_FLAGS)[number];
+const HAS_FLAGS = ["relations", "modifiers", "empty"] as const;
+type HasFlag = (typeof HAS_FLAGS)[number];
 const HAS_SEPARATOR = ",";
 
 /** Every instance (one cross-instance count), the default one, or a named one. */
@@ -28,14 +25,15 @@ export type InstanceChoice =
   | { kind: "default" }
   | { kind: "named"; id: string };
 
-/** The URL's `instance` back to the instance it names. */
+/**
+ * The URL's `instance` back to the instance it names, the module's one
+ * convention: absent is the default instance, `all` every instance, any other
+ * value the instance of that name.
+ */
 export function decodeInstanceParam(param: string | undefined): InstanceChoice {
-  if (!param) return { kind: "all" };
-  if (param === DEFAULT_INSTANCE_PARAM) return { kind: "default" };
-  return {
-    kind: "named",
-    id: param.startsWith(INSTANCE_ESCAPE) ? param.slice(1) : param,
-  };
+  if (!param) return { kind: "default" };
+  if (param === ALL_INSTANCES_PARAM) return { kind: "all" };
+  return { kind: "named", id: param };
 }
 
 /** The flags of a `has` value, known ones only, each once. */

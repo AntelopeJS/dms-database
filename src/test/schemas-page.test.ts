@@ -84,7 +84,6 @@ describe("[integration] Schemas page", () => {
     const asFilter = (value?: string) => (value ? `is:${value}` : undefined);
     return new DatabaseTablesController().source(
       USER,
-      undefined,
       `is:${SCHEMA}`,
       asFilter(bar.instance),
       asFilter(bar.q),
@@ -93,7 +92,7 @@ describe("[integration] Schemas page", () => {
   }
 
   it("lists a table's rows in every instance", async () => {
-    const { results, total, all } = await listed();
+    const { results, total, all } = await listed({ instance: "all" });
     assert.deepEqual(
       results.map((row) => [row.name, row.elementCount]),
       [["invoices", 6]],
@@ -108,7 +107,7 @@ describe("[integration] Schemas page", () => {
       named.results.map((row) => row.elementCount),
       [2],
     );
-    const fallback = await listed({ instance: "default" });
+    const fallback = await listed();
     assert.deepEqual(
       fallback.results.map((row) => row.elementCount),
       [2],
@@ -123,7 +122,7 @@ describe("[integration] Schemas page", () => {
   it("filters on structure and on empty tables", async () => {
     assert.equal((await listed({ has: "relations" })).total, 0);
     assert.equal((await listed({ has: "modifiers" })).total, 0);
-    assert.equal((await listed({ has: "empty" })).total, 0);
+    assert.equal((await listed({ has: "empty", instance: "all" })).total, 0);
     assert.equal(
       (await listed({ has: "empty", instance: "no-such-instance" })).total,
       1,
@@ -154,27 +153,6 @@ describe("[integration] Schemas page", () => {
     );
   });
 
-  it("breaks a table's rows down per instance", async () => {
-    const controller = new DatabaseTablesController();
-    const counts = await controller.counts(SCHEMA, "invoices");
-    assert.equal(counts.total, 6);
-    assert.deepEqual(
-      [...counts.instances].sort((a, b) =>
-        String(a.instance).localeCompare(String(b.instance)),
-      ),
-      [
-        { instance: "eu", count: 2 },
-        { instance: null, count: 2 },
-        { instance: "us", count: 2 },
-      ],
-    );
-    assert.equal(counts.uncounted, 0);
-    await assert.rejects(
-      controller.counts(SCHEMA, "no-such-table"),
-      (error: { getStatus(): number }) => error.getStatus() === 404,
-    );
-  });
-
   it("types a column holding null as nullable", async () => {
     const summary = (await listSchemaSummaries()).find(
       (item) => item.id === SCHEMA,
@@ -191,11 +169,11 @@ describe("[integration] Schemas page", () => {
 });
 
 describe("Schemas filter bar parameters", () => {
-  it("reads every instance, the default one and named ones", () => {
-    assert.deepEqual(decodeInstanceParam(undefined), { kind: "all" });
-    assert.deepEqual(decodeInstanceParam(""), { kind: "all" });
-    assert.deepEqual(decodeInstanceParam("default"), { kind: "default" });
-    assert.deepEqual(decodeInstanceParam("~default"), {
+  it("reads the default instance, every instance and named ones", () => {
+    assert.deepEqual(decodeInstanceParam(undefined), { kind: "default" });
+    assert.deepEqual(decodeInstanceParam(""), { kind: "default" });
+    assert.deepEqual(decodeInstanceParam("all"), { kind: "all" });
+    assert.deepEqual(decodeInstanceParam("default"), {
       kind: "named",
       id: "default",
     });
@@ -218,7 +196,7 @@ describe("Schemas filter bar parameters", () => {
       has: undefined,
     });
     assert.equal(filters.scope, "shop");
-    assert.deepEqual(filters.instance, { kind: "all" });
+    assert.deepEqual(filters.instance, { kind: "default" });
     assert.equal(filters.q, "invoice");
     assert.deepEqual(filters.echo, {
       scope: "shop",
