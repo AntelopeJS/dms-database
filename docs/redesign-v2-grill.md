@@ -135,12 +135,19 @@ filter chain and appends one filter tab per registered schema (`schema is
 <id>`), served with the request. The table view counts each tab through the
 route (`limit=1`), so tab counters come for free.
 
+*Superseded after QA (October 2026):* the schema tabs became a filter bar
+(schema and instance pickers with search, table or column search, structure
+flags), its state kept in the URL and passed to the source route as hidden
+`queryParamFilters` through the table view's public `mergeOptions`.
+
 **Q13. What does clicking a table do?**
 It opens the table inspector, a custom row action marked `isDefault` with
 `deepLink: true`, whose target is a drawer rendering the custom
 `DmsDatabaseTableInspector`. J / K step through the tables (built into row
 drawers). The DMS opens a row action's drawer from the bottom; the diagram
-opens the same inspector from the right, through `useDrawer`. The inspector follows D-07: no fake "Healthy" footer; facts (rows,
+opens the same inspector from the right, through `useDrawer`. *After QA, the
+Schemas page opens it from the right too, through a hidden block reading
+`?schema=&table=`, until the DMS lets a row action's drawer choose its side.* The inspector follows D-07: no fake "Healthy" footer; facts (rows,
 columns, indexes, relations, instances); tabs Columns, Indexes, Relations
 (references and referenced-by), Sample row; actions Browse data, Query this
 table, Show in diagram, Copy name. The other row actions (Browse data, Query,

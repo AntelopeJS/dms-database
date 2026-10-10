@@ -11,12 +11,17 @@ platform owner, under `/modules/database`:
 
 - **Overview**: connection health, one card per registered schema, the largest tables and the
   latest queries.
-- **Schemas**: every registered table, by schema, searchable by table or column name, with an
-  inspector listing its columns, indexes, relations (both ways) and a sample row.
+- **Schemas**: every registered table, with a filter bar (schema, instance, table or column name,
+  structure flags) kept in the URL, and an inspector on the right listing its columns, indexes,
+  relations (both ways) and a sample row.
 - **Diagram**: the tables and relations of a schema. The layout saves itself and is shared by the
   team; auto layout is previewed before it is kept.
-- **Data browser**: the rows of any table, in any instance. Edits are staged, reviewed and written
-  only when saved, and a save can be undone for a few seconds.
+- **Data browser**: the rows of any table, in any instance or across all of them (read only).
+  Edits are staged, reviewed and written only when saved, and a save can be undone for a few
+  seconds.
+
+Links between the pages carry the instance in an `instance` query key: absent for the default
+instance, `all` for every instance, otherwise the instance's name.
 - **Query console**: AQL with completion of the workspace's schemas, a library of past, saved and
   shared queries, and a dry run before any query that changes data.
 
