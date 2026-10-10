@@ -1,67 +1,69 @@
 <script setup lang="ts">
 const props = defineProps<{
-	open: boolean;
-	column: string;
-	value: unknown;
-	saving: boolean;
-	readOnly: boolean;
-}>();
+	open: boolean
+	column: string
+	value: unknown
+	readOnly: boolean
+}>()
 
 const emit = defineEmits<{
-	"update:open": [open: boolean];
-	save: [value: unknown];
-}>();
+	'update:open': [open: boolean]
+	save: [value: unknown]
+}>()
 
-const { t } = useI18n();
+// Edits a structured cell (an object or a list) as JSON; applying stages the
+// value like any other cell. null empties the cell.
+const { t } = useI18n()
 
-const draft = ref("");
+const draft = ref('')
 
 watch(
 	() => props.open,
 	(open) => {
-		if (!open) return;
+		if (!open) return
 		try {
-			draft.value = JSON.stringify(props.value, null, 2) ?? "";
+			draft.value = JSON.stringify(props.value, null, 2) ?? ''
 		} catch {
-			draft.value = "";
+			draft.value = ''
 		}
 	},
 	{ immediate: true },
-);
+)
 
 const parseError = computed(() => {
 	try {
-		const parsed = JSON.parse(draft.value);
-		if (parsed === null || typeof parsed !== "object") {
-			return t("dms_database.data.jsonNotStructured");
+		const parsed = JSON.parse(draft.value)
+		if (parsed !== null && typeof parsed !== 'object') {
+			return t('dms_database.data.json.not_structured')
 		}
-		return null;
+		return null
 	} catch (error) {
 		// Localized prefix + the engine's parse detail (position, token…).
 		return error instanceof Error
-			? `${t("dms_database.data.jsonInvalid")} — ${error.message}`
-			: t("dms_database.data.jsonInvalid");
+			? `${t('dms_database.data.json.invalid')} — ${error.message}`
+			: t('dms_database.data.json.invalid')
 	}
-});
+})
 
 function save() {
-	if (parseError.value || props.readOnly) return;
-	emit("save", JSON.parse(draft.value));
+	if (parseError.value || props.readOnly) return
+	emit('save', JSON.parse(draft.value))
 }
 </script>
 
 <template>
 	<USlideover
 		:open="open"
-		:title="t('dms_database.data.jsonPanelTitle', { column })"
+		:title="t('dms_database.data.json.title', { column })"
 		@update:open="emit('update:open', $event)"
 	>
 		<template #body>
 			<div class="flex h-full flex-col gap-3">
 				<textarea
 					v-model="draft"
+					:aria-label="t('dms_database.data.json.title', { column })"
 					:readonly="readOnly"
-					class="min-h-96 flex-1 resize-none rounded-md border border-default bg-default p-3 font-mono text-xs outline-none focus:border-primary"
+					class="border-default bg-default focus:border-primary min-h-96 flex-1 resize-none rounded-md border p-3 font-mono text-xs outline-none"
 					spellcheck="false"
 				/>
 				<UAlert
@@ -77,14 +79,13 @@ function save() {
 				<UButton
 					variant="ghost"
 					color="neutral"
-					:label="t('dms_database.data.cancel')"
+					:label="t('dms_database.common.cancel')"
 					@click="emit('update:open', false)"
 				/>
 				<UButton
 					v-if="!readOnly"
-					:label="t('dms_database.data.save')"
+					:label="t('dms_database.data.json.apply')"
 					:disabled="Boolean(parseError)"
-					:loading="saving"
 					@click="save"
 				/>
 			</div>

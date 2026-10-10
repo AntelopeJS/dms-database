@@ -24,6 +24,14 @@ export class QueryHistoryModel extends BasicDataModel(
     }
   }
 
+  /** Forgets every run of one user. */
+  async clearForUser(userId: string): Promise<void> {
+    await this.table
+      .filter((d) => d.key("userId").eq(userId))
+      .delete()
+      .run();
+  }
+
   async listForUser(
     userId: string,
     limit: number,

@@ -21,26 +21,20 @@ export interface OverviewHealth {
    * interface-database; sourced from module config (`driverLabel`).
    */
   driver: string | null;
-  /**
-   * Connection pool usage ("used / total"). Not exposed by the
-   * interface-database abstraction, so always null for now.
-   */
-  pool: string | null;
-  /** Number of collections/tables across all registered schemas. */
-  collections: number;
+  /** When the probe ran, as an ISO date. */
+  checkedAt: string;
+  /** What the failed probe threw; null while the connection is up. */
+  error: string | null;
   /** Number of registered schemas. */
   schemaCount: number;
-  /** Total tables across all schemas (== collections). */
+  /** Total tables across all schemas. */
   tableCount: number;
+  /** Total declared relations across all tables. */
+  relationCount: number;
   /** Total declared indexes across all tables. */
   indexCount: number;
   /** Total rows across all tables. */
   totalRows: number;
-  /**
-   * Total stored bytes. Not available through interface-database, so always
-   * null; the UI labels row counts as the storage proxy instead.
-   */
-  sizeBytes: number | null;
   /** Per-table storage proxy (row counts), sorted descending. */
   storage: StorageEntry[];
 }
@@ -48,10 +42,12 @@ export interface OverviewHealth {
 interface ConnectionProbe {
   status: ConnectionStatus;
   latencyMs: number | null;
+  error: string | null;
 }
 
 interface StorageAggregate {
   tableCount: number;
+  relationCount: number;
   indexCount: number;
   totalRows: number;
   storage: StorageEntry[];
@@ -63,13 +59,17 @@ async function probeConnection(): Promise<ConnectionProbe> {
   const registry = getRegistry();
   const schemaIds = Array.from(registry.keys());
   const probeSchema = schemaIds[0] ? registry.get(schemaIds[0]) : undefined;
-  if (!probeSchema) return { status: "ok", latencyMs: null };
+  if (!probeSchema) return { status: "ok", latencyMs: null, error: null };
   const startedAt = Date.now();
   try {
     await probeSchema.listInstances().run();
-    return { status: "ok", latencyMs: Date.now() - startedAt };
-  } catch {
-    return { status: "down", latencyMs: null };
+    return { status: "ok", latencyMs: Date.now() - startedAt, error: null };
+  } catch (error) {
+    return {
+      status: "down",
+      latencyMs: null,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 
@@ -80,6 +80,7 @@ async function aggregateStorage(
 ): Promise<StorageAggregate> {
   let tableCount = 0;
   let indexCount = 0;
+  let relationCount = 0;
   let totalRows = 0;
   const storage: StorageEntry[] = [];
 
@@ -94,40 +95,36 @@ async function aggregateStorage(
       const rows = counts[idx] ?? 0;
       totalRows += rows;
       indexCount += Object.keys(table.indexes ?? {}).length;
+      relationCount += table.relations.length;
       storage.push({ schema: summary.id, table: table.name, rows });
     });
   }
 
   storage.sort((a, b) => b.rows - a.rows);
-  return { tableCount, indexCount, totalRows, storage };
+  return { tableCount, relationCount, indexCount, totalRows, storage };
 }
 
 /**
  * Probes the database connection and aggregates overview statistics.
  *
  * Status/latency come from a lightweight probe (listing instances of the first
- * registered schema). Driver name and pool stats are not exposed by the
- * interface-database abstraction; byte-size storage is likewise unavailable, so
- * row counts stand in as the storage proxy. These limitations are surfaced
- * explicitly (null fields) rather than faked.
+ * registered schema). The driver name is not exposed by the interface-database
+ * abstraction and comes from the module config; byte-size storage is not
+ * available either, so row counts stand in for it.
  */
 export async function getOverviewHealth(): Promise<OverviewHealth> {
-  const { status, latencyMs } = await probeConnection();
+  const checkedAt = new Date().toISOString();
+  const { status, latencyMs, error } = await probeConnection();
   const summaries = await listSchemaSummaries();
-  const { tableCount, indexCount, totalRows, storage } =
-    await aggregateStorage(summaries);
+  const aggregate = await aggregateStorage(summaries);
 
   return {
     status,
     latencyMs,
     driver: getModuleConfig().driverLabel ?? null,
-    pool: null,
-    collections: tableCount,
+    checkedAt,
+    error,
     schemaCount: summaries.length,
-    tableCount,
-    indexCount,
-    totalRows,
-    sizeBytes: null,
-    storage,
+    ...aggregate,
   };
 }

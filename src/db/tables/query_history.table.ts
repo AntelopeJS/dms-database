@@ -35,4 +35,14 @@ export class QueryHistoryRow extends Table {
 
   @Field("number")
   declare rowCount: number;
+
+  /** Absent on rows stored before failed runs were recorded: read as "ok". */
+  @Field("string")
+  declare status?: "ok" | "error";
+
+  @Field("boolean")
+  declare mutation?: boolean;
+
+  @Field("string")
+  declare error?: string;
 }

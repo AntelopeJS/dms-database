@@ -1,5 +1,9 @@
 import { Logging } from "@antelopejs/interface-core/logging";
-import type { InstanceId, Schema } from "@antelopejs/interface-database";
+import {
+  CROSS_INSTANCE,
+  type InstanceId,
+  type Schema,
+} from "@antelopejs/interface-database";
 import {
   DatumStaticMetadata,
   getMetadata,
@@ -24,6 +28,7 @@ const STATS_TTL_MS = 30_000;
 const FIELDS_TTL_MS = 30_000;
 const FIELD_INFERENCE_SAMPLE_SIZE = 5;
 const UNKNOWN_DESCRIPTOR: FieldDescriptor = { kind: "unknown" };
+const NULL_DESCRIPTOR: FieldDescriptor = { kind: "null" };
 
 const warnedRelations = new Set<string>();
 
@@ -92,15 +97,139 @@ interface CachedFields {
 
 const fieldsCache = new Map<string, CachedFields>();
 
+// An array's element type, from its elements other than `null`: one kind
+// gives `kind[]`, several a union of them, none leaves it untyped (D-20).
+function inferArrayType(items: unknown[]): FieldDescriptor {
+  const members: FieldDescriptor[] = [];
+  for (const item of items) {
+    const type = inferFieldType(item);
+    if (!type) continue;
+    const key = JSON.stringify(type);
+    if (!members.some((member) => JSON.stringify(member) === key))
+      members.push(type);
+  }
+  if (members.length === 0) return { kind: "array" };
+  const [only] = members;
+  return {
+    kind: "array",
+    element: members.length === 1 && only ? only : { kind: "union", members },
+  };
+}
+
+type ArrayDescriptor = Extract<FieldDescriptor, { kind: "array" }>;
+
+/** The array in a descriptor, alone or as a member of a union with `null`. */
+function arrayOf(descriptor?: FieldDescriptor): ArrayDescriptor | undefined {
+  const members =
+    descriptor?.kind === "union" ? descriptor.members : [descriptor];
+  return members.find(
+    (member): member is ArrayDescriptor => member?.kind === "array",
+  );
+}
+
+// The type of a column seen in several rows: the first one, unless it is an
+// array of elements unknown so far (empty) that a later row tells.
+function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
+  const untyped = seen?.kind === "array" && !seen.element;
+  return untyped && arrayOf(next)?.element ? next : (seen ?? next);
+}
+
 function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
-  if (Array.isArray(value)) return { kind: "array" };
+  if (Array.isArray(value)) return inferArrayType(value);
   if (typeof value === "object") return { kind: "object", fields: {} };
   if (typeof value === "string") return { kind: "string" };
   if (typeof value === "number") return { kind: "number" };
   if (typeof value === "boolean") return { kind: "boolean" };
   return undefined;
+}
+
+async function sampleRows(
+  schema: Schema,
+  tableName: string,
+  instance?: string,
+): Promise<unknown[]> {
+  try {
+    return (await schema
+      .instance(instance)
+      .table(tableName as never)
+      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)) as unknown[];
+  } catch {
+    return [];
+  }
+}
+
+// The rows to infer a table's columns from: the default instance's, or, when
+// it holds none, the first named instance holding some. A schema whose data
+// lives in named instances (one per region, per tenant) otherwise shows only
+// its decorated columns.
+async function sampleAnyInstance(
+  schema: Schema,
+  tableName: string,
+): Promise<unknown[]> {
+  const rows = await sampleRows(schema, tableName);
+  if (rows.length > 0) return rows;
+  for (const instance of await listSchemaInstances(schema)) {
+    const named = await sampleRows(schema, tableName, instance);
+    if (named.length > 0) return named;
+  }
+  return [];
+}
+
+// The instance a row was read from, which the store adds to rows of named
+// instances: not a column of the table.
+const INSTANCE_TAG_FIELD = "_instance";
+
+interface ObservedField {
+  type?: FieldDescriptor;
+  nullable: boolean;
+}
+
+// Kinds that admit an empty value on their own.
+const NULLISH_KINDS = new Set<FieldDescriptor["kind"]>([
+  "null",
+  "undefined",
+  "any",
+  "unknown",
+]);
+
+function admitsNull(descriptor: FieldDescriptor): boolean {
+  if (NULLISH_KINDS.has(descriptor.kind)) return true;
+  return (
+    descriptor.kind === "union" &&
+    descriptor.members.some((member) => NULLISH_KINDS.has(member.kind))
+  );
+}
+
+/** The descriptor, or a union of it with `null` when it does not admit one. */
+function withNull(descriptor: FieldDescriptor): FieldDescriptor {
+  if (admitsNull(descriptor)) return descriptor;
+  if (descriptor.kind === "union")
+    return { kind: "union", members: [...descriptor.members, NULL_DESCRIPTOR] };
+  return { kind: "union", members: [descriptor, NULL_DESCRIPTOR] };
+}
+
+// A column holding `null` in some sampled rows is nullable: its type is a
+// union with `null`, and a column holding only `null` is typed `null`.
+function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
+  const observed = new Map<string, ObservedField>();
+  for (const row of rows) {
+    if (!row || typeof row !== "object") continue;
+    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+      if (key === INSTANCE_TAG_FIELD) continue;
+      const field = observed.get(key) ?? { nullable: false };
+      if (value === null) field.nullable = true;
+      else field.type = refineSampled(field.type, inferFieldType(value));
+      observed.set(key, field);
+    }
+  }
+  const inferred: Record<string, FieldDescriptor> = {};
+  for (const [key, { type, nullable }] of observed) {
+    if (type) inferred[key] = nullable ? withNull(type) : type;
+    else if (nullable) inferred[key] = NULL_DESCRIPTOR;
+  }
+  return inferred;
 }
 
 async function inferTableFields(
@@ -113,26 +242,7 @@ async function inferTableFields(
   const now = Date.now();
   if (cached && cached.expiresAt > now) return cached.value;
 
-  const inferred: Record<string, FieldDescriptor> = {};
-  try {
-    const sample = await schema
-      .instance()
-      .table(tableName as never)
-      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE);
-    for (const row of sample) {
-      if (!row || typeof row !== "object") continue;
-      for (const [key, value] of Object.entries(
-        row as Record<string, unknown>,
-      )) {
-        if (key in inferred) continue;
-        const type = inferFieldType(value);
-        if (type !== undefined) inferred[key] = type;
-      }
-    }
-  } catch {
-    // Inference is best-effort; fall back to empty on any failure.
-  }
-
+  const inferred = inferFromRows(await sampleAnyInstance(schema, tableName));
   fieldsCache.set(cacheKey, {
     value: inferred,
     expiresAt: now + FIELDS_TTL_MS,
@@ -226,16 +336,31 @@ async function summarizeTable(
     fromDefinition[name] = toFieldDescriptor(value);
   }
 
+  // A declared type says nothing of `null` (`string | null` reflects as
+  // Object): the sampled rows tell whether the column holds some.
+  // Nor of an array's elements (`string[]` reflects as Array): the sampled
+  // rows tell them too (D-20).
+  const withSampled = (name: string, descriptor: FieldDescriptor) => {
+    const seen = sampled[name];
+    const element = arrayOf(seen)?.element;
+    const typed: FieldDescriptor =
+      descriptor.kind === "array" && !descriptor.element && element
+        ? { kind: "array", element }
+        : descriptor;
+    return seen && admitsNull(seen) ? withNull(typed) : typed;
+  };
   const fields: Record<string, FieldDescriptor> = {};
   for (const name of declared.ordered) {
-    fields[name] =
+    fields[name] = withSampled(
+      name,
       fromDefinition[name] ??
-      declared.types[name] ??
-      sampled[name] ??
-      UNKNOWN_DESCRIPTOR;
+        declared.types[name] ??
+        sampled[name] ??
+        UNKNOWN_DESCRIPTOR,
+    );
   }
   for (const [name, descriptor] of Object.entries(fromDefinition)) {
-    if (!(name in fields)) fields[name] = descriptor;
+    if (!(name in fields)) fields[name] = withSampled(name, descriptor);
   }
   for (const [name, descriptor] of Object.entries(sampled)) {
     if (!(name in fields)) fields[name] = descriptor;
@@ -289,16 +414,24 @@ async function countTableRows(
   tableName: string,
   instance?: InstanceId,
 ): Promise<number> {
-  try {
-    const table = schema.instance(instance).table(tableName as never);
-    const total = await table.count();
-    return typeof total === "number" && Number.isFinite(total) ? total : 0;
-  } catch {
-    return 0;
-  }
+  const table = schema.instance(instance).table(tableName as never);
+  const total = await table.count();
+  return typeof total === "number" && Number.isFinite(total) ? total : 0;
 }
 
-async function listSchemaInstances(schema: Schema): Promise<string[]> {
+async function cachedCount(
+  key: string,
+  count: () => Promise<number>,
+): Promise<number> {
+  const cached = tableCountCache.get(key);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) return cached.value;
+  const value = await count();
+  tableCountCache.set(key, { value, expiresAt: now + STATS_TTL_MS });
+  return value;
+}
+
+export async function listSchemaInstances(schema: Schema): Promise<string[]> {
   try {
     const named = await schema.listInstances().run();
     if (!Array.isArray(named)) return [];
@@ -313,16 +446,23 @@ export async function getTableElementCount(
   tableName: string,
   instance?: InstanceId,
 ): Promise<number> {
-  const key = tableCountKey(schemaId, tableName, instance);
-  const cached = tableCountCache.get(key);
-  const now = Date.now();
-  if (cached && cached.expiresAt > now) return cached.value;
-
   const schema = getRegistry().get(schemaId);
   if (!schema) return 0;
-  const value = await countTableRows(schema, tableName, instance);
-  tableCountCache.set(key, { value, expiresAt: now + STATS_TTL_MS });
-  return value;
+  return cachedCount(tableCountKey(schemaId, tableName, instance), () =>
+    countTableRows(schema, tableName, instance).catch(() => 0),
+  );
+}
+
+/** Rows of a table in every instance at once: one cross-instance count. */
+export async function getTableTotalCount(
+  schemaId: string,
+  tableName: string,
+): Promise<number> {
+  const schema = getRegistry().get(schemaId);
+  if (!schema) return 0;
+  return cachedCount(tableCountKey(schemaId, tableName, CROSS_INSTANCE), () =>
+    countTableRows(schema, tableName, CROSS_INSTANCE).catch(() => 0),
+  );
 }
 
 interface SchemaInsights {

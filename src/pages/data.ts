@@ -1,6 +1,7 @@
-import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
+import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
+import { DATABASE_MODULE_ID, workSection } from "../module";
 
 @RegisterPage()
 export class DatabaseDataPage extends PageController(
@@ -9,13 +10,15 @@ export class DatabaseDataPage extends PageController(
     displayName: "$dms_database.data.title",
     description: "$dms_database.data.description",
     icon: "i-ph-rows",
-    module: "database",
-    order: 2,
+    module: DATABASE_MODULE_ID,
+    category: workSection,
+    order: 0,
   },
-  DefaultLayout({ fullWidth: true, fillHeight: true }),
+  DefaultLayout({ fillHeight: true }),
 ) {
-  static content = CustomComponent("DmsDatabaseData").meta({
-    name: "$dms_database.data.title",
+  static browser = CustomComponent("DmsDatabaseDataBrowser").meta({
+    name: "$dms_database.data.meta",
     icon: "i-ph-rows",
+    description: "$dms_database.data.meta_description",
   });
 }

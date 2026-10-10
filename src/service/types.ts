@@ -1,3 +1,4 @@
+import type { Tone } from "@antelopejs/interface-dms/base/types/tone";
 import type { FieldDescriptor } from "./fieldDescriptor";
 
 export type { FieldDescriptor };
@@ -34,14 +35,7 @@ export interface SchemaSummary {
   tables: TableSummary[];
 }
 
-export type SchemaLabelColor =
-  | "primary"
-  | "secondary"
-  | "success"
-  | "info"
-  | "warning"
-  | "error"
-  | "neutral";
+export type SchemaLabelColor = Tone;
 
 export interface SchemaLabel {
   text: string;
@@ -72,7 +66,13 @@ export interface SavedQuery {
   language: QueryLanguage;
   shared: boolean;
   createdAt: string;
+  updatedAt: string;
+  /** Who saved it, for the team's shared queries. */
+  ownerName?: string;
 }
+
+/** How a query run ended. */
+export type QueryRunStatus = "ok" | "error";
 
 export interface HistoryEntry {
   id: string;
@@ -83,10 +83,19 @@ export interface HistoryEntry {
   executedAt: string;
   durationMs: number;
   rowCount: number;
+  status: QueryRunStatus;
+  /** Whether the query wrote (insert, update, replace or delete). */
+  mutation: boolean;
+  /** What the failed run reported. */
+  error?: string;
 }
 
 export interface ExecuteResult {
   rows: Record<string, unknown>[];
+  /** Rows the query answered; above `rows.length` when they were cut. */
+  rowCount: number;
+  truncated: boolean;
+  mutation: boolean;
   executedAt: string;
   durationMs: number;
 }

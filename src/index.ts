@@ -1,24 +1,14 @@
 import "./db";
+import "./module";
 import path from "node:path";
 import { RegisterSchema } from "@antelopejs/interface-database-decorators";
-import {
-  AddFrontendModule,
-  RegisterModule,
-} from "@antelopejs/interface-dms/page";
+import { AddFrontendModule } from "@antelopejs/interface-dms/page";
 import {
   registerAutomationNodes,
   unregisterAutomationNodes,
 } from "./automation";
 import { type DmsDatabaseConfig, setModuleConfig } from "./config";
 import { SCHEMA_NAME } from "./types/constants";
-
-RegisterModule({
-  id: "database",
-  title: "$dms_database.title",
-  description: "$dms_database.description",
-  icon: "i-ph-database",
-  landingPage: "overview",
-});
 
 export type { DmsDatabaseConfig } from "./config";
 export * from "./pages";

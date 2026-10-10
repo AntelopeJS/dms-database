@@ -1,31 +1,30 @@
 <script setup lang="ts">
-import { Handle, Position } from "@vue-flow/core";
+import { Handle, Position } from '@vue-flow/core'
 
-interface StubNodeData {
-	targetSchema: string;
-	targetTable: string;
-}
+import type { StubNodeData } from '../build/diagram/graph'
 
-defineProps<{ data: StubNodeData }>();
-
-const route = useDmsRoute();
-const router = useDmsRouter();
-
-function jumpToSchema(schemaId: string) {
-	router.replace({ query: { ...route.query, schema: schemaId } });
-}
+// A table a relation points to that is not drawn: one of another schema, or
+// one the focus leaves out. The dashed chip opens it: in its own schema's
+// diagram, or here, out of the focus.
+defineProps<{ data: StubNodeData }>()
 </script>
 
 <template>
 	<button
 		type="button"
-		class="diagram-stub-node flex items-center gap-1 px-2 py-1 rounded border border-dashed border-default bg-elevated text-xs text-muted hover:text-highlighted hover:border-primary transition-colors opacity-70 relative"
-		@click="jumpToSchema(data.targetSchema)"
+		class="diagram-stub-node border-accented bg-muted text-muted hover:border-primary hover:text-highlighted relative flex h-7 items-center gap-1.5 rounded-sm border border-dashed px-2.5 font-mono text-[11.5px] transition-colors"
+		:title="
+			$t('dms_database.diagram.stub_title', {
+				schema: data.targetSchema,
+				table: data.targetTable,
+			})
+		"
+		@click="data.onOpenSchema(data.targetSchema, data.targetTable)"
 	>
 		<Handle id="stub::left::target" type="target" :position="Position.Left" />
 		<Handle id="stub::right::target" type="target" :position="Position.Right" />
-		<UIcon name="i-ph-arrow-right" />
-		<span class="font-mono">{{ data.targetSchema }}.{{ data.targetTable }}</span>
+		<UIcon name="i-ph-arrow-square-out" class="text-dimmed size-3.5" />
+		<span>{{ data.targetSchema }}.{{ data.targetTable }}</span>
 	</button>
 </template>
 

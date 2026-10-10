@@ -2,26 +2,23 @@ import { expect, it, vi } from 'vitest'
 import { readFileSync } from 'node:fs'
 import frontendModule from '../dms.frontend'
 
-const schemasPage = readFileSync(
-	new URL('../app/custom-pages/database/schemas.vue', import.meta.url),
-	'utf8',
-)
-const relationEdge = readFileSync(
-	new URL('../app/components/DiagramRelationEdge.vue', import.meta.url),
-	'utf8',
-)
+function source(path: string): string {
+	return readFileSync(new URL(path, import.meta.url), 'utf8')
+}
 
 it('uses the DMS client-only wrapper for the Vue Flow schema diagram', () => {
-	expect(schemasPage).toContain('<DmsClientOnly>')
-	expect(schemasPage).not.toContain('<ClientOnly>')
+	const diagram = source('../app/components/SchemaDiagram.vue')
+	expect(diagram).toContain('<DmsClientOnly')
+	expect(diagram).not.toContain('<ClientOnly>')
 })
 
 it('does not route relation labels through Vue Flow EdgeText measurement', () => {
-	expect(relationEdge).toContain(':label="undefined"')
-	expect(relationEdge).toContain('<text')
+	const edge = source('../app/components/DiagramRelationEdge.vue')
+	expect(edge).toContain(':label="undefined"')
+	expect(edge).toContain('<text')
 })
 
-it('preserves all database page keys, component aliases and preloaders', async () => {
+it('registers every component under the module prefix the backend names', async () => {
 	const registerComponent = vi.fn()
 	const registerPage = vi.fn()
 	await frontendModule.setup({
@@ -36,18 +33,32 @@ it('preserves all database page keys, component aliases and preloaders', async (
 		provide: vi.fn(),
 		use: vi.fn(),
 	})
-	expect(registerPage.mock.calls.map(([name]) => name)).toEqual([
-		'database/data',
-		'database/overview',
-		'database/query',
-		'database/schemas',
-	])
-	for (const [name, component, preload] of registerPage.mock.calls) {
-		const alias = `DmsDatabase${name.split('/')[1].replace(/^./, (character: string) => character.toUpperCase())}`
-		expect(registerComponent).toHaveBeenCalledWith(alias, component)
-		expect(preload).toBeTypeOf('function')
-	}
+	expect(frontendModule.componentPrefix).toBe('DmsDatabase')
+	expect(registerPage).not.toHaveBeenCalled()
 	const names = registerComponent.mock.calls.map(([name]) => name)
-	expect(names).toContain('DmsDatabaseDataGrid')
+	// The names the backend pages send, without the prefix the SDK adds.
+	for (const name of [
+		'ConnectionStatus',
+		'TableInspector',
+		'SchemaDiagram',
+		'DataBrowser',
+		'QueryConsole',
+	]) {
+		expect(names).toContain(name)
+	}
+	expect(names.every((name) => !name.startsWith('Dms'))).toBe(true)
 	expect(new Set(names).size).toBe(names.length)
+})
+
+it('names every custom component the backend pages render', () => {
+	const backend = ['overview', 'schemas', 'diagram', 'data', 'query']
+		.map((page) => source(`../../src/pages/${page}.ts`))
+		.join('\n')
+	const named = [
+		...backend.matchAll(/CustomComponent\("DmsDatabase(\w+)"\)/g),
+	].map(([, name]) => name)
+	expect(named.length).toBeGreaterThan(0)
+	for (const name of named) {
+		expect(() => source(`../app/components/${name}.vue`)).not.toThrow()
+	}
 })

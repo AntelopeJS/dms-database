@@ -77,18 +77,6 @@ export function applyFilterToList<T>(
   );
 }
 
-export function applySearchToList<T>(
-  rows: T[],
-  field: keyof T,
-  search: unknown,
-): T[] {
-  const needle = asNonEmptyString(search)?.toLowerCase();
-  if (!needle) return rows;
-  return rows.filter((row) =>
-    cellToText(row[field]).toLowerCase().includes(needle),
-  );
-}
-
 // Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
 // which sorts every object cell as equal; the JSON form keeps the content.
 export function cellToText(value: unknown): string {
@@ -113,24 +101,6 @@ export function cellToText(value: unknown): string {
     // schemaless and says so -- which makes even this throw.
     return "";
   }
-}
-
-function compareValues(a: unknown, b: unknown): number {
-  if (typeof a === "number" && typeof b === "number") return a - b;
-  return cellToText(a).localeCompare(cellToText(b));
-}
-
-export function applySortToList<T>(
-  rows: T[],
-  sortKey: unknown,
-  sortDirection: unknown,
-): T[] {
-  const key = asNonEmptyString(sortKey);
-  if (!key) return rows;
-  const direction = asNonEmptyString(sortDirection) === "desc" ? -1 : 1;
-  return [...rows].sort(
-    (a, b) => compareValues(a[key as keyof T], b[key as keyof T]) * direction,
-  );
 }
 
 const SORT_DIRECTION_DESC = "desc";

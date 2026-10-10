@@ -1,239 +1,572 @@
 {
 	"dms_database": {
 		"title": "Database",
-		"description": "Inspect schemas, browse data, view the schema diagram, and check connection configuration.",
+		"description": "Inspect schemas and tables, browse and fix rows, map relations and run queries.",
 		"overview": {
 			"title": "Overview",
-			"description": "Connection health, storage and recent activity across your database.",
+			"description": "Connection health, schemas and recent activity of the database.",
 			"beta": {
-				"title": "This module is in beta",
-				"body": "Today the database console is read-only — it lets you explore schemas, browse table data and run queries. In an upcoming release you'll be able to **edit tables directly**, change their structure, **add or rename columns and adjust their types**, **create and manage indexes**, define relations and constraints — all **without writing a single migration**. Antelope is actively building this; it ships alongside the **Module Builder**, the upcoming way to configure the whole platform without writing code."
+				"title": "Beta",
+				"body": "Saved edits in the data browser are written straight to the database. Structure editing (columns, indexes, relations) comes with the Module Builder.",
+				"meta": "Beta notice",
+				"meta_description": "The one-line notice about writes and what is coming."
 			},
 			"actions": {
-				"schema": "Schema",
-				"openData": "Open Data Browser"
-			},
-			"health": {
-				"connection": "Connection",
-				"healthy": "Healthy",
-				"down": "Unavailable",
-				"driver": "Driver",
-				"latency": "Latency",
-				"pool": "Pool",
-				"collections": "Collections"
-			},
-			"kpis": {
-				"schemas": "Schemas",
-				"tables": "Tables",
-				"rows": "Total rows",
-				"indexes": "Indexes",
-				"size": "Stored elements"
-			},
-			"storage": {
-				"title": "Storage by table",
-				"subtitle": "Top tables by row count",
-				"viewSchema": "View schema",
-				"rowsUnit": "rows",
-				"empty": "No tables to display."
+				"query": "Open query console",
+				"browse": "Browse data"
 			},
 			"recent": {
 				"title": "Recent queries",
-				"console": "Query Console",
-				"rowsUnit": "rows",
-				"justNow": "just now",
-				"empty": "No recent queries yet."
+				"console": "Query console",
+				"duration": "{duration} ms",
+				"rows": "{count} rows",
+				"changed": "{count} changed",
+				"failed": "Failed",
+				"empty_title": "No query run yet",
+				"empty_description": "Queries you run in the query console show up here."
 			},
-			"tables": {
-				"title": "Tables",
-				"subtitle": "All collections in the active schema",
-				"empty": "No tables match the current filter.",
-				"cols": {
-					"table": "Table",
-					"rows": "Rows",
-					"columns": "Columns",
-					"indexes": "Indexes"
-				}
-			}
+			"connection": {
+				"meta": "Connection status",
+				"meta_description": "Whether the database answers, its probe latency and what it holds.",
+				"label": "Connection",
+				"healthy": "Healthy",
+				"down": "Unavailable",
+				"checked_seconds": "checked {count} s ago",
+				"checked_minutes": "checked {count} min ago",
+				"latency": "Probe latency",
+				"latency_sub": "last probe",
+				"tables": "Tables",
+				"tables_sub": "in {count} schema | in {count} schemas",
+				"rows": "Rows",
+				"rows_sub": "in the default instances",
+				"indexes": "Indexes",
+				"indexes_sub": "declared in code",
+				"last_error": "Last error",
+				"no_answer": "No answer",
+				"next_probe": "Next probe",
+				"next_probe_sub": "while this page is open",
+				"retry": "Check again"
+			},
+			"schemas": {
+				"title": "Schemas",
+				"description": "Registered by modules. Open one to see its tables.",
+				"card": {
+					"instances": "{count} instance | {count} instances",
+					"tables": "{count} table | {count} tables",
+					"rows": "{count} row | {count} rows",
+					"relations": "{count} relation | {count} relations",
+					"contents": "{tables} · {rows}"
+				},
+				"cards_meta": "Schema cards",
+				"empty_title": "No schema registered yet",
+				"empty_description": "Schemas appear here when a module declares tables with {'@'}RegisterTable. The connection itself is healthy."
+			},
+			"largest": {
+				"title": "Largest tables",
+				"description": "Rows per table, default instance",
+				"empty": "No table holds rows yet."
+			},
+			"activity_meta": "Tables and queries"
 		},
 		"schemas": {
 			"title": "Schemas",
-			"description": "Explore tables as a list or a visual map. Click a table to inspect its columns, indexes and relations.",
-			"tableCount": "{count} table | {count} tables",
-			"collections": "{count} collection | {count} collections",
-			"selectSchema": "Schema selection",
-			"searchSchemaPlaceholder": "Search a schema…",
-			"open": "Open",
-			"view": {
-				"list": "List",
-				"diagram": "Diagram"
-			},
+			"description": "Every table registered by your modules, its rows counted across all instances. Open one to inspect its columns, indexes and relations.",
 			"cols": {
-				"relations": "Relations"
-			},
-			"inspector": {
+				"relations": "Relations",
+				"table": "Table",
+				"schema": "Schema",
+				"rows": "Rows",
 				"columns": "Columns",
 				"indexes": "Indexes",
-				"preview": "Preview",
-				"close": "Close",
-				"colName": "Column",
-				"colType": "Type",
-				"colNullable": "Nullable",
-				"yes": "Yes",
-				"no": "No",
-				"multi": "multi",
-				"single": "single",
-				"noIndexes": "No indexes defined.",
-				"previewError": "Could not load a sample document.",
-				"previewEmpty": "This table has no rows to preview.",
-				"healthy": "Healthy"
+				"modifiers": "Modifiers"
 			},
-			"stats": {
-				"tables": "Tables",
-				"elements": "Elements",
-				"instances": "Instances"
+			"inspector": {
+				"title": "Table",
+				"meta": "Table inspector",
+				"meta_description": "Columns, indexes, relations and a sample row of one table.",
+				"not_found": "Table not found"
 			},
-			"menu": {
-				"browseData": "Browse data",
-				"viewInDiagram": "View in diagram",
-				"copyId": "Copy schema ID",
-				"rename": "Rename",
-				"duplicate": "Duplicate",
-				"export": "Export",
-				"delete": "Delete",
-				"comingSoon": "Coming soon",
-				"copied": "Schema ID copied"
+			"caption": "Tables",
+			"table_meta_description": "Every registered table, by schema, with its inspector.",
+			"search": "Find a table or column",
+			"footer_hint": "J / K step through tables in the inspector",
+			"actions": {
+				"inspect": "Inspect",
+				"browse": "Browse data",
+				"query": "Query this table",
+				"diagram": "Show in diagram"
 			},
-			"browseData": "Browse data",
-			"viewDefinition": "View definition",
-			"columns": {
-				"name": "Name",
-				"elementCount": "Elements",
-				"columnCount": "Columns",
-				"indexCount": "Indexes"
+			"empty": {
+				"first_title": "No table registered yet",
+				"first_description": "Tables appear here when a module declares them with {'@'}RegisterTable.",
+				"no_result_title": "No result",
+				"no_result_description": "No table matches these filters.",
+				"clear_filters": "Clear filters"
+			},
+			"filters": {
+				"meta": "Filter bar",
+				"meta_description": "Narrows the tables by schema, instance, name and structure.",
+				"label": "Filter the tables",
+				"has": {
+					"relations": "With relations",
+					"modifiers": "With modifiers",
+					"empty": "Empty"
+				},
+				"has_hint": {
+					"relations": "Tables pointing to another table",
+					"modifiers": "Tables with hashed, localized or encrypted columns",
+					"empty": "Tables with no row in the picked instance"
+				},
+				"count": "{shown} of {total} tables",
+				"clear": "Clear"
 			}
 		},
 		"data": {
-			"title": "Data Browser",
-			"description": "Browse rows from a selected schema, instance, and table.",
-			"instanceDefault": "Default",
-			"instanceCross": "All instances (read-only)",
-			"schema": "Schema",
-			"openInQuery": "Open in Query Console",
-			"findTable": "Find a table…",
-			"colCount": "{count} column | {count} columns",
-			"crossInstanceNotice": "Reading across every instance of this schema. Writes are disabled.",
-			"noColumns": "No columns to display for this table.",
-			"pickPrompt": "Pick a schema and a table to browse its rows.",
-			"searchPlaceholder": "Search rows…",
-			"refresh": "Refresh",
-			"readOnly": "Read-only",
-			"filtersActive": "{count} filter active | {count} filters active",
-			"filterModeIs": "is exactly",
-			"filterModeContains": "contains",
-			"filterApply": "Apply",
-			"filterClear": "Clear",
-			"filterTitle": "Filter {column}",
-			"rowsTotal": "{count} row | {count} rows",
-			"noRows": "No rows match the current view.",
-			"prevPage": "Previous page",
-			"nextPage": "Next page",
-			"editError": "Failed to save the cell",
-			"rowVanished": "This row no longer exists — the view was refreshed.",
-			"jsonPanelTitle": "Edit {column}",
-			"jsonInvalid": "Invalid JSON",
-			"jsonNotStructured": "The value must be a JSON object or array.",
-			"save": "Save",
-			"cancel": "Cancel",
-			"closeTab": "Close tab",
-			"keepTab": "Keep tab open",
-			"previewTab": "{name} (preview tab)"
+			"title": "Data browser",
+			"description": "Browse and fix rows. Edits are staged and written only when you save them.",
+			"meta": "Data browser",
+			"meta_description": "Tables, rows and staged edits of one schema instance.",
+			"scope": {
+				"schema": "Schema",
+				"instance": "Instance",
+				"search": "Search",
+				"default": "default",
+				"all": "all",
+				"find_table": "Find a table",
+				"tables": "Tables · {count}",
+				"rows": "Rows",
+				"open_tab": "Open in a tab",
+				"open_hint": "Click to preview, double-click to keep the tab",
+				"no_table": "No table matches.",
+				"counts_for": "Counts for instance {instance}",
+				"counts_failed": "Row counts couldn't be loaded.",
+				"loading_schemas": "Loading schemas…",
+				"schemas_failed": "Couldn't load the schemas"
+			},
+			"tabs": {
+				"close": "Close tab",
+				"keep": "Keep tab",
+				"keep_hint": "Preview tab: the next table you open replaces it. Keep it open.",
+				"preview": "{name} (preview tab)",
+				"hint": "{italic} = preview tab · double-click to keep",
+				"italic": "Italic",
+				"unsaved": "{count} unsaved change | {count} unsaved changes",
+				"close_title": "Close {table} with unsaved changes?",
+				"close_description": "Its staged change will be lost. | Its {count} staged changes will be lost.",
+				"close_discard": "Discard and close",
+				"close_keep": "Keep editing"
+			},
+			"grid": {
+				"rows": "{count} row | {count} rows",
+				"search": "Search rows",
+				"refresh": "Refresh (R)",
+				"open_query": "Open in query console",
+				"open_row": "Open row (Space)",
+				"sort_hint": "Sort by this column",
+				"read_only": "Read-only.",
+				"read_only_detail": "You're reading {table} across every instance. Pick one instance to edit.",
+				"switch_to": "Switch to {instance}",
+				"page_size": "Rows per page",
+				"pagination": "Pagination",
+				"previous_page": "Previous page",
+				"next_page": "Next page",
+				"kbd_edit": "edit",
+				"kbd_cancel": "cancel",
+				"kbd_open": "open row",
+				"kbd_save": "review and save",
+				"staged_title": "Unsaved · was {before}",
+				"invalid_number": "Expected a number, e.g. 860.50 · Esc to cancel",
+				"invalid_boolean": "Expected true or false · Esc to cancel",
+				"invalid_date": "Expected a date, e.g. 2026-10-09 or 2026-10-09T14:30Z · Esc to cancel",
+				"edit_cell": "Value of {column}",
+				"null_hint": "Type null to empty the cell, \\null for the text null",
+				"empty_text": "Empty text"
+			},
+			"filters": {
+				"add": "Add filter",
+				"apply": "Apply",
+				"remove": "Remove filter",
+				"clear_all": "Clear all",
+				"value": "Value",
+				"contains": "contains",
+				"is": "is exactly",
+				"column_title": "Filter {column}",
+				"remove_chip": "Remove the filter on {column}"
+			},
+			"empty": {
+				"pick_title": "Pick a table to browse",
+				"pick_description": "Choose a table on the left, or start from one you opened lately.",
+				"pick_description_first": "Choose a table on the left to see its rows.",
+				"recent": "Recently opened",
+				"error_title": "Couldn't load {table}",
+				"error_description": "Your filters and unsaved changes are kept.",
+				"check_connection": "Check connection",
+				"no_match_title": "No row matches",
+				"no_match_description": "Searched {count} rows in {table}. The row may live in another instance.",
+				"clear_filters": "Clear filters",
+				"search_all": "Search all instances",
+				"no_rows_title": "{table} has no row yet",
+				"no_rows_description": "Rows written by your modules show up here."
+			},
+			"save": {
+				"review": "Review and save {count} change | Review and save {count} changes",
+				"title": "Save {count} change to {table}? | Save {count} changes to {table}?",
+				"description": "It is written to {scope}. | They are written to {scope}.",
+				"confirm": "Save {count} change | Save {count} changes",
+				"keep_editing": "Keep editing",
+				"saved": "{count} change saved to {scope} | {count} changes saved to {scope}",
+				"undo": "Undo",
+				"undone": "{count} change undone | {count} changes undone",
+				"undo_failed": "Couldn't undo the changes",
+				"partial_title": "{saved} of {total} change saved | {saved} of {total} changes saved",
+				"rows_gone": "{count} row no longer exists: its changes were dropped. | {count} rows no longer exist: their changes were dropped.",
+				"not_written": "{count} change wasn't written and stays staged ({error}). | {count} changes weren't written and stay staged ({error}).",
+				"undo_partial": "{count} change couldn't be undone | {count} changes couldn't be undone",
+				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist."
+			},
+			"row": {
+				"title": "Row of {table}",
+				"eyebrow": "Row · {scope}",
+				"previous": "Previous row (K)",
+				"next": "Next row (J)",
+				"fields": "Fields",
+				"json": "JSON",
+				"references": "Referenced by",
+				"no_id": "Row without id",
+				"was": "was {value}",
+				"not_editable": "not editable",
+				"set_null": "Set to null",
+				"invalid_json": "Invalid JSON",
+				"open_relation": "Open {table}",
+				"references_failed": "Couldn't count the rows pointing here.",
+				"references_none": "No row of another table points to this one.",
+				"reference_count": "{count} row · {field} | {count} rows · {field}",
+				"no_change": "No unsaved change"
+			},
+			"json": {
+				"title": "Edit {column}",
+				"invalid": "Invalid JSON",
+				"not_structured": "The value must be a JSON object, an array or null.",
+				"apply": "Apply"
+			}
 		},
 		"diagram": {
 			"title": "Diagram",
-			"description": "Visualization of registered schemas and their tables.",
-			"recomputeLayout": "Recompute layout",
-			"tooManyTables": "Showing {shown} of {total} tables. Use the schema filter to narrow down.",
+			"description": "Tables and relations of a schema. Drag tables to arrange them; the layout is saved for the whole team.",
 			"toolbar": {
-				"autoLayout": "Auto layout",
-				"help": "Help",
-				"helpText": "Automatically rearranges the schema tables with a hierarchical layout (dagre) and refits the view.",
 				"undo": "Undo",
 				"redo": "Redo",
-				"cancel": "Cancel",
-				"apply": "Apply",
-				"pointer": "Select",
-				"hand": "Pan",
-				"zoomIn": "Zoom in",
-				"zoomOut": "Zoom out",
-				"resetZoom": "Reset zoom",
-				"fitView": "Fit view",
-				"notes": "Note"
+				"auto_layout": "Auto layout",
+				"auto_layout_hint": "Rearrange every table; you preview it before keeping it",
+				"select": "Select",
+				"pan": "Pan",
+				"zoom_out": "Zoom out",
+				"zoom_in": "Zoom in",
+				"reset_zoom": "Reset zoom",
+				"fit": "Fit view",
+				"note": "Note",
+				"note_hint": "Add a note"
 			},
 			"notes": {
-				"placeholder": "Double-click to edit",
-				"delete": "Delete note"
+				"placeholder": "Double-click to write",
+				"delete": "Delete note",
+				"label": "Note"
 			},
-			"unsavedConfirm": "You have unsaved diagram changes. Leave anyway?"
+			"meta": "Schema diagram",
+			"meta_description": "The tables of a schema and their relations, with notes.",
+			"actions": {
+				"list": "List"
+			},
+			"schema": "Schema",
+			"search": "Find a table or column",
+			"search_empty": "No table or column",
+			"stub_title": "Open {schema}.{table}",
+			"not_found": {
+				"schema": "Schema {schema} not found",
+				"table": "Table {table} not found in {schema}"
+			},
+			"large": "{count} tables: select one and focus on it to read its relations.",
+			"save": {
+				"idle": "Layout saved",
+				"saving": "Saving…",
+				"error": "Couldn't save the layout",
+				"error_other": "Couldn't save the {schema} diagram",
+				"just_now": "Layout saved · just now",
+				"minutes": "Layout saved · {count} min ago"
+			},
+			"preview": {
+				"title": "Previewing auto layout.",
+				"moved": "{count} table moved. | {count} tables moved.",
+				"discard": "Discard",
+				"keep": "Keep layout"
+			},
+			"selection": {
+				"inspect": "Inspect",
+				"focus": "Focus",
+				"show_all": "Show all tables"
+			},
+			"legend": {
+				"key": "Primary key",
+				"relation": "Relation",
+				"object": "Object"
+			},
+			"empty": {
+				"no_schema": "No schema registered yet",
+				"title": "No tables in {schema}",
+				"description": "This schema is registered but declares no table yet."
+			}
 		},
 		"query": {
-			"title": "Query Console",
-			"description": "Write, run and save queries against your database with live results.",
-			"builder": "Query builder",
-			"result": "Result",
-			"favorites": "Saved",
-			"history": "Last requests",
-			"format": "Format",
-			"save": "Save",
-			"saveAsFavorite": "Save as favorite",
-			"hint": "JavaScript query builder",
-			"builderHintLabel": "Builder",
-			"backToData": "Back to Data Browser",
-			"clear": "Clear",
-			"clearHistory": "Clear",
-			"execute": "Run",
-			"table": "Table",
-			"json": "JSON",
-			"chart": "Chart",
-			"chartUnavailable": "No numeric column to plot.",
-			"emptyResult": "Run a query to see the results",
-			"emptyFavorites": "No saved queries yet.",
-			"emptyHistory": "No history yet.",
-			"language": "Language",
-			"scopeMe": "Mine",
-			"scopeShared": "Team",
-			"sharedBadge": "Shared with team",
-			"previous": "Previous",
-			"next": "Next",
-			"rowCount": "{count} row | {count} rows",
-			"runtime": "{ms} ms",
-			"saveModal": {
-				"title": "Save query",
-				"name": "Name",
-				"namePlaceholder": "Untitled query",
-				"description": "Description",
-				"descriptionPlaceholder": "Optional notes about this query",
-				"share": "Share with team",
-				"shareDescription": "Team members will see this query under the Team tab.",
-				"save": "Save",
-				"cancel": "Cancel"
+			"title": "Query console",
+			"description": "Write and run AQL against any schema. Queries that change data always show what they will touch first.",
+			"meta": "Query console",
+			"meta_description": "The editor, its results and the library of past and saved queries.",
+			"actions": {
+				"data": "Data browser"
 			},
-			"editModal": {
-				"title": "Edit query",
-				"query": "Query"
-			},
-			"itemMenu": {
-				"load": "Load in editor",
+			"library": {
+				"history": "History",
+				"saved": "Saved",
+				"team": "Team",
+				"search": "Search queries",
+				"today": "Today",
+				"yesterday": "Yesterday",
+				"failed": "Failed",
+				"rows": "{count} row | {count} rows",
+				"changed": "{count} changed",
+				"save": "Save query",
 				"edit": "Edit",
-				"delete": "Delete"
+				"delete": "Delete",
+				"shared": "Shared",
+				"no_match": "No query matches.",
+				"history_empty": "Queries you run show up here.",
+				"saved_empty": "Queries you save show up here.",
+				"team_empty": "Queries your teammates share show up here.",
+				"history_kept": "Your last {count} runs are kept.",
+				"clear": "Clear history"
 			},
-			"errorTitle": "Query failed",
-			"mutationModal": {
-				"title": "Run mutating query?",
-				"body": "This query will modify data (insert, update, replace or delete). Are you sure you want to run it?",
-				"dontRemind": "Don't ask me again",
-				"confirm": "Run query",
-				"cancel": "Cancel"
+			"editor": {
+				"untitled": "Untitled query",
+				"shared": "Shared with team",
+				"edited": "edited",
+				"new": "New",
+				"new_hint": "Start an empty query",
+				"format": "Format",
+				"save": "Save",
+				"run": "Run",
+				"insert": "Insert",
+				"complete": "complete",
+				"position": "AQL · Ln {line}, Col {column}",
+				"aria_label": "Query editor (AQL)"
+			},
+			"result": {
+				"title": "Result",
+				"table": "Table",
+				"json": "JSON",
+				"chart": "Chart",
+				"rows": "{count} row | {count} rows",
+				"changed": "{count} changed",
+				"read_only": "read-only",
+				"wrote": "changed data",
+				"copy": "Copy as JSON",
+				"copied": "{count} row copied as JSON | {count} rows copied as JSON",
+				"export": "Export CSV",
+				"open_row": "Open in data browser",
+				"open_table": "Open {target} in data browser",
+				"failed_title": "Query failed",
+				"failed_detail": "after {ms} ms · nothing was changed",
+				"replace": "Replace with “{table}”",
+				"see_tables": "See {schema} tables",
+				"first_title": "Run a query to see results",
+				"first_description": "Start from an example built on your own tables:",
+				"example_latest": "Latest 10 rows of {table}",
+				"example_count": "Count {table}",
+				"no_rows": "The query answered no row.",
+				"elsewhere_title": "No rows in the default instance.",
+				"elsewhere_description": "This table has rows in other instances:",
+				"done": "Done. The query answered no row.",
+				"bars": "Bars",
+				"x_axis": "X axis",
+				"y_axis": "Y axis",
+				"chart_first": "First {count} of {total}",
+				"chart_unavailable": "No numeric column to plot.",
+				"all_shown": "{count} row shown. | All {count} rows shown. Results over 1,000 rows are cut; add .slice() to page through them.",
+				"truncated": "Showing {shown} of {total} rows: results are cut at 1,000. Add .slice() to page through them.",
+				"table_first": "The table shows the first {shown} of {total} rows; JSON and the CSV export hold them all.",
+				"running": "Running…",
+				"failed_local": "The query was not sent · nothing was changed",
+				"example_first": "First 10 rows of {table}"
+			},
+			"guard": {
+				"description": "This query changes data. A dry run found what it will touch:",
+				"operation": "Operation",
+				"target": "Target",
+				"rows": "Rows",
+				"title_insert": "Insert {count} row into {table}? | Insert {count} rows into {table}?",
+				"title_update": "Update {count} row in {table}? | Update {count} rows in {table}?",
+				"title_replace": "Replace {count} row in {table}? | Replace {count} rows in {table}?",
+				"title_delete": "Delete {count} row from {table}? | Delete {count} rows from {table}?",
+				"title_unknown": "Run a query that changes {table}?",
+				"confirm_insert": "Insert {count} row | Insert {count} rows",
+				"confirm_update": "Update {count} row | Update {count} rows",
+				"confirm_replace": "Replace {count} row | Replace {count} rows",
+				"confirm_delete": "Delete {count} row | Delete {count} rows",
+				"confirm_unknown": "Run query",
+				"skip": "Don't ask again for single-row updates",
+				"skip_detail": "Until you close this browser tab. Deletes and changes to more than one row always ask.",
+				"op_insert": "insert",
+				"op_update": "update",
+				"op_replace": "replace",
+				"op_delete": "delete"
+			},
+			"save": {
+				"title": "Save query",
+				"edit_title": "Edit saved query",
+				"description": "Saved queries appear under Saved, and under Team when shared.",
+				"name": "Name",
+				"name_placeholder": "Pending EU orders",
+				"notes": "Description",
+				"name_required": "Give the query a name",
+				"share": "Share with team",
+				"share_description": "Teammates can run it; only you can edit or delete it.",
+				"confirm": "Save query",
+				"failed": "Couldn't save the query",
+				"saved": "“{name}” saved"
+			},
+			"delete": {
+				"title": "Delete “{name}”?",
+				"shared": "Teammates lose it from their Team tab too.",
+				"confirm": "Delete query"
+			},
+			"clear": {
+				"title": "Clear your query history?",
+				"description": "Your past runs are removed. Saved queries stay.",
+				"confirm": "Clear history"
+			},
+			"errors": {
+				"syntax": "Syntax error: {detail}. Check parentheses, quotes and commas.",
+				"syntax_at": "Syntax error at line {line}, column {column}. Check parentheses, quotes and commas.",
+				"unknown_schema": "Unknown schema “{schema}”."
 			}
+		},
+		"catalog_category": "Data",
+		"nav": {
+			"explore": "Explore",
+			"work": "Work with data"
+		},
+		"common": {
+			"retry": "Try again",
+			"cancel": "Cancel",
+			"clear": "Clear"
+		},
+		"pickers": {
+			"schema": {
+				"label": "Schema",
+				"all": "All schemas",
+				"find": "Find a schema",
+				"more": "First {shown} of {total}",
+				"no_match": "No schema matches",
+				"placeholder": "Pick a schema"
+			},
+			"instance": {
+				"label": "Instance",
+				"all": "All instances",
+				"read_only": "Read-only view",
+				"default": "default",
+				"find": "Find an instance",
+				"more": "First {shown} of {total}",
+				"no_match": "No instance matches",
+				"no_named": "No named instance",
+				"pick_schema": "Pick a schema to list its named instances",
+				"loading": "Loading instances…",
+				"failed": "The instances could not be loaded"
+			}
+		},
+		"modifiers": {
+			"hashed": "Hashed",
+			"localized": "Localized",
+			"encrypted": "Encrypted"
+		},
+		"inspector": {
+			"load_error": "Couldn't load the schemas of this table.",
+			"eyebrow": "Schema · {schema}",
+			"previous": "Previous table (K)",
+			"next": "Next table (J)",
+			"instances": "{count} instance | {count} instances",
+			"copy_name": "Copy table name",
+			"copied": "{name} copied",
+			"primary_key": "primary key",
+			"facts": {
+				"rows": "{count} row | {count} rows",
+				"columns": "{count} column | {count} columns",
+				"indexes": "{count} index | {count} indexes",
+				"relations": "{count} relation | {count} relations",
+				"by_instance": "Browse by instance in the data browser"
+			},
+			"actions": {
+				"browse": "Browse data",
+				"query": "Query this table",
+				"diagram": "Show in diagram"
+			},
+			"tabs": {
+				"columns": "Columns",
+				"indexes": "Indexes",
+				"relations": "Relations",
+				"sample": "Sample row"
+			},
+			"cols": {
+				"column": "Column",
+				"type": "Type",
+				"null": "Null",
+				"notes": "Notes"
+			},
+			"index": {
+				"compound": "compound",
+				"single": "single",
+				"empty": "No index declared on this table."
+			},
+			"relations": {
+				"out": "References · {count}",
+				"in": "Referenced by · {count}",
+				"none_out": "This table points to no other table.",
+				"none_in": "No table points to this one."
+			},
+			"sample": {
+				"position": "Row {position} of {total} · {instance}",
+				"default_instance": "default instance",
+				"named_instance": "instance {name}",
+				"another": "Another row",
+				"error": "Couldn't load a row of this table.",
+				"empty": "This table has no row yet."
+			}
+		},
+		"shortcuts": {
+			"data_browser": "Database · data browser",
+			"diagram": "Database · diagram",
+			"query_console": "Database · query console",
+			"schemas": "Database · schemas",
+			"next_table": "Next table, in the table inspector",
+			"previous_table": "Previous table, in the table inspector",
+			"find_table_or_column": "Find a table or column",
+			"find_table": "Find a table",
+			"search_rows": "Search the rows",
+			"refresh": "Refresh the rows",
+			"edit_cell": "Edit the focused cell",
+			"open_row": "Open the focused row",
+			"next_row": "Next row, in the row drawer",
+			"previous_row": "Previous row, in the row drawer",
+			"review_save": "Review and save the staged changes",
+			"add_note": "Add a note",
+			"select": "Select tool",
+			"pan": "Pan tool",
+			"fit": "Fit the view",
+			"reset_zoom": "Zoom to 100 %",
+			"undo": "Undo",
+			"redo": "Redo",
+			"step_back": "Step back: the layout preview, the focus, then the selection",
+			"run": "Run the query",
+			"save": "Save the query",
+			"complete": "Complete the query"
 		}
 	}
 }

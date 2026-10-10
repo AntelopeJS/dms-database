@@ -1,1161 +1,1126 @@
 <script setup lang="ts">
-import {
-	MarkerType,
-	type NodeDragEvent,
-	type NodeMouseEvent,
-	type VueFlowStore,
-} from "@vue-flow/core";
-import dagre from "@dagrejs/dagre";
-import type { ShallowUnwrapRef } from "vue";
-import DiagramNoteNode from "./DiagramNoteNode.vue";
-import DiagramRelationEdge from "./DiagramRelationEdge.vue";
-import DiagramStubNode from "./DiagramStubNode.vue";
-import DiagramTableNode from "./DiagramTableNode.vue";
-import type { SchemaSummary } from "../composables/useDatabaseSchemas";
+import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
+import { useDiagramPersistence } from '../build/composables/useDiagramPersistence'
 import type {
-	DiagramNote,
-	DiagramPositions,
-} from "../composables/useDiagramPersistence";
+	NodeDragEvent,
+	NodeMouseEvent,
+	VueFlowStore,
+} from '@vue-flow/core'
+import { useEventListener, useNow } from '@vueuse/core'
+import type { ShallowUnwrapRef } from 'vue'
+import { DiagramAutosave, type SaveStatus } from '../build/diagram/autosave'
+import {
+	buildGraph,
+	type DiagramNode,
+	freeSpot,
+	layOutSchema,
+	NODE_WIDTH,
+	nodeHeight,
+	NOTE_NODE_TYPE,
+	type NoteDraft,
+	neighbourIds,
+	noteNodeId,
+	RELATION_EDGE_TYPE,
+	type Rect,
+	type Sides,
+	STUB_NODE_TYPE,
+	searchTables,
+	TABLE_NODE_TYPE,
+	type TableNodeData,
+	tableNodeId,
+} from '../build/diagram/graph'
+import {
+	clonePositions,
+	DiagramHistory,
+	type DiagramOperation,
+	type DiagramState,
+} from '../build/diagram/history'
+import {
+	canvasOwnsKey,
+	type DiagramCommand,
+	diagramCommand,
+} from '../build/diagram/shortcuts'
+import { DiagramSync, noteFromStored } from '../build/diagram/sync'
+import DiagramNoteNode from './DiagramNoteNode.vue'
+import DiagramRelationEdge from './DiagramRelationEdge.vue'
+import DiagramStubNode from './DiagramStubNode.vue'
+import DiagramTableNode from './DiagramTableNode.vue'
+import TableInspector from './TableInspector.vue'
 
-// Schema diagram canvas — rendered inline as the "Diagram" view of the schema
-// page (not a dedicated page). The active schema is driven by the `schemaId`
-// prop (the page pill); `active` lets the parent trigger a refit when the view
-// becomes visible (vue-flow needs a measured container).
-interface Props {
-	schemaId: string | null;
-	active?: boolean;
+// The Diagram page: the tables of one schema and their relations. Moving a
+// table saves the layout on its own (D-10), with undo and redo; auto layout
+// is previewed before it is kept, because it moves every table at once.
+
+const SAVE_DELAY_MS = 800
+const RESET_ZOOM = 1
+// Far enough out for a large schema to fit in the view (D-16).
+const MIN_ZOOM = 0.1
+const NOTE_WIDTH = 220
+const NOTE_HEIGHT = 140
+const MINUTE_MS = 60_000
+// Room around the tables for the floating toolbars.
+const FIT_PADDING = 0.25
+// Above this many tables the canvas suggests focusing on one of them.
+const LARGE_SCHEMA_TABLES = 40
+const SEARCH_HINT_ID = 'diagram-search-hint'
+
+const { t } = useI18n()
+const route = useDmsRoute()
+const router = useDmsRouter()
+const toast = useToast()
+const { schemas, isLoading: schemasLoading } = useDatabaseSchemas()
+const persistence = useDiagramPersistence()
+const { open: openDrawer } = useDrawer()
+const now = useNow({ interval: MINUTE_MS / 2 })
+
+const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null)
+const canvasWrapper = useTemplateRef<HTMLElement>('canvasWrapper')
+const searchInput = useTemplateRef<{ inputRef?: HTMLInputElement }>(
+	'searchInput',
+)
+
+const state = reactive<DiagramState>({ positions: {}, notes: [] })
+const history = new DiagramHistory()
+const historyRevision = ref(0)
+const routing = new Map<string, Sides>()
+
+const selectedId = ref<string | null>(null)
+const focusId = ref<string | null>(null)
+const panMode = ref(false)
+const search = ref('')
+const searchIndex = ref(-1)
+const viewport = ref({ x: 0, y: 0, zoom: RESET_ZOOM })
+const preview = ref<{ from: DiagramState['positions'] } | null>(null)
+const saveState = ref<SaveStatus>('idle')
+const savedAt = ref<Date | null>(null)
+const loaded = ref(false)
+// The note just created, opened ready to write until its edit ends.
+const editNoteId = ref<string | null>(null)
+let sync: DiagramSync | null = null
+let autosave: DiagramAutosave | null = null
+let fitPending = true
+
+// --- schema ---
+const schemaId = computed<string | null>(() => {
+	const asked = route.query.schema
+	if (typeof asked === 'string' && schemas.value.some((s) => s.id === asked))
+		return asked
+	return schemas.value[0]?.id ?? null
+})
+const schema = computed(
+	() => schemas.value.find((s) => s.id === schemaId.value) ?? null,
+)
+const schemaItems = computed(() =>
+	schemas.value.map((s) => ({ label: s.id, value: s.id, icon: 'i-ph-stack' })),
+)
+
+// Each schema is a step of the browser history (D-11).
+function openSchema(id: string) {
+	if (id === schemaId.value) return
+	router.push({ query: { ...route.query, schema: id, table: undefined } })
 }
 
-const props = withDefaults(defineProps<Props>(), { active: true });
-
-const emit = defineEmits<{
-	// A table node was double-clicked — the parent opens the shared inspector
-	// drawer for that table (same drawer as the schema list view).
-	"inspect-table": [tableName: string];
-}>();
-
-const NODE_WIDTH = 240;
-const NODE_HEIGHT_PER_FIELD = 28;
-const NODE_HEIGHT_HEADER = 40;
-const STUB_NODE_WIDTH = 180;
-const STUB_NODE_HEIGHT = 28;
-const LAYOUT_DIRECTION = "TB";
-const LAYOUT_NODE_SEP = 40;
-const LAYOUT_RANK_SEP = 80;
-const TABLE_NODE_TYPE = "tableNode";
-const STUB_NODE_TYPE = "stubNode";
-const NOTE_NODE_TYPE = "noteNode";
-const RELATION_EDGE_TYPE = "relationEdge";
-const RESET_ZOOM = 1;
-const NOTE_DEFAULT_WIDTH = 220;
-const NOTE_DEFAULT_HEIGHT = 140;
-const SQUASH_WINDOW_MS = 600;
-const HYSTERESIS_PX = 15;
-
-type HandleSide = "left" | "right";
-interface Sides {
-	source: HandleSide;
-	target: HandleSide;
-}
-
-function pickSides(dx: number, W: number, prev?: Sides): Sides {
-	const pure: Sides =
-		dx >= W
-			? { source: "right", target: "left" }
-			: dx >= 0
-				? { source: "right", target: "right" }
-				: dx >= -W
-					? { source: "left", target: "left" }
-					: { source: "left", target: "right" };
-	if (!prev || (prev.source === pure.source && prev.target === pure.target)) {
-		return pure;
+/** Opens the table a stub stands for (D-10). */
+function openTable(schemaName: string, tableName: string) {
+	if (schemaName !== schemaId.value) {
+		router.push({
+			query: { ...route.query, schema: schemaName, table: tableName },
+		})
+		return
 	}
-	const H = HYSTERESIS_PX;
-	if (prev.source === "right" && prev.target === "left" && dx > W - H)
-		return prev;
-	if (
-		prev.source === "right" &&
-		prev.target === "right" &&
-		dx > -H &&
-		dx < W + H
+	const id = tableNodeId(schemaName, tableName)
+	if (focusIds.value && !focusIds.value.has(id)) focusId.value = null
+	nextTick(() => centerOn(id))
+}
+
+function warn(title: string) {
+	toast.add({ title, color: 'warning', icon: 'i-ph-warning' })
+}
+
+// A schema the URL names that does not exist: say so, and drop it from the
+// URL (D-12).
+onMounted(() => {
+	watch(
+		[() => route.query.schema, schemas, schemasLoading],
+		() => {
+			const asked = route.query.schema
+			if (typeof asked !== 'string' || schemasLoading.value) return
+			if (!schemas.value.length || schemas.value.some((s) => s.id === asked))
+				return
+			warn(t('dms_database.diagram.not_found.schema', { schema: asked }))
+			router.replace({
+				query: { ...route.query, schema: undefined, table: undefined },
+			})
+		},
+		{ immediate: true },
 	)
-		return prev;
-	if (
-		prev.source === "left" &&
-		prev.target === "left" &&
-		dx > -W - H &&
-		dx < H
-	)
-		return prev;
-	if (prev.source === "left" && prev.target === "right" && dx < -W + H)
-		return prev;
-	return pure;
+})
+
+// --- graph ---
+const focusIds = computed(() =>
+	focusId.value && schema.value
+		? neighbourIds(schema.value, focusId.value.split('::')[1] ?? '')
+		: null,
+)
+
+// Where dagre puts every table of the schema: the place of a table without a
+// saved one, focused or not (D-4).
+const fullLayout = computed(() =>
+	schema.value ? layOutSchema(schema.value) : undefined,
+)
+
+function render() {
+	if (!canvas.value || !schema.value || !loaded.value) return
+	const built = buildGraph({
+		schema: schema.value,
+		positions: state.positions,
+		notes: state.notes,
+		selectedId: selectedId.value,
+		focusIds: focusIds.value,
+		noteHandlers: {
+			onTextChange: changeNoteText,
+			onDelete: deleteNote,
+			onEditEnd: endNoteEdit,
+		},
+		editNoteId: editNoteId.value,
+		onOpenSchema: openTable,
+		routing,
+		layout: fullLayout.value,
+	})
+	canvas.value.setNodes(built.nodes)
+	canvas.value.setEdges(built.edges)
 }
 
-const edgeRouting = new Map<string, Sides>();
-
-interface NoteDraft {
-	id: string;
-	schemaName: string;
-	text: string;
-	x: number;
-	y: number;
-	width: number;
-	height: number;
-	color: string | null;
-	isTemp: boolean;
-}
-
-type Op =
-	| {
-			kind: "tableMove";
-			tableName: string;
-			from: { x: number; y: number };
-			to: { x: number; y: number };
-	  }
-	| {
-			kind: "noteMove";
-			noteId: string;
-			from: { x: number; y: number };
-			to: { x: number; y: number };
-	  }
-	| { kind: "noteText"; noteId: string; from: string; to: string }
-	| { kind: "noteCreate"; tempId: string; snapshot: NoteDraft }
-	| { kind: "noteDelete"; snapshot: NoteDraft }
-	| { kind: "autoLayout"; from: DiagramPositions };
-
-interface TableDiagramNode {
-	id: string;
-	type: typeof TABLE_NODE_TYPE;
-	position: { x: number; y: number };
-	data: {
-		tableName: string;
-		fields: Record<string, unknown>;
-		indexes: Record<string, { fields?: string[] }>;
-		modifiers?: Record<string, string[]>;
-	};
-}
-
-interface StubDiagramNode {
-	id: string;
-	type: typeof STUB_NODE_TYPE;
-	position: { x: number; y: number };
-	selectable: false;
-	draggable: false;
-	data: {
-		targetSchema: string;
-		targetTable: string;
-	};
-}
-
-interface NoteDiagramNode {
-	id: string;
-	type: typeof NOTE_NODE_TYPE;
-	position: { x: number; y: number };
-	data: {
-		noteId: string;
-		text: string;
-		color: string | null;
-		width: number;
-		height: number;
-		onTextChange: (noteId: string, text: string) => void;
-		onDelete: (noteId: string) => void;
-	};
-}
-
-type DiagramNodeT = TableDiagramNode | StubDiagramNode | NoteDiagramNode;
-
-interface DiagramEdge {
-	id: string;
-	type: typeof RELATION_EDGE_TYPE;
-	source: string;
-	target: string;
-	sourceHandle: string;
-	targetHandle: string;
-	label: string;
-	animated: boolean;
-	markerEnd: { type: MarkerType };
-	data: {
-		sourceBase: string;
-		targetBase: string;
-		isStubTarget: boolean;
-	};
-}
-
-const { t } = useI18n();
-const { schemas } = useDatabaseSchemas();
-const {
-	fetchLayout,
-	saveLayout,
-	fetchNotes,
-	createNote,
-	updateNote,
-	deleteNote,
-} = useDiagramPersistence();
-// DmsFlowCanvas (shared dms-ui layer) owns the <VueFlow> instance and the
-// canvas chrome (dotted DMS background, themed handles/edges, pan/zoom). It
-// exposes the full imperative VueFlow controller (setNodes/setEdges/fitView/
-// viewport/findNode/onNodeDrag…) via a template ref; all the ERD business
-// logic below (dagre auto-layout, edge routing, undo/redo, notes) stays here.
-// Vue's expose proxy unwraps the controller's refs: `edges` is the array
-// itself, not a Ref (`edges.value` is undefined and threw on every drag).
-const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null);
-// Our own wrapper element — used to measure the visible canvas for note placement.
-const canvasWrapper = ref<HTMLElement | null>(null);
-
-function fitView() {
-	canvas.value?.fitView();
-}
-function zoomIn() {
-	canvas.value?.zoomIn();
-}
-function zoomOut() {
-	canvas.value?.zoomOut();
-}
-
-const panMode = ref(false);
-const rebuildKey = ref(0);
-
-// Live viewport mirror. VueFlow's controller `viewport` ref read through the
-// exposed DmsFlowCanvas template ref doesn't stay reactive here, so the zoom
-// readout froze at 100% and notes were placed against a stale {0,0,1} origin.
-// We keep our own copy fed by VueFlow's @viewport-change event (forwarded by
-// DmsFlowCanvas via $attrs) — it fires on wheel/pinch zoom, pan and the +/-/fit
-// controls — and derive both the zoom badge and note placement from it.
-const liveViewport = ref({ x: 0, y: 0, zoom: RESET_ZOOM });
-
-function onViewportChange(viewport: { x: number; y: number; zoom: number }) {
-	liveViewport.value = { x: viewport.x, y: viewport.y, zoom: viewport.zoom };
-}
-
-const tablePositions = ref<DiagramPositions>({});
-const notes = ref<NoteDraft[]>([]);
-const baseline = ref<{ tablePositions: DiagramPositions; notes: NoteDraft[] }>({
-	tablePositions: {},
-	notes: [],
-});
-
-const history = ref<Op[]>([]);
-const cursor = ref(0);
-let lastOpAt = 0;
-
-const applying = ref(false);
-let tempCounter = 0;
-let initialFitDone = false;
-// Gate the very first paint until both the canvas controller is mounted and the
-// initial schema layout has loaded (the controller is async now, unlike the old
-// synchronous useVueFlow), so saved table positions land on the first render.
-let initialLayoutSettled = false;
-let initialRenderDone = false;
-let loadToken = 0;
-
-const isDirty = computed(() => cursor.value > 0);
-const canUndo = computed(() => cursor.value > 0);
-const canRedo = computed(() => cursor.value < history.value.length);
-
-const effectiveSchemaId = computed<string | null>(
-	() => props.schemaId ?? schemas.value[0]?.id ?? null,
-);
-
-const visibleSchemas = computed<SchemaSummary[]>(() => {
-	const id = effectiveSchemaId.value;
-	if (!id) return [];
-	const match = schemas.value.find((s) => s.id === id);
-	return match ? [match] : [];
-});
-
-function nodeIdFor(schemaId: string, tableName: string): string {
-	return `${schemaId}::${tableName}`;
-}
-
-function stubIdFor(schemaId: string, tableName: string): string {
-	return `stub::${schemaId}::${tableName}`;
-}
-
-function noteNodeIdFor(noteId: string): string {
-	return `note::${noteId}`;
-}
-
-function clonePositions(p: DiagramPositions): DiagramPositions {
-	const out: DiagramPositions = {};
-	for (const [k, v] of Object.entries(p)) out[k] = { x: v.x, y: v.y };
-	return out;
-}
-
-function cloneNote(n: NoteDraft): NoteDraft {
-	return { ...n };
-}
-
-interface BuiltGraph {
-	nodes: DiagramNodeT[];
-	edges: DiagramEdge[];
-}
-
-function buildGraph(schemaList: SchemaSummary[]): BuiltGraph {
-	const visibleIds = new Set<string>();
-	for (const schema of schemaList) {
-		for (const table of schema.tables) {
-			visibleIds.add(nodeIdFor(schema.id, table.name));
-		}
-	}
-
-	const graph = new dagre.graphlib.Graph();
-	graph.setDefaultEdgeLabel(() => ({}));
-	graph.setGraph({
-		rankdir: LAYOUT_DIRECTION,
-		nodesep: LAYOUT_NODE_SEP,
-		ranksep: LAYOUT_RANK_SEP,
-	});
-
-	for (const schema of schemaList) {
-		for (const table of schema.tables) {
-			const fieldCount = Object.keys(table.fields).length;
-			const height = NODE_HEIGHT_HEADER + fieldCount * NODE_HEIGHT_PER_FIELD;
-			graph.setNode(nodeIdFor(schema.id, table.name), {
-				width: NODE_WIDTH,
-				height,
-			});
-		}
-	}
-
-	const stubs = new Map<string, { schema: string; table: string }>();
-	const tableFieldsById = new Map<string, Record<string, unknown>>();
-	for (const schema of schemaList) {
-		for (const table of schema.tables) {
-			tableFieldsById.set(nodeIdFor(schema.id, table.name), table.fields);
-		}
-	}
-
-	interface PendingEdge {
-		id: string;
-		sourceId: string;
-		targetId: string;
-		sourceBase: string;
-		targetBase: string;
-		isStubTarget: boolean;
-		label: string;
-		many: boolean;
-	}
-	const pendingEdges: PendingEdge[] = [];
-
-	for (const schema of schemaList) {
-		for (const table of schema.tables) {
-			const sourceId = nodeIdFor(schema.id, table.name);
-			const sourceFields = tableFieldsById.get(sourceId);
-			for (const rel of table.relations ?? []) {
-				const realTargetId = nodeIdFor(rel.toSchema, rel.toTable);
-				const isStubTarget = !visibleIds.has(realTargetId);
-				const targetId = isStubTarget
-					? stubIdFor(rel.toSchema, rel.toTable)
-					: realTargetId;
-				if (isStubTarget && !stubs.has(targetId)) {
-					stubs.set(targetId, {
-						schema: rel.toSchema,
-						table: rel.toTable,
-					});
-					graph.setNode(targetId, {
-						width: STUB_NODE_WIDTH,
-						height: STUB_NODE_HEIGHT,
-					});
-				}
-				graph.setEdge(sourceId, targetId);
-				const sourceBase =
-					sourceFields && rel.fromField in sourceFields
-						? rel.fromField
-						: "__node__";
-				let targetBase: string;
-				if (isStubTarget) {
-					targetBase = "stub";
-				} else {
-					const targetFields = tableFieldsById.get(realTargetId);
-					targetBase =
-						targetFields && rel.toField in targetFields
-							? rel.toField
-							: "__node__";
-				}
-				pendingEdges.push({
-					id: `${sourceId}::${rel.fromField}->${realTargetId}`,
-					sourceId,
-					targetId,
-					sourceBase,
-					targetBase,
-					isStubTarget,
-					label: rel.fromField,
-					many: rel.many,
-				});
-			}
-		}
-	}
-
-	dagre.layout(graph);
-
-	const nodePositions = new Map<
-		string,
-		{ x: number; y: number; width: number }
-	>();
-	const nodes: DiagramNodeT[] = [];
-	for (const schema of schemaList) {
-		for (const table of schema.tables) {
-			const id = nodeIdFor(schema.id, table.name);
-			const laid = graph.node(id);
-			const saved = tablePositions.value[table.name];
-			const position = saved ?? { x: laid.x - NODE_WIDTH / 2, y: laid.y };
-			nodePositions.set(id, { x: position.x, y: position.y, width: NODE_WIDTH });
-			nodes.push({
-				id,
-				type: TABLE_NODE_TYPE,
-				position,
-				data: {
-					tableName: table.name,
-					fields: table.fields,
-					indexes: table.indexes,
-					modifiers: table.modifiers,
-				},
-			});
-		}
-	}
-	for (const [id, info] of stubs) {
-		const laid = graph.node(id);
-		const position = { x: laid.x - STUB_NODE_WIDTH / 2, y: laid.y };
-		nodePositions.set(id, {
-			x: position.x,
-			y: position.y,
-			width: STUB_NODE_WIDTH,
-		});
-		nodes.push({
-			id,
-			type: STUB_NODE_TYPE,
-			position,
-			selectable: false,
-			draggable: false,
-			data: { targetSchema: info.schema, targetTable: info.table },
-		});
-	}
-
-	const edges: DiagramEdge[] = [];
-	for (const pe of pendingEdges) {
-		const sPos = nodePositions.get(pe.sourceId);
-		const tPos = nodePositions.get(pe.targetId);
-		if (!sPos || !tPos) continue;
-		const dx = tPos.x + tPos.width / 2 - (sPos.x + sPos.width / 2);
-		const sides = pickSides(dx, NODE_WIDTH, edgeRouting.get(pe.id));
-		edgeRouting.set(pe.id, sides);
-		const sourceHandle = `${pe.sourceBase}::${sides.source}::source`;
-		const targetHandle = `${pe.targetBase}::${sides.target}::target`;
-		edges.push({
-			id: pe.id,
-			type: RELATION_EDGE_TYPE,
-			source: pe.sourceId,
-			target: pe.targetId,
-			sourceHandle,
-			targetHandle,
-			label: pe.label,
-			animated: pe.many,
-			markerEnd: { type: MarkerType.ArrowClosed },
-			data: {
-				sourceBase: pe.sourceBase,
-				targetBase: pe.targetBase,
-				isStubTarget: pe.isStubTarget,
-			},
-		});
-	}
-
-	for (const note of notes.value) {
-		nodes.push({
-			id: noteNodeIdFor(note.id),
-			type: NOTE_NODE_TYPE,
-			position: { x: note.x, y: note.y },
-			data: {
-				noteId: note.id,
-				text: note.text,
-				color: note.color,
-				width: note.width,
-				height: note.height,
-				onTextChange: onNoteTextChange,
-				onDelete: onNoteDelete,
-			},
-		});
-	}
-
-	return { nodes, edges };
-}
-
-function rebuildAndApply() {
-	if (!canvas.value) return;
-	const built = buildGraph(visibleSchemas.value);
-	canvas.value.setNodes(built.nodes);
-	canvas.value.setEdges(built.edges);
-}
-
-// Data-driven rebuilds after the first paint: schema edits, drag-induced
-// rebuildKey bumps, undo/redo, notes. The initial render is owned by
-// renderInitialGraph so it isn't a premature dagre-only pass before the saved
-// positions have loaded.
-watch(
-	[visibleSchemas, rebuildKey],
-	() => {
-		if (initialRenderDone) rebuildAndApply();
-	},
-	{ deep: true },
-);
-
-// First paint: defer until BOTH the canvas controller is mounted AND the initial
-// schema layout has settled (whichever happens last drives it), so the very
-// first render already carries saved table positions instead of flashing the
-// dagre fallback. Triggered from watch(canvas) and from loadSchema.
-function renderInitialGraph() {
-	if (initialRenderDone || !canvas.value || !initialLayoutSettled) return;
-	initialRenderDone = true;
-	rebuildAndApply();
-}
-watch(canvas, renderInitialGraph);
-
+// The nodes have been measured: the first fit, or the one a schema change or
+// a focus asks for, can frame them.
 function onNodesInitialized() {
-	if (initialFitDone) return;
-	initialFitDone = true;
-	fitView();
+	if (!fitPending) return
+	fitPending = false
+	if (!centerOnQueryTable()) fitAll()
 }
 
-// Re-fit when the diagram view becomes visible again (vue-flow can't measure a
-// hidden container, so a toggle from List -> Diagram needs a nudge).
-watch(
-	() => props.active,
-	(active) => {
-		if (active) nextTick(() => fitView());
-	},
-);
+function fitAll() {
+	canvas.value?.fitView({ padding: FIT_PADDING, maxZoom: RESET_ZOOM })
+}
 
-async function loadSchema(id: string) {
-	const myToken = ++loadToken;
-	edgeRouting.clear();
+watch([canvas, schema, selectedId, focusIds, loaded], render)
+
+// --- loading and saving ---
+// An auto layout being previewed is not kept yet: a save writes the layout
+// from before it.
+function stateToSave(): DiagramState {
+	return preview.value
+		? { positions: preview.value.from, notes: state.notes }
+		: state
+}
+
+/** Shows the save status of the schema shown; a schema left reports a failure. */
+function statusReporter(owner: DiagramSync) {
+	return (status: SaveStatus) => {
+		if (owner === sync) {
+			saveState.value = status
+			if (status === 'saved') savedAt.value = new Date()
+			return
+		}
+		// The save of a schema left before it ended.
+		if (status === 'error') {
+			toast.add({
+				title: t('dms_database.diagram.save.error_other', {
+					schema: owner.schemaId,
+				}),
+				color: 'error',
+				icon: 'i-ph-warning-circle',
+			})
+		}
+	}
+}
+
+function scheduleSave() {
+	autosave?.schedule()
+}
+
+function saveNow() {
+	autosave?.schedule()
+	void autosave?.flush()
+}
+
+async function load(id: string) {
+	// What is left of the shown schema's changes is copied now and written
+	// under its own id before the next schema loads (D-2).
+	const leaving = autosave?.flush()
+	autosave = null
+	loaded.value = false
+	routing.clear()
+	history.clear()
+	historyRevision.value++
+	preview.value = null
+	selectedId.value = null
+	focusId.value = null
+	editNoteId.value = null
+	searchIndex.value = -1
+	const owner = new DiagramSync(persistence, id)
+	sync = owner
+	await leaving
+	if (sync !== owner) return
 	try {
-		const [pos, items] = await Promise.all([fetchLayout(id), fetchNotes(id)]);
-		if (myToken !== loadToken) return;
-		const loadedNotes: NoteDraft[] = items.map((n: DiagramNote) => ({
-			id: n.id,
-			schemaName: n.schemaName,
-			text: n.text,
-			x: n.x,
-			y: n.y,
-			width: n.width,
-			height: n.height,
-			color: n.color,
-			isTemp: false,
-		}));
-		tablePositions.value = clonePositions(pos);
-		notes.value = loadedNotes.map(cloneNote);
-		baseline.value = {
-			tablePositions: clonePositions(pos),
-			notes: loadedNotes.map(cloneNote),
-		};
-		history.value = [];
-		cursor.value = 0;
-		rebuildKey.value++;
-		initialLayoutSettled = true;
-		renderInitialGraph();
-		nextTick(() => fitView());
+		const [positions, notes] = await Promise.all([
+			persistence.fetchLayout(id),
+			persistence.fetchNotes(id),
+		])
+		if (sync !== owner) return
+		state.positions = positions
+		state.notes = notes.map(noteFromStored)
 	} catch {
-		if (myToken !== loadToken) return;
-		tablePositions.value = {};
-		notes.value = [];
-		baseline.value = { tablePositions: {}, notes: [] };
-		history.value = [];
-		cursor.value = 0;
-		rebuildKey.value++;
-		initialLayoutSettled = true;
-		renderInitialGraph();
+		if (sync !== owner) return
+		state.positions = {}
+		state.notes = []
 	}
+	owner.reset(state)
+	autosave = new DiagramAutosave(
+		owner,
+		stateToSave,
+		SAVE_DELAY_MS,
+		statusReporter(owner),
+	)
+	saveState.value = 'idle'
+	savedAt.value = null
+	fitPending = true
+	loaded.value = true
 }
 
-watch(
-	effectiveSchemaId,
-	(newId, oldId) => {
-		if (newId === oldId) return;
-		if (!newId) {
-			tablePositions.value = {};
-			notes.value = [];
-			baseline.value = { tablePositions: {}, notes: [] };
-			history.value = [];
-			cursor.value = 0;
-			rebuildKey.value++;
-			initialLayoutSettled = true;
-			renderInitialGraph();
-			return;
-		}
-		loadSchema(newId);
-	},
-	{ immediate: true },
-);
+watch(schemaId, (id) => id && load(id), { immediate: true })
 
-function pushOp(op: Op) {
-	if (cursor.value < history.value.length) {
-		history.value.splice(cursor.value);
-	}
-	const now = Date.now();
-	const head = history.value[cursor.value - 1];
-	const inWindow = now - lastOpAt < SQUASH_WINDOW_MS;
-	let squashed = false;
-	if (head && inWindow) {
-		if (
-			op.kind === "tableMove" &&
-			head.kind === "tableMove" &&
-			head.tableName === op.tableName
-		) {
-			head.to = op.to;
-			squashed = true;
-		} else if (
-			op.kind === "noteMove" &&
-			head.kind === "noteMove" &&
-			head.noteId === op.noteId
-		) {
-			head.to = op.to;
-			squashed = true;
-		} else if (
-			op.kind === "noteText" &&
-			head.kind === "noteText" &&
-			head.noteId === op.noteId
-		) {
-			head.to = op.to;
-			squashed = true;
-		}
-	}
-	if (!squashed) {
-		history.value.push(op);
-		cursor.value++;
-	}
-	lastOpAt = now;
+function record(op: DiagramOperation) {
+	history.push(op)
+	historyRevision.value++
+	scheduleSave()
 }
 
-function applyForward(op: Op) {
-	switch (op.kind) {
-		case "tableMove":
-			tablePositions.value[op.tableName] = { ...op.to };
-			break;
-		case "noteMove": {
-			const n = notes.value.find((x) => x.id === op.noteId);
-			if (n) {
-				n.x = op.to.x;
-				n.y = op.to.y;
-			}
-			break;
-		}
-		case "noteText": {
-			const n = notes.value.find((x) => x.id === op.noteId);
-			if (n) n.text = op.to;
-			break;
-		}
-		case "noteCreate":
-			if (!notes.value.find((n) => n.id === op.tempId)) {
-				notes.value.push(cloneNote(op.snapshot));
-			}
-			break;
-		case "noteDelete": {
-			const idx = notes.value.findIndex((n) => n.id === op.snapshot.id);
-			if (idx >= 0) notes.value.splice(idx, 1);
-			break;
-		}
-		case "autoLayout":
-			tablePositions.value = {};
-			break;
-	}
-}
+onBeforeUnmount(() => void autosave?.flush())
 
-function applyReverse(op: Op) {
-	switch (op.kind) {
-		case "tableMove":
-			tablePositions.value[op.tableName] = { ...op.from };
-			break;
-		case "noteMove": {
-			const n = notes.value.find((x) => x.id === op.noteId);
-			if (n) {
-				n.x = op.from.x;
-				n.y = op.from.y;
-			}
-			break;
-		}
-		case "noteText": {
-			const n = notes.value.find((x) => x.id === op.noteId);
-			if (n) n.text = op.from;
-			break;
-		}
-		case "noteCreate": {
-			const idx = notes.value.findIndex((n) => n.id === op.tempId);
-			if (idx >= 0) notes.value.splice(idx, 1);
-			break;
-		}
-		case "noteDelete":
-			notes.value.push(cloneNote(op.snapshot));
-			break;
-		case "autoLayout":
-			tablePositions.value = clonePositions(op.from);
-			break;
-	}
-}
+const savedLabel = computed(() => {
+	if (saveState.value === 'saving') return t('dms_database.diagram.save.saving')
+	if (saveState.value === 'error') return t('dms_database.diagram.save.error')
+	if (!savedAt.value) return t('dms_database.diagram.save.idle')
+	const minutes = Math.round(
+		(now.value.getTime() - savedAt.value.getTime()) / MINUTE_MS,
+	)
+	return minutes < 1
+		? t('dms_database.diagram.save.just_now')
+		: t('dms_database.diagram.save.minutes', { count: minutes })
+})
+
+// --- undo / redo ---
+const canUndo = computed(
+	() => historyRevision.value >= 0 && history.canUndo && !preview.value,
+)
+const canRedo = computed(
+	() => historyRevision.value >= 0 && history.canRedo && !preview.value,
+)
 
 function undo() {
-	if (cursor.value === 0) return;
-	cursor.value--;
-	const op = history.value[cursor.value];
-	if (!op) return;
-	applyReverse(op);
-	rebuildKey.value++;
+	if (!canUndo.value || !history.undo(state)) return
+	historyRevision.value++
+	render()
+	scheduleSave()
 }
 
 function redo() {
-	if (cursor.value >= history.value.length) return;
-	const op = history.value[cursor.value];
-	if (!op) return;
-	applyForward(op);
-	cursor.value++;
-	rebuildKey.value++;
+	if (!canRedo.value || !history.redo(state)) return
+	historyRevision.value++
+	render()
+	scheduleSave()
 }
 
-function cancelChanges() {
-	tablePositions.value = clonePositions(baseline.value.tablePositions);
-	notes.value = baseline.value.notes.map(cloneNote);
-	history.value = [];
-	cursor.value = 0;
-	rebuildKey.value++;
+// --- auto layout, previewed before it is kept ---
+const movedCount = computed(() => {
+	if (!preview.value || !schema.value) return 0
+	return schema.value.tables.filter((table) => {
+		// A table without a saved position already sat where dagre puts it.
+		const before = preview.value?.from[table.name]
+		const after = state.positions[table.name]
+		return Boolean(
+			before && after && (before.x !== after.x || before.y !== after.y),
+		)
+	}).length
+})
+
+function startAutoLayout() {
+	if (!fullLayout.value || preview.value) return
+	preview.value = { from: clonePositions(state.positions) }
+	state.positions = clonePositions(fullLayout.value.tables)
+	routing.clear()
+	render()
+	nextTick(fitAll)
 }
 
-async function applyChanges() {
-	const id = effectiveSchemaId.value;
-	if (!id || applying.value || !isDirty.value) return;
-	applying.value = true;
-	try {
-		await saveLayout(id, clonePositions(tablePositions.value));
+function keepLayout() {
+	if (!preview.value) return
+	const from = preview.value.from
+	preview.value = null
+	record({ kind: 'layout', from, to: clonePositions(state.positions) })
+}
 
-		const baselineNotes = baseline.value.notes;
-		const baselineById = new Map(baselineNotes.map((n) => [n.id, n]));
-		const currentReal = notes.value.filter((n) => !n.isTemp);
-		const currentTemp = notes.value.filter((n) => n.isTemp);
-		const currentIds = new Set(currentReal.map((n) => n.id));
+function discardLayout() {
+	if (!preview.value) return
+	state.positions = preview.value.from
+	preview.value = null
+	render()
+}
 
-		for (const b of baselineNotes) {
-			if (!currentIds.has(b.id)) await deleteNote(b.id);
-		}
-		for (const c of currentReal) {
-			const b = baselineById.get(c.id);
-			if (!b) continue;
-			if (
-				b.x !== c.x ||
-				b.y !== c.y ||
-				b.text !== c.text ||
-				b.width !== c.width ||
-				b.height !== c.height ||
-				b.color !== c.color
-			) {
-				await updateNote(c.id, {
-					x: c.x,
-					y: c.y,
-					text: c.text,
-					width: c.width,
-					height: c.height,
-					color: c.color ?? undefined,
-				});
-			}
-		}
-		for (const tempNote of currentTemp) {
-			const created = await createNote({
-				schemaName: id,
-				text: tempNote.text,
-				x: tempNote.x,
-				y: tempNote.y,
-				width: tempNote.width,
-				height: tempNote.height,
-				color: tempNote.color ?? undefined,
-			});
-			const idx = notes.value.findIndex((n) => n.id === tempNote.id);
-			if (idx >= 0) {
-				notes.value[idx] = {
-					id: created.id,
-					schemaName: created.schemaName,
-					text: created.text,
-					x: created.x,
-					y: created.y,
-					width: created.width,
-					height: created.height,
-					color: created.color,
-					isTemp: false,
-				};
-			}
-		}
+// --- dragging ---
+const dragStarts = new Map<string, { x: number; y: number }>()
 
-		baseline.value = {
-			tablePositions: clonePositions(tablePositions.value),
-			notes: notes.value.map(cloneNote),
-		};
-		history.value = [];
-		cursor.value = 0;
-		rebuildKey.value++;
-	} catch (err) {
-		console.error("Failed to apply diagram changes", err);
-	} finally {
-		applying.value = false;
+// With `select-nodes-on-drag` off, Vue Flow lets go of the selection when a
+// node not selected is grabbed, so a note left selected does not follow a
+// table, which Vue Flow cannot select.
+function onNodeDragStart({ node, nodes }: NodeDragEvent) {
+	for (const dragged of nodes.length ? nodes : [node])
+		dragStarts.set(dragged.id, { ...dragged.position })
+}
+
+function tableMoved(node: DiagramNode, from: { x: number; y: number }) {
+	const tableName = (node.data as { tableName: string }).tableName
+	const to = { x: node.position.x, y: node.position.y }
+	state.positions[tableName] = to
+	if (preview.value) return
+	record({ kind: 'tableMove', tableName, from, to })
+}
+
+function noteMoved(node: DiagramNode, from: { x: number; y: number }) {
+	const noteId = (node.data as { noteId: string }).noteId
+	const to = { x: node.position.x, y: node.position.y }
+	const note = state.notes.find((n) => n.id === noteId)
+	if (!note) return
+	Object.assign(note, to)
+	record({ kind: 'noteMove', noteId, from, to })
+}
+
+const DRAG_HANDLERS: Record<
+	string,
+	(node: DiagramNode, from: { x: number; y: number }) => void
+> = {
+	[TABLE_NODE_TYPE]: tableMoved,
+	[NOTE_NODE_TYPE]: noteMoved,
+}
+
+function onNodeDragStop({ node, nodes }: NodeDragEvent) {
+	for (const dragged of nodes.length ? nodes : [node]) {
+		const from = dragStarts.get(dragged.id)
+		dragStarts.delete(dragged.id)
+		const { x, y } = dragged.position
+		if (!from || (from.x === x && from.y === y)) continue
+		DRAG_HANDLERS[dragged.type ?? '']?.(dragged as unknown as DiagramNode, from)
+	}
+	// The node put down becomes the selection: a table through
+	// `data.selected` (D-9), a note through Vue Flow. Set once the drag is
+	// over, as setting the nodes during it would put the dragged one back.
+	selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
+	if (node.type === NOTE_NODE_TYPE && !node.selected) selectNode(node.id)
+	render()
+}
+
+// --- selection and inspection ---
+function onNodeClick({ node }: NodeMouseEvent) {
+	if (node.type === STUB_NODE_TYPE) return
+	selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
+}
+
+function onPaneClick() {
+	selectedId.value = null
+}
+
+function inspect(tableName: string) {
+	if (!schemaId.value) return
+	openDrawer({
+		title: t('dms_database.schemas.inspector.title'),
+		direction: 'right',
+		component: TableInspector,
+		componentOptions: {
+			rowData: { schema: schemaId.value, name: tableName },
+		},
+	})
+}
+
+function onNodeDoubleClick({ node }: NodeMouseEvent) {
+	if (node.type !== TABLE_NODE_TYPE) return
+	inspect((node.data as { tableName: string }).tableName)
+}
+
+function centerOn(nodeId: string): boolean {
+	const node = canvas.value?.findNode(nodeId)
+	if (!node) return false
+	selectedId.value = nodeId
+	canvas.value?.setCenter(
+		node.position.x + NODE_WIDTH / 2,
+		node.position.y + 120,
+		{
+			zoom: Math.max(viewport.value.zoom, RESET_ZOOM),
+			duration: 300,
+		},
+	)
+	return true
+}
+
+// The table the URL names; one that does not exist is reported and dropped
+// from the URL (D-12).
+function centerOnQueryTable(): boolean {
+	const table = route.query.table
+	const asked = route.query.schema
+	if (typeof table !== 'string' || !schema.value) return false
+	if (typeof asked === 'string' && asked !== schema.value.id) return false
+	if (!schema.value.tables.some((entry) => entry.name === table)) {
+		warn(
+			t('dms_database.diagram.not_found.table', {
+				schema: schema.value.id,
+				table,
+			}),
+		)
+		router.replace({ query: { ...route.query, table: undefined } })
+		return false
+	}
+	return centerOn(tableNodeId(schema.value.id, table))
+}
+
+const selectedTable = computed(() => selectedId.value?.split('::')[1] ?? null)
+
+function toggleFocus() {
+	focusId.value = focusId.value ? null : selectedId.value
+	render()
+	nextTick(fitAll)
+}
+
+// --- search: a table or a column; Enter goes from match to match (D-13) ---
+const searchMatches = computed(() =>
+	schema.value ? searchTables(schema.value, search.value) : [],
+)
+const searchMissed = computed(
+	() => search.value.trim() !== '' && searchMatches.value.length === 0,
+)
+const searchPosition = computed(() =>
+	searchIndex.value >= 0 && searchMatches.value.length > 1
+		? `${searchIndex.value + 1}/${searchMatches.value.length}`
+		: null,
+)
+
+// Synchronous: an Enter right after the text changed starts from the first
+// match of the new text.
+watch(
+	search,
+	() => {
+		searchIndex.value = -1
+	},
+	{ flush: 'sync' },
+)
+
+function runSearch() {
+	const matches = searchMatches.value
+	if (!matches.length || !schemaId.value) return
+	searchIndex.value = (searchIndex.value + 1) % matches.length
+	const id = tableNodeId(schemaId.value, matches[searchIndex.value] ?? '')
+	if (focusIds.value && !focusIds.value.has(id)) focusId.value = null
+	nextTick(() => centerOn(id))
+}
+
+function leaveSearch() {
+	searchInput.value?.inputRef?.blur()
+}
+
+// --- notes ---
+// What a new note should not cover: the tables drawn, and every note. Sizes
+// come from the schema and the notes, as a node just added is not measured.
+function takenRects(): Rect[] {
+	const tables = (canvas.value?.getNodes ?? []).flatMap((node) => {
+		if (node.type !== TABLE_NODE_TYPE) return []
+		const { table } = node.data as TableNodeData
+		return [
+			{
+				x: node.position.x,
+				y: node.position.y,
+				width: NODE_WIDTH,
+				height: nodeHeight(table),
+			},
+		]
+	})
+	return [...tables, ...state.notes]
+}
+
+function selectNode(nodeId: string) {
+	const flow = canvas.value
+	const node = flow?.findNode(nodeId)
+	if (!flow || !node) return
+	flow.removeSelectedNodes(flow.getSelectedNodes)
+	flow.addSelectedNodes([node])
+}
+
+// A new note goes in the free space nearest the centre of the view, above
+// the tables, selected and ready to write (D-8).
+function addNote() {
+	if (!schemaId.value) return
+	const rect = canvasWrapper.value?.getBoundingClientRect()
+	const { x, y, zoom } = viewport.value
+	const centre = {
+		x: ((rect?.width ?? 800) / 2 - x) / zoom - NOTE_WIDTH / 2,
+		y: ((rect?.height ?? 600) / 2 - y) / zoom - NOTE_HEIGHT / 2,
+	}
+	const spot = freeSpot(
+		centre,
+		{ width: NOTE_WIDTH, height: NOTE_HEIGHT },
+		takenRects(),
+	)
+	const note: NoteDraft = {
+		id: `temp-${Date.now()}`,
+		schemaName: schemaId.value,
+		text: '',
+		x: Math.round(spot.x),
+		y: Math.round(spot.y),
+		width: NOTE_WIDTH,
+		height: NOTE_HEIGHT,
+		color: null,
+		isTemp: true,
+	}
+	state.notes.push(note)
+	record({ kind: 'noteCreate', snapshot: { ...note } })
+	editNoteId.value = note.id
+	selectedId.value = null
+	render()
+	nextTick(() => selectNode(noteNodeId(note.id)))
+}
+
+function changeNoteText(noteId: string, text: string) {
+	const note = state.notes.find((n) => n.id === noteId)
+	if (!note || note.text === text) return
+	record({ kind: 'noteText', noteId, from: note.text, to: text })
+	note.text = text
+	render()
+}
+
+function endNoteEdit(noteId: string) {
+	if (editNoteId.value !== noteId) return
+	editNoteId.value = null
+	render()
+}
+
+function deleteNote(noteId: string) {
+	const note = state.notes.find((n) => n.id === noteId)
+	if (!note) return
+	state.notes = state.notes.filter((n) => n.id !== noteId)
+	if (editNoteId.value === noteId) editNoteId.value = null
+	record({ kind: 'noteDelete', snapshot: { ...note } })
+	render()
+}
+
+// Delete or Backspace on the canvas: only notes go, with undo (D-3).
+function onDeleteNodes(ids: string[]) {
+	const doomed = new Set(ids)
+	for (const note of [...state.notes]) {
+		if (doomed.has(noteNodeId(note.id))) deleteNote(note.id)
 	}
 }
 
-// Imported directly, not resolved by name: the DMS registers its global
-// components as async components, and the async relation edge was mounted
-// with the HTML namespace — its <path> was created as an HTML element inside
-// the edges <svg>, so no relation line was drawn.
+// --- viewport ---
+const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
+
+function onViewportChange(next: { x: number; y: number; zoom: number }) {
+	viewport.value = { ...next }
+}
+
+// --- keyboard: the shortcuts the toolbar's tooltips name ---
+// Escape steps back one level: the auto layout preview, then the focus,
+// then the selection (D-14).
+function escape(): boolean {
+	if (preview.value) {
+		discardLayout()
+		return true
+	}
+	if (focusId.value) {
+		toggleFocus()
+		return true
+	}
+	const selectedNotes = canvas.value?.getSelectedNodes ?? []
+	if (!selectedId.value && !selectedNotes.length) return false
+	selectedId.value = null
+	canvas.value?.removeSelectedNodes(selectedNotes)
+	return true
+}
+
+function always(run: () => unknown): () => boolean {
+	return () => {
+		run()
+		return true
+	}
+}
+
+const COMMANDS: Record<DiagramCommand, () => boolean> = {
+	search: always(() => searchInput.value?.inputRef?.focus()),
+	note: always(() => !isEmpty.value && addNote()),
+	select: always(() => (panMode.value = false)),
+	pan: always(() => (panMode.value = true)),
+	fit: always(fitAll),
+	resetZoom: always(() => canvas.value?.zoomTo(RESET_ZOOM)),
+	undo: always(undo),
+	redo: always(redo),
+	escape,
+}
+
+// Keys reach the canvas only from the canvas or the page itself: not while
+// typing, and not while a dialog such as the inspector is open (D-6).
+useEventListener('keydown', (event: KeyboardEvent) => {
+	const command = diagramCommand(event)
+	if (!command || event.defaultPrevented) return
+	if (!canvasOwnsKey(event.target, canvasWrapper.value)) return
+	if (COMMANDS[command]()) event.preventDefault()
+})
+
+// Imported, not resolved by name: the edge must mount in the SVG namespace,
+// which an async global component does not.
 const nodeTypes = markRaw({
 	[TABLE_NODE_TYPE]: DiagramTableNode,
 	[STUB_NODE_TYPE]: DiagramStubNode,
 	[NOTE_NODE_TYPE]: DiagramNoteNode,
-});
+})
+const edgeTypes = markRaw({ [RELATION_EDGE_TYPE]: DiagramRelationEdge })
 
-const edgeTypes = markRaw({
-	[RELATION_EDGE_TYPE]: DiagramRelationEdge,
-});
-
-const zoomPercent = computed(
-	() => `${Math.round(liveViewport.value.zoom * 100)}%`,
-);
-
-function widthForNodeType(type: string | undefined): number {
-	if (type === STUB_NODE_TYPE) return STUB_NODE_WIDTH;
-	return NODE_WIDTH;
-}
-
-function recomputeEdgesForNode(nodeId: string) {
-	const instance = canvas.value;
-	if (!instance) return;
-	for (const edge of instance.edges) {
-		if (edge.source !== nodeId && edge.target !== nodeId) continue;
-		const sNode = instance.findNode(edge.source);
-		const tNode = instance.findNode(edge.target);
-		if (!sNode || !tNode) continue;
-		const sW = widthForNodeType(sNode.type);
-		const tW = widthForNodeType(tNode.type);
-		const dx = tNode.position.x + tW / 2 - (sNode.position.x + sW / 2);
-		const prev = edgeRouting.get(edge.id);
-		const next = pickSides(dx, NODE_WIDTH, prev);
-		if (prev && prev.source === next.source && prev.target === next.target)
-			continue;
-		edgeRouting.set(edge.id, next);
-		const data = edge.data as
-			| { sourceBase: string; targetBase: string; isStubTarget: boolean }
-			| undefined;
-		if (!data) continue;
-		edge.sourceHandle = `${data.sourceBase}::${next.source}::source`;
-		edge.targetHandle = `${data.targetBase}::${next.target}::target`;
-	}
-}
-
-const dragStartPositions = new Map<string, { x: number; y: number }>();
-
-function onNodeDragStart({ node }: NodeDragEvent) {
-	if (node.type !== TABLE_NODE_TYPE && node.type !== NOTE_NODE_TYPE) return;
-	dragStartPositions.set(node.id, {
-		x: node.position.x,
-		y: node.position.y,
-	});
-}
-
-function onNodeDrag({ node }: NodeDragEvent) {
-	if (node.type !== TABLE_NODE_TYPE && node.type !== NOTE_NODE_TYPE) return;
-	recomputeEdgesForNode(node.id);
-}
-
-function onNodeDragStop({ node }: NodeDragEvent) {
-	const start = dragStartPositions.get(node.id);
-	dragStartPositions.delete(node.id);
-	if (!start) return;
-	const newPos = { x: node.position.x, y: node.position.y };
-	if (start.x === newPos.x && start.y === newPos.y) return;
-	if (node.type === TABLE_NODE_TYPE) {
-		const tableName = (node.data as { tableName?: string })?.tableName;
-		if (!tableName) return;
-		tablePositions.value[tableName] = newPos;
-		pushOp({ kind: "tableMove", tableName, from: start, to: newPos });
-	} else if (node.type === NOTE_NODE_TYPE) {
-		const noteId = (node.data as { noteId?: string })?.noteId;
-		if (!noteId) return;
-		const local = notes.value.find((n) => n.id === noteId);
-		if (!local) return;
-		local.x = newPos.x;
-		local.y = newPos.y;
-		pushOp({ kind: "noteMove", noteId, from: start, to: newPos });
-	}
-}
-
-function onNodeDoubleClick({ node }: NodeMouseEvent) {
-	// Only real table nodes open the inspector; stub/note nodes are ignored.
-	if (node.type !== TABLE_NODE_TYPE) return;
-	const tableName = (node.data as { tableName?: string })?.tableName;
-	if (tableName) emit("inspect-table", tableName);
-}
-
-function onNoteTextChange(noteId: string, newText: string) {
-	const n = notes.value.find((x) => x.id === noteId);
-	if (!n || n.text === newText) return;
-	pushOp({ kind: "noteText", noteId, from: n.text, to: newText });
-	n.text = newText;
-	rebuildKey.value++;
-}
-
-function onNoteDelete(noteId: string) {
-	const idx = notes.value.findIndex((n) => n.id === noteId);
-	if (idx < 0) return;
-	const snapshot = cloneNote(notes.value[idx] as NoteDraft);
-	notes.value.splice(idx, 1);
-	pushOp({ kind: "noteDelete", snapshot });
-	rebuildKey.value++;
-}
-
-function addNote() {
-	const id = effectiveSchemaId.value;
-	if (!id) return;
-	// Drop the note at the centre of the *visible* canvas. The pane centre is a
-	// screen-space point; convert it to flow coordinates with the live viewport
-	// (offset + zoom) so the note lands on-screen no matter how the user has
-	// panned or zoomed — the old code read a stale {0,0,1} viewport and could
-	// place notes far off-screen. Pane size comes from our own wrapper element
-	// (the controller's `dimensions` ref isn't reliably populated here).
-	const rect = canvasWrapper.value?.getBoundingClientRect();
-	const vp = liveViewport.value;
-	const paneW = rect?.width || NODE_WIDTH * 3;
-	const paneH = rect?.height || NODE_HEIGHT_HEADER * 8;
-	const x = (paneW / 2 - vp.x) / vp.zoom - NOTE_DEFAULT_WIDTH / 2;
-	const y = (paneH / 2 - vp.y) / vp.zoom - NOTE_DEFAULT_HEIGHT / 2;
-	tempCounter += 1;
-	const tempId = `temp-${Date.now()}-${tempCounter}`;
-	const draft: NoteDraft = {
-		id: tempId,
-		schemaName: id,
-		text: "",
-		x,
-		y,
-		width: NOTE_DEFAULT_WIDTH,
-		height: NOTE_DEFAULT_HEIGHT,
-		color: null,
-		isTemp: true,
-	};
-	notes.value.push(draft);
-	pushOp({ kind: "noteCreate", tempId, snapshot: cloneNote(draft) });
-	rebuildKey.value++;
-}
-
-function runAutoLayout() {
-	if (Object.keys(tablePositions.value).length === 0) {
-		rebuildKey.value++;
-		nextTick(() => fitView());
-		return;
-	}
-	const from = clonePositions(tablePositions.value);
-	tablePositions.value = {};
-	pushOp({ kind: "autoLayout", from });
-	rebuildKey.value++;
-	nextTick(() => fitView());
-}
-
-function resetZoom() {
-	canvas.value?.zoomTo(RESET_ZOOM);
-}
-
-function confirmLeave(): boolean {
-	return window.confirm(t("dms_database.diagram.unsavedConfirm"));
-}
-
-function onBeforeUnload(e: BeforeUnloadEvent) {
-	if (!isDirty.value) return;
-	e.preventDefault();
-	e.returnValue = "";
-}
-
-onMounted(() => {
-	window.addEventListener("beforeunload", onBeforeUnload);
-});
-
-onBeforeUnmount(() => {
-	window.removeEventListener("beforeunload", onBeforeUnload);
-});
-
-const { registerGuard } = usePageLeaveGuard();
-registerGuard(() => {
-	if (!isDirty.value) return true;
-	return confirmLeave();
-});
+const isEmpty = computed(
+	() => loaded.value && (schema.value?.tables.length ?? 0) === 0,
+)
+const isLarge = computed(
+	() =>
+		!focusId.value && (schema.value?.tables.length ?? 0) > LARGE_SCHEMA_TABLES,
+)
 </script>
 
 <template>
-	<div
-		ref="canvasWrapper"
-		class="min-h-0 flex-1 overflow-hidden rounded-xl border border-default"
-		:class="panMode ? 'diagram-pan-mode' : 'diagram-select-mode'"
-	>
-		<DmsFlowCanvas
-			ref="canvas"
-			:node-types="nodeTypes"
-			:edge-types="edgeTypes"
-			:controls="false"
-			:fit-view-on-init="false"
-			:pan-on-drag="panMode"
-			:nodes-draggable="!panMode"
-			@nodes-initialized="onNodesInitialized"
-			@viewport-change="onViewportChange"
-			@node-drag-start="onNodeDragStart"
-			@node-drag="onNodeDrag"
-			@node-drag-stop="onNodeDragStop"
-			@node-double-click="onNodeDoubleClick"
-		>
-			<template #top-right>
-				<div
-					class="flex items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md"
+	<div class="flex min-h-0 flex-1 flex-col">
+		<DmsEmptyState
+			v-if="!schemasLoading && schemas.length === 0"
+			class="flex-1"
+			icon="i-ph-graph"
+			hatched
+			:title="t('dms_database.diagram.empty.no_schema')"
+		/>
+		<DmsClientOnly v-else>
+			<div
+				ref="canvasWrapper"
+				class="border-default relative min-h-0 flex-1 overflow-hidden rounded-xl border"
+				:class="panMode ? 'diagram-pan-mode' : ''"
+			>
+				<!-- Notes carry their own delete button, named in the page's
+				     language: the canvas's generic badge would only repeat it. -->
+				<DmsFlowCanvas
+					ref="canvas"
+					:node-types="nodeTypes"
+					:edge-types="edgeTypes"
+					:controls="false"
+					:fit-view-on-init="false"
+					:min-zoom="MIN_ZOOM"
+					minimap
+					deletable-nodes
+					:delete-badge="false"
+					:pan-on-drag="panMode"
+					:nodes-draggable="!panMode"
+					:select-nodes-on-drag="false"
+					@delete-nodes="onDeleteNodes"
+					@nodes-initialized="onNodesInitialized"
+					@viewport-change="onViewportChange"
+					@node-drag-start="onNodeDragStart"
+					@node-drag-stop="onNodeDragStop"
+					@node-click="onNodeClick"
+					@node-double-click="onNodeDoubleClick"
+					@pane-click="onPaneClick"
 				>
-					<UButton
-						size="sm"
-						variant="ghost"
-						color="neutral"
-						icon="i-ph-squares-four"
-						:label="$t('dms_database.diagram.toolbar.autoLayout')"
-						@click="runAutoLayout"
-					/>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.helpText')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-question"
-							:aria-label="$t('dms_database.diagram.toolbar.help')"
-						/>
-					</UTooltip>
-					<div class="w-px h-5 bg-default mx-1" />
-					<UTooltip :text="$t('dms_database.diagram.toolbar.undo')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-arrow-counter-clockwise"
-							:aria-label="$t('dms_database.diagram.toolbar.undo')"
-							:disabled="!canUndo || applying"
-							@click="undo"
-						/>
-					</UTooltip>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.redo')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-arrow-clockwise"
-							:aria-label="$t('dms_database.diagram.toolbar.redo')"
-							:disabled="!canRedo || applying"
-							@click="redo"
-						/>
-					</UTooltip>
-					<div class="w-px h-5 bg-default mx-1" />
-					<UButton
-						size="sm"
-						variant="ghost"
-						color="neutral"
-						:label="$t('dms_database.diagram.toolbar.cancel')"
-						:disabled="!isDirty || applying"
-						@click="cancelChanges"
-					/>
-					<UButton
-						size="sm"
-						color="primary"
-						:label="$t('dms_database.diagram.toolbar.apply')"
-						:disabled="!isDirty"
-						:loading="applying"
-						@click="applyChanges"
-					/>
-				</div>
-			</template>
+					<template #top-left>
+						<div class="flex flex-col items-start gap-1.5">
+							<div class="diagram-float">
+								<USelect
+									:model-value="schemaId ?? undefined"
+									:items="schemaItems"
+									icon="i-ph-stack"
+									variant="ghost"
+									size="sm"
+									class="min-w-36 font-mono"
+									:aria-label="t('dms_database.diagram.schema')"
+									@update:model-value="openSchema(String($event))"
+								/>
+								<span class="diagram-float__sep" />
+								<UInput
+									ref="searchInput"
+									v-model="search"
+									icon="i-ph-magnifying-glass"
+									variant="ghost"
+									size="sm"
+									class="w-40 md:w-64"
+									:color="searchMissed ? 'error' : 'primary'"
+									:highlight="searchMissed"
+									:placeholder="t('dms_database.diagram.search')"
+									:aria-label="t('dms_database.diagram.search')"
+									:aria-invalid="searchMissed || undefined"
+									:aria-describedby="searchMissed ? SEARCH_HINT_ID : undefined"
+									@keydown.enter.prevent="runSearch"
+									@keydown.escape.prevent="leaveSearch"
+								>
+									<template #trailing>
+										<span
+											v-if="searchPosition"
+											class="text-dimmed font-mono text-[11px] tabular-nums"
+										>
+											{{ searchPosition }}
+										</span>
+										<UKbd value="F" size="sm" />
+									</template>
+								</UInput>
+							</div>
+							<p
+								v-if="searchMissed"
+								:id="SEARCH_HINT_ID"
+								role="status"
+								class="diagram-float text-error px-3 py-1 text-xs"
+							>
+								{{ t('dms_database.diagram.search_empty') }}
+							</p>
+						</div>
+					</template>
 
-			<template #bottom-center>
-				<div
-					class="flex items-center gap-1 rounded-lg border border-default bg-elevated p-1 shadow-md"
-				>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.pointer')">
-						<UButton
-							size="sm"
-							:color="panMode ? 'neutral' : 'primary'"
-							:variant="panMode ? 'ghost' : 'solid'"
-							icon="i-ph-cursor"
-							:aria-pressed="!panMode"
-							:aria-label="$t('dms_database.diagram.toolbar.pointer')"
-							@click="panMode = false"
-						/>
-					</UTooltip>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.hand')">
-						<UButton
-							size="sm"
-							:color="panMode ? 'primary' : 'neutral'"
-							:variant="panMode ? 'solid' : 'ghost'"
-							icon="i-ph-hand"
-							:aria-pressed="panMode"
-							:aria-label="$t('dms_database.diagram.toolbar.hand')"
-							@click="panMode = true"
-						/>
-					</UTooltip>
-					<div class="w-px h-5 bg-default mx-1" />
-					<UTooltip :text="$t('dms_database.diagram.toolbar.zoomOut')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-magnifying-glass-minus"
-							:aria-label="$t('dms_database.diagram.toolbar.zoomOut')"
-							@click="zoomOut()"
-						/>
-					</UTooltip>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.resetZoom')">
-						<button
-							type="button"
-							class="px-2 text-sm text-muted tabular-nums hover:text-highlighted transition-colors"
-							:aria-label="$t('dms_database.diagram.toolbar.resetZoom')"
-							@click="resetZoom"
+					<template #top-right>
+						<div class="diagram-float">
+							<span
+								class="flex items-center gap-1.5 px-2 font-mono text-[11.5px]"
+								:class="saveState === 'error' ? 'text-error' : 'text-dimmed'"
+								:title="savedLabel"
+								role="status"
+							>
+								<UIcon
+									:name="
+										saveState === 'error'
+											? 'i-ph-warning-circle'
+											: saveState === 'saving'
+												? 'i-ph-circle-notch'
+												: 'i-ph-check-circle'
+									"
+									class="size-3.5"
+									:class="[
+										saveState === 'saving' ? 'animate-spin' : '',
+										saveState === 'error' ? '' : 'text-success',
+									]"
+								/>
+								<span class="sr-only md:not-sr-only">{{ savedLabel }}</span>
+							</span>
+							<UButton
+								v-if="saveState === 'error'"
+								size="xs"
+								color="error"
+								variant="soft"
+								:label="t('dms_database.common.retry')"
+								@click="saveNow"
+							/>
+							<span class="diagram-float__sep" />
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.undo')"
+								:kbds="['meta', 'z']"
+							>
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-arrow-counter-clockwise"
+									:aria-label="t('dms_database.diagram.toolbar.undo')"
+									:disabled="!canUndo"
+									@click="undo"
+								/>
+							</UTooltip>
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.redo')"
+								:kbds="['meta', 'shift', 'z']"
+							>
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-arrow-clockwise"
+									:aria-label="t('dms_database.diagram.toolbar.redo')"
+									:disabled="!canRedo"
+									@click="redo"
+								/>
+							</UTooltip>
+							<span class="diagram-float__sep" />
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.auto_layout_hint')"
+							>
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-squares-four"
+									:aria-label="t('dms_database.diagram.toolbar.auto_layout')"
+									:disabled="Boolean(preview) || isEmpty"
+									@click="startAutoLayout"
+								>
+									<span class="hidden md:inline">
+										{{ t('dms_database.diagram.toolbar.auto_layout') }}
+									</span>
+								</UButton>
+							</UTooltip>
+						</div>
+					</template>
+
+					<template #top-center>
+						<div
+							v-if="preview"
+							class="diagram-float border-primary/40 mt-12 gap-2 py-1.5 pl-3 pr-1.5 text-sm"
 						>
-							{{ zoomPercent }}
-						</button>
-					</UTooltip>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.zoomIn')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-magnifying-glass-plus"
-							:aria-label="$t('dms_database.diagram.toolbar.zoomIn')"
-							@click="zoomIn()"
-						/>
-					</UTooltip>
-					<UTooltip :text="$t('dms_database.diagram.toolbar.fitView')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-arrows-out"
-							:aria-label="$t('dms_database.diagram.toolbar.fitView')"
-							@click="fitView()"
-						/>
-					</UTooltip>
-					<div class="w-px h-5 bg-default mx-1" />
-					<UTooltip :text="$t('dms_database.diagram.toolbar.notes')">
-						<UButton
-							size="sm"
-							variant="ghost"
-							color="neutral"
-							icon="i-ph-text-t"
-							:aria-label="$t('dms_database.diagram.toolbar.notes')"
-							@click="addNote"
-						/>
-					</UTooltip>
+							<UIcon name="i-ph-squares-four" class="text-primary size-4" />
+							<span>{{ t('dms_database.diagram.preview.title') }}</span>
+							<span class="text-muted mr-1">
+								{{ t('dms_database.diagram.preview.moved', movedCount) }}
+							</span>
+							<UButton
+								size="sm"
+								color="neutral"
+								variant="ghost"
+								:label="t('dms_database.diagram.preview.discard')"
+								@click="discardLayout"
+							/>
+							<UButton
+								size="sm"
+								icon="i-ph-check"
+								:label="t('dms_database.diagram.preview.keep')"
+								@click="keepLayout"
+							/>
+						</div>
+						<div
+							v-else-if="selectedTable || focusId"
+							class="diagram-float mt-12 gap-1 py-1 pl-3 pr-1 text-sm"
+						>
+							<UIcon name="i-ph-table" class="text-primary size-4" />
+							<span class="font-mono text-[12.5px]">
+								{{ selectedTable ?? focusId?.split('::')[1] }}
+							</span>
+							<span class="diagram-float__sep" />
+							<UButton
+								v-if="selectedTable"
+								size="xs"
+								color="neutral"
+								variant="ghost"
+								icon="i-ph-sidebar-simple"
+								:label="t('dms_database.diagram.selection.inspect')"
+								@click="inspect(selectedTable)"
+							/>
+							<UButton
+								size="xs"
+								color="neutral"
+								:variant="focusId ? 'soft' : 'ghost'"
+								icon="i-ph-crosshair"
+								:label="
+									focusId
+										? t('dms_database.diagram.selection.show_all')
+										: t('dms_database.diagram.selection.focus')
+								"
+								@click="toggleFocus"
+							/>
+						</div>
+						<div
+							v-else-if="isLarge"
+							class="diagram-float text-warning mt-12 gap-2 px-3 py-2 text-sm"
+						>
+							<UIcon name="i-ph-warning" class="size-4" />
+							{{
+								t('dms_database.diagram.large', {
+									count: schema?.tables.length ?? 0,
+								})
+							}}
+						</div>
+					</template>
+
+					<template #bottom-left>
+						<div class="diagram-legend">
+							<span>
+								<UIcon name="i-ph-key" class="text-warning" />
+								{{ t('dms_database.diagram.legend.key') }}
+							</span>
+							<span>
+								<UIcon name="i-ph-arrow-right" class="text-primary" />
+								{{ t('dms_database.diagram.legend.relation') }}
+							</span>
+							<span>
+								<UIcon name="i-ph-brackets-curly" />
+								{{ t('dms_database.diagram.legend.object') }}
+							</span>
+							<span>
+								<UIcon name="i-ph-lock-key" />
+								{{ t('dms_database.modifiers.encrypted') }}
+							</span>
+						</div>
+					</template>
+
+					<template #bottom-center>
+						<div class="diagram-float">
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.select')"
+								:kbds="['v']"
+							>
+								<UButton
+									size="sm"
+									icon="i-ph-cursor"
+									:color="panMode ? 'neutral' : 'primary'"
+									:variant="panMode ? 'ghost' : 'soft'"
+									:aria-pressed="!panMode"
+									:aria-label="t('dms_database.diagram.toolbar.select')"
+									@click="panMode = false"
+								/>
+							</UTooltip>
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.pan')"
+								:kbds="['h']"
+							>
+								<UButton
+									size="sm"
+									icon="i-ph-hand"
+									:color="panMode ? 'primary' : 'neutral'"
+									:variant="panMode ? 'soft' : 'ghost'"
+									:aria-pressed="panMode"
+									:aria-label="t('dms_database.diagram.toolbar.pan')"
+									@click="panMode = true"
+								/>
+							</UTooltip>
+							<span class="diagram-float__sep" />
+							<UTooltip :text="t('dms_database.diagram.toolbar.zoom_out')">
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-magnifying-glass-minus"
+									:aria-label="t('dms_database.diagram.toolbar.zoom_out')"
+									@click="canvas?.zoomOut()"
+								/>
+							</UTooltip>
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.reset_zoom')"
+								:kbds="['0']"
+							>
+								<button
+									type="button"
+									class="text-muted hover:text-highlighted hover:bg-elevated min-w-12 rounded-md px-2 font-mono text-[11.5px] tabular-nums"
+									:aria-label="t('dms_database.diagram.toolbar.reset_zoom')"
+									@click="canvas?.zoomTo(RESET_ZOOM)"
+								>
+									{{ zoomPercent }}
+								</button>
+							</UTooltip>
+							<UTooltip :text="t('dms_database.diagram.toolbar.zoom_in')">
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-magnifying-glass-plus"
+									:aria-label="t('dms_database.diagram.toolbar.zoom_in')"
+									@click="canvas?.zoomIn()"
+								/>
+							</UTooltip>
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.fit')"
+								:kbds="['1']"
+							>
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-arrows-out"
+									:aria-label="t('dms_database.diagram.toolbar.fit')"
+									@click="fitAll"
+								/>
+							</UTooltip>
+							<span class="diagram-float__sep" />
+							<UTooltip
+								:text="t('dms_database.diagram.toolbar.note_hint')"
+								:kbds="['n']"
+							>
+								<UButton
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									icon="i-ph-note-pencil"
+									:label="t('dms_database.diagram.toolbar.note')"
+									:disabled="isEmpty"
+									@click="addNote"
+								/>
+							</UTooltip>
+						</div>
+					</template>
+				</DmsFlowCanvas>
+
+				<div
+					v-if="isEmpty"
+					class="pointer-events-none absolute inset-0 grid place-items-center"
+				>
+					<DmsEmptyState
+						class="pointer-events-auto"
+						icon="i-ph-graph"
+						:title="t('dms_database.diagram.empty.title', { schema: schemaId })"
+						:description="t('dms_database.diagram.empty.description')"
+					/>
 				</div>
-			</template>
-		</DmsFlowCanvas>
+			</div>
+		</DmsClientOnly>
 	</div>
 </template>
 
 <style scoped>
-/* Pan tool (hand): grab the empty canvas to move the view. Cursor tool keeps the
-   default arrow so node drag / selection reads as the active interaction. The
-   pane sits inside DmsFlowCanvas, hence :deep. */
 .diagram-pan-mode :deep(.vue-flow__pane) {
 	cursor: grab;
 }
 .diagram-pan-mode :deep(.vue-flow__pane.dragging) {
 	cursor: grabbing;
+}
+:deep(.vue-flow__minimap) {
+	border: 1px solid var(--ui-border-accented);
+	border-radius: calc(var(--ui-radius) * 0.75);
+	background: var(--ui-bg-elevated);
+	overflow: hidden;
+}
+:deep(.vue-flow__minimap-node) {
+	fill: var(--ui-border-accented);
+}
+/* As wide as its content: a centred panel only gets half the canvas, which
+   would wrap a bar that fits. It wraps only when the screen is narrower. */
+.diagram-float {
+	display: flex;
+	flex-wrap: wrap;
+	width: max-content;
+	max-width: calc(100vw - 4rem);
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid var(--ui-border-accented);
+	border-radius: var(--ui-radius);
+	background: var(--ui-bg-elevated);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.diagram-float__sep {
+	width: 1px;
+	height: 18px;
+	margin: 0 4px;
+	background: var(--ui-border);
+}
+.diagram-legend {
+	display: flex;
+	gap: 12px;
+	padding: 6px 10px;
+	border: 1px solid var(--ui-border);
+	border-radius: calc(var(--ui-radius) * 0.75);
+	background: color-mix(in srgb, var(--ui-bg-elevated) 88%, transparent);
+	font: 500 11px var(--font-mono, ui-monospace, monospace);
+	color: var(--ui-text-muted);
+}
+.diagram-legend span {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+}
+/* Below md the legend and the overview give their room to the canvas. */
+@media (max-width: 767.98px) {
+	.diagram-legend,
+	:deep(.vue-flow__minimap) {
+		display: none;
+	}
 }
 </style>
