@@ -153,6 +153,11 @@ function commit(field: (typeof fields.value)[number]) {
 	Reflect.deleteProperty(drafts, field.name)
 }
 
+// The id the row's label names its control by.
+function controlId(field: string): string {
+	return `dms-database-row-field-${field.replace(/[^\w-]/g, '_')}`
+}
+
 function setNull(field: string) {
 	if (!props.rowId) return
 	Reflect.deleteProperty(drafts, field)
@@ -238,7 +243,8 @@ onKeyStroke('k', (event) => {
 </script>
 
 <template>
-	<div class="flex h-full w-[34rem] max-w-[calc(100vw-3rem)] flex-col gap-4">
+	<!-- As wide as the side drawer, as the table inspector. -->
+	<div class="flex h-full w-full min-w-0 flex-col gap-4">
 		<header class="grid gap-2">
 			<div class="flex items-center gap-1">
 				<DmsEyebrow :label="t('dms_database.data.row.eyebrow', { scope })" />
@@ -282,100 +288,121 @@ onKeyStroke('k', (event) => {
 		</header>
 
 		<div class="min-h-0 flex-1 overflow-y-auto">
-			<div v-if="active === 'fields'" class="grid gap-3">
-				<div v-for="field in fields" :key="field.name" class="grid gap-1">
-					<div class="flex items-center gap-2">
-						<b class="text-toned font-mono text-[12.5px]">{{ field.name }}</b>
-						<span
-							class="flex items-center gap-1 font-mono text-[11px]"
+			<!-- Each field is a DMS form row: the column's name in the label
+				column, its type and staged change as help, the error under the
+				control. The drawer is narrower than the label column's step, so
+				the label sits above the control, as in a DMS form drawer. -->
+			<div v-if="active === 'fields'" class="flex flex-col">
+				<DmsFieldRow
+					v-for="field in fields"
+					:key="field.name"
+					layout="form"
+					:inset="false"
+					spacing="row"
+					:label-for="field.editable ? controlId(field.name) : undefined"
+				>
+					<template #label>
+						<span class="font-mono">{{ field.name }}</span>
+					</template>
+					<template #details>
+						<p
+							class="mt-0.5 flex items-center gap-1 font-mono text-[12px] leading-normal"
 							:class="
 								field.key
 									? 'text-warning'
 									: field.relation
 										? 'text-primary'
-										: 'text-dimmed'
+										: 'text-muted'
 							"
 						>
-							<UIcon :name="field.icon" class="size-3" />
+							<UIcon :name="field.icon" class="size-3 shrink-0" />
 							{{
 								field.key ? t('dms_database.inspector.primary_key') : field.type
 							}}
-						</span>
-						<span
+						</p>
+						<p
 							v-if="field.staged"
-							class="text-warning ml-auto font-mono text-[11px]"
+							class="text-warning mt-0.5 break-all font-mono text-[12px] leading-normal"
 						>
 							{{
 								t('dms_database.data.row.was', {
 									value: cellLabel(field.staged.before),
 								})
 							}}
-						</span>
-					</div>
+						</p>
+					</template>
+
 					<p
 						v-if="!field.editable"
-						class="text-muted break-all font-mono text-[12.5px]"
+						class="text-muted break-all pt-1.5 font-mono text-[12.5px]"
 					>
 						{{ cellLabel(field.value) }}
 						<span v-if="field.key" class="text-dimmed font-sans">
 							· {{ t('dms_database.data.row.not_editable') }}
 						</span>
 					</p>
-					<USwitch
-						v-else-if="typeof field.value === 'boolean'"
-						:model-value="field.value"
-						@update:model-value="setBoolean(field.name, Boolean($event))"
-					/>
-					<UTextarea
-						v-else-if="field.structured"
-						:model-value="draftOf(field.name, field.value)"
-						:rows="4"
-						autoresize
-						class="w-full font-mono text-xs"
-						:color="field.staged ? 'warning' : 'primary'"
-						:highlight="Boolean(field.staged || errors[field.name])"
-						@update:model-value="drafts[field.name] = String($event)"
-						@blur="commit(field)"
-					/>
-					<UInput
-						v-else
-						:model-value="draftOf(field.name, field.value)"
-						:aria-label="field.name"
-						:title="t('dms_database.data.grid.null_hint')"
-						:placeholder="
-							field.value === null || field.value === undefined
-								? 'null'
-								: undefined
-						"
-						class="w-full font-mono"
-						:color="
-							errors[field.name]
-								? 'error'
-								: field.staged
-									? 'warning'
-									: 'primary'
-						"
-						:highlight="Boolean(field.staged || errors[field.name])"
-						@update:model-value="drafts[field.name] = String($event)"
-						@blur="commit(field)"
-						@keydown.enter.prevent="commit(field)"
-					>
-						<template
-							v-if="field.value !== null && field.value !== undefined"
-							#trailing
+					<div v-else class="grid min-w-0 gap-1.5">
+						<UFormField
+							:name="field.name"
+							:error="errors[field.name] ?? false"
+							:data-field="field.name"
 						>
-							<UButton
-								size="xs"
-								color="neutral"
-								variant="link"
-								:label="t('dms_database.data.row.set_null')"
-								@click="setNull(field.name)"
+							<DmsSwitch
+								v-if="typeof field.value === 'boolean'"
+								:id="controlId(field.name)"
+								:model-value="field.value"
+								class="pt-1.5"
+								@update:model-value="setBoolean(field.name, Boolean($event))"
 							/>
-						</template>
-					</UInput>
-					<p v-if="errors[field.name]" class="text-error text-xs">
-						{{ errors[field.name] }}
-					</p>
+							<DmsTextarea
+								v-else-if="field.structured"
+								:id="controlId(field.name)"
+								:model-value="draftOf(field.name, field.value)"
+								:rows="4"
+								autoresize
+								class="w-full font-mono text-xs"
+								:color="field.staged ? 'warning' : 'primary'"
+								:highlight="Boolean(field.staged || errors[field.name])"
+								@update:model-value="drafts[field.name] = String($event)"
+								@blur="commit(field)"
+							/>
+							<div v-else class="flex min-w-0 items-center gap-2">
+								<DmsInputText
+									:id="controlId(field.name)"
+									:model-value="draftOf(field.name, field.value)"
+									:title="t('dms_database.data.grid.null_hint')"
+									:placeholder="
+										field.value === null || field.value === undefined
+											? 'null'
+											: undefined
+									"
+									class="min-w-0 flex-1 font-mono"
+									:color="
+										errors[field.name]
+											? 'error'
+											: field.staged
+												? 'warning'
+												: 'primary'
+									"
+									:highlight="Boolean(field.staged || errors[field.name])"
+									@update:model-value="drafts[field.name] = String($event)"
+									@blur="commit(field)"
+									@keydown.enter.prevent="commit(field)"
+								/>
+								<UButton
+									v-if="field.value !== null && field.value !== undefined"
+									size="sm"
+									color="neutral"
+									variant="ghost"
+									:label="t('dms_database.data.row.set_null')"
+									@click="setNull(field.name)"
+								/>
+							</div>
+							<template v-if="errors[field.name]" #error="{ error }">
+								<DmsFormErrorText :error />
+							</template>
+						</UFormField>
+					</div>
 					<DmsAutoLink
 						@click="emit('success')"
 						v-if="
@@ -397,7 +424,7 @@ onKeyStroke('k', (event) => {
 								},
 							})
 						"
-						class="text-primary inline-flex items-center gap-1 text-xs hover:underline"
+						class="text-primary inline-flex items-center gap-1 justify-self-start text-xs hover:underline"
 					>
 						<UIcon name="i-ph-arrow-square-out" class="size-3" />
 						{{
@@ -406,7 +433,7 @@ onKeyStroke('k', (event) => {
 							})
 						}}
 					</DmsAutoLink>
-				</div>
+				</DmsFieldRow>
 			</div>
 
 			<DmsCodeSnippet

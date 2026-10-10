@@ -426,7 +426,7 @@
 				"name": "Nom",
 				"name_placeholder": "Commandes EU en attente",
 				"notes": "Description",
-				"optional": "Facultatif",
+				"name_required": "Donnez un nom à la requête",
 				"share": "Partager avec l'équipe",
 				"share_description": "L'équipe peut la lancer ; vous seul pouvez la modifier ou la supprimer.",
 				"confirm": "Enregistrer la requête",

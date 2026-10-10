@@ -426,7 +426,7 @@
 				"name": "Name",
 				"name_placeholder": "Pending EU orders",
 				"notes": "Description",
-				"optional": "Optional",
+				"name_required": "Give the query a name",
 				"share": "Share with team",
 				"share_description": "Teammates can run it; only you can edit or delete it.",
 				"confirm": "Save query",

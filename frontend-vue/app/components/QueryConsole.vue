@@ -448,6 +448,15 @@ const saveName = ref('')
 const saveDescription = ref('')
 const saveShared = ref(false)
 const saveError = ref<string | null>(null)
+// The name says it is missing once left empty, as a DMS form's required field.
+const nameTouched = ref(false)
+const nameError = computed(() =>
+	nameTouched.value && !saveName.value.trim()
+		? t('dms_database.query.save.name_required')
+		: null,
+)
+// A DMS form's rows in a modal: label column, hairline between rows.
+const SAVE_ROW = { layout: 'form', inset: false, spacing: 'row' } as const
 const saving = ref(false)
 const editing = ref<SavedQuery | null>(null)
 // A past run being saved: the editor takes its text once it is saved.
@@ -461,6 +470,7 @@ function openSaveModal(from?: SavedQuery | HistoryEntry) {
 	saveDescription.value = saved?.description ?? ''
 	saveShared.value = saved?.shared ?? false
 	saveError.value = null
+	nameTouched.value = false
 	saveOpen.value = true
 }
 
@@ -480,7 +490,10 @@ async function persist(text: string) {
 }
 
 async function confirmSave() {
-	if (!saveName.value.trim()) return
+	if (!saveName.value.trim()) {
+		nameTouched.value = true
+		return
+	}
 	saving.value = true
 	saveError.value = null
 	try {
@@ -626,30 +639,60 @@ onMounted(async () => {
 			:description="t('dms_database.query.save.description')"
 		>
 			<template #body>
+				<!-- Drawn as a DMS form in a modal: FieldRow rows, errors under
+					their control, the required legend under the rows. -->
 				<form
 					id="dms-database-save-query"
-					class="grid gap-4"
+					class="flex flex-col py-1"
+					novalidate
 					@submit.prevent="confirmSave"
 				>
-					<UFormField :label="t('dms_database.query.save.name')" required>
-						<UInput
-							v-model="saveName"
-							autofocus
-							class="w-full"
-							:placeholder="t('dms_database.query.save.name_placeholder')"
-						/>
-					</UFormField>
-					<UFormField
-						:label="t('dms_database.query.save.notes')"
-						:hint="t('dms_database.query.save.optional')"
+					<DmsFieldRow
+						v-bind="SAVE_ROW"
+						:label="t('dms_database.query.save.name')"
+						label-for="dms-database-save-query-name"
+						required
 					>
-						<UTextarea v-model="saveDescription" class="w-full" :rows="3" />
-					</UFormField>
-					<USwitch
-						v-model="saveShared"
+						<div class="grid min-w-0 gap-1.5">
+							<UFormField name="name" :error="nameError ?? false">
+								<DmsInputText
+									id="dms-database-save-query-name"
+									v-model="saveName"
+									autofocus
+									class="w-full"
+									:placeholder="t('dms_database.query.save.name_placeholder')"
+									@blur="nameTouched = true"
+								/>
+								<template v-if="nameError" #error="{ error }">
+									<DmsFormErrorText :error />
+								</template>
+							</UFormField>
+						</div>
+					</DmsFieldRow>
+					<DmsFieldRow
+						v-bind="SAVE_ROW"
+						:label="t('dms_database.query.save.notes')"
+						label-for="dms-database-save-query-description"
+					>
+						<DmsTextarea
+							id="dms-database-save-query-description"
+							v-model="saveDescription"
+							class="w-full"
+							:rows="3"
+						/>
+					</DmsFieldRow>
+					<DmsFieldRow
+						v-bind="SAVE_ROW"
 						:label="t('dms_database.query.save.share')"
 						:description="t('dms_database.query.save.share_description')"
-					/>
+						label-for="dms-database-save-query-shared"
+					>
+						<DmsSwitch
+							id="dms-database-save-query-shared"
+							v-model="saveShared"
+						/>
+					</DmsFieldRow>
+					<DmsFormRequiredLegend class="pb-2" />
 					<UAlert
 						v-if="saveError"
 						color="error"
