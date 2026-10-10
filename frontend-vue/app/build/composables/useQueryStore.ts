@@ -64,6 +64,8 @@ export interface SaveQueryInput {
 	shared: boolean
 }
 
+import { HISTORY_KEPT } from '../query/runs'
+
 const QUERY_BASE = '/api/database/query'
 
 export function useQueryStore() {
@@ -71,7 +73,6 @@ export function useQueryStore() {
 
 	const savedQueries = ref<SavedQuery[]>([])
 	const historyItems = ref<HistoryEntry[]>([])
-	const historyTotal = ref(0)
 
 	async function fetchSaved(scope: QueryScope): Promise<void> {
 		const response = await $authFetch<{ items: SavedQuery[] }>(
@@ -92,7 +93,6 @@ export function useQueryStore() {
 			method: 'DELETE',
 		})
 		historyItems.value = []
-		historyTotal.value = 0
 	}
 
 	async function dryRun(query: Record<string, unknown>): Promise<DryRunResult> {
@@ -102,15 +102,13 @@ export function useQueryStore() {
 		})
 	}
 
-	async function fetchHistory(limit: number, offset: number): Promise<void> {
-		const response = await $authFetch<{
-			items: HistoryEntry[]
-			total: number
-		}>(`${QUERY_BASE}/history`, {
-			query: { limit, offset },
-		})
+	/** Every run the server keeps, at once. */
+	async function fetchHistory(): Promise<void> {
+		const response = await $authFetch<{ items: HistoryEntry[] }>(
+			`${QUERY_BASE}/history`,
+			{ query: { limit: HISTORY_KEPT } },
+		)
 		historyItems.value = response.items ?? []
-		historyTotal.value = response.total ?? 0
 	}
 
 	async function executeQuery(
@@ -121,14 +119,6 @@ export function useQueryStore() {
 		return $authFetch<ExecuteResult>(`${QUERY_BASE}/execute`, {
 			method: 'POST',
 			body: { query, source, language },
-		})
-	}
-
-	/** Records a run that failed before reaching the server. */
-	async function recordFailure(source: string, error: string): Promise<void> {
-		await $authFetch<{ success: boolean }>(`${QUERY_BASE}/history`, {
-			method: 'POST',
-			body: { source, error, language: 'aql' },
 		})
 	}
 
@@ -159,14 +149,12 @@ export function useQueryStore() {
 	return {
 		savedQueries,
 		historyItems,
-		historyTotal,
 		fetchSaved,
 		fetchHistory,
 		fetchHistoryEntry,
 		clearHistory,
 		dryRun,
 		executeQuery,
-		recordFailure,
 		saveQuery,
 		updateSaved,
 		deleteSaved,

@@ -94,12 +94,6 @@ export function unknownName(message: string): UnknownName | null {
 	}
 }
 
-/** The table named by an "Unknown table" error, if the message names one. */
-export function unknownTable(message: string): string | null {
-	const unknown = unknownName(message)
-	return unknown?.kind === 'table' ? unknown.name : null
-}
-
 function distance(left: string, right: string): number {
 	const previous = Array.from({ length: right.length + 1 }, (_, index) => index)
 	for (let i = 1; i <= left.length; i += 1) {
@@ -137,10 +131,7 @@ export function closestName(name: string, candidates: string[]): string | null {
 	return best
 }
 
-/** The table name closest to a mistyped one, when one is close enough. */
-export const closestTable = closestName
-
-function escapeRegExp(text: string): string {
+export function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
 

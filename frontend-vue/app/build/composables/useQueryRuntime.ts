@@ -10,8 +10,7 @@ import {
 	Table,
 	ValueProxy,
 } from '@antelopejs/interface-database/staged-query'
-import { closestName } from '../query/runs'
-import { findSyntaxProblem, type SyntaxProblem } from '../query/syntax'
+import { javascriptLanguage } from '@codemirror/lang-javascript'
 import { containsMutations, encodeStaged } from '../utils/stagedSerialization'
 import type { SchemaSummary } from './useDatabaseSchemas'
 
@@ -25,14 +24,20 @@ interface SchemaDefLike {
 	[tableName: string]: { fields: unknown; indexes: unknown }
 }
 
+/** Where a query text breaks (1-based line and column). */
+export interface SyntaxPlace {
+	line: number
+	column: number
+}
+
 export type QueryInputProblem =
-	| { kind: 'syntax'; syntax: SyntaxProblem | null; detail: string }
-	| { kind: 'unknown_schema'; schema: string; suggestion: string | null }
+	| { kind: 'syntax'; place: SyntaxPlace | null; detail: string }
+	| { kind: 'unknown_schema'; schema: string }
 
 /**
  * A query the console could not send, for a reason it can name: a syntax
- * error with its place, or a schema the workspace does not have (with the
- * closest one). The message is English; the console words it from `problem`.
+ * error with its place, or a schema the workspace does not have. The message
+ * is English; the console words it from `problem`.
  */
 export class QueryInputError extends Error {
 	readonly problem: QueryInputProblem
@@ -81,12 +86,9 @@ function guardSchemas<T extends object>(
 				!(key in target) &&
 				!IGNORED_KEYS.has(key)
 			) {
-				const suggestion = closestName(key, Object.keys(target))
-				const hint = suggestion ? `. Did you mean "${suggestion}"?` : ''
-				throw new QueryInputError(`Unknown schema "${key}"${hint}`, {
+				throw new QueryInputError(`Unknown schema "${key}"`, {
 					kind: 'unknown_schema',
 					schema: key,
-					suggestion,
 				})
 			}
 			return Reflect.get(target, key, receiver)
@@ -94,16 +96,25 @@ function guardSchemas<T extends object>(
 	})
 }
 
-function syntaxMessage(problem: SyntaxProblem | null, detail: string): string {
-	if (!problem) return `Syntax error: ${detail}`
-	const where = `line ${problem.line}, column ${problem.column}`
-	switch (problem.kind) {
-		case 'unclosed':
-			return `Syntax error: "${problem.char}" at ${where} is never closed`
-		case 'string':
-			return `Syntax error: the string opened by ${problem.char} at ${where} is never closed`
-		default:
-			return `Syntax error: unexpected "${problem.char}" at ${where}`
+/**
+ * Where the JavaScript parser of the editor stops on a query text: the first
+ * error node of its tree; null when it parses.
+ */
+export function findSyntaxPlace(text: string): SyntaxPlace | null {
+	let at: number | null = null
+	javascriptLanguage.parser.parse(text).iterate({
+		enter(node) {
+			if (at !== null) return false
+			if (!node.type.isError) return undefined
+			at = node.from
+			return false
+		},
+	})
+	if (at === null) return null
+	const before = text.slice(0, at)
+	return {
+		line: before.split('\n').length,
+		column: at - before.lastIndexOf('\n'),
 	}
 }
 
@@ -128,12 +139,13 @@ function compile(code: string, text: string): QueryFunction {
 		) as QueryFunction
 	} catch (error) {
 		if (!(error instanceof SyntaxError)) throw error
-		// The engine's message points at the wrapper; the text's own brackets
-		// and quotes tell where it breaks.
-		const syntax = findSyntaxProblem(text)
-		throw new QueryInputError(syntaxMessage(syntax, error.message), {
+		// The engine's message points at the wrapper; the editor's parser tells
+		// where the text itself breaks.
+		const place = findSyntaxPlace(text)
+		const where = place ? ` at line ${place.line}, column ${place.column}` : ''
+		throw new QueryInputError(`Syntax error${where}: ${error.message}`, {
 			kind: 'syntax',
-			syntax,
+			place,
 			detail: error.message,
 		})
 	}

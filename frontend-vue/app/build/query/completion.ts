@@ -98,19 +98,3 @@ export function fieldsAt(index: CompletionIndex, chain: QueryTarget): string[] {
 		return index.fieldsBySchema[chain.schema] as string[]
 	return index.allFields
 }
-
-/**
- * The instance whose row counts a table completion shows: `''` for the
- * default one, `'*'` for every instance at once, or a named instance of the
- * schema; undefined when none applies (an unknown schema or instance).
- */
-export function countedInstance(
-	index: CompletionIndex,
-	chain: QueryTarget,
-): string | undefined {
-	if (!chain.schema || !index.tablesBySchema[chain.schema]) return undefined
-	if (!chain.instance || chain.instance === '*') return chain.instance ?? ''
-	return index.instancesBySchema[chain.schema]?.includes(chain.instance)
-		? chain.instance
-		: undefined
-}

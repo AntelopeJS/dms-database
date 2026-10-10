@@ -1,10 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { SchemaSummary } from '../app/build/composables/useDatabaseSchemas'
-import {
-	DiagramAutosave,
-	type SaveOwner,
-	type SaveStatus,
-} from '../app/build/diagram/autosave'
+import { DiagramAutosave, type SaveStatus } from '../app/build/diagram/autosave'
 import {
 	buildGraph,
 	EDGE_ACTIVE_COLOR,
@@ -21,7 +17,6 @@ import {
 	tableNodeId,
 } from '../app/build/diagram/graph'
 import { DiagramHistory, type DiagramState } from '../app/build/diagram/history'
-import { nodesToRelease, pressedNodeId } from '../app/build/diagram/grab'
 import { canvasOwnsKey, diagramCommand } from '../app/build/diagram/shortcuts'
 import { DiagramSync, type DiagramStore } from '../app/build/diagram/sync'
 
@@ -305,8 +300,14 @@ describe('diagram shortcuts (D-5, D-6)', () => {
 	function element(
 		matches: Record<string, boolean>,
 		page = false,
+		dialogOpen = false,
 	): Element & { ownerDocument: unknown } {
-		const doc = { body: null as unknown, documentElement: null }
+		const doc = {
+			body: null as unknown,
+			documentElement: null,
+			querySelector: (selector: string) =>
+				dialogOpen && selector.includes('dialog') ? {} : null,
+		}
 		const el = {
 			closest: (selector: string) =>
 				Object.entries(matches).some(
@@ -326,7 +327,8 @@ describe('diagram shortcuts (D-5, D-6)', () => {
 		expect(canvasOwnsKey(inside, canvas)).toBe(true)
 		expect(canvasOwnsKey(element({}, true), canvas)).toBe(true)
 		expect(canvasOwnsKey(element({ textarea: true }), canvas)).toBe(false)
-		expect(canvasOwnsKey(element({ dialog: true }), canvas)).toBe(false)
+		// Any open dialog, wherever the focus is.
+		expect(canvasOwnsKey(element({}, true, true), canvas)).toBe(false)
 		expect(canvasOwnsKey(element({}), canvas)).toBe(false)
 	})
 })
@@ -379,50 +381,51 @@ describe('diagram autosave (D-2)', () => {
 		vi.useRealTimers()
 	})
 
-	it('writes a pending save under its own schema when another one is scheduled', async () => {
+	it('writes a schema left as it was, under its own id', async () => {
 		vi.useFakeTimers()
 		const { store, calls } = memoryStore()
-		const statuses: [string, SaveStatus][] = []
-		const autosave = new DiagramAutosave(800, (owner, status) =>
-			statuses.push([owner.schemaId, status]),
-		)
-		const a = new DiagramSync(store, 'a')
-		const b = new DiagramSync(store, 'b')
-		// a: one table moved, one note written; then b is loaded right away.
-		const stateA: DiagramState = {
+		const statuses: SaveStatus[] = []
+		// One table moved and one note written in a, then b loads at once.
+		const shown: DiagramState = {
 			positions: { t: { x: 1, y: 2 } },
 			notes: [note('temp-1', 'hello')],
 		}
-		const frozen = structuredClone(stateA)
-		autosave.schedule(a, () => frozen)
-		// b's state replaces a's on the page, and b's first edit comes in.
-		const stateB: DiagramState = { positions: { u: { x: 0, y: 0 } }, notes: [] }
-		autosave.schedule(b, () => stateB)
+		const a = new DiagramAutosave(
+			new DiagramSync(store, 'a'),
+			() => shown,
+			800,
+			(status) => statuses.push(status),
+		)
+		a.schedule()
+		const leaving = a.flush()
+		// b's state replaces a's on the canvas before a's write ends.
+		shown.positions = { u: { x: 0, y: 0 } }
+		shown.notes = []
+		await leaving
+		expect(calls).toEqual(['layout a t', 'create a hello'])
+		expect(statuses).toEqual(['saving', 'saved'])
+		// Nothing is left scheduled for a.
 		await vi.runAllTimersAsync()
-		expect(calls).toEqual(['layout a t', 'create a hello', 'layout b u'])
-		expect(statuses).toEqual([
-			['a', 'saving'],
-			['a', 'saved'],
-			['b', 'saving'],
-			['b', 'saved'],
-		])
+		expect(calls).toHaveLength(2)
 	})
 
-	it('waits for the delay, and writes nothing for an owner no longer shown', async () => {
+	it('waits for edits to pause', async () => {
 		vi.useFakeTimers()
 		const { store, calls } = memoryStore()
-		const autosave = new DiagramAutosave(800, () => undefined)
-		const a = new DiagramSync(store, 'a')
-		let shown: DiagramSync | null = a
 		const state: DiagramState = { positions: { t: { x: 1, y: 1 } }, notes: [] }
-		autosave.schedule(a, () => (shown === a ? state : null))
+		const autosave = new DiagramAutosave(
+			new DiagramSync(store, 'a'),
+			() => state,
+			800,
+			() => undefined,
+		)
+		autosave.schedule()
+		await vi.advanceTimersByTimeAsync(500)
+		autosave.schedule()
 		await vi.advanceTimersByTimeAsync(500)
 		expect(calls).toEqual([])
-		expect(autosave.busy).toBe(true)
-		shown = null
-		await vi.advanceTimersByTimeAsync(500)
-		expect(calls).toEqual([])
-		expect(autosave.busy).toBe(false)
+		await vi.advanceTimersByTimeAsync(300)
+		expect(calls).toEqual(['layout a t'])
 	})
 
 	it('reports a failed save and writes it again on retry', async () => {
@@ -436,16 +439,18 @@ describe('diagram autosave (D-2)', () => {
 			},
 		}
 		const statuses: SaveStatus[] = []
-		const autosave = new DiagramAutosave(0, (_owner, status) =>
-			statuses.push(status),
-		)
-		const a: SaveOwner = new DiagramSync(failing, 'a')
 		const state: DiagramState = { positions: { t: { x: 1, y: 1 } }, notes: [] }
-		autosave.schedule(a, () => state)
+		const autosave = new DiagramAutosave(
+			new DiagramSync(failing, 'a'),
+			() => state,
+			0,
+			(status) => statuses.push(status),
+		)
+		autosave.schedule()
 		await autosave.flush()
 		expect(statuses).toEqual(['saving', 'error'])
 		fail = false
-		autosave.schedule(a, () => state)
+		autosave.schedule()
 		await autosave.flush()
 		expect(statuses).toEqual(['saving', 'error', 'saving', 'saved'])
 		expect(calls).toEqual(['layout a t'])
@@ -460,17 +465,18 @@ describe('diagram autosave (D-2)', () => {
 			},
 		}
 		const statuses: SaveStatus[] = []
-		const autosave = new DiagramAutosave(0, (_owner, status) =>
-			statuses.push(status),
+		let state: DiagramState = { positions: { t: { x: 1, y: 1 } }, notes: [] }
+		const autosave = new DiagramAutosave(
+			new DiagramSync(failing, 'a'),
+			() => state,
+			0,
+			(status) => statuses.push(status),
 		)
-		const a = new DiagramSync(failing, 'a')
-		autosave.schedule(a, () => ({
-			positions: { t: { x: 1, y: 1 } },
-			notes: [],
-		}))
+		autosave.schedule()
 		await autosave.flush()
 		// The move is undone: the stored state is the shown one again.
-		autosave.schedule(a, () => ({ positions: {}, notes: [] }))
+		state = { positions: {}, notes: [] }
+		autosave.schedule()
 		await autosave.flush()
 		expect(statuses).toEqual(['saving', 'error', 'idle'])
 	})
@@ -506,34 +512,5 @@ describe('diagram history', () => {
 		expect(state.notes).toEqual([])
 		expect(history.redo(state)).toBe(true)
 		expect(state.notes.map((n) => n.id)).toEqual(['n1'])
-	})
-})
-
-describe('grabbing a node', () => {
-	function inNode(id: string | null): EventTarget {
-		const node = id
-			? { getAttribute: (name: string) => (name === 'data-id' ? id : null) }
-			: null
-		return {
-			closest: (selector: string) =>
-				selector === '.vue-flow__node' ? node : null,
-		} as unknown as EventTarget
-	}
-
-	it('finds the node a press lands on', () => {
-		expect(pressedNodeId(inNode('shop::orders'))).toBe('shop::orders')
-		expect(pressedNodeId(inNode(null))).toBeNull()
-		expect(pressedNodeId(null)).toBeNull()
-		expect(pressedNodeId({} as EventTarget)).toBeNull()
-	})
-
-	it('lets go of every other selected node, so only the grabbed one moves', () => {
-		const note = { id: 'note::n1' }
-		const other = { id: 'note::n2' }
-		// A selected note does not follow a table: tables are never selected.
-		expect(nodesToRelease([note], 'shop::orders')).toEqual([note])
-		expect(nodesToRelease([note, other], 'note::n1')).toEqual([other])
-		expect(nodesToRelease([note], 'note::n1')).toEqual([])
-		expect(nodesToRelease([], 'shop::orders')).toEqual([])
 	})
 })

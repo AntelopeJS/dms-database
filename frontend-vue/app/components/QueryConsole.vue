@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { useQueryStore } from '../build/composables/useQueryStore'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
+import { useSessionStorage } from '@vueuse/core'
 import { h } from 'vue'
-import { readDraft, writeDraft } from '../build/query/draft'
 import { replaceName, type UnknownKind } from '../build/query/runs'
 import {
 	describeTarget,
 	instanceArgument,
 	readQueryTarget,
 	targetFromSource,
+	withInstance,
 	type QueryTarget,
 } from '../build/query/target'
 import {
@@ -23,18 +24,20 @@ import type {
 import { schemaAccess } from '../build/utils/databaseLinks'
 import QueryBuilderPanel from './QueryBuilderPanel.vue'
 import QueryLibrary from './QueryLibrary.vue'
-import QueryResultPanel, { type QueryFailure } from './QueryResultPanel.vue'
+import QueryResultPanel, {
+	type InstanceRows,
+	type QueryFailure,
+} from './QueryResultPanel.vue'
 
 // The query console: the library rail, the editor and the result. A query
 // that changes data runs only after a dry run told what it touches (D-03):
 // deletes and multi-row writes ask for the table name; a single-row update
 // can be let through without asking until the browser tab is closed.
 
-// Runs listed at first, and added by each "Show older runs".
-const HISTORY_PAGE = 200
-const BROWSE_TABLES = '/api/database/browse/tables'
-const CROSS_INSTANCE_FILTER = '__CROSS_INSTANCE__'
-const DRAFT_DELAY_MS = 300
+const BROWSE_COUNT = '/api/database/browse/count'
+// The query being written, kept for the browser tab: a reload, or a row link
+// followed by Back, brings it back (Q-9). A link that names a query wins.
+const DRAFT_KEY = 'dms-database:query:draft'
 const SKIP_SINGLE_UPDATES_KEY = 'dms-database:query:skip-single-row-updates'
 const PREFILL_ROWS = 50
 const OPERATION_ICONS: Record<string, string> = {
@@ -62,8 +65,9 @@ const target = ref<QueryTarget>({})
 const loadedSaved = ref<SavedQuery | null>(null)
 const activeHistoryId = ref<string | null>(null)
 const libraryLoading = ref(true)
-const historyLimit = ref(HISTORY_PAGE)
-const historyLoadingMore = ref(false)
+// Named instances holding rows of a table the last read found empty in the
+// default instance.
+const elsewhere = ref<InstanceRows[]>([])
 const team = ref<SavedQuery[]>([])
 const editor = useTemplateRef<InstanceType<typeof QueryBuilderPanel>>('editor')
 
@@ -77,14 +81,7 @@ const ownId = computed(
 
 // --- library ---
 async function refreshHistory() {
-	await store.fetchHistory(historyLimit.value, 0).catch(() => undefined)
-}
-
-async function loadMoreHistory() {
-	historyLimit.value += HISTORY_PAGE
-	historyLoadingMore.value = true
-	await refreshHistory()
-	historyLoadingMore.value = false
+	await store.fetchHistory().catch(() => undefined)
 }
 
 async function refreshSaved() {
@@ -100,37 +97,6 @@ async function refreshSaved() {
 	} catch {
 		team.value = []
 	}
-}
-
-// Rows per table of a schema in one instance, for the editor's table
-// completions: the counts of the instance the query names, asked once each.
-const tableCounts = new Map<string, Promise<Record<string, number>>>()
-
-function countsFor(
-	schema: string,
-	instance: string,
-): Promise<Record<string, number>> {
-	const key = `${schema}@${instance}`
-	const cached = tableCounts.get(key)
-	if (cached) return cached
-	const filter = instance === '*' ? CROSS_INSTANCE_FILTER : instance
-	const counts = $authFetch<{
-		items: { name: string; elementCount: number }[]
-	}>(BROWSE_TABLES, {
-		query: {
-			filter_schema: `is:${schema}`,
-			...(filter ? { filter_instance: `is:${filter}` } : {}),
-		},
-	}).then(
-		(res) =>
-			Object.fromEntries(res.items.map((row) => [row.name, row.elementCount])),
-		(error: unknown) => {
-			tableCounts.delete(key)
-			throw error
-		},
-	)
-	tableCounts.set(key, counts)
-	return counts
 }
 
 function openSaved(query: SavedQuery) {
@@ -154,24 +120,22 @@ function newQuery() {
 	nextTick(() => editor.value?.focus())
 }
 
-// The query being written survives a reload or a Back (Q-9).
-let draftTimer: ReturnType<typeof setTimeout> | undefined
+const draft = useSessionStorage<{ source: string; savedId: string | null }>(
+	DRAFT_KEY,
+	{ source: '', savedId: null },
+)
 watch([source, () => loadedSaved.value?.id ?? null], ([text, savedId]) => {
-	clearTimeout(draftTimer)
-	draftTimer = setTimeout(
-		() => writeDraft({ source: text, savedId }),
-		DRAFT_DELAY_MS,
-	)
+	draft.value = { source: text, savedId }
 })
 
 function restoreDraft() {
-	const draft = readDraft()
-	if (!draft) return
-	const saved = draft.savedId
-		? store.savedQueries.value.find((query) => query.id === draft.savedId)
+	const { source: text, savedId } = draft.value
+	if (!text) return
+	const saved = savedId
+		? store.savedQueries.value.find((query) => query.id === savedId)
 		: undefined
 	loadedSaved.value = saved ?? null
-	source.value = draft.source
+	source.value = text
 }
 
 async function deleteSaved(query: SavedQuery) {
@@ -221,6 +185,53 @@ function fetchDuration(error: unknown): number | null {
 	return typeof duration === 'number' ? duration : null
 }
 
+/**
+ * The named instances of a table that hold rows, each with its count: asked
+ * only when a read found the table empty in the default instance (decision
+ * 11). An instance whose count fails is left out.
+ */
+async function instancesWithRows(target: QueryTarget): Promise<InstanceRows[]> {
+	const instances =
+		schemas.value.find((schema) => schema.id === target.schema)?.instances ?? []
+	const counts = await Promise.all(
+		instances.map((id) =>
+			$authFetch<{ total: number }>(BROWSE_COUNT, {
+				query: {
+					filter_schema: `is:${target.schema}`,
+					filter_table: `is:${target.table}`,
+					filter_instance: `is:${id}`,
+				},
+			}).then(
+				(res) => ({ id, count: res.total }),
+				() => ({ id, count: 0 }),
+			),
+		),
+	)
+	return counts.filter((entry) => entry.count > 0)
+}
+
+// Each run drops the instances found for the previous one; a slow answer
+// for an older run is ignored.
+let runId = 0
+
+async function findElsewhere(
+	answer: Awaited<ReturnType<typeof store.executeQuery>>,
+	next: QueryTarget,
+) {
+	const id = ++runId
+	elsewhere.value = []
+	if (
+		answer.mutation ||
+		answer.rows.length > 0 ||
+		next.instance !== '' ||
+		!next.schema ||
+		!next.table
+	)
+		return
+	const found = await instancesWithRows(next)
+	if (id === runId) elsewhere.value = found
+}
+
 // The result keeps naming the previous run's target until the new one lands.
 async function execute(query: Record<string, unknown>, text: string) {
 	executing.value = true
@@ -229,8 +240,7 @@ async function execute(query: Record<string, unknown>, text: string) {
 		const answer = await store.executeQuery(query, text, 'aql')
 		failure.value = null
 		result.value = answer
-		// A write changes the row counts the completions show.
-		if (answer.mutation) tableCounts.clear()
+		void findElsewhere(answer, next)
 	} catch (error) {
 		result.value = null
 		failure.value = {
@@ -264,27 +274,22 @@ function describeInputError(error: unknown): QueryFailure {
 			durationMs: null,
 			unknown: { kind: 'schema', name: problem.schema },
 		}
-	const syntax = problem.syntax
+	const { place, detail } = problem
 	return {
-		message: syntax
-			? t(`dms_database.query.errors.syntax_${syntax.kind}`, {
-					char: syntax.char,
-					line: syntax.line,
-					column: syntax.column,
-				})
-			: t('dms_database.query.errors.syntax', { detail: problem.detail }),
+		message: place
+			? t('dms_database.query.errors.syntax_at', { ...place })
+			: t('dms_database.query.errors.syntax', { detail }),
 		durationMs: null,
 	}
 }
 
-// The run is listed in History like the ones the server ran (Q-13).
-async function failBeforeRun(text: string, problem: QueryFailure) {
+// A run that never reached the server is not kept in History (decision 9).
+function failBeforeRun(text: string, problem: QueryFailure) {
 	result.value = null
+	elsewhere.value = []
 	failure.value = problem
 	target.value = targetFromSource(text)
 	activeHistoryId.value = null
-	await store.recordFailure(text, problem.message).catch(() => undefined)
-	await refreshHistory()
 }
 
 function skipsSingleUpdates(): boolean {
@@ -428,6 +433,15 @@ function replaceUnknown(kind: UnknownKind, from: string, to: string) {
 	failure.value = null
 }
 
+// The empty read again, in a named instance that has rows.
+async function runInInstance(instance: string) {
+	if (!target.value.schema) return
+	const next = withInstance(source.value, target.value.schema, instance)
+	if (next === source.value) return
+	source.value = next
+	await run()
+}
+
 // --- saving ---
 const saveOpen = ref(false)
 const saveName = ref('')
@@ -548,13 +562,6 @@ onMounted(async () => {
 	libraryLoading.value = false
 	if (!(await openFromRoute())) restoreDraft()
 })
-
-onBeforeUnmount(() => {
-	// A pending draft is written now: leaving the page must not lose it.
-	if (draftTimer === undefined) return
-	clearTimeout(draftTimer)
-	writeDraft({ source: source.value, savedId: loadedSaved.value?.id ?? null })
-})
 </script>
 
 <template>
@@ -566,8 +573,6 @@ onBeforeUnmount(() => {
 		<QueryLibrary
 			class="max-lg:max-h-80 max-lg:shrink-0 lg:min-h-0"
 			:history="store.historyItems.value"
-			:history-total="store.historyTotal.value"
-			:loading-more="historyLoadingMore"
 			:saved="store.savedQueries.value"
 			:team="team"
 			:active-saved-id="loadedSaved?.id ?? null"
@@ -579,7 +584,6 @@ onBeforeUnmount(() => {
 			@edit-saved="openSaveModal"
 			@delete-saved="deleteSaved"
 			@clear-history="clearHistory"
-			@more-history="loadMoreHistory"
 		/>
 
 		<div
@@ -591,7 +595,6 @@ onBeforeUnmount(() => {
 				class="shrink-0"
 				:executing="executing"
 				:schemas="schemas"
-				:counts-for="countsFor"
 				:saved-name="loadedSaved?.name"
 				:saved-shared="loadedSaved?.shared"
 				:edited="edited"
@@ -606,8 +609,10 @@ onBeforeUnmount(() => {
 				:target="target"
 				:schemas="schemas"
 				:running="executing"
+				:elsewhere="elsewhere"
 				@use-source="source = $event"
 				@replace-name="replaceUnknown"
+				@use-instance="runInInstance"
 			/>
 		</div>
 

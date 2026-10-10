@@ -44,8 +44,8 @@ const EDITABLE =
 
 /**
  * Whether a key pressed on `target` is the canvas's to handle: not while
- * typing, not inside a dialog (the inspector's drawer), and not from an
- * element outside the canvas that has the focus.
+ * typing, not while a dialog such as the inspector's drawer is open, and not
+ * from an element outside the canvas that has the focus.
  */
 export function canvasOwnsKey(
 	target: EventTarget | null,
@@ -54,7 +54,7 @@ export function canvasOwnsKey(
 	const element = target as Element | null
 	if (!element || typeof element.closest !== 'function') return true
 	if (element.closest(EDITABLE)) return false
-	if (element.closest('[role="dialog"]')) return false
+	if (element.ownerDocument?.querySelector('[role="dialog"]')) return false
 	const isPage =
 		element === element.ownerDocument?.body ||
 		element === element.ownerDocument?.documentElement

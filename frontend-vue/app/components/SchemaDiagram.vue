@@ -8,14 +8,8 @@ import type {
 } from '@vue-flow/core'
 import { useEventListener, useNow } from '@vueuse/core'
 import type { ShallowUnwrapRef } from 'vue'
+import { DiagramAutosave, type SaveStatus } from '../build/diagram/autosave'
 import {
-	DiagramAutosave,
-	type SaveOwner,
-	type SaveStatus,
-	snapshotState,
-} from '../build/diagram/autosave'
-import {
-	type BuiltGraph,
 	buildGraph,
 	type DiagramNode,
 	freeSpot,
@@ -35,7 +29,6 @@ import {
 	type TableNodeData,
 	tableNodeId,
 } from '../build/diagram/graph'
-import { nodesToRelease, pressedNodeId } from '../build/diagram/grab'
 import {
 	clonePositions,
 	DiagramHistory,
@@ -104,9 +97,8 @@ const loaded = ref(false)
 // The note just created, opened ready to write until its edit ends.
 const editNoteId = ref<string | null>(null)
 let sync: DiagramSync | null = null
+let autosave: DiagramAutosave | null = null
 let fitPending = true
-// While a node is dragged, Vue Flow owns its position.
-let dragging = false
 
 // --- schema ---
 const schemaId = computed<string | null>(() => {
@@ -195,29 +187,8 @@ function render() {
 		routing,
 		layout: fullLayout.value,
 	})
-	if (dragging) {
-		patchData(built)
-		return
-	}
 	canvas.value.setNodes(built.nodes)
 	canvas.value.setEdges(built.edges)
-}
-
-// During a drag only the look of the selection changes: setting the nodes
-// would put the dragged one back where it started.
-function patchData(built: BuiltGraph) {
-	const flow = canvas.value
-	if (!flow) return
-	for (const node of built.nodes) {
-		const live = flow.findNode(node.id)
-		if (live) live.data = node.data
-	}
-	for (const edge of built.edges) {
-		const live = flow.findEdge(edge.id)
-		if (!live) continue
-		live.data = edge.data
-		live.markerEnd = edge.markerEnd
-	}
 }
 
 // The nodes have been measured: the first fit, or the one a schema change or
@@ -243,52 +214,41 @@ function stateToSave(): DiagramState {
 		: state
 }
 
-function onSaveStatus(owner: SaveOwner, status: SaveStatus) {
-	if (owner === sync) {
-		saveState.value = status
-		if (status === 'saved') savedAt.value = new Date()
-		return
+/** Shows the save status of the schema shown; a schema left reports a failure. */
+function statusReporter(owner: DiagramSync) {
+	return (status: SaveStatus) => {
+		if (owner === sync) {
+			saveState.value = status
+			if (status === 'saved') savedAt.value = new Date()
+			return
+		}
+		// The save of a schema left before it ended.
+		if (status === 'error') {
+			toast.add({
+				title: t('dms_database.diagram.save.error_other', {
+					schema: owner.schemaId,
+				}),
+				color: 'error',
+				icon: 'i-ph-warning-circle',
+			})
+		}
 	}
-	// The save of a schema left before it ended.
-	if (status === 'error') {
-		toast.add({
-			title: t('dms_database.diagram.save.error_other', {
-				schema: owner.schemaId,
-			}),
-			color: 'error',
-			icon: 'i-ph-warning-circle',
-		})
-	}
-}
-
-const autosave = new DiagramAutosave(SAVE_DELAY_MS, onSaveStatus)
-
-/** The live state, as long as `owner` is the schema shown. */
-function liveState(owner: DiagramSync) {
-	return () => (sync === owner && loaded.value ? stateToSave() : null)
 }
 
 function scheduleSave() {
-	if (sync) autosave.schedule(sync, liveState(sync))
+	autosave?.schedule()
 }
 
 function saveNow() {
-	scheduleSave()
-	void autosave.flush()
-}
-
-// Before the shown schema is replaced, what is left of its changes is
-// written under its own id, from a copy taken now (D-2).
-function flushShown() {
-	const owner = sync
-	if (!owner || !loaded.value) return
-	const last = snapshotState(stateToSave())
-	autosave.schedule(owner, () => last)
-	void autosave.flush()
+	autosave?.schedule()
+	void autosave?.flush()
 }
 
 async function load(id: string) {
-	flushShown()
+	// What is left of the shown schema's changes is copied now and written
+	// under its own id before the next schema loads (D-2).
+	const leaving = autosave?.flush()
+	autosave = null
 	loaded.value = false
 	routing.clear()
 	history.clear()
@@ -300,6 +260,8 @@ async function load(id: string) {
 	searchIndex.value = -1
 	const owner = new DiagramSync(persistence, id)
 	sync = owner
+	await leaving
+	if (sync !== owner) return
 	try {
 		const [positions, notes] = await Promise.all([
 			persistence.fetchLayout(id),
@@ -314,6 +276,12 @@ async function load(id: string) {
 		state.notes = []
 	}
 	owner.reset(state)
+	autosave = new DiagramAutosave(
+		owner,
+		stateToSave,
+		SAVE_DELAY_MS,
+		statusReporter(owner),
+	)
 	saveState.value = 'idle'
 	savedAt.value = null
 	fitPending = true
@@ -328,22 +296,7 @@ function record(op: DiagramOperation) {
 	scheduleSave()
 }
 
-function hasUnsavedChanges(): boolean {
-	if (autosave.busy || saveState.value === 'error') return true
-	return Boolean(
-		sync && loaded.value && sync.hasChanges(snapshotState(stateToSave())),
-	)
-}
-
-// Leaving the page with changes not written yet asks first (D-15).
-useEventListener('beforeunload', (event: BeforeUnloadEvent) => {
-	if (!hasUnsavedChanges()) return
-	void autosave.flush()
-	event.preventDefault()
-	event.returnValue = ''
-})
-
-onBeforeUnmount(flushShown)
+onBeforeUnmount(() => void autosave?.flush())
 
 const savedLabel = computed(() => {
 	if (saveState.value === 'saving') return t('dms_database.diagram.save.saving')
@@ -418,25 +371,12 @@ function discardLayout() {
 // --- dragging ---
 const dragStarts = new Map<string, { x: number; y: number }>()
 
-// Vue Flow drags every selected node along with the grabbed one: a press on
-// a node lets go of the others first, so only that node moves. A note left
-// selected would otherwise follow a table, which Vue Flow cannot select.
-function onCanvasPointerDown(event: PointerEvent) {
-	if (event.button !== 0) return
-	const flow = canvas.value
-	const pressedId = pressedNodeId(event.target)
-	if (!flow || !pressedId) return
-	const others = nodesToRelease(flow.getSelectedNodes, pressedId)
-	if (others.length) flow.removeSelectedNodes(others)
-}
-
+// With `select-nodes-on-drag` off, Vue Flow lets go of the selection when a
+// node not selected is grabbed, so a note left selected does not follow a
+// table, which Vue Flow cannot select.
 function onNodeDragStart({ node, nodes }: NodeDragEvent) {
-	dragging = true
 	for (const dragged of nodes.length ? nodes : [node])
 		dragStarts.set(dragged.id, { ...dragged.position })
-	// The node picked up becomes the selection: a table through
-	// `data.selected` (D-9), a note through Vue Flow.
-	selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
 }
 
 function tableMoved(node: DiagramNode, from: { x: number; y: number }) {
@@ -465,7 +405,6 @@ const DRAG_HANDLERS: Record<
 }
 
 function onNodeDragStop({ node, nodes }: NodeDragEvent) {
-	dragging = false
 	for (const dragged of nodes.length ? nodes : [node]) {
 		const from = dragStarts.get(dragged.id)
 		dragStarts.delete(dragged.id)
@@ -473,6 +412,11 @@ function onNodeDragStop({ node, nodes }: NodeDragEvent) {
 		if (!from || (from.x === x && from.y === y)) continue
 		DRAG_HANDLERS[dragged.type ?? '']?.(dragged as unknown as DiagramNode, from)
 	}
+	// The node put down becomes the selection: a table through
+	// `data.selected` (D-9), a note through Vue Flow. Set once the drag is
+	// over, as setting the nodes during it would put the dragged one back.
+	selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
+	if (node.type === NOTE_NODE_TYPE && !node.selected) selectNode(node.id)
 	render()
 }
 
@@ -727,7 +671,6 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 	const command = diagramCommand(event)
 	if (!command || event.defaultPrevented) return
 	if (!canvasOwnsKey(event.target, canvasWrapper.value)) return
-	if (document.querySelector('[role="dialog"]')) return
 	if (COMMANDS[command]()) event.preventDefault()
 })
 
@@ -763,7 +706,6 @@ const isLarge = computed(
 				ref="canvasWrapper"
 				class="border-default relative min-h-0 flex-1 overflow-hidden rounded-xl border"
 				:class="panMode ? 'diagram-pan-mode' : ''"
-				@pointerdown.capture="onCanvasPointerDown"
 			>
 				<DmsFlowCanvas
 					ref="canvas"
@@ -776,6 +718,7 @@ const isLarge = computed(
 					deletable-nodes
 					:pan-on-drag="panMode"
 					:nodes-draggable="!panMode"
+					:select-nodes-on-drag="false"
 					@delete-nodes="onDeleteNodes"
 					@nodes-initialized="onNodesInitialized"
 					@viewport-change="onViewportChange"

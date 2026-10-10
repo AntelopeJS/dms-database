@@ -531,11 +531,6 @@ export function searchTables(schema: SchemaSummary, needle: string): string[] {
 	return [...byName, ...byColumn].map((table) => table.name)
 }
 
-/** Positions dagre gives every table of the schema, ignoring the saved ones. */
-export function autoLayoutPositions(schema: SchemaSummary): DiagramPositions {
-	return layOutSchema(schema).tables
-}
-
 export interface Rect {
 	x: number
 	y: number

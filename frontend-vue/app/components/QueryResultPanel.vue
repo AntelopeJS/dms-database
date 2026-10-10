@@ -1,12 +1,10 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
+import { downloadText, resultColumns, toCsv } from '../build/query/csv'
 import {
-	downloadText,
 	filledColumns,
 	numericColumns as numericOnly,
-	resultColumns,
-	toCsv,
-} from '../build/query/csv'
+} from '../build/query/tableColumns'
 import { latestOrderField } from '../build/query/examples'
 import {
 	closestName,
@@ -42,6 +40,12 @@ export interface QueryFailure {
 	unknown?: UnknownName | null
 }
 
+/** A named instance holding rows of the table, with how many. */
+export interface InstanceRows {
+	id: string
+	count: number
+}
+
 const props = defineProps<{
 	result: ExecuteResult | null
 	failure: QueryFailure | null
@@ -49,11 +53,17 @@ const props = defineProps<{
 	schemas: SchemaSummary[]
 	/** A run is on its way: what shows is the previous one's. */
 	running?: boolean
+	/**
+	 * Named instances with rows of a table the read found empty in the
+	 * default instance.
+	 */
+	elsewhere?: InstanceRows[]
 }>()
 
 const emit = defineEmits<{
 	'use-source': [source: string]
 	'replace-name': [kind: UnknownKind, from: string, to: string]
+	'use-instance': [instance: string]
 }>()
 
 const MAX_TABLE_ROWS = 200
@@ -236,6 +246,17 @@ const exampleActions = computed(() =>
 		variant: 'outline' as const,
 		class: 'font-mono',
 		onClick: () => emit('use-source', example.source),
+	})),
+)
+
+// One button per instance holding rows: `eu · 160` reruns the read there.
+const elsewhereActions = computed(() =>
+	(props.elsewhere ?? []).map((instance) => ({
+		label: `${instance.id} · ${n(instance.count)}`,
+		color: 'neutral' as const,
+		variant: 'outline' as const,
+		class: 'font-mono',
+		onClick: () => emit('use-instance', instance.id),
 	})),
 )
 
@@ -426,6 +447,15 @@ const suggestion = computed(() => {
 
 			<div v-else-if="rows.length === 0" class="grid place-items-center p-8">
 				<DmsEmptyState
+					v-if="!result.mutation && elsewhereActions.length"
+					size="sm"
+					icon="i-ph-stack"
+					:title="t('dms_database.query.result.elsewhere_title')"
+					:description="t('dms_database.query.result.elsewhere_description')"
+					:actions="elsewhereActions"
+				/>
+				<DmsEmptyState
+					v-else
 					size="sm"
 					:title="
 						result.mutation

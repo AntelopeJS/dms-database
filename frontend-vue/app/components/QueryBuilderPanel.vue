@@ -31,7 +31,6 @@ import { useColorMode } from '@vueuse/core'
 import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
 import {
 	buildCompletionIndex,
-	countedInstance,
 	fieldsAt,
 	INSTANCE_METHODS,
 	QUERY_METHODS,
@@ -41,7 +40,7 @@ import { targetFromSource } from '../build/query/target'
 import { tableAccess } from '../build/utils/databaseLinks'
 
 // The query editor (D-12): AQL with completion of the workspace's own
-// schemas, tables (with their row counts) and columns, snippets to insert at
+// schemas, tables and columns, snippets to insert at
 // the cursor, and the cursor position.
 
 interface Props {
@@ -49,14 +48,6 @@ interface Props {
 	executing?: boolean
 	// Drives the schema-aware autocomplete (table/field names + the query DSL).
 	schemas?: SchemaSummary[]
-	/**
-	 * Rows per table of a schema in one instance (`''` default, `'*'` all),
-	 * shown next to table completions.
-	 */
-	countsFor?: (
-		schema: string,
-		instance: string,
-	) => Promise<Record<string, number>>
 	/** The saved query open in the editor, if any. */
 	savedName?: string
 	savedShared?: boolean
@@ -67,7 +58,6 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
 	executing: false,
 	schemas: () => [],
-	countsFor: undefined,
 	savedName: undefined,
 	savedShared: false,
 	edited: false,
@@ -80,7 +70,7 @@ const emit = defineEmits<{
 	new: []
 }>()
 
-const { t, n } = useI18n()
+const { t } = useI18n()
 
 const internalValue = computed<string>({
 	get: () => props.modelValue,
@@ -159,26 +149,14 @@ const opt = (label: string, type: string, detail?: string): CompletionItem => ({
 // reconfigure is needed.
 const completionData = computed(() => buildCompletionIndex(props.schemas ?? []))
 
-function tableDetail(count: number | undefined): string {
-	return count === undefined
-		? 'table'
-		: t('dms_database.query.editor.table_rows', { count: n(count) }, count)
-}
-
 // How far back the chain the cursor is in is read: a long multi-line chain
 // still names its schema, instance and table.
 const CHAIN_WINDOW = 2000
 
-// `schemas.demo` (dot) or `schemas["dms-core"]` (bracket — required for ids that
-// aren't valid JS identifiers). Used to scope table/field/instance completions.
+// The schema the chain before the cursor names: `schemas.demo` or
+// `schemas["dms-core"]`. Scopes table completions.
 function currentSchemaId(before: string): string | null {
-	const re =
-		/schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])/g
-	let last: string | null = null
-	for (let match = re.exec(before); match !== null; match = re.exec(before)) {
-		last = match[1] ?? match[2] ?? null
-	}
-	return last
+	return targetFromSource(before).schema ?? null
 }
 
 function listFor(
@@ -193,9 +171,7 @@ function chainText(ctx: CompletionContext): string {
 	return ctx.state.sliceDoc(Math.max(0, ctx.pos - CHAIN_WINDOW), ctx.pos)
 }
 
-function completionSource(
-	ctx: CompletionContext,
-): CompletionResult | Promise<CompletionResult> | null {
+function completionSource(ctx: CompletionContext): CompletionResult | null {
 	const data = completionData.value
 	// A bounded look-behind window covers multi-line chains without scanning the
 	// whole document on every keystroke.
@@ -247,24 +223,16 @@ function completionSource(
 		const typed = inTable[2] ?? ''
 		const schemaId = currentSchemaId(before)
 		const tables = listFor(data.tablesBySchema, schemaId, data.allTables)
-		const tableOptions = (counts: Record<string, number> = {}) => ({
+		return {
 			from: ctx.pos - typed.length,
 			validFor: /[\w$-]*/,
 			options: tables.map((name) => ({
 				label: name,
 				type: 'class',
-				detail: tableDetail(counts[name]),
+				detail: 'table',
 				apply: quote ? name : `"${name}"`,
 			})),
-		})
-		// The counts of the instance the chain names, not the default one's.
-		const chain = targetFromSource(chainText(ctx))
-		const instance = countedInstance(data, chain)
-		if (!props.countsFor || !chain.schema || instance === undefined)
-			return tableOptions()
-		return props
-			.countsFor(chain.schema, instance)
-			.then(tableOptions, () => tableOptions())
+		}
 	}
 	// Quoted field name inside a field selector (`pluck` / `orderBy` / `key`):
 	// the fields of the chain's table.

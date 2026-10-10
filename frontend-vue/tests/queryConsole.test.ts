@@ -1,31 +1,29 @@
 import { describe, expect, it } from 'vitest'
 import type { SchemaSummary } from '../app/build/composables/useDatabaseSchemas'
 import {
+	findSyntaxPlace,
 	prepareQueryPayload,
 	QueryInputError,
 } from '../app/build/composables/useQueryRuntime'
 import {
 	buildCompletionIndex,
-	countedInstance,
 	fieldsAt,
 	QUERY_METHODS,
 } from '../app/build/query/completion'
-import { filledColumns, numericColumns } from '../app/build/query/csv'
-import { DRAFT_KEY, readDraft, writeDraft } from '../app/build/query/draft'
 import { latestOrderField } from '../app/build/query/examples'
 import {
 	closestName,
 	replaceName,
 	RUN_DOT_CLASSES,
 	unknownName,
-	unknownTable,
 } from '../app/build/query/runs'
-import { findSyntaxProblem } from '../app/build/query/syntax'
+import { filledColumns, numericColumns } from '../app/build/query/tableColumns'
 import {
 	instanceArgument,
 	rowInstance,
 	runTarget,
 	targetFromSource,
+	withInstance,
 } from '../app/build/query/target'
 
 function table(name: string, fields: string[]) {
@@ -60,8 +58,11 @@ describe('unknown names', () => {
 			kind: 'schema',
 			name: 'shoop',
 		})
-		expect(unknownTable('Unknown table "oders" in schema shop')).toBe('oders')
-		expect(unknownTable('Unknown instance "zz"')).toBeNull()
+		expect(unknownName('Unknown table "oders" in schema shop')).toEqual({
+			kind: 'table',
+			name: 'oders',
+		})
+		expect(unknownName('Syntax error')).toBeNull()
 	})
 
 	it('suggests the closest instance, as for a table', () => {
@@ -93,7 +94,7 @@ describe('unknown names', () => {
 })
 
 describe('query runtime errors', () => {
-	it('names an unknown schema with the closest one', () => {
+	it('names an unknown schema', () => {
 		let error: unknown
 		try {
 			prepareQueryPayload('schemas.shoop.instance().table("orders")', [shop])
@@ -104,14 +105,11 @@ describe('query runtime errors', () => {
 		expect((error as QueryInputError).problem).toEqual({
 			kind: 'unknown_schema',
 			schema: 'shoop',
-			suggestion: 'shop',
 		})
-		expect((error as Error).message).toBe(
-			'Unknown schema "shoop". Did you mean "shop"?',
-		)
+		expect((error as Error).message).toBe('Unknown schema "shoop"')
 	})
 
-	it('points a syntax error at the bracket left open', () => {
+	it('points a syntax error where the text breaks', () => {
 		let error: unknown
 		try {
 			prepareQueryPayload('schemas.shop.instance("eu").table("orders"', [shop])
@@ -121,9 +119,9 @@ describe('query runtime errors', () => {
 		expect(error).toBeInstanceOf(QueryInputError)
 		expect((error as QueryInputError).problem).toMatchObject({
 			kind: 'syntax',
-			syntax: { kind: 'unclosed', char: '(', line: 1, column: 34 },
+			place: { line: 1, column: 43 },
 		})
-		expect((error as Error).message).not.toMatch(/;/)
+		expect((error as Error).message).toMatch(/^Syntax error at line 1/)
 	})
 
 	it('accepts a closing semicolon', () => {
@@ -137,30 +135,15 @@ describe('query runtime errors', () => {
 	})
 })
 
-describe('syntax problems', () => {
-	it('finds unbalanced brackets and strings with their place', () => {
-		expect(findSyntaxProblem('a.b("x").c(1)')).toBeNull()
-		expect(findSyntaxProblem('a.b("x"\n  .c(1))')).toBeNull()
-		expect(findSyntaxProblem('a.b(1))')).toEqual({
-			kind: 'unexpected',
-			char: ')',
-			expected: undefined,
-			line: 1,
-			column: 7,
-		})
-		expect(findSyntaxProblem('a.b([1)')).toMatchObject({
-			kind: 'unexpected',
-			char: ')',
-			expected: ']',
-		})
-		expect(findSyntaxProblem('a.b(\n  "open)')).toEqual({
-			kind: 'string',
-			char: '"',
-			line: 2,
-			column: 3,
-		})
+describe('syntax places', () => {
+	it('finds where the parser stops, with its line and column', () => {
+		expect(findSyntaxPlace('a.b("x").c(1)')).toBeNull()
+		expect(findSyntaxPlace('a.b("x"\n  .c(1))')).toBeNull()
+		expect(findSyntaxPlace('a.b(1))')).toEqual({ line: 1, column: 7 })
+		// An unterminated string breaks where the text ends.
+		expect(findSyntaxPlace('a.b(\n  "open)')).toEqual({ line: 2, column: 9 })
 		// Brackets in strings and comments do not count.
-		expect(findSyntaxProblem('a.b(")") // (\n')).toBeNull()
+		expect(findSyntaxPlace('a.b(")") // (\n')).toBeNull()
 	})
 })
 
@@ -213,11 +196,33 @@ describe('query targets', () => {
 
 	it('reads the instance a link into the console names', () => {
 		expect(instanceArgument(undefined)).toBe('')
-		expect(instanceArgument('__DEFAULT__')).toBe('')
 		expect(instanceArgument('eu')).toBe('"eu"')
 		expect(instanceArgument('all')).toBe('CROSS_INSTANCE')
-		expect(instanceArgument('__CROSS_INSTANCE__')).toBe('CROSS_INSTANCE')
-		expect(instanceArgument('*')).toBe('CROSS_INSTANCE')
+		// No alias: any other value is a named instance.
+		expect(instanceArgument('__CROSS_INSTANCE__')).toBe('"__CROSS_INSTANCE__"')
+	})
+
+	it('reads an empty default-instance read in a named instance', () => {
+		expect(
+			withInstance(
+				'schemas.shop.instance().table("orders").filter((r) => r.key("x"))',
+				'shop',
+				'eu',
+			),
+		).toBe(
+			'schemas.shop.instance("eu").table("orders").filter((r) => r.key("x"))',
+		)
+		expect(
+			withInstance(
+				'schemas["dms-core"] . instance( ).table("users")',
+				'dms-core',
+				'us',
+			),
+		).toBe('schemas["dms-core"] . instance("us").table("users")')
+		// Another schema, or one sharing the prefix, is left alone.
+		expect(
+			withInstance('schemas.shopper.instance().table("x")', 'shop', 'eu'),
+		).toBe('schemas.shopper.instance().table("x")')
 	})
 })
 
@@ -241,18 +246,6 @@ describe('completions', () => {
 			'price',
 		])
 		expect(fieldsAt(index, { schema: 'shop', table: 'nope' })).toHaveLength(4)
-	})
-
-	it('counts tables in the instance the chain names', () => {
-		expect(countedInstance(index, { schema: 'shop', instance: '' })).toBe('')
-		expect(countedInstance(index, { schema: 'shop', instance: 'eu' })).toBe(
-			'eu',
-		)
-		expect(countedInstance(index, { schema: 'shop', instance: '*' })).toBe('*')
-		expect(
-			countedInstance(index, { schema: 'shop', instance: 'zz' }),
-		).toBeUndefined()
-		expect(countedInstance(index, { schema: 'nope' })).toBeUndefined()
 	})
 })
 
@@ -285,27 +278,5 @@ describe('result rendering', () => {
 
 	it('tells a run that changed data from a fast one', () => {
 		expect(RUN_DOT_CLASSES.changed).not.toBe(RUN_DOT_CLASSES.fast)
-	})
-})
-
-describe('query draft', () => {
-	function memoryStorage() {
-		const items = new Map<string, string>()
-		return {
-			getItem: (key: string) => items.get(key) ?? null,
-			setItem: (key: string, value: string) => void items.set(key, value),
-			removeItem: (key: string) => void items.delete(key),
-			items,
-		}
-	}
-
-	it('keeps the query being written for the browser tab', () => {
-		const store = memoryStorage()
-		writeDraft({ source: 'schemas.shop', savedId: null }, store)
-		expect(readDraft(store)).toEqual({ source: 'schemas.shop', savedId: null })
-		writeDraft({ source: '  ', savedId: null }, store)
-		expect(store.items.has(DRAFT_KEY)).toBe(false)
-		store.setItem(DRAFT_KEY, '{broken')
-		expect(readDraft(store)).toBeNull()
 	})
 })

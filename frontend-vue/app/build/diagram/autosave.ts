@@ -1,71 +1,53 @@
 import { clonePositions, type DiagramState } from './history'
 
-// When the diagram is written (D-2): a change waits for a short pause, and
-// each save belongs to the schema it was made in. A save pending for one
-// schema is written before one for another is scheduled, and the saves run
-// one after the other, so a schema's state never goes out under another's id.
+// When the diagram of one schema is written (D-2): a change waits for a short
+// pause, then its differences go out through that schema's writer. The state
+// is copied the moment a write is asked for, so the canvas loading another
+// schema afterwards never reaches it; writes run one after the other.
 
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
-/** One schema's writer: a DiagramSync. */
-export interface SaveOwner {
-	readonly schemaId: string
+/** What writes one schema's diagram: a DiagramSync. */
+export interface DiagramWriter {
 	hasChanges(state: DiagramState): boolean
 	save(state: DiagramState): Promise<void>
 }
 
-/** Returns the state to write, or null when there is nothing to write. */
-export type ReadState = () => DiagramState | null
-
-export function snapshotState(state: DiagramState): DiagramState {
+function snapshotState(state: DiagramState): DiagramState {
 	return {
 		positions: clonePositions(state.positions),
 		notes: state.notes.map((note) => ({ ...note })),
 	}
 }
 
-interface PendingSave {
-	owner: SaveOwner
-	read: ReadState
-}
-
 export class DiagramAutosave {
 	private timer: ReturnType<typeof setTimeout> | null = null
-	private pending: PendingSave | null = null
-	private queue: Promise<void> = Promise.resolve()
-	private writing = 0
+	private writes: Promise<void> = Promise.resolve()
 
 	constructor(
+		private readonly writer: DiagramWriter,
+		/** The state to write, read when the write is asked for. */
+		private readonly read: () => DiagramState,
 		private readonly delayMs: number,
-		private readonly onStatus: (owner: SaveOwner, status: SaveStatus) => void,
+		private readonly onStatus: (status: SaveStatus) => void,
 	) {}
 
-	/** A save is waiting for its delay, or being written. */
-	get busy(): boolean {
-		return this.pending !== null || this.writing > 0
-	}
-
-	/**
-	 * Saves what `read` returns under `owner` once edits pause. A save pending
-	 * for another owner is written first, with that owner.
-	 */
-	schedule(owner: SaveOwner, read: ReadState) {
-		if (this.pending && this.pending.owner !== owner) void this.flush()
-		this.pending = { owner, read }
+	/** Saves once edits pause. */
+	schedule() {
 		this.stopTimer()
 		this.timer = setTimeout(() => void this.flush(), this.delayMs)
 	}
 
 	/**
-	 * Writes the pending save without waiting for the delay. Its state is read
-	 * when its turn comes, after the saves before it.
+	 * Writes a scheduled save now, from a copy of the state taken at once.
+	 * Resolves once every write asked for so far has ended.
 	 */
 	flush(): Promise<void> {
+		if (this.timer === null) return this.writes
 		this.stopTimer()
-		const job = this.pending
-		this.pending = null
-		if (job) this.queue = this.queue.then(() => this.write(job))
-		return this.queue
+		const state = snapshotState(this.read())
+		this.writes = this.writes.then(() => this.write(state))
+		return this.writes
 	}
 
 	private stopTimer() {
@@ -73,24 +55,18 @@ export class DiagramAutosave {
 		this.timer = null
 	}
 
-	private async write({ owner, read }: PendingSave) {
-		const state = read()
-		if (!state) return
-		const snapshot = snapshotState(state)
+	private async write(state: DiagramState) {
 		// Nothing left to write, say after an undo: an earlier error is moot.
-		if (!owner.hasChanges(snapshot)) {
-			this.onStatus(owner, 'idle')
+		if (!this.writer.hasChanges(state)) {
+			this.onStatus('idle')
 			return
 		}
-		this.writing += 1
-		this.onStatus(owner, 'saving')
+		this.onStatus('saving')
 		try {
-			await owner.save(snapshot)
-			this.onStatus(owner, 'saved')
+			await this.writer.save(state)
+			this.onStatus('saved')
 		} catch {
-			this.onStatus(owner, 'error')
-		} finally {
-			this.writing -= 1
+			this.onStatus('error')
 		}
 	}
 }

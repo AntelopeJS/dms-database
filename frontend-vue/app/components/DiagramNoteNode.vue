@@ -24,28 +24,19 @@ watch(
 )
 
 // Vue Flow shows a new node only once it has measured it: until then the
-// field cannot take the focus. It is tried again when the node's size comes
-// in, and on the next frames.
-const FOCUS_FRAMES = 10
+// field cannot take the focus. It is tried again when the node's size comes in.
 let focusPending = false
 
-function focusField(framesLeft = FOCUS_FRAMES) {
+function focusField() {
 	const field = textarea.value
 	if (!focusPending || !field || !editing.value) return
 	field.focus()
-	if (document.activeElement === field) {
-		focusPending = false
-		field.setSelectionRange(field.value.length, field.value.length)
-		return
-	}
-	if (framesLeft > 0) requestAnimationFrame(() => focusField(framesLeft - 1))
+	if (document.activeElement !== field) return
+	focusPending = false
+	field.setSelectionRange(field.value.length, field.value.length)
 }
 
-watch(
-	() => props.dimensions?.width,
-	() => focusField(0),
-	{ flush: 'post' },
-)
+watch(() => props.dimensions?.width, focusField, { flush: 'post' })
 
 async function startEdit() {
 	if (editing.value) return

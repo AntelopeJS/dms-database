@@ -5,17 +5,15 @@ import {
 	Position,
 	getBezierPath,
 } from '@vue-flow/core'
-import type { EdgeEnds } from '../build/diagram/graph'
+import { EDGE_ACTIVE_COLOR, type EdgeEnds } from '../build/diagram/graph'
 
 // A relation column pointing at a table. The relations of the selected table
 // are drawn in the primary colour; the others stay quiet.
 const props = defineProps<EdgeProps<EdgeEnds>>()
 
-const ACTIVE_STROKE = 'var(--ui-primary)'
-
 const edgeStyle = computed(() =>
 	props.data?.active
-		? { ...(props.style as object), stroke: ACTIVE_STROKE, strokeWidth: 2 }
+		? { ...(props.style as object), stroke: EDGE_ACTIVE_COLOR, strokeWidth: 2 }
 		: props.style,
 )
 

@@ -27,10 +27,6 @@ const props = defineProps<{
 	activeSavedId: string | null
 	activeHistoryId: string | null
 	loading: boolean
-	/** Runs kept on the server, of which `history` holds the latest. */
-	historyTotal?: number
-	/** Older runs are on their way. */
-	loadingMore?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -40,7 +36,6 @@ const emit = defineEmits<{
 	'edit-saved': [query: SavedQuery]
 	'delete-saved': [query: SavedQuery]
 	'clear-history': []
-	'more-history': []
 }>()
 
 const { t, n, locale } = useI18n()
@@ -208,17 +203,6 @@ function initials(name?: string): string {
 						</span>
 					</div>
 				</section>
-				<UButton
-					v-if="!search && history.length < (historyTotal ?? 0)"
-					block
-					size="xs"
-					color="neutral"
-					variant="ghost"
-					icon="i-ph-clock-counter-clockwise"
-					:loading="loadingMore"
-					:label="t('dms_database.query.library.more')"
-					@click="emit('more-history')"
-				/>
 				<DmsEmptyState
 					v-if="historyGroups.length === 0 && !loading"
 					size="sm"

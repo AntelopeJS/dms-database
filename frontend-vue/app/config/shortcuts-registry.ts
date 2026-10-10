@@ -54,6 +54,8 @@ export default [
 		[['0'], 'reset_zoom'],
 		[[META, 'Z'], 'undo'],
 		[[META, SHIFT, 'Z'], 'redo'],
+		[[META, 'Y'], 'redo'],
+		[['$keyboard.escape'], 'step_back'],
 	]),
 	group('$dms_database.shortcuts.query_console', [
 		[[META, '$keyboard.enter'], 'run'],

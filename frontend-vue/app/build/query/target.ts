@@ -2,6 +2,10 @@
 // stages the way the server reads them: what the result header names and the
 // data browser link opens.
 
+import { instanceFromUrl } from '../utils/databaseLinks'
+import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
+import { escapeRegExp } from './runs'
+
 export interface QueryTarget {
 	schema?: string
 	/** `""` for the default instance, `"*"` across every instance. */
@@ -13,8 +17,6 @@ interface EncodedStage {
 	stage?: unknown
 	options?: { id?: unknown }
 }
-
-const CROSS_INSTANCE_ID = '__CROSS_INSTANCE__'
 
 function stageId(stages: EncodedStage[], name: string): unknown {
 	return stages.find((stage) => stage.stage === name)?.options?.id
@@ -35,7 +37,7 @@ export function readQueryTarget(
 		table: typeof table === 'string' ? table : undefined,
 		instance: !hasInstance
 			? undefined
-			: instance === CROSS_INSTANCE_ID || typeof instance === 'symbol'
+			: instance === CROSS_INSTANCE_SENTINEL || typeof instance === 'symbol'
 				? '*'
 				: typeof instance === 'string'
 					? instance
@@ -109,15 +111,33 @@ export function rowInstance(
 	return typeof instance === 'string' ? instance : null
 }
 
-// What a link into the console names as its instance: nothing or the data
-// browser's default value for the default one, `*`, `all` or the browser's
-// cross-instance value for every instance.
-const DEFAULT_INSTANCE_PARAMS = new Set(['', '__DEFAULT__'])
-const CROSS_INSTANCE_PARAMS = new Set(['*', 'all', CROSS_INSTANCE_ID])
-
-/** The `instance(…)` argument for an instance named by a link. */
+/**
+ * The `instance(…)` argument for the instance the URL's `instance` names:
+ * none for the default one, CROSS_INSTANCE for every instance.
+ */
 export function instanceArgument(raw: unknown): string {
-	if (typeof raw !== 'string' || DEFAULT_INSTANCE_PARAMS.has(raw)) return ''
-	if (CROSS_INSTANCE_PARAMS.has(raw)) return 'CROSS_INSTANCE'
-	return JSON.stringify(raw)
+	const choice = instanceFromUrl(raw)
+	if (choice.kind === 'default') return ''
+	if (choice.kind === 'all') return 'CROSS_INSTANCE'
+	return JSON.stringify(choice.id)
+}
+
+/**
+ * The query text with the default instance of a schema, `instance()`, read
+ * in a named instance instead: `instance("eu")`.
+ */
+export function withInstance(
+	source: string,
+	schema: string,
+	instance: string,
+): string {
+	const name = escapeRegExp(schema)
+	const access = new RegExp(
+		`(schemas\\s*(?:\\.\\s*${name}(?![\\w$])|\\[\\s*(["'\`])${name}\\2\\s*\\])\\s*\\.\\s*instance\\()\\s*\\)`,
+		'g',
+	)
+	return source.replace(
+		access,
+		(_, call: string) => `${call}${JSON.stringify(instance)})`,
+	)
 }
