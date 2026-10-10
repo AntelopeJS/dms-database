@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.1.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.14...v0.1.0)
+
+### 🚀 Enhancements
+
+- ⚠️  Port dms-database to dms 0.7 and the v2 design ([#35](https://github.com/AntelopeJS/dms-database/pull/35))
+
+#### ⚠️ Breaking Changes
+
+- ⚠️  Port dms-database to dms 0.7 and the v2 design ([#35](https://github.com/AntelopeJS/dms-database/pull/35))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.0.14
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.13...v0.0.14)
