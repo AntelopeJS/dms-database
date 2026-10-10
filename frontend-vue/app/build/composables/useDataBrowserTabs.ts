@@ -1,4 +1,3 @@
-import { nextTick } from 'vue'
 import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
 import { useDataBrowserGrid } from './useDataBrowserGrid'
 import type { InstanceChoice } from '../data/instanceOptions'
@@ -59,56 +58,10 @@ export interface BrowserTab {
 }
 
 const STORAGE_KEY = 'dms-database:data-browser:tabs'
-const URL_WRITES_STATE = 'dms-database-browser-url-writes'
 const ACTIVATIONS_STATE = 'dms-database-browser-activations'
 
 function browserTabId(schema: string, instance: string, table: string): string {
 	return `${schema}::${instance}::${table}`
-}
-
-/**
- * Whether the route names a table this browser wrote to the URL itself (the
- * active tab): it is then taken off `writes` with every older entry, which
- * the visit replaced. Such a route opens nothing, so a preview tab stays one.
- */
-export function takeOwnUrlWrite(writes: string[], key: string): boolean {
-	const index = writes.indexOf(key)
-	if (index < 0) return false
-	writes.splice(0, index + 1)
-	return true
-}
-
-/**
- * Forgets a table syncUrl named once its visit settled without the route
- * reaching it (failed, cancelled, refused by a middleware): no route will
- * take it off, and it would hide a later link to that table. `landedId` is
- * the table the route names now.
- */
-export function settleUrlWrite(
-	writes: string[],
-	key: string,
-	landedId: string | null,
-): void {
-	if (landedId === key) return
-	const index = writes.lastIndexOf(key)
-	if (index >= 0) writes.splice(index, 1)
-}
-
-/**
- * What of the URL names a table, as a string a watcher compares by value.
- * Every useDmsRoute() call re-assigns the route from Inertia's page URL,
- * which keeps the previous URL until a visit lands: a grid mounting for a
- * newly active tab re-assigns that previous URL, with the same values. A
- * watcher on the query object would take it for a link to the previous table
- * and reopen it, even just closed.
- */
-export function routeTableKey(query: Record<string, unknown>): string {
-	return JSON.stringify([
-		query.schema,
-		query.table,
-		query.instance,
-		query.match,
-	])
 }
 
 interface PersistedTabs {
@@ -162,8 +115,6 @@ export function useDataBrowserTabs() {
 		'dms-database-browser-active',
 		() => null,
 	)
-	// The tables syncUrl named, oldest first, until the route reaches them.
-	const urlWrites = useDmsState<string[]>(URL_WRITES_STATE, () => [])
 	// Counts the activations, a tab already active included: the sidebar
 	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
@@ -214,25 +165,7 @@ export function useDataBrowserTabs() {
 			Object.entries(query).every(([key, value]) => route.query[key] === value)
 		)
 			return
-		if (!tab) {
-			void router.replace({ query })
-			return
-		}
-		const key = browserTabId(tab.schema, tab.instance, tab.table)
-		urlWrites.value.push(key)
-		// Once the visit settles (and the route watchers ran), a write the
-		// route did not reach is dropped.
-		const settle = async () => {
-			await nextTick()
-			const landed = routeTable()
-			settleUrlWrite(
-				urlWrites.value,
-				key,
-				landed && !landed.match ? landed.id : null,
-			)
-		}
-		// A stubbed router may answer nothing: settle all the same.
-		void Promise.resolve(router.replace({ query })).then(settle, settle)
+		void router.replace({ query })
 	}
 
 	function activateTab(id: string) {
@@ -391,7 +324,9 @@ export function useDataBrowserTabs() {
 		const target = routeTable()
 		if (!target) return false
 		const { schema, instance, table, id, match } = target
-		if (!match && takeOwnUrlWrite(urlWrites.value, id)) return true
+		// The route names the active tab: the browser wrote it itself (a tab
+		// activated, a reload), so it opens nothing and a preview tab stays one.
+		if (!match && id === activeId.value) return true
 		if (match) {
 			const state = grid.getState(id)
 			state.filters = { [match.field]: { mode: 'is', value: match.value } }
@@ -409,10 +344,6 @@ export function useDataBrowserTabs() {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId
 		}
-		// A URL naming the active tab is the browser's own write (a reload):
-		// followed as a link, it would pin a preview tab.
-		const target = routeTable()
-		if (target && !target.match && target.id === activeId.value) return
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}

@@ -1,7 +1,8 @@
-// Texts the server writes into block data it serves (card readouts, list
-// descriptions, the catalog tile). Blocks translate `$` keys but cannot pass
-// them numbers, so these few lines are composed here, in the reader's
-// language. Everything a Vue component draws lives in the layer's locales.
+// Texts the server writes where the dashboard composes none: the catalog
+// tile's readout (plain strings) and the Schemas table's modifier tags. These
+// few lines are composed here, in the reader's language. Blocks compose their
+// own texts (`ComposedText`), and everything a Vue component draws lives in
+// the layer's locales.
 
 export type ServerLocale = "en" | "fr";
 
@@ -13,10 +14,6 @@ const MESSAGES = {
     table: "1 table",
     rows: "{count} rows",
     row: "1 row",
-    relations: "{count} relations",
-    relation: "1 relation",
-    instances: "{count} instances",
-    instance: "1 instance",
     schemas: "{count} schemas",
     schema: "1 schema",
     connectionDown: "Connection unavailable",
@@ -30,10 +27,6 @@ const MESSAGES = {
     table: "1 table",
     rows: "{count} lignes",
     row: "1 ligne",
-    relations: "{count} relations",
-    relation: "1 relation",
-    instances: "{count} instances",
-    instance: "1 instance",
     schemas: "{count} schémas",
     schema: "1 schéma",
     connectionDown: "Connexion indisponible",
@@ -50,8 +43,6 @@ type MessageKey = keyof (typeof MESSAGES)["en"];
 const SINGULAR: Partial<Record<MessageKey, MessageKey>> = {
   tables: "table",
   rows: "row",
-  relations: "relation",
-  instances: "instance",
   schemas: "schema",
 };
 

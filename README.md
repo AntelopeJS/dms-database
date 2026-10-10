@@ -25,7 +25,7 @@ instance, `all` for every instance, otherwise the instance's name.
 - **Query console**: AQL with completion of the workspace's schemas, a library of past, saved and
   shared queries, and a dry run before any query that changes data.
 
-The module requires `@antelopejs/dms` 0.6 or later and `@antelopejs/dms-frontend` 0.5.
+The module requires `@antelopejs/dms` 0.7.2 or later and `@antelopejs/dms-frontend` 0.5.2.
 
 ## Installation
 

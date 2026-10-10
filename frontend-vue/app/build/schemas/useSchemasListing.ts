@@ -1,72 +1,31 @@
-import { createSharedComposable } from '@vueuse/core'
 import { computed, ref, watch } from 'vue'
 import {
 	readFilterState,
 	sourceQuery,
 	type SchemasFilterState,
 } from './filterState'
-import { sortRows, useTableViewSort, type SortEntry } from './tableViewSort'
 
-// The Schemas page's tables as its table view lists them: the same source
-// route, the same filter bar state (read from the URL), the same order. The
-// filter bar counts them; the inspector steps through them with J / K.
-// Shared: the bar and the inspector host read one listing.
+// What the Schemas page's filter bar counts: the tables its state (read from
+// the URL) lists, through the table view's own source route, and the tables
+// registered before any filter ("12 of 40").
 
 const TABLES_SOURCE = '/api/database/tables/source'
 
-// The table view of src/pages/schemas.ts: its key in the page, its default
-// sort and its sortable columns.
-export const SCHEMAS_TABLE_VIEW = {
-	componentId: 'tables',
-	defaultSort: { id: 'elementCount', desc: true } satisfies SortEntry,
-	sortable: ['name', 'schema', 'elementCount', 'columnCount', 'indexCount'],
-} as const
-
-export interface SchemasListingRow extends Record<string, unknown> {
-	id: string
-	schema: string
-	name: string
-	elementCount: number
-	columnCount: number
-	indexCount: number
-	relations: string[]
-	modifiers: string[]
-}
-
 interface SourceResponse {
-	results: SchemasListingRow[]
 	total: number
 	all?: number
 }
 
 type ListingStatus = 'idle' | 'pending' | 'success' | 'error'
 
-/**
- * The current route, read without `useDmsRoute()`: each call of it
- * reassigns the route's query, which the table view watches for its hidden
- * filters, so it lists again. A component mounted under the table view (its
- * empty state) calling it would list again on each mount, forever.
- */
-export function useCurrentRoute() {
-	return useDmsRouter().currentRoute
-}
-
-function useListing(pageId: string) {
-	const route = useCurrentRoute()
+export function useSchemasListing() {
+	const route = useDmsRoute()
 	const { $authFetch } = useAuthFetch()
-	const state = computed<SchemasFilterState>(() =>
-		readFilterState(route.value.query),
-	)
+	const state = computed<SchemasFilterState>(() => readFilterState(route.query))
 	const query = computed(() => sourceQuery(state.value))
-	const sorting = useTableViewSort({
-		componentId: SCHEMAS_TABLE_VIEW.componentId,
-		pageId,
-		defaultSort: SCHEMAS_TABLE_VIEW.defaultSort,
-		sortable: SCHEMAS_TABLE_VIEW.sortable,
-	})
 
-	// The rows of the last answer stay while the next one loads.
-	const rows = ref<SchemasListingRow[]>([])
+	// The counts of the last answer stay while the next one loads.
+	const total = ref(0)
 	const all = ref<number | null>(null)
 	const status = ref<ListingStatus>('idle')
 	let latest = 0
@@ -79,7 +38,7 @@ function useListing(pageId: string) {
 				query: query.value,
 			})
 			if (request !== latest) return
-			rows.value = response.results
+			total.value = response.total
 			all.value = response.all ?? null
 			status.value = 'success'
 		} catch {
@@ -87,22 +46,17 @@ function useListing(pageId: string) {
 		}
 	}
 
-	// In the browser only: the server renders neither J / K nor the count.
+	// In the browser only: the server renders no count.
 	if (typeof window !== 'undefined') {
 		watch(() => JSON.stringify(query.value), load, { immediate: true })
 	}
 
 	return {
 		state,
-		/** The rows in the table view's order. */
-		rows: computed(() => sortRows(rows.value, sorting.value)),
-		total: computed(() => rows.value.length),
+		/** Tables the bar's filters list. */
+		total,
 		/** Registered tables before any filter; null until known. */
 		all,
 		status,
-		sorting,
-		refresh: load,
 	}
 }
-
-export const useSchemasListing = createSharedComposable(useListing)

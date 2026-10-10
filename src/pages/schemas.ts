@@ -12,10 +12,6 @@ import { addSchemaFilters } from "../service/schemaFilters";
 
 // The row placeholders the table view fills in a page target.
 const TABLE_QUERY = "schema={schema}&table={name}";
-// A page target replaces the whole query: the Inspect action writes the
-// filter bar's state back from the row, which the source route fills in
-// (empty values read as unset).
-const BAR_QUERY = "scope={_scope}&instance={_instance}&q={_q}&has={_has}";
 
 const tables = TableView.fromSource({
   caption: "$dms_database.schemas.caption",
@@ -25,10 +21,6 @@ const tables = TableView.fromSource({
   capabilities: { search: false, filter: true },
   defaultSort: { field: "elementCount", desc: true },
   pageSize: 50,
-  // Grows by pages rather than paging: a new filter of the bar (a hidden
-  // filter, which a paged table view does not take back to page 1) then
-  // lists from the first page again.
-  pagination: "loadMore",
   columns: {
     name: {
       name: "$dms_database.schemas.cols.table",
@@ -78,15 +70,21 @@ const tables = TableView.fromSource({
   rowActions: {
     custom: [
       {
-        // A drawer target slides up from the bottom: the inspector opens
-        // from the right, as on the diagram, through the page's inspector
-        // block, which reads the table from the URL.
+        // From the right, as on the diagram; J / K step through the rows
+        // as the table shows them, and the URL keeps the open table.
         label: "$dms_database.schemas.actions.inspect",
         icon: "i-ph-sidebar-simple",
         isDefault: true,
+        deepLink: true,
         target: {
-          type: "page",
-          url: `${DATABASE_PATHS.schemas}?${TABLE_QUERY}&${BAR_QUERY}`,
+          type: "drawer",
+          direction: "right",
+          title: "$dms_database.schemas.inspector.title",
+          component: CustomComponent("DmsDatabaseTableInspector").meta({
+            name: "$dms_database.schemas.inspector.meta",
+            icon: "i-ph-sidebar-simple",
+            description: "$dms_database.schemas.inspector.meta_description",
+          }),
         },
       },
       {
@@ -111,18 +109,24 @@ const tables = TableView.fromSource({
   },
   footer: { hint: "$dms_database.schemas.footer_hint" },
   emptyStates: {
-    // Also what the bar's filters matching nothing look like: the table view
-    // counts no hidden filter as a filter. The component tells them apart.
     firstRun: {
       title: "$dms_database.schemas.empty.first_title",
       description: "$dms_database.schemas.empty.first_description",
       icon: "i-ph-stack",
-      component: CustomComponent("DmsDatabaseSchemasEmptyState"),
     },
+    // The filter bar's filters match nothing. They are hidden filters, which
+    // the table cannot clear itself: the bare page has none.
     filtered: {
-      title: "$dms_database.schemas.empty.filtered_title",
-      description: "$dms_database.schemas.empty.filtered_description",
+      title: "$dms_database.schemas.empty.no_result_title",
+      description: "$dms_database.schemas.empty.no_result_description",
       icon: "i-ph-magnifying-glass",
+      actions: [
+        {
+          label: "$dms_database.schemas.empty.clear_filters",
+          to: DATABASE_PATHS.schemas,
+          icon: "i-ph-x",
+        },
+      ],
     },
   },
 }).meta({
@@ -157,12 +161,6 @@ export class DatabaseSchemasPage extends PageController(
     ],
   }),
 ) {
-  // First, so the table stays the page's last block.
-  static inspector = CustomComponent("DmsDatabaseTableInspectorHost").meta({
-    name: "$dms_database.schemas.inspector.meta",
-    icon: "i-ph-sidebar-simple",
-    description: "$dms_database.schemas.inspector.meta_description",
-  });
   static filterBar = CustomComponent("DmsDatabaseSchemasFilterBar").meta({
     name: "$dms_database.schemas.filters.meta",
     icon: "i-ph-funnel",

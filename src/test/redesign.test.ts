@@ -173,13 +173,35 @@ describe("[integration] v2 redesign: browsing", () => {
       (error: { getStatus(): number }) => error.getStatus() === 400,
     );
   });
-  it("describes each schema as a card in the reader's language", async () => {
-    const card = (await listSchemaCards(USER)).find(
-      (item) => item.id === SCHEMA,
-    );
+  it("describes each schema as a card the dashboard composes", async () => {
+    const card = (await listSchemaCards()).find((item) => item.id === SCHEMA);
     assert.ok(card);
-    assert.equal(card.tag, "2 instances");
-    assert.deepEqual(card.readout, ["2 tables · 0 lignes", "1 relation"]);
+    const key = (name: string) => `$dms_database.overview.schemas.card.${name}`;
+    assert.equal(card.to, `/modules/database/schemas?scope=${SCHEMA}`);
+    assert.deepEqual(card.tag, {
+      key: key("instances"),
+      params: { count: { type: "count", value: 2 } },
+    });
+    assert.deepEqual(card.readout, [
+      {
+        key: key("contents"),
+        params: {
+          tables: {
+            key: key("tables"),
+            params: { count: { type: "count", value: 2 } },
+          },
+          rows: {
+            key: key("rows"),
+            params: { count: { type: "number", value: 0, format: "compact" } },
+            plural: "count",
+          },
+        },
+      },
+      {
+        key: key("relations"),
+        params: { count: { type: "count", value: 1 } },
+      },
+    ]);
   });
 });
 

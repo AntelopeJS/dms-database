@@ -409,11 +409,11 @@ onKeyStroke('k', (event) => {
 				</div>
 			</div>
 
-			<pre
+			<DmsCodeSnippet
 				v-else-if="active === 'json'"
-				class="border-default bg-elevated/40 text-toned overflow-auto whitespace-pre rounded-lg border p-4 font-mono text-xs"
-				>{{ json }}</pre
-			>
+				:code="json"
+				language="json"
+			/>
 
 			<div v-else class="grid gap-2">
 				<DmsEmptyState

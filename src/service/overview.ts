@@ -2,16 +2,18 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import type { ActivityFeedItem } from "@antelopejs/interface-dms/base/activity-feed";
 import type { NavCardItem } from "@antelopejs/interface-dms/base/nav-card-grid";
 import type { TopListItem } from "@antelopejs/interface-dms/base/top-list-card";
+import type {
+  ComposedText,
+  ComposedTextParam,
+} from "@antelopejs/interface-dms/base/types/composed-text";
 import type { Tone } from "@antelopejs/interface-dms/base/types/tone";
 import { QueryHistoryModel, type QueryHistoryRow } from "../db";
-import { formatCount, type LocaleCarrier, localeOf } from "../i18n/messages";
 import { DATABASE_PATHS } from "../module";
 import { OVERVIEW_FEED_LIMIT, SLOW_QUERY_MS } from "../types/constants";
 import { getOverviewHealth } from "./health";
 import { listSchemaSummariesWithStats } from "./introspect";
 import type { QueryRunStatus, SchemaSummaryWithStats } from "./types";
 
-const SEPARATOR = " · ";
 const SCHEMA_ICON = "i-ph-stack";
 const QUERY_ICON = "i-ph-code";
 
@@ -20,11 +22,29 @@ function tableLink(schema: string, table: string): string {
   return `${DATABASE_PATHS.data}?${query.toString()}`;
 }
 
-function schemaCard(
-  summary: SchemaSummaryWithStats,
-  user: LocaleCarrier,
-): NavCardItem {
-  const locale = localeOf(user);
+// The cards' texts, composed by the dashboard in the reader's language.
+const CARD_TEXT = "$dms_database.overview.schemas.card";
+
+function cardText(
+  name: string,
+  params: Record<string, ComposedTextParam>,
+): ComposedText {
+  return { key: `${CARD_TEXT}.${name}`, params };
+}
+
+// A count in its short form (501.6k), which still picks the plural.
+function compactCount(name: string, value: number): ComposedText {
+  return {
+    ...cardText(name, { count: { type: "number", value, format: "compact" } }),
+    plural: "count",
+  };
+}
+
+function count(name: string, value: number): ComposedText {
+  return cardText(name, { count: { type: "count", value } });
+}
+
+function schemaCard(summary: SchemaSummaryWithStats): NavCardItem {
   const relations = summary.tables.reduce(
     (sum, table) => sum + table.relations.length,
     0,
@@ -35,26 +55,24 @@ function schemaCard(
     description: summary.label?.text,
     icon: SCHEMA_ICON,
     iconTone: summary.label?.color ?? "primary",
-    to: `${DATABASE_PATHS.schemas}?${new URLSearchParams({ tab: `schema-${summary.id}` }).toString()}`,
-    tag: formatCount(locale, "instances", summary.stats.instanceCount),
+    to: `${DATABASE_PATHS.schemas}?${new URLSearchParams({ scope: summary.id }).toString()}`,
+    tag: count("instances", summary.stats.instanceCount),
     readout: [
-      [
-        formatCount(locale, "tables", summary.stats.tableCount),
-        formatCount(locale, "rows", summary.stats.elementCount),
-      ].join(SEPARATOR),
-      formatCount(locale, "relations", relations),
+      cardText("contents", {
+        tables: count("tables", summary.stats.tableCount),
+        rows: compactCount("rows", summary.stats.elementCount),
+      }),
+      count("relations", relations),
     ],
   };
 }
 
 /** One card per registered schema, largest first. */
-export async function listSchemaCards(
-  user: LocaleCarrier,
-): Promise<NavCardItem[]> {
+export async function listSchemaCards(): Promise<NavCardItem[]> {
   const summaries = await listSchemaSummariesWithStats();
   return summaries
     .sort((left, right) => right.stats.elementCount - left.stats.elementCount)
-    .map((summary) => schemaCard(summary, user));
+    .map(schemaCard);
 }
 
 /** The tables holding the most rows, across every schema. */

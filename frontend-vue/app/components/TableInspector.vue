@@ -1,5 +1,13 @@
 <script lang="ts">
-export type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
+import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
+
+type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
+
+// The drawer mounts the inspector anew on each table J / K step to: the
+// last schemas and tab carry over, so the next table shows at once, on the
+// same tab, while the schemas load again. Written in the browser only.
+let lastSchemas: SchemaSummary[] | undefined
+let lastTab: InspectorTab = 'columns'
 </script>
 
 <script setup lang="ts">
@@ -7,8 +15,8 @@ import { useClipboard } from '@vueuse/core'
 import {
 	findTableIn,
 	inboundRelationsIn,
+	useDatabaseSchemas,
 	type FieldDescriptor,
-	type SchemaSummary,
 } from '../build/composables/useDatabaseSchemas'
 import {
 	COLUMN_ROLE_CLASSES,
@@ -20,17 +28,14 @@ import {
 import { CROSS_INSTANCE_VALUE } from '../build/composables/useDataBrowserTabs'
 import { ALL_INSTANCES_PARAM, tableLink } from '../build/utils/databaseLinks'
 
-// The Schemas page's row drawer (D-07): the facts of one table, its columns,
-// indexes and relations both ways, and a sample row. Whoever opens it loads
-// the schemas once and hands them in, so stepping to the next table (J / K)
-// shows it at once; it keeps the open tab across those steps through
-// `initialTab` and `tab-change`.
+// The Schemas page's row drawer (D-07), also opened from the diagram: the
+// facts of one table, its columns, indexes and relations both ways, and a
+// sample row. The table view hands it the row and the means to step to the
+// next one (J / K); a relation opens the table it names in its place.
 
 interface TableRow {
 	schema: string
 	name: string
-	/** Rows in every instance; unknown when opened from the diagram. */
-	elementCount?: number
 }
 
 interface RowNavigation {
@@ -45,16 +50,10 @@ interface RowNavigation {
 const props = defineProps<{
 	rowData?: TableRow
 	navigation?: RowNavigation
-	/** Every schema; undefined while they load. */
-	schemas?: SchemaSummary[]
-	initialTab?: InspectorTab
 }>()
 
-// A link out closes the drawer: the page it opens may be this one.
-const emit = defineEmits<{
-	success: []
-	'tab-change': [tab: InspectorTab]
-}>()
+// A link out closes the drawer.
+const emit = defineEmits<{ success: [] }>()
 
 // Descriptor kinds that admit an empty value on their own.
 const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
@@ -71,18 +70,57 @@ const { $authFetch } = useAuthFetch()
 const { copy } = useClipboard()
 const toast = useToast()
 
-const tab = ref<InspectorTab>(props.initialTab ?? 'columns')
-watch(tab, (value) => emit('tab-change', value))
+const isBrowser = typeof window !== 'undefined'
 
-const loading = computed(() => props.schemas === undefined)
-const schemaId = computed(() => props.rowData?.schema ?? '')
-const tableName = computed(() => props.rowData?.name ?? '')
+const tab = ref<InspectorTab>(lastTab)
+watch(tab, (value) => {
+	if (isBrowser) lastTab = value
+})
+
+const {
+	schemas: loadedSchemas,
+	isSettled: schemasSettled,
+	error: schemasError,
+	refresh: refreshSchemas,
+} = useDatabaseSchemas()
+watch(schemasSettled, (settled) => {
+	if (settled && !schemasError.value && isBrowser)
+		lastSchemas = loadedSchemas.value
+})
+// Every schema: the last ones until these load, and should these fail.
+const schemas = computed(() =>
+	schemasSettled.value && !schemasError.value
+		? loadedSchemas.value
+		: lastSchemas,
+)
+const loading = computed(
+	() => !schemasSettled.value && schemas.value === undefined,
+)
+const failed = computed(
+	() => schemasSettled.value && schemas.value === undefined,
+)
+
+// The table a relation was followed to, in place of the row's.
+const followed = ref<TableRow | null>(null)
+const shown = computed(() => followed.value ?? props.rowData)
+// J / K step from the row the table view opened: its position is not the
+// followed table's.
+const rowNavigation = computed(() =>
+	followed.value ? undefined : props.navigation,
+)
+
+const schemaId = computed(() => shown.value?.schema ?? '')
+const tableName = computed(() => shown.value?.name ?? '')
 const tableKey = computed(() => `${schemaId.value}::${tableName.value}`)
 const table = computed(() =>
-	findTableIn(props.schemas ?? [], schemaId.value, tableName.value),
+	findTableIn(schemas.value ?? [], schemaId.value, tableName.value),
+)
+// Renamed, dropped or mistyped: once the schemas are in, nothing names it.
+const missing = computed(
+	() => !loading.value && !failed.value && table.value === undefined,
 )
 const schema = computed(() =>
-	props.schemas?.find((s) => s.id === schemaId.value),
+	schemas.value?.find((s) => s.id === schemaId.value),
 )
 const instanceCount = computed(() => schema.value?.stats.instanceCount ?? 1)
 const address = computed(() => ({
@@ -145,24 +183,29 @@ const outgoing = computed(() =>
 		from: `${tableName.value}.${r.fromField}`,
 		to: `${qualified(r.toSchema, r.toTable)}.${r.toField}`,
 		cardinality: r.many ? 'N : N' : 'N : 1',
-		link: tableLink('schemas', { schema: r.toSchema, table: r.toTable }),
+		target: { schema: r.toSchema, name: r.toTable },
 	})),
 )
 
 const incoming = computed(() =>
-	inboundRelationsIn(props.schemas ?? [], schemaId.value, tableName.value).map(
+	inboundRelationsIn(schemas.value ?? [], schemaId.value, tableName.value).map(
 		(r) => ({
 			key: `in-${r.fromSchema}-${r.fromTable}-${r.fromField}`,
 			from: `${qualified(r.fromSchema, r.fromTable)}.${r.fromField}`,
 			to: `${tableName.value}.${r.toField}`,
 			cardinality: r.many ? 'N : N' : 'N : 1',
-			link: tableLink('schemas', {
-				schema: r.fromSchema,
-				table: r.fromTable,
-			}),
+			target: { schema: r.fromSchema, name: r.fromTable },
 		}),
 	),
 )
+
+// The row's own table again closes the detour.
+function follow(target: TableRow) {
+	const own =
+		target.schema === props.rowData?.schema &&
+		target.name === props.rowData?.name
+	followed.value = own ? null : target
+}
 
 // --- rows: in every instance at once; the data browser shows each one's ---
 const total = ref<number | null>(null)
@@ -187,8 +230,8 @@ async function loadTotal(key: string) {
 watch(tableKey, loadTotal, { immediate: true })
 
 const rowsFact = computed(() => {
-	const rows = total.value ?? props.rowData?.elementCount
-	return rows === undefined
+	const rows = total.value
+	return rows === null
 		? ''
 		: t('dms_database.inspector.facts.rows', { count: n(rows) }, rows)
 })
@@ -298,6 +341,16 @@ function nextSample() {
 	loadSample()
 }
 
+// Another table (a relation followed) starts over from its latest row.
+watch(tableKey, () => {
+	sample.value = null
+	sampleOffset.value = 0
+	sampleTotal.value = 0
+	sampleInstance.value = null
+	sampleFailed.value = false
+	if (tab.value === 'sample' && !loading.value) loadSample()
+})
+
 // The sample waits for the schemas: they name the instances to look in.
 watch(
 	() => tab.value === 'sample' && !loading.value,
@@ -326,11 +379,8 @@ async function copyName() {
 </script>
 
 <template>
-	<!-- A stable width, whatever the open tab holds; the viewport less its
-		gutters on a phone. -->
-	<div
-		class="flex h-full w-[min(40rem,calc(100vw-2rem))] min-w-0 max-w-full flex-col gap-4"
-	>
+	<!-- As wide as the side drawer, whatever the open tab holds. -->
+	<div class="flex h-full w-full min-w-0 flex-col gap-4">
 		<header class="grid grid-cols-[minmax(0,1fr)] gap-3">
 			<div class="flex min-w-0 items-center gap-2">
 				<DmsEyebrow
@@ -338,29 +388,29 @@ async function copyName() {
 					:label="t('dms_database.inspector.eyebrow', { schema: schemaId })"
 				/>
 				<span class="flex-1" />
-				<template v-if="navigation">
+				<template v-if="rowNavigation">
 					<span class="text-dimmed shrink-0 font-mono text-[11px] tabular-nums">
-						{{ navigation.index + 1 }} / {{ navigation.total }}
+						{{ rowNavigation.index + 1 }} / {{ rowNavigation.total }}
 					</span>
 					<UButton
 						icon="i-ph-caret-up"
 						color="neutral"
 						variant="ghost"
 						size="xs"
-						:disabled="!navigation.hasPrev"
+						:disabled="!rowNavigation.hasPrev"
 						:aria-label="t('dms_database.inspector.previous')"
 						:title="t('dms_database.inspector.previous')"
-						@click="navigation.prev()"
+						@click="rowNavigation.prev()"
 					/>
 					<UButton
 						icon="i-ph-caret-down"
 						color="neutral"
 						variant="ghost"
 						size="xs"
-						:disabled="!navigation.hasNext"
+						:disabled="!rowNavigation.hasNext"
 						:aria-label="t('dms_database.inspector.next')"
 						:title="t('dms_database.inspector.next')"
-						@click="navigation.next()"
+						@click="rowNavigation.next()"
 					/>
 				</template>
 			</div>
@@ -454,6 +504,29 @@ async function copyName() {
 			<div v-if="loading" class="grid gap-3" aria-busy="true">
 				<USkeleton v-for="line in 6" :key="line" class="h-7 w-full" />
 			</div>
+
+			<DmsEmptyState
+				v-else-if="failed"
+				size="sm"
+				variant="error"
+				:title="t('dms_database.inspector.load_error')"
+				:actions="[
+					{
+						label: t('dms_database.common.retry'),
+						icon: 'i-ph-arrows-clockwise',
+						onClick: refreshSchemas,
+					},
+				]"
+			/>
+
+			<DmsEmptyState
+				v-else-if="missing"
+				size="sm"
+				variant="no-result"
+				icon="i-ph-magnifying-glass"
+				:title="t('dms_database.schemas.inspector.not_found')"
+				:description="`${schemaId}.${tableName}`"
+			/>
 
 			<table v-else-if="tab === 'columns'" class="w-full text-sm">
 				<thead>
@@ -563,12 +636,12 @@ async function copyName() {
 							})
 						"
 					/>
-					<DmsAutoLink
-						@click="emit('success')"
+					<button
 						v-for="relation in outgoing"
 						:key="relation.key"
-						:to="relation.link"
-						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
+						type="button"
+						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[12px]"
+						@click="follow(relation.target)"
 					>
 						<span class="text-toned truncate">{{ relation.from }}</span>
 						<UIcon name="i-ph-arrow-right" class="text-info size-3.5" />
@@ -576,7 +649,7 @@ async function copyName() {
 						<span class="text-dimmed text-[10.5px]">
 							{{ relation.cardinality }}
 						</span>
-					</DmsAutoLink>
+					</button>
 					<p v-if="outgoing.length === 0" class="text-dimmed text-sm">
 						{{ t('dms_database.inspector.relations.none_out') }}
 					</p>
@@ -589,12 +662,12 @@ async function copyName() {
 							})
 						"
 					/>
-					<DmsAutoLink
-						@click="emit('success')"
+					<button
 						v-for="relation in incoming"
 						:key="relation.key"
-						:to="relation.link"
-						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12px]"
+						type="button"
+						class="border-default hover:bg-elevated/50 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto] items-center gap-2 rounded-md border px-3 py-2 text-left font-mono text-[12px]"
+						@click="follow(relation.target)"
 					>
 						<span class="text-info truncate">{{ relation.from }}</span>
 						<UIcon name="i-ph-arrow-right" class="text-info size-3.5" />
@@ -602,7 +675,7 @@ async function copyName() {
 						<span class="text-dimmed text-[10.5px]">
 							{{ relation.cardinality }}
 						</span>
-					</DmsAutoLink>
+					</button>
 					<p v-if="incoming.length === 0" class="text-dimmed text-sm">
 						{{ t('dms_database.inspector.relations.none_in') }}
 					</p>
@@ -661,11 +734,7 @@ async function copyName() {
 					size="sm"
 					:title="t('dms_database.inspector.sample.empty')"
 				/>
-				<pre
-					v-else
-					class="border-default bg-elevated/40 text-toned overflow-auto whitespace-pre rounded-lg border p-4 font-mono text-xs"
-					>{{ sampleJson }}</pre
-				>
+				<DmsCodeSnippet v-else :code="sampleJson" language="json" />
 			</div>
 		</div>
 	</div>

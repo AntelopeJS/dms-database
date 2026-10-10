@@ -129,14 +129,6 @@ describe("[integration] Schemas page", () => {
     );
   });
 
-  it("hands the bar's state back on every row for the Inspect link", async () => {
-    const { results } = await listed({ instance: "eu", q: "inv", has: "x" });
-    assert.deepEqual(
-      results.map((row) => [row._scope, row._instance, row._q, row._has]),
-      [[SCHEMA, "eu", "inv", ""]],
-    );
-  });
-
   it("searches a schema's named instances", async () => {
     const controller = new DatabaseTablesController();
     assert.deepEqual(await controller.instances(SCHEMA, "U", undefined), {
@@ -198,11 +190,6 @@ describe("Schemas filter bar parameters", () => {
     assert.equal(filters.scope, "shop");
     assert.deepEqual(filters.instance, { kind: "default" });
     assert.equal(filters.q, "invoice");
-    assert.deepEqual(filters.echo, {
-      scope: "shop",
-      instance: "",
-      q: "invoice",
-      has: "",
-    });
+    assert.deepEqual(filters.has, []);
   });
 });

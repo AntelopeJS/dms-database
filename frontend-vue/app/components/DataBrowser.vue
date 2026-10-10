@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import {
 	instanceBadge,
-	routeTableKey,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
@@ -31,10 +30,8 @@ const route = useDmsRoute()
 
 onMounted(() => restore())
 // A link from this page to another table (a relation) keeps the page mounted.
-// Compared by value: the route is re-assigned with unchanged values whenever
-// a component reads it (see routeTableKey).
 watch(
-	() => routeTableKey(route.query),
+	() => route.query,
 	() => openFromRoute(),
 )
 
@@ -85,10 +82,7 @@ function instanceLabel(instance: string): string {
 				:table="activeTableSummary"
 			/>
 			<div v-else class="grid flex-1 place-items-center p-6">
-				<!-- Keyed: the list arrives once mounted, and the empty state only
-				     looks for its actions slot when it renders first. -->
 				<DmsEmptyState
-					:key="recent.length > 0 ? 'recent' : 'first'"
 					icon="i-ph-rows"
 					:title="t('dms_database.data.empty.pick_title')"
 					:description="

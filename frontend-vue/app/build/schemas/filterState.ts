@@ -4,9 +4,9 @@ import { instanceFromUrl, instanceToUrl } from '../utils/databaseLinks'
 // The Schemas page's filter bar keeps its state in the URL, so a filtered
 // list can be shared, reloaded and gone back to: `scope` (a schema),
 // `instance`, `q` (a table or column name) and `has` (relations, modifiers,
-// empty). `schema` and `table` are the inspector's. The table view reads the
-// same keys as hidden filters and sends them to its source route, which
-// reads them back (src/service/schemaFilters.ts holds the same rules).
+// empty). The table view reads the same keys as hidden filters and sends
+// them to its source route, which reads them back (src/service/schemaFilters.ts
+// holds the same rules).
 // `instance` follows the module's convention (see instanceFromUrl): absent
 // for the default instance, `all` for every instance.
 
@@ -75,7 +75,7 @@ export function filterParams(
 
 /**
  * A route query carrying this state, the rest of it kept: an unset key is
- * dropped, empty ones included (the Inspect URL writes every key).
+ * dropped, empty ones included.
  */
 export function withFilterState(
 	query: Query,

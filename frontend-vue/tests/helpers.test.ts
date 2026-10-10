@@ -1,12 +1,8 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { nextTick, reactive, ref, watch } from 'vue'
+import { ref } from 'vue'
 import { parseDraft } from '../app/build/data/cellValues'
 import { undoBodies, useStagedEdits } from '../app/build/data/stagedEdits'
 import { DiagramHistory } from '../app/build/diagram/history'
-import {
-	routeTableKey,
-	takeOwnUrlWrite,
-} from '../app/build/composables/useDataBrowserTabs'
 import { toCsv } from '../app/build/query/csv'
 import { groupByDay, runKind } from '../app/build/query/runs'
 import { readQueryTarget } from '../app/build/query/target'
@@ -205,45 +201,5 @@ describe('links', () => {
 		)
 		expect(decodeMatch('_id:a:b')).toEqual({ field: '_id', value: 'a:b' })
 		expect(decodeMatch('nope')).toBeNull()
-	})
-})
-
-describe('data browser URL writes', () => {
-	it('ignores the tables it named itself, and the visits they replaced', () => {
-		const writes = [
-			'shop::eu::orders',
-			'shop::eu::customers',
-			'shop::us::orders',
-		]
-		expect(takeOwnUrlWrite(writes, 'shop::eu::customers')).toBe(true)
-		expect(writes).toEqual(['shop::us::orders'])
-		expect(takeOwnUrlWrite(writes, 'shop::eu::orders')).toBe(false)
-		expect(takeOwnUrlWrite(writes, 'shop::us::orders')).toBe(true)
-		expect(writes).toEqual([])
-	})
-})
-
-describe('data browser route watch', () => {
-	it('does not reopen a closed tab from a route re-assigned unchanged', async () => {
-		// tags is closed, posts takes over: while the visit to posts is in
-		// flight, the posts grid mounting re-assigns the route from the URL
-		// that still names tags.
-		const route = reactive({
-			query: { schema: 'demo', table: 'tags' } as Record<string, string>,
-		})
-		const opened: string[] = []
-		watch(
-			() => routeTableKey(route.query),
-			() => opened.push(String(route.query.table)),
-		)
-		route.query = { schema: 'demo', table: 'tags' }
-		await nextTick()
-		expect(opened).toEqual([])
-		route.query = { schema: 'demo', table: 'posts' }
-		await nextTick()
-		expect(opened).toEqual(['posts'])
-		route.query = { schema: 'shop', table: 'posts', match: 'id:1' }
-		await nextTick()
-		expect(opened).toEqual(['posts', 'posts'])
 	})
 })

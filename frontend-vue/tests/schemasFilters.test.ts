@@ -10,22 +10,13 @@ import {
 	withFilterState,
 	withScope,
 } from '../app/build/schemas/filterState'
-import {
-	compareValues,
-	initialSorting,
-	sanitizeSorting,
-	sortRows,
-	sortingPreferencePath,
-} from '../app/build/schemas/tableViewSort'
-import { SCHEMAS_TABLE_VIEW } from '../app/build/schemas/useSchemasListing'
 
 describe('Schemas filter bar state', () => {
 	it('reads nothing as no filter, empty values included', () => {
 		expect(readFilterState({})).toEqual(EMPTY_FILTER_STATE)
-		// The Inspect URL writes every key, empty when unset.
-		const fromInspect = { scope: '', instance: '', q: '', has: '' }
-		expect(readFilterState(fromInspect)).toEqual(EMPTY_FILTER_STATE)
-		expect(isFiltered(readFilterState(fromInspect))).toBe(false)
+		const empty = { scope: '', instance: '', q: '', has: '' }
+		expect(readFilterState(empty)).toEqual(EMPTY_FILTER_STATE)
+		expect(isFiltered(readFilterState(empty))).toBe(false)
 	})
 
 	it('reads and writes back every key', () => {
@@ -51,23 +42,21 @@ describe('Schemas filter bar state', () => {
 		expect(isFiltered(state)).toBe(true)
 	})
 
-	it('keeps the inspector keys and drops unset and empty bar keys', () => {
+	it('keeps the other keys and drops unset and empty bar keys', () => {
 		const query = {
-			schema: 'shop',
-			table: 'orders',
+			record: 'shop::orders',
 			scope: 'shop',
 			instance: '',
 			q: '',
 			has: '',
 		}
 		expect(withFilterState(query, readFilterState(query))).toEqual({
-			schema: 'shop',
-			table: 'orders',
+			record: 'shop::orders',
 			scope: 'shop',
 		})
 		expect(
 			withFilterState(query, { ...EMPTY_FILTER_STATE, q: 'line' }),
-		).toEqual({ schema: 'shop', table: 'orders', q: 'line' })
+		).toEqual({ record: 'shop::orders', q: 'line' })
 	})
 
 	it('reads no instance as the default one, and all as every instance', () => {
@@ -122,99 +111,5 @@ describe('Schemas filter bar state', () => {
 			filter_instance: 'is:all',
 			filter_has: 'is:empty',
 		})
-	})
-})
-
-interface Row extends Record<string, unknown> {
-	name: string
-	schema: string
-	elementCount: number
-}
-
-const ROWS: Row[] = [
-	{ name: 'orders', schema: 'shop', elementCount: 12 },
-	{ name: 'table10', schema: 'demo', elementCount: 0 },
-	{ name: 'customers', schema: 'shop', elementCount: 12 },
-	{ name: 'table9', schema: 'demo', elementCount: 3 },
-	{ name: 'Audit', schema: 'core', elementCount: 120 },
-]
-
-const names = (rows: Row[]) => rows.map((row) => row.name)
-
-describe('Schemas table view order (J / K)', () => {
-	const { sortable, defaultSort } = SCHEMAS_TABLE_VIEW
-
-	it('reads the sort where the table view keeps it', () => {
-		expect(
-			sortingPreferencePath('tables', 'modules.database.explore.schemas'),
-		).toBe('tables.tables.modules.database.explore.schemas.sorting')
-	})
-
-	it('opens on the saved sort, else the default one', () => {
-		expect(initialSorting(undefined, { defaultSort, sortable })).toEqual([
-			{ id: 'elementCount', desc: true },
-		])
-		expect(
-			initialSorting([{ id: 'name', desc: false }], { defaultSort, sortable }),
-		).toEqual([{ id: 'name', desc: false }])
-		// The user turned the sort off: the source's order.
-		expect(initialSorting([], { defaultSort, sortable })).toEqual([])
-	})
-
-	it('drops a sort on a column the table view cannot sort', () => {
-		expect(
-			sanitizeSorting([{ id: 'relations', desc: true }], sortable),
-		).toEqual([])
-		expect(
-			sanitizeSorting(
-				[
-					{ id: 'schema', desc: 1 },
-					{ id: 'name', desc: true },
-				],
-				sortable,
-			),
-		).toEqual([{ id: 'schema', desc: false }])
-		expect(sanitizeSorting('nope', sortable)).toEqual([])
-	})
-
-	it('steps through the most rows first by default, equal counts in source order', () => {
-		expect(names(sortRows(ROWS, [defaultSort]))).toEqual([
-			'Audit',
-			'orders',
-			'customers',
-			'table9',
-			'table10',
-		])
-	})
-
-	it('follows a text sort, numbers in order, either way', () => {
-		const ascending = names(sortRows(ROWS, [{ id: 'name', desc: false }]))
-		expect(ascending.indexOf('table9')).toBeLessThan(
-			ascending.indexOf('table10'),
-		)
-		expect(names(sortRows(ROWS, [{ id: 'name', desc: true }]))).toEqual(
-			[...ascending].reverse(),
-		)
-		// Stable: within a schema, the source's order.
-		expect(names(sortRows(ROWS, [{ id: 'schema', desc: false }]))).toEqual([
-			'Audit',
-			'table10',
-			'table9',
-			'orders',
-			'customers',
-		])
-	})
-
-	it('keeps the source order without a sort, and never moves the source', () => {
-		const source = [...ROWS]
-		expect(names(sortRows(source, []))).toEqual(names(ROWS))
-		sortRows(source, [defaultSort])
-		expect(source).toEqual(ROWS)
-	})
-
-	it('compares numbers as numbers and the rest as text', () => {
-		expect(compareValues(2, 10)).toBeLessThan(0)
-		expect(compareValues('2', '10')).toBeLessThan(0)
-		expect(compareValues(null, 'a')).toBeLessThan(0)
 	})
 })

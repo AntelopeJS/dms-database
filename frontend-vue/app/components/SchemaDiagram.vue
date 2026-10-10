@@ -436,10 +436,8 @@ function inspect(tableName: string) {
 		title: t('dms_database.schemas.inspector.title'),
 		direction: 'right',
 		component: TableInspector,
-		// The diagram drew from these schemas: the inspector reads them too.
 		componentOptions: {
 			rowData: { schema: schemaId.value, name: tableName },
-			schemas: schemas.value,
 		},
 	})
 }
@@ -707,6 +705,8 @@ const isLarge = computed(
 				class="border-default relative min-h-0 flex-1 overflow-hidden rounded-xl border"
 				:class="panMode ? 'diagram-pan-mode' : ''"
 			>
+				<!-- Notes carry their own delete button, named in the page's
+				     language: the canvas's generic badge would only repeat it. -->
 				<DmsFlowCanvas
 					ref="canvas"
 					:node-types="nodeTypes"
@@ -716,6 +716,7 @@ const isLarge = computed(
 					:min-zoom="MIN_ZOOM"
 					minimap
 					deletable-nodes
+					:delete-badge="false"
 					:pan-on-drag="panMode"
 					:nodes-draggable="!panMode"
 					:select-nodes-on-drag="false"
@@ -1114,11 +1115,6 @@ const isLarge = computed(
 	display: inline-flex;
 	align-items: center;
 	gap: 5px;
-}
-/* Notes carry their own delete button, named in the page's language: the
-   canvas's generic badge would only repeat it. */
-:deep(.dms-flow-canvas__delete-layer) {
-	display: none;
 }
 /* Below md the legend and the overview give their room to the canvas. */
 @media (max-width: 767.98px) {

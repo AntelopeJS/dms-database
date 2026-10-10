@@ -49,11 +49,6 @@ export interface SchemaFilters {
   instance: InstanceChoice;
   q?: string;
   has: HasFlag[];
-  /**
-   * The values as the URL carries them, empty when unset: each row hands
-   * them back so its Inspect link keeps the bar's state.
-   */
-  echo: Record<SchemaFilterKey, string>;
 }
 
 // A hidden filter arrives as `<mode>:<value>`; the bar only ever sends `is`.
@@ -65,19 +60,11 @@ function filterValue(raw: unknown): string {
 export function readSchemaFilters(
   raw: Partial<Record<SchemaFilterKey, unknown>>,
 ): SchemaFilters {
-  const echo = {
-    scope: filterValue(raw.scope),
-    instance: filterValue(raw.instance),
-    q: filterValue(raw.q),
-    has: filterValue(raw.has),
-  };
-  const has = parseHasFlags(echo.has);
   return {
-    scope: echo.scope || undefined,
-    instance: decodeInstanceParam(echo.instance),
-    q: echo.q || undefined,
-    has,
-    echo: { ...echo, has: has.join(HAS_SEPARATOR) },
+    scope: filterValue(raw.scope) || undefined,
+    instance: decodeInstanceParam(filterValue(raw.instance)),
+    q: filterValue(raw.q) || undefined,
+    has: parseHasFlags(filterValue(raw.has)),
   };
 }
 

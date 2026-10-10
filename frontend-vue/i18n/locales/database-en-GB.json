@@ -50,6 +50,13 @@
 			"schemas": {
 				"title": "Schemas",
 				"description": "Registered by modules. Open one to see its tables.",
+				"card": {
+					"instances": "{count} instance | {count} instances",
+					"tables": "{count} table | {count} tables",
+					"rows": "{count} row | {count} rows",
+					"relations": "{count} relation | {count} relations",
+					"contents": "{tables} · {rows}"
+				},
 				"cards_meta": "Schema cards",
 				"empty_title": "No schema registered yet",
 				"empty_description": "Schemas appear here when a module declares tables with {'@'}RegisterTable. The connection itself is healthy."
@@ -92,8 +99,6 @@
 			"empty": {
 				"first_title": "No table registered yet",
 				"first_description": "Tables appear here when a module declares them with {'@'}RegisterTable.",
-				"filtered_title": "No table or column matches",
-				"filtered_description": "Search also looks inside column names. Try another schema or clear the search.",
 				"no_result_title": "No result",
 				"no_result_description": "No table matches these filters.",
 				"clear_filters": "Clear filters"
@@ -483,6 +488,7 @@
 			"encrypted": "Encrypted"
 		},
 		"inspector": {
+			"load_error": "Couldn't load the schemas of this table.",
 			"eyebrow": "Schema · {schema}",
 			"previous": "Previous table (K)",
 			"next": "Next table (J)",

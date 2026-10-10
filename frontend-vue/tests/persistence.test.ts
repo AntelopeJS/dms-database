@@ -1,5 +1,5 @@
-import { afterEach, expect, it, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { computed, reactive, ref } from 'vue'
 import { useDataBrowserTabs } from '../app/build/composables/useDataBrowserTabs'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -109,4 +109,63 @@ it('restores the preview tab as a preview, the URL naming it included', () => {
 	expect(browser.activeId.value).toBe('sales::eu::orders')
 	expect(browser.tabs.value.map((tab) => tab.preview)).toEqual([false, true])
 	expect(replace).not.toHaveBeenCalled()
+})
+
+describe('data browser: the route it writes itself', () => {
+	// A reactive route the router writes to, as the DMS's stable
+	// useDmsRoute() reflects a landed visit.
+	function routed(query: Record<string, string> = {}) {
+		setup()
+		vi.stubGlobal('window', {
+			sessionStorage: { getItem: () => null, setItem: vi.fn() },
+		})
+		const route = reactive({ query })
+		const replace = vi.fn(({ query: next }: { query: typeof query }) => {
+			route.query = next
+		})
+		vi.stubGlobal('useDmsRoute', () => route)
+		vi.stubGlobal('useDmsRouter', () => ({ replace }))
+		return { route, replace, browser: useDataBrowserTabs() }
+	}
+
+	it('keeps a preview tab a preview once its URL lands', () => {
+		const { route, replace, browser } = routed()
+		browser.openTab('sales', 'eu', 'orders')
+		expect(replace).toHaveBeenCalledExactlyOnceWith({
+			query: { schema: 'sales', table: 'orders', instance: 'eu' },
+		})
+		// The page's route watcher sees the URL the browser wrote.
+		expect(route.query.table).toBe('orders')
+		expect(browser.openFromRoute()).toBe(true)
+		expect(browser.tabs.value).toEqual([
+			expect.objectContaining({ id: 'sales::eu::orders', preview: true }),
+		])
+	})
+
+	it('opens a linked table pinned, the preview slot left alone', () => {
+		const { route, browser } = routed()
+		browser.openTab('sales', 'eu', 'orders')
+		route.query = { schema: 'sales', table: 'customers', instance: 'eu' }
+		browser.openFromRoute()
+		expect(browser.activeId.value).toBe('sales::eu::customers')
+		expect(browser.tabs.value.map((tab) => [tab.id, tab.preview])).toEqual([
+			['sales::eu::orders', true],
+			['sales::eu::customers', false],
+		])
+	})
+
+	it('pins the active preview tab when a link filters it on a row', () => {
+		const { route, browser } = routed()
+		browser.openTab('sales', 'eu', 'orders')
+		route.query = {
+			schema: 'sales',
+			table: 'orders',
+			instance: 'eu',
+			match: '_id:42',
+		}
+		browser.openFromRoute()
+		expect(browser.tabs.value).toEqual([
+			expect.objectContaining({ id: 'sales::eu::orders', preview: false }),
+		])
+	})
 })

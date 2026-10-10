@@ -4,7 +4,6 @@ import {
 	DEFAULT_INSTANCE_VALUE,
 	instanceBadge,
 	instanceChoiceOf,
-	settleUrlWrite,
 	tabInstanceOf,
 } from '../app/build/composables/useDataBrowserTabs'
 import { cellLabel, draftText, parseDraft } from '../app/build/data/cellValues'
@@ -203,21 +202,5 @@ describe('instance URL parameter', () => {
 		expect(instanceBadge(DEFAULT_INSTANCE_VALUE, 'all')).toBeNull()
 		expect(instanceBadge(CROSS_INSTANCE_VALUE, 'toutes')).toBe('@toutes')
 		expect(instanceBadge('eu', 'all')).toBe('@eu')
-	})
-})
-
-describe('data browser URL writes: settled visits', () => {
-	it('keeps a write the route reached, for its watcher', () => {
-		const writes = ['shop::eu::orders']
-		settleUrlWrite(writes, 'shop::eu::orders', 'shop::eu::orders')
-		expect(writes).toEqual(['shop::eu::orders'])
-	})
-
-	it('drops a write whose visit never landed', () => {
-		const writes = ['shop::eu::orders', 'shop::eu::customers']
-		settleUrlWrite(writes, 'shop::eu::orders', 'shop::eu::customers')
-		expect(writes).toEqual(['shop::eu::customers'])
-		settleUrlWrite(writes, 'shop::us::orders', null)
-		expect(writes).toEqual(['shop::eu::customers'])
 	})
 })

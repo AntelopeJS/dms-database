@@ -12,10 +12,7 @@ import {
 	type InstanceChoice,
 	type SchemasFilterState,
 } from '../build/schemas/filterState'
-import {
-	useCurrentRoute,
-	useSchemasListing,
-} from '../build/schemas/useSchemasListing'
+import { useSchemasListing } from '../build/schemas/useSchemasListing'
 import InstancePicker from './InstancePicker.vue'
 import SchemaPicker from './SchemaPicker.vue'
 
@@ -23,10 +20,7 @@ import SchemaPicker from './SchemaPicker.vue'
 // instance picked from searchable menus (SchemaPicker, InstancePicker, shared
 // with the data browser), a table or column name, and structure chips. Its
 // state lives in the URL (see filterState.ts), which the table view reads as
-// hidden filters: a filtered list can be shared and reloaded, and survives
-// the inspector.
-
-const props = defineProps<{ pageId?: string; componentId?: string }>()
+// hidden filters: a filtered list can be shared and reloaded.
 
 const SEARCH_DEBOUNCE_MS = 250
 
@@ -37,15 +31,15 @@ const HAS_ICONS: Record<HasFlag, string> = {
 }
 
 const { t, n } = useI18n()
-const route = useCurrentRoute()
+const route = useDmsRoute()
 const router = useDmsRouter()
 const { schemas, isSettled: schemasSettled } = useDatabaseSchemas()
 const schemaIds = computed(() => schemas.value.map((schema) => schema.id))
-const listing = useSchemasListing(props.pageId ?? '')
+const listing = useSchemasListing()
 const state = listing.state
 
 function commit(next: SchemasFilterState) {
-	router.replace({ query: withFilterState(route.value.query, next) })
+	router.replace({ query: withFilterState(route.query, next) })
 }
 
 const filtered = computed(() => isFiltered(state.value))

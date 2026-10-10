@@ -17,8 +17,8 @@ export class DatabaseOverviewController extends Controller(
   "/api/database/overview",
 ) {
   @Get("/schemas")
-  async schemas(@AuthRawUser() user: User): Promise<ListResult<NavCardItem>> {
-    return { items: await listSchemaCards(user) };
+  async schemas(@AuthRawUser() _user: User): Promise<ListResult<NavCardItem>> {
+    return { items: await listSchemaCards() };
   }
 
   @Get("/largest")

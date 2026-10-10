@@ -15,12 +15,12 @@ the conclusion.
 
 **Q1. Which packages move, and to which ranges?**
 Every AntelopeJS dependency moves to its latest release line:
-`@antelopejs/interface-dms` `>=0.4.0 <1.0.0` (the DMS itself caps the interface
+`@antelopejs/interface-dms` `>=0.5.1 <1.0.0` (the DMS itself caps the interface
 below its next minor; a module keeps the range wide so every module resolves
 the same copy, which `antelopejs-check-interface-ranges` enforces),
-`@antelopejs/dms` `>=0.6.0
-<0.7.0` (dev and playground), `@antelopejs/dms-frontend` `>=0.5.0 <0.6.0` (dev,
-playground and the layer's `engines`), `@antelopejs/core` `>=1.13.5 <2`,
+`@antelopejs/dms` `>=0.7.2 <0.8.0` (dev and playground),
+`@antelopejs/dms-frontend` `>=0.5.2 <0.6.0` (dev, playground and the layer's
+`engines`), `@antelopejs/core` `>=1.13.5 <2`,
 `@antelopejs/interface-api` `>=0.0.14`, `@antelopejs/interface-dms-automation`
 `>=0.1.1`, and in the playground `@antelopejs/mongodb` `^1.4.2` (required by the
 DMS 0.6 for `$`-prefixed strings) and `@antelopejs/api` `^1.3.3`. The other
@@ -144,10 +144,10 @@ flags), its state kept in the URL and passed to the source route as hidden
 It opens the table inspector, a custom row action marked `isDefault` with
 `deepLink: true`, whose target is a drawer rendering the custom
 `DmsDatabaseTableInspector`. J / K step through the tables (built into row
-drawers). The DMS opens a row action's drawer from the bottom; the diagram
-opens the same inspector from the right, through `useDrawer`. *After QA, the
-Schemas page opens it from the right too, through a hidden block reading
-`?schema=&table=`, until the DMS lets a row action's drawer choose its side.* The inspector follows D-07: no fake "Healthy" footer; facts (rows,
+drawers). The drawer target opens from the right (`direction: "right"`, DMS
+0.7.2); the diagram opens the same inspector from the right, through
+`useDrawer`. A relation of the inspector opens the table it names in its
+place. The inspector follows D-07: no fake "Healthy" footer; facts (rows,
 columns, indexes, relations, instances); tabs Columns, Indexes, Relations
 (references and referenced-by), Sample row; actions Browse data, Query this
 table, Show in diagram, Copy name. The other row actions (Browse data, Query,

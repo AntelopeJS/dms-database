@@ -31,12 +31,6 @@ export interface TableSourceRow {
   /** The tables this one points to, `schema.table` outside its schema. */
   relations: string[];
   modifiers: string[];
-  // The filter bar's URL values, empty when unset: the Inspect action's URL
-  // replaces the whole query, so it writes them back from the row.
-  _scope: string;
-  _instance: string;
-  _q: string;
-  _has: string;
 }
 
 interface TableSourceResult {
@@ -157,10 +151,6 @@ async function listTableSourceRows(
     indexCount: Object.keys(table.indexes ?? {}).length,
     relations: relationTargets(schemaId, table),
     modifiers: modifierNames(table, locale),
-    _scope: filters.echo.scope,
-    _instance: filters.echo.instance,
-    _q: filters.echo.q,
-    _has: filters.echo.has,
   }));
   return {
     rows: filters.has.includes("empty")

@@ -50,6 +50,13 @@
 			"schemas": {
 				"title": "Schémas",
 				"description": "Déclarés par les modules. Ouvrez-en un pour voir ses tables.",
+				"card": {
+					"instances": "{count} instance | {count} instances",
+					"tables": "{count} table | {count} tables",
+					"rows": "{count} ligne | {count} lignes",
+					"relations": "{count} relation | {count} relations",
+					"contents": "{tables} · {rows}"
+				},
 				"cards_meta": "Cartes des schémas",
 				"empty_title": "Aucun schéma déclaré",
 				"empty_description": "Les schémas apparaissent ici quand un module déclare des tables avec {'@'}RegisterTable. La connexion elle-même fonctionne."
@@ -92,8 +99,6 @@
 			"empty": {
 				"first_title": "Aucune table déclarée",
 				"first_description": "Les tables apparaissent ici quand un module les déclare avec {'@'}RegisterTable.",
-				"filtered_title": "Aucune table ni colonne ne correspond",
-				"filtered_description": "La recherche porte aussi sur les noms de colonnes. Essayez un autre schéma ou effacez la recherche.",
 				"no_result_title": "Aucun résultat",
 				"no_result_description": "Aucune table ne correspond à ces filtres.",
 				"clear_filters": "Effacer les filtres"
@@ -483,6 +488,7 @@
 			"encrypted": "Chiffré"
 		},
 		"inspector": {
+			"load_error": "Impossible de charger les schémas de cette table.",
 			"eyebrow": "Schéma · {schema}",
 			"previous": "Table précédente (K)",
 			"next": "Table suivante (J)",
