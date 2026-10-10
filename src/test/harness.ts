@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { defineConfig } from "@antelopejs/interface-core/config";
@@ -10,29 +10,6 @@ const MONGO_BINARY_VERSION = "8.0.8";
 
 let mongod: MongoMemoryReplSet;
 let storageDir: string;
-
-// file-storage-local 0.1.6 fsyncs every directory it creates, walking up from the
-// path to the parent of the first one `mkdir({ recursive: true })` created. On
-// Windows, Node returns that first path as `\\?\C:\…` while the walk compares it
-// with plain `C:\…` paths, so the walk never meets it: it climbs to `C:\` and loops
-// there forever, and the module's construct never resolves. When the folders
-// already exist, mkdir returns undefined and the walk is skipped.
-const STORAGE_FOLDERS = [
-  "files",
-  "metadata",
-  "__staging__",
-  "tokens/upload",
-  "tokens/read",
-  "tokens/consumed",
-];
-
-async function precreateStorageLayout(root: string): Promise<void> {
-  await Promise.all(
-    STORAGE_FOLDERS.map((folder) =>
-      mkdir(join(root, folder), { recursive: true }),
-    ),
-  );
-}
 
 export default defineConfig({
   name: "dms-database-test",
@@ -89,7 +66,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: "0.1.6",
+        version: "0.1.7",
       },
     },
     nodemailer: {
@@ -125,7 +102,6 @@ export default defineConfig({
         binary: { version: MONGO_BINARY_VERSION },
       });
       storageDir = await mkdtemp(join(tmpdir(), "dms-database-test-storage-"));
-      await precreateStorageLayout(storageDir);
       return {
         modules: {
           mongodb: {

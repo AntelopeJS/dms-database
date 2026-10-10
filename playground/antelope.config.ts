@@ -67,7 +67,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: ">=0.1.6 <1.0.0",
+        version: ">=0.1.7 <1.0.0",
       },
       config: {
         storagePath: ".antelope/file-storage",
