@@ -4,18 +4,11 @@ import { parseDraft } from '../app/build/data/cellValues'
 import { undoBodies, useStagedEdits } from '../app/build/data/stagedEdits'
 import { DiagramHistory } from '../app/build/diagram/history'
 import {
-	restoreTabs,
 	routeTableKey,
 	takeOwnUrlWrite,
 } from '../app/build/composables/useDataBrowserTabs'
-import type { BrowserTab } from '../app/build/composables/useDataBrowserTabs'
 import { toCsv } from '../app/build/query/csv'
-import {
-	closestTable,
-	groupByDay,
-	runKind,
-	unknownTable,
-} from '../app/build/query/runs'
+import { groupByDay, runKind } from '../app/build/query/runs'
 import { readQueryTarget } from '../app/build/query/target'
 import {
 	decodeMatch,
@@ -169,16 +162,6 @@ describe('query console helpers', () => {
 		])
 	})
 
-	it('suggests the table a mistyped name was meant to be', () => {
-		expect(unknownTable('Unknown table "invoice" in schema shop')).toBe(
-			'invoice',
-		)
-		expect(closestTable('invoice', ['orders', 'invoices', 'customers'])).toBe(
-			'invoices',
-		)
-		expect(closestTable('zzz', ['orders'])).toBeNull()
-	})
-
 	it('reads the target of an encoded query', () => {
 		const encoded = {
 			__cls: 'Selection',
@@ -237,65 +220,6 @@ describe('data browser URL writes', () => {
 		expect(takeOwnUrlWrite(writes, 'shop::eu::orders')).toBe(false)
 		expect(takeOwnUrlWrite(writes, 'shop::us::orders')).toBe(true)
 		expect(writes).toEqual([])
-	})
-})
-
-describe('data browser restore', () => {
-	const tab = (table: string, preview = false): BrowserTab => ({
-		id: `shop::__DEFAULT__::${table}`,
-		schema: 'shop',
-		instance: '__DEFAULT__',
-		table,
-		preview,
-	})
-
-	it('brings back the kept tabs only', () => {
-		const restored = restoreTabs(
-			{
-				tabs: [tab('orders'), tab('customers', true)],
-				activeId: tab('orders').id,
-			},
-			null,
-			true,
-		)
-		expect(restored.tabs.map((t) => t.table)).toEqual(['orders'])
-		expect(restored.activeId).toBe(tab('orders').id)
-		expect(restored.openRoute).toBe(true)
-	})
-
-	it('hands an active preview over to its neighbour, or to none', () => {
-		const tabs = [tab('a'), tab('b', true), tab('c')]
-		expect(
-			restoreTabs({ tabs, activeId: tab('b').id }, null, false).activeId,
-		).toBe(tab('c').id)
-		expect(
-			restoreTabs(
-				{ tabs: [tab('a'), tab('b', true)], activeId: tab('b').id },
-				null,
-				false,
-			).activeId,
-		).toBe(tab('a').id)
-		const alone = restoreTabs(
-			{ tabs: [tab('b', true)], activeId: tab('b').id },
-			null,
-			true,
-		)
-		expect(alone.tabs).toEqual([])
-		expect(alone.activeId).toBeNull()
-	})
-
-	it('does not follow a reloaded URL naming the dropped preview', () => {
-		const persisted = {
-			tabs: [tab('c'), tab('b', true)],
-			activeId: tab('b').id,
-		}
-		const reloaded = restoreTabs(persisted, tab('b').id, true)
-		expect(reloaded.openRoute).toBe(false)
-		expect(reloaded.activeId).toBe(tab('c').id)
-		// A link (not a reload), or a URL naming another table, is followed.
-		expect(restoreTabs(persisted, tab('b').id, false).openRoute).toBe(true)
-		expect(restoreTabs(persisted, tab('orders').id, true).openRoute).toBe(true)
-		expect(restoreTabs(null, tab('b').id, true).openRoute).toBe(true)
 	})
 })
 

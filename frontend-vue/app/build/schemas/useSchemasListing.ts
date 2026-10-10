@@ -12,7 +12,7 @@ import { sortRows, useTableViewSort, type SortEntry } from './tableViewSort'
 // filter bar counts them; the inspector steps through them with J / K.
 // Shared: the bar and the inspector host read one listing.
 
-export const TABLES_SOURCE = '/api/database/tables/source'
+const TABLES_SOURCE = '/api/database/tables/source'
 
 // The table view of src/pages/schemas.ts: its key in the page, its default
 // sort and its sortable columns.
@@ -39,7 +39,7 @@ interface SourceResponse {
 	all?: number
 }
 
-export type ListingStatus = 'idle' | 'pending' | 'success' | 'error'
+type ListingStatus = 'idle' | 'pending' | 'success' | 'error'
 
 /**
  * The current route, read without `useDmsRoute()`: each call of it

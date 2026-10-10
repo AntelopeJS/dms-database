@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
 import {
-	INSTANCE_PICKER_LIMIT,
+	PICKER_LIMIT,
 	type InstanceChoice,
 } from '../build/data/instanceOptions'
 import {
@@ -9,7 +9,6 @@ import {
 	INSTANCE_ICON,
 	PICKER_MENU_UI,
 	READ_ONLY_ICON,
-	READ_ONLY_ITEM_CLASS,
 	instanceMenu,
 	instancePickChoice,
 	instancePickValue,
@@ -21,8 +20,9 @@ import {
 // filter bar and the data browser's sidebar. A SaaS schema may hold one
 // instance per tenant: the named ones load when the menu opens and the
 // server searches them, a hundred at most with how many matched. "All
-// instances" (with their count) and "default" are pinned first; "all" is a
-// filter on the Schemas page, the data browser's read-only view there.
+// instances" (with their count) and "default" are pinned first, "all" after
+// the matches of a search; "all" is a filter on the Schemas page, the data
+// browser's read-only view there.
 
 const props = withDefaults(
 	defineProps<{
@@ -68,7 +68,7 @@ async function load() {
 				query: {
 					schema,
 					search: term || undefined,
-					limit: INSTANCE_PICKER_LIMIT,
+					limit: PICKER_LIMIT,
 				},
 			},
 		)
@@ -151,44 +151,6 @@ const icon = computed(() => {
 	return props.allMode === 'readonly' ? READ_ONLY_ICON : ALL_ICON
 })
 
-// Typing in the search (clearing it too) highlights the first item: past the
-// read-only view, so that Enter picks the first instance one can edit. The
-// opened menu still highlights the picked one. The menu offers no way to
-// highlight an item, its search field steps down the list.
-const menu = useTemplateRef<{ viewportRef?: HTMLElement | null }>('menu')
-let searched = false
-
-watch(open, () => {
-	searched = false
-})
-
-watch(search, () => {
-	if (open.value) searched = true
-})
-
-watch(
-	items,
-	async () => {
-		if (props.allMode !== 'readonly' || !open.value || !searched) return
-		// Once the menu has highlighted the search's first item, and shown it.
-		await new Promise((resolve) => setTimeout(resolve))
-		const viewport = menu.value?.viewportRef
-		const field = viewport
-			?.closest('[data-slot="content"]')
-			?.querySelector('input')
-		if (!viewport || !field) return
-		const highlighted = viewport.querySelector('[data-highlighted]')
-		if (highlighted && !highlighted.classList.contains(READ_ONLY_ITEM_CLASS))
-			return
-		const down = () =>
-			field.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }))
-		// Nothing highlighted: the first step lands on the read-only view.
-		if (!highlighted) down()
-		down()
-	},
-	{ flush: 'post' },
-)
-
 function pick(value: unknown) {
 	if (typeof value === 'string')
 		emit('update:modelValue', instancePickChoice(value))
@@ -197,7 +159,6 @@ function pick(value: unknown) {
 
 <template>
 	<USelectMenu
-		ref="menu"
 		v-model:search-term="search"
 		:model-value="instancePickValue(modelValue)"
 		:items="items"

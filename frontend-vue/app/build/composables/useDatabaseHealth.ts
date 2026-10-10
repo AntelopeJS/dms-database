@@ -1,10 +1,10 @@
-export interface StorageEntry {
+interface StorageEntry {
 	schema: string
 	table: string
 	rows: number
 }
 
-export interface OverviewHealth {
+interface OverviewHealth {
 	status: 'ok' | 'down'
 	latencyMs: number | null
 	driver: string | null

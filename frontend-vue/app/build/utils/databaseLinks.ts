@@ -1,3 +1,7 @@
+import type { InstanceChoice } from '../data/instanceOptions'
+
+export type { InstanceChoice }
+
 // Where the module's pages live. Module pages resolve under
 // /modules/<module id>; a link without that prefix 404s.
 const MODULE_ROOT = '/modules/database'
@@ -10,44 +14,52 @@ export const DATABASE_PAGES = {
 	query: `${MODULE_ROOT}/query`,
 } as const
 
-export type DatabasePage = keyof typeof DATABASE_PAGES
+type DatabasePage = keyof typeof DATABASE_PAGES
 
 /** A column value the data browser filters the table on when it opens. */
-export interface TableMatch {
+interface TableMatch {
 	field: string
 	value: string
 }
 
-export interface TableAddress {
+interface TableAddress {
 	schema: string
 	table: string
+	/**
+	 * A named instance, none for the default one; a page link also takes
+	 * ALL_INSTANCES_PARAM for every instance.
+	 */
 	instance?: string
 	match?: TableMatch
 }
 
 const MATCH_SEPARATOR = ':'
 
-/** The URL's `instance` for every instance at once (the data browser's "all"). */
+// The URL's `instance`, the same on every page of the module: absent for the
+// default instance, `all` for every instance at once, any other value for
+// the instance of that name. No escaping: an instance named "all" cannot be
+// linked to.
+
+/** The URL's `instance` for every instance at once. */
 export const ALL_INSTANCES_PARAM = 'all'
-// Prefixed to a named instance that would read as "all", or as escaped.
-const INSTANCE_ESCAPE = '~'
 
-/**
- * A named instance as the URL's `instance` carries it: an instance really
- * named "all" is written "~all", and one starting with "~" gets one more.
- */
-export function encodeNamedInstance(id: string): string {
-	return id === ALL_INSTANCES_PARAM || id.startsWith(INSTANCE_ESCAPE)
-		? `${INSTANCE_ESCAPE}${id}`
-		: id
+/** The instance an `instance` URL parameter names; a missing one is the default. */
+export function instanceFromUrl(param: unknown): InstanceChoice {
+	const first = Array.isArray(param) ? param[0] : param
+	const value = typeof first === 'string' ? first.trim() : ''
+	if (!value) return { kind: 'default' }
+	if (value === ALL_INSTANCES_PARAM) return { kind: 'all' }
+	return { kind: 'named', id: value }
 }
 
-/** The named instance an `instance` parameter other than "all" stands for. */
-export function decodeNamedInstance(param: string): string {
-	return param.startsWith(INSTANCE_ESCAPE) ? param.slice(1) : param
+/** The `instance` URL parameter of a choice; undefined (left out) for the default. */
+export function instanceToUrl(choice: InstanceChoice): string | undefined {
+	if (choice.kind === 'default') return undefined
+	if (choice.kind === 'all') return ALL_INSTANCES_PARAM
+	return choice.id
 }
 
-export function encodeMatch(match: TableMatch): string {
+function encodeMatch(match: TableMatch): string {
 	return `${match.field}${MATCH_SEPARATOR}${match.value}`
 }
 
@@ -65,8 +77,7 @@ export function tableLink(page: DatabasePage, address: TableAddress): string {
 		schema: address.schema,
 		table: address.table,
 	})
-	if (address.instance)
-		query.set('instance', encodeNamedInstance(address.instance))
+	if (address.instance) query.set('instance', address.instance)
 	if (address.match) query.set('match', encodeMatch(address.match))
 	return `${DATABASE_PAGES[page]}?${query.toString()}`
 }

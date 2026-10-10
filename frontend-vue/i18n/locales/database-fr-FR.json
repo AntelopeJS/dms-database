@@ -210,7 +210,6 @@
 				"confirm": "Enregistrer {count} modification | Enregistrer {count} modifications",
 				"keep_editing": "Continuer à modifier",
 				"saved": "{count} modification enregistrée dans {scope} | {count} modifications enregistrées dans {scope}",
-				"undo_window": "Annulable encore {seconds} s",
 				"undo": "Annuler",
 				"undone": "{count} modification annulée | {count} modifications annulées",
 				"undo_failed": "Impossible d'annuler les modifications",
@@ -339,8 +338,7 @@
 				"saved_empty": "Les requêtes que vous enregistrez apparaissent ici.",
 				"team_empty": "Les requêtes partagées par l'équipe apparaissent ici.",
 				"history_kept": "Vos {count} dernières exécutions sont conservées.",
-				"clear": "Vider l'historique",
-				"more": "Afficher les exécutions plus anciennes"
+				"clear": "Vider l'historique"
 			},
 			"editor": {
 				"untitled": "Requête sans titre",
@@ -354,7 +352,6 @@
 				"insert": "Insérer",
 				"complete": "compléter",
 				"position": "AQL · L {line}, Col {column}",
-				"table_rows": "{count} ligne | {count} lignes",
 				"aria_label": "Éditeur de requête (AQL)"
 			},
 			"result": {
@@ -380,6 +377,8 @@
 				"example_latest": "Les 10 dernières lignes de {table}",
 				"example_count": "Compter {table}",
 				"no_rows": "La requête n'a renvoyé aucune ligne.",
+				"elsewhere_title": "Aucune ligne dans l'instance par défaut.",
+				"elsewhere_description": "Cette table a des lignes dans d'autres instances :",
 				"done": "Terminé. La requête n'a renvoyé aucune ligne.",
 				"bars": "Barres",
 				"x_axis": "Axe X",
@@ -410,7 +409,6 @@
 				"confirm_unknown": "Lancer la requête",
 				"skip": "Ne plus demander pour les modifications d'une seule ligne",
 				"skip_detail": "Jusqu'à la fermeture de cet onglet. Les suppressions et les modifications de plusieurs lignes demandent toujours.",
-				"op_read": "lecture",
 				"op_insert": "insertion",
 				"op_update": "modification",
 				"op_replace": "remplacement",
@@ -442,9 +440,7 @@
 			},
 			"errors": {
 				"syntax": "Erreur de syntaxe : {detail}. Vérifiez les parenthèses, les guillemets et les virgules.",
-				"syntax_unclosed": "Erreur de syntaxe : le « {char} » de la ligne {line}, colonne {column} n'est jamais fermé.",
-				"syntax_unexpected": "Erreur de syntaxe : « {char} » inattendu ligne {line}, colonne {column}. Vérifiez les parenthèses et les guillemets.",
-				"syntax_string": "Erreur de syntaxe : la chaîne ouverte ligne {line}, colonne {column} n'est jamais fermée.",
+				"syntax_at": "Erreur de syntaxe ligne {line}, colonne {column}. Vérifiez les parenthèses, les guillemets et les virgules.",
 				"unknown_schema": "Schéma inconnu « {schema} »."
 			}
 		},
@@ -463,7 +459,6 @@
 				"label": "Schéma",
 				"all": "Tous les schémas",
 				"find": "Chercher un schéma",
-				"recent": "Récents",
 				"more": "{shown} premiers sur {total}",
 				"no_match": "Aucun schéma ne correspond",
 				"placeholder": "Choisissez un schéma"
@@ -500,9 +495,7 @@
 				"columns": "{count} colonne | {count} colonnes",
 				"indexes": "{count} index | {count} index",
 				"relations": "{count} relation | {count} relations",
-				"instance_rows": "{instance} {count}",
-				"default_instance": "par défaut",
-				"uncounted": "{count} autre instance non comptée | {count} autres instances non comptées"
+				"by_instance": "Parcourir par instance dans l'explorateur"
 			},
 			"actions": {
 				"browse": "Parcourir les données",
@@ -564,6 +557,7 @@
 			"reset_zoom": "Zoom à 100 %",
 			"undo": "Annuler",
 			"redo": "Rétablir",
+			"step_back": "Revenir en arrière : l'aperçu de la disposition, le focus, puis la sélection",
 			"run": "Lancer la requête",
 			"save": "Enregistrer la requête",
 			"complete": "Compléter la requête"

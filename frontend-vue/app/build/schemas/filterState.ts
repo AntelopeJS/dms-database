@@ -1,4 +1,5 @@
 import type { InstanceChoice } from '../data/instanceOptions'
+import { instanceFromUrl, instanceToUrl } from '../utils/databaseLinks'
 
 // The Schemas page's filter bar keeps its state in the URL, so a filtered
 // list can be shared, reloaded and gone back to: `scope` (a schema),
@@ -6,19 +7,15 @@ import type { InstanceChoice } from '../data/instanceOptions'
 // empty). `schema` and `table` are the inspector's. The table view reads the
 // same keys as hidden filters and sends them to its source route, which
 // reads them back (src/service/schemaFilters.ts holds the same rules).
+// `instance` follows the module's convention (see instanceFromUrl): absent
+// for the default instance, `all` for every instance.
 
-export const FILTER_KEYS = ['scope', 'instance', 'q', 'has'] as const
-export type FilterKey = (typeof FILTER_KEYS)[number]
+const FILTER_KEYS = ['scope', 'instance', 'q', 'has'] as const
+type FilterKey = (typeof FILTER_KEYS)[number]
 
 export const HAS_FLAGS = ['relations', 'modifiers', 'empty'] as const
 export type HasFlag = (typeof HAS_FLAGS)[number]
 const HAS_SEPARATOR = ','
-
-/** The URL's `instance` for the default instance; no value means all. */
-export const DEFAULT_INSTANCE_PARAM = 'default'
-// Prefixed to a named instance that would read as the default one, or as
-// escaped: an instance really named "default" is written "~default".
-const INSTANCE_ESCAPE = '~'
 
 export type { InstanceChoice }
 
@@ -34,7 +31,7 @@ export interface SchemasFilterState {
 
 export const EMPTY_FILTER_STATE: SchemasFilterState = {
 	scope: null,
-	instance: { kind: 'all' },
+	instance: { kind: 'default' },
 	q: '',
 	has: [],
 }
@@ -44,24 +41,6 @@ type Query = Record<string, unknown>
 function text(value: unknown): string {
 	const first = Array.isArray(value) ? value[0] : value
 	return typeof first === 'string' ? first.trim() : ''
-}
-
-export function encodeInstance(choice: InstanceChoice): string | undefined {
-	if (choice.kind === 'all') return undefined
-	if (choice.kind === 'default') return DEFAULT_INSTANCE_PARAM
-	return choice.id === DEFAULT_INSTANCE_PARAM ||
-		choice.id.startsWith(INSTANCE_ESCAPE)
-		? `${INSTANCE_ESCAPE}${choice.id}`
-		: choice.id
-}
-
-export function decodeInstance(param: string | undefined): InstanceChoice {
-	if (!param) return { kind: 'all' }
-	if (param === DEFAULT_INSTANCE_PARAM) return { kind: 'default' }
-	return {
-		kind: 'named',
-		id: param.startsWith(INSTANCE_ESCAPE) ? param.slice(1) : param,
-	}
 }
 
 /** Known flags only, once each, in their fixed order. */
@@ -75,7 +54,7 @@ export function parseHas(param: string | undefined): HasFlag[] {
 export function readFilterState(query: Query): SchemasFilterState {
 	return {
 		scope: text(query.scope) || null,
-		instance: decodeInstance(text(query.instance)),
+		instance: instanceFromUrl(query.instance),
 		q: text(query.q),
 		has: parseHas(text(query.has)),
 	}
@@ -88,7 +67,7 @@ export function filterParams(
 	const has = parseHas(state.has.join(HAS_SEPARATOR))
 	return {
 		scope: state.scope || undefined,
-		instance: encodeInstance(state.instance),
+		instance: instanceToUrl(state.instance),
 		q: state.q.trim() || undefined,
 		has: has.length > 0 ? has.join(HAS_SEPARATOR) : undefined,
 	}
@@ -134,7 +113,7 @@ export function withScope(
 	return {
 		...state,
 		scope,
-		instance: keepsInstance ? state.instance : { kind: 'all' },
+		instance: keepsInstance ? state.instance : { kind: 'default' },
 	}
 }
 
@@ -146,8 +125,4 @@ export function toggleHas(
 		? state.has.filter((entry) => entry !== flag)
 		: [...state.has, flag]
 	return { ...state, has: HAS_FLAGS.filter((entry) => has.includes(entry)) }
-}
-
-export function sameInstance(left: InstanceChoice, right: InstanceChoice) {
-	return encodeInstance(left) === encodeInstance(right)
 }

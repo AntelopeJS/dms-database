@@ -1,8 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
 	EMPTY_FILTER_STATE,
-	decodeInstance,
-	encodeInstance,
 	filterParams,
 	isFiltered,
 	parseHas,
@@ -20,14 +18,6 @@ import {
 	sortingPreferencePath,
 } from '../app/build/schemas/tableViewSort'
 import { SCHEMAS_TABLE_VIEW } from '../app/build/schemas/useSchemasListing'
-import {
-	RECENT_SCHEMAS_LIMIT,
-	SCHEMA_PICKER_LIMIT,
-	matchSchemas,
-	recentSchemas,
-	rememberSchema,
-	sortSchemaIds,
-} from '../app/build/data/schemaOptions'
 
 describe('Schemas filter bar state', () => {
 	it('reads nothing as no filter, empty values included', () => {
@@ -80,21 +70,21 @@ describe('Schemas filter bar state', () => {
 		).toEqual({ schema: 'shop', table: 'orders', q: 'line' })
 	})
 
-	it('tells every instance, the default one and a named one apart', () => {
-		expect(encodeInstance({ kind: 'all' })).toBeUndefined()
-		expect(encodeInstance({ kind: 'default' })).toBe('default')
-		expect(encodeInstance({ kind: 'named', id: 'eu' })).toBe('eu')
-		// Named like the default one, or like an escaped one.
-		expect(encodeInstance({ kind: 'named', id: 'default' })).toBe('~default')
-		expect(encodeInstance({ kind: 'named', id: '~x' })).toBe('~~x')
-		for (const id of ['default', '~x', 'eu', 'all']) {
-			expect(decodeInstance(encodeInstance({ kind: 'named', id }))).toEqual({
-				kind: 'named',
-				id,
-			})
-		}
-		expect(decodeInstance(undefined)).toEqual({ kind: 'all' })
-		expect(decodeInstance('default')).toEqual({ kind: 'default' })
+	it('reads no instance as the default one, and all as every instance', () => {
+		expect(readFilterState({}).instance).toEqual({ kind: 'default' })
+		expect(readFilterState({ instance: 'all' }).instance).toEqual({
+			kind: 'all',
+		})
+		const named = readFilterState({ instance: 'eu' })
+		expect(named.instance).toEqual({ kind: 'named', id: 'eu' })
+		expect(filterParams(EMPTY_FILTER_STATE).instance).toBeUndefined()
+		expect(
+			filterParams({ ...EMPTY_FILTER_STATE, instance: { kind: 'all' } })
+				.instance,
+		).toBe('all')
+		expect(
+			isFiltered({ ...EMPTY_FILTER_STATE, instance: { kind: 'all' } }),
+		).toBe(true)
 	})
 
 	it('keeps known structure flags once, in a fixed order', () => {
@@ -115,21 +105,21 @@ describe('Schemas filter bar state', () => {
 			instance: { kind: 'named' as const, id: 'eu' },
 		}
 		expect(withScope(state, 'shop').instance).toEqual(state.instance)
-		expect(withScope(state, 'blog').instance).toEqual({ kind: 'all' })
-		expect(withScope(state, null).instance).toEqual({ kind: 'all' })
-		const fallback = { ...state, instance: { kind: 'default' as const } }
-		expect(withScope(fallback, 'blog').instance).toEqual({ kind: 'default' })
+		expect(withScope(state, 'blog').instance).toEqual({ kind: 'default' })
+		expect(withScope(state, null).instance).toEqual({ kind: 'default' })
+		const every = { ...state, instance: { kind: 'all' as const } }
+		expect(withScope(every, 'blog').instance).toEqual({ kind: 'all' })
 	})
 
 	it('queries the source as the table view does', () => {
 		expect(sourceQuery(EMPTY_FILTER_STATE)).toEqual({})
 		expect(
 			sourceQuery(
-				readFilterState({ scope: 'shop', instance: 'default', has: 'empty' }),
+				readFilterState({ scope: 'shop', instance: 'all', has: 'empty' }),
 			),
 		).toEqual({
 			filter_scope: 'is:shop',
-			filter_instance: 'is:default',
+			filter_instance: 'is:all',
 			filter_has: 'is:empty',
 		})
 	})
@@ -226,54 +216,5 @@ describe('Schemas table view order (J / K)', () => {
 		expect(compareValues(2, 10)).toBeLessThan(0)
 		expect(compareValues('2', '10')).toBeLessThan(0)
 		expect(compareValues(null, 'a')).toBeLessThan(0)
-	})
-})
-
-describe('schema picker', () => {
-	it('sorts schema ids by name, once each', () => {
-		expect(sortSchemaIds(['shop', 'dms-core', 'shop', 'demo'])).toEqual([
-			'demo',
-			'dms-core',
-			'shop',
-		])
-	})
-
-	it('renders a bounded slice of many schemas and counts the rest', () => {
-		const ids = sortSchemaIds(
-			Array.from({ length: 250 }, (_, index) => `module-${index}`),
-		)
-		const all = matchSchemas(ids, '')
-		expect(all.shown).toHaveLength(SCHEMA_PICKER_LIMIT)
-		expect(all.total).toBe(250)
-		expect(matchSchemas(ids, 'MODULE-24').shown).toEqual([
-			'module-24',
-			'module-240',
-			'module-241',
-			'module-242',
-			'module-243',
-			'module-244',
-			'module-245',
-			'module-246',
-			'module-247',
-			'module-248',
-			'module-249',
-		])
-	})
-
-	it('keeps the last picked schemas, this one first', () => {
-		let recent: string[] = []
-		for (const id of ['shop', 'demo', 'core', 'demo', 'blog'])
-			recent = rememberSchema(recent, id)
-		expect(recent).toEqual(['blog', 'demo', 'core'])
-		expect(recent).toHaveLength(RECENT_SCHEMAS_LIMIT)
-	})
-
-	it('reads back only recent schemas still registered', () => {
-		const known = new Set(['shop', 'demo'])
-		expect(recentSchemas(['gone', 'shop', 3, 'shop', 'demo'], known)).toEqual([
-			'shop',
-			'demo',
-		])
-		expect(recentSchemas('not a list', known)).toEqual([])
 	})
 })

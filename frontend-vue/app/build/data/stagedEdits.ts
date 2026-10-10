@@ -18,7 +18,7 @@ type RowEdits = Record<string, StagedCell>
 type TabEdits = Record<string, RowEdits>
 
 /** Two cell values are the same when their JSON forms are. */
-export function sameValue(left: unknown, right: unknown): boolean {
+function sameValue(left: unknown, right: unknown): boolean {
 	if (left === right) return true
 	try {
 		return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)

@@ -11,7 +11,7 @@ import {
 	ValueProxy,
 } from '@antelopejs/interface-database/staged-query'
 
-export interface QueryStage {
+interface QueryStage {
 	stage: string
 	options?: unknown
 	args: unknown[]
@@ -40,7 +40,7 @@ function classNameOf(obj: object): string | undefined {
 
 // CROSS_INSTANCE is a symbol, which JSON drops: it travels as this sentinel,
 // which the server turns back into the symbol.
-const CROSS_INSTANCE_SENTINEL = '__CROSS_INSTANCE__'
+export const CROSS_INSTANCE_SENTINEL = '__CROSS_INSTANCE__'
 
 export function encodeStaged(node: unknown): unknown {
 	if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL

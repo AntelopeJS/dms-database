@@ -7,7 +7,7 @@
 // escaped, "\null" (and "\\null" for "\null"): an editor opens a cell holding
 // such a text escaped, so committing it unchanged keeps it.
 
-export type DraftResult =
+type DraftResult =
 	| { ok: true; value: unknown; unchanged: boolean }
 	| { ok: false; reason: 'number' | 'boolean' | 'date' }
 

@@ -210,7 +210,6 @@
 				"confirm": "Save {count} change | Save {count} changes",
 				"keep_editing": "Keep editing",
 				"saved": "{count} change saved to {scope} | {count} changes saved to {scope}",
-				"undo_window": "Undo for {seconds} s",
 				"undo": "Undo",
 				"undone": "{count} change undone | {count} changes undone",
 				"undo_failed": "Couldn't undo the changes",
@@ -339,8 +338,7 @@
 				"saved_empty": "Queries you save show up here.",
 				"team_empty": "Queries your teammates share show up here.",
 				"history_kept": "Your last {count} runs are kept.",
-				"clear": "Clear history",
-				"more": "Show older runs"
+				"clear": "Clear history"
 			},
 			"editor": {
 				"untitled": "Untitled query",
@@ -354,7 +352,6 @@
 				"insert": "Insert",
 				"complete": "complete",
 				"position": "AQL · Ln {line}, Col {column}",
-				"table_rows": "{count} row | {count} rows",
 				"aria_label": "Query editor (AQL)"
 			},
 			"result": {
@@ -380,6 +377,8 @@
 				"example_latest": "Latest 10 rows of {table}",
 				"example_count": "Count {table}",
 				"no_rows": "The query answered no row.",
+				"elsewhere_title": "No rows in the default instance.",
+				"elsewhere_description": "This table has rows in other instances:",
 				"done": "Done. The query answered no row.",
 				"bars": "Bars",
 				"x_axis": "X axis",
@@ -410,7 +409,6 @@
 				"confirm_unknown": "Run query",
 				"skip": "Don't ask again for single-row updates",
 				"skip_detail": "Until you close this browser tab. Deletes and changes to more than one row always ask.",
-				"op_read": "read",
 				"op_insert": "insert",
 				"op_update": "update",
 				"op_replace": "replace",
@@ -442,9 +440,7 @@
 			},
 			"errors": {
 				"syntax": "Syntax error: {detail}. Check parentheses, quotes and commas.",
-				"syntax_unclosed": "Syntax error: the “{char}” at line {line}, column {column} is never closed.",
-				"syntax_unexpected": "Syntax error: unexpected “{char}” at line {line}, column {column}. Check parentheses and quotes.",
-				"syntax_string": "Syntax error: the string opened at line {line}, column {column} is never closed.",
+				"syntax_at": "Syntax error at line {line}, column {column}. Check parentheses, quotes and commas.",
 				"unknown_schema": "Unknown schema “{schema}”."
 			}
 		},
@@ -463,7 +459,6 @@
 				"label": "Schema",
 				"all": "All schemas",
 				"find": "Find a schema",
-				"recent": "Recent",
 				"more": "First {shown} of {total}",
 				"no_match": "No schema matches",
 				"placeholder": "Pick a schema"
@@ -500,9 +495,7 @@
 				"columns": "{count} column | {count} columns",
 				"indexes": "{count} index | {count} indexes",
 				"relations": "{count} relation | {count} relations",
-				"instance_rows": "{instance} {count}",
-				"default_instance": "default",
-				"uncounted": "{count} more instance not counted | {count} more instances not counted"
+				"by_instance": "Browse by instance in the data browser"
 			},
 			"actions": {
 				"browse": "Browse data",
@@ -564,6 +557,7 @@
 			"reset_zoom": "Zoom to 100 %",
 			"undo": "Undo",
 			"redo": "Redo",
+			"step_back": "Step back: the layout preview, the focus, then the selection",
 			"run": "Run the query",
 			"save": "Save the query",
 			"complete": "Complete the query"

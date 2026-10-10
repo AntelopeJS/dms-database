@@ -1,8 +1,8 @@
-// The named instances an instance picker lists for a search. A SaaS schema
-// can hold one instance per tenant, so the picker renders at most `limit` of
-// them and says how many matched.
+// The names a picker lists for a search: schema ids, or the named instances
+// of a schema. A SaaS schema can hold one instance per tenant, so a picker
+// renders at most `limit` of them and says how many matched.
 
-export const INSTANCE_PICKER_LIMIT = 100
+export const PICKER_LIMIT = 100
 
 /** Every instance, the default one, or a named one. */
 export type InstanceChoice =
@@ -12,21 +12,22 @@ export type InstanceChoice =
 
 const collator = new Intl.Collator(undefined, { numeric: true })
 
-export function sortInstances(instances: readonly string[]): string[] {
-	return [...new Set(instances)].sort(collator.compare)
+/** Names in order, numbers by value, once each. */
+export function sortNames(names: readonly string[]): string[] {
+	return [...new Set(names)].sort(collator.compare)
 }
 
-export interface InstanceMatches {
+interface NameMatches {
 	shown: string[]
 	total: number
 }
 
-/** Expects instances already sorted; matches a name containing the search. */
-export function matchInstances(
+/** Expects names already sorted; matches a name containing the search. */
+export function matchNames(
 	sorted: readonly string[],
 	search: string,
-	limit = INSTANCE_PICKER_LIMIT,
-): InstanceMatches {
+	limit = PICKER_LIMIT,
+): NameMatches {
 	const needle = search.trim().toLowerCase()
 	const matches = needle
 		? sorted.filter((id) => id.toLowerCase().includes(needle))

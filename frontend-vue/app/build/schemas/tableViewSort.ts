@@ -27,7 +27,7 @@ export interface TableViewSortConfig {
 	sortable: readonly string[]
 }
 
-export const SORT_CHANGE_EVENT = 'DmsComponent.TableView.SortChange'
+const SORT_CHANGE_EVENT = 'DmsComponent.TableView.SortChange'
 const PREFERENCES_ROOT = 'tables'
 const SORTING_KEY = 'sorting'
 

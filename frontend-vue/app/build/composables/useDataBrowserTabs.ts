@@ -1,50 +1,36 @@
 import { nextTick } from 'vue'
+import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
 import { useDataBrowserGrid } from './useDataBrowserGrid'
 import type { InstanceChoice } from '../data/instanceOptions'
 import { rememberTable } from '../data/recentTables'
 import { useStagedEdits } from '../data/stagedEdits'
 import {
-	ALL_INSTANCES_PARAM,
 	decodeMatch,
-	decodeNamedInstance,
-	encodeNamedInstance,
+	instanceFromUrl,
+	instanceToUrl,
 } from '../utils/databaseLinks'
 
 // Shared state for the data-browser tabs: each tab pins a (schema, instance,
 // table) triplet. The active tab is mirrored to the URL query (deep-links) and
 // the whole tab set is persisted to sessionStorage (stays per browser tab); a
-// page refresh brings back the kept tabs only, never the preview one.
+// page refresh brings every tab back, the preview one still a preview.
 
+// A tab's instance as its id and the browse routes' `filter_instance` carry
+// it: these two values, or a named instance id.
 export const DEFAULT_INSTANCE_VALUE = '__DEFAULT__'
-export const CROSS_INSTANCE_VALUE = '__CROSS_INSTANCE__'
+export const CROSS_INSTANCE_VALUE = CROSS_INSTANCE_SENTINEL
 
 /**
- * The URL's `instance` for a tab's: none for the default instance, "all"
- * for every instance, and a named one escaped when it could read as "all"
- * (see encodeNamedInstance).
+ * A tab's instance as a choice ("all": read-only), as pickers and the URL
+ * (see instanceFromUrl) carry it.
  */
-export function instanceToParam(instance: string): string | undefined {
-	if (instance === DEFAULT_INSTANCE_VALUE) return undefined
-	if (instance === CROSS_INSTANCE_VALUE) return ALL_INSTANCES_PARAM
-	return encodeNamedInstance(instance)
-}
-
-/** A tab's instance from the URL's `instance`; the internal value still reads. */
-export function instanceFromParam(param: unknown): string {
-	if (typeof param !== 'string' || !param) return DEFAULT_INSTANCE_VALUE
-	if (param === ALL_INSTANCES_PARAM || param === CROSS_INSTANCE_VALUE)
-		return CROSS_INSTANCE_VALUE
-	return decodeNamedInstance(param)
-}
-
-/** A tab's instance as an instance picker's choice ("all": read-only). */
 export function instanceChoiceOf(instance: string): InstanceChoice {
 	if (instance === DEFAULT_INSTANCE_VALUE) return { kind: 'default' }
 	if (instance === CROSS_INSTANCE_VALUE) return { kind: 'all' }
 	return { kind: 'named', id: instance }
 }
 
-/** The tab instance an instance picker's choice stands for. */
+/** The tab instance a choice stands for. */
 export function tabInstanceOf(choice: InstanceChoice): string {
 	if (choice.kind === 'default') return DEFAULT_INSTANCE_VALUE
 	if (choice.kind === 'all') return CROSS_INSTANCE_VALUE
@@ -74,7 +60,6 @@ export interface BrowserTab {
 
 const STORAGE_KEY = 'dms-database:data-browser:tabs'
 const URL_WRITES_STATE = 'dms-database-browser-url-writes'
-const RESTORED_STATE = 'dms-database-browser-restored'
 const ACTIVATIONS_STATE = 'dms-database-browser-activations'
 
 function browserTabId(schema: string, instance: string, table: string): string {
@@ -126,65 +111,9 @@ export function routeTableKey(query: Record<string, unknown>): string {
 	])
 }
 
-export interface PersistedTabs {
+interface PersistedTabs {
 	tabs: BrowserTab[]
 	activeId: string | null
-}
-
-export interface RestoredTabs extends PersistedTabs {
-	// False when the route only names the dropped preview tab: the browser
-	// wrote that URL itself, so it must not reopen the tab as a kept one.
-	openRoute: boolean
-}
-
-/**
- * The tabs a page load brings back: the kept ones only, as a preview tab
- * never outlives the page. Were it active, its right neighbour takes over
- * (then its left one), as when a tab is closed. `routeId` is the tab the URL
- * names (null without one, or for a link to a row); on a reload, a URL naming
- * the dropped preview is the browser's own write of its active tab, not a
- * link, and is not followed.
- */
-export function restoreTabs(
-	persisted: PersistedTabs | null,
-	routeId: string | null,
-	reloaded: boolean,
-): RestoredTabs {
-	const all = persisted?.tabs ?? []
-	const previewIndex = all.findIndex((tab) => tab.preview)
-	const preview = previewIndex >= 0 ? all[previewIndex] : undefined
-	const tabs = all.filter((tab) => !tab.preview)
-	let activeId = persisted?.activeId ?? null
-	if (!tabs.some((tab) => tab.id === activeId)) {
-		const fallback =
-			previewIndex >= 0
-				? (tabs[previewIndex] ?? tabs[previewIndex - 1])
-				: tabs[0]
-		activeId = fallback?.id ?? null
-	}
-	return {
-		tabs,
-		activeId,
-		openRoute: !(reloaded && preview && routeId === preview.id),
-	}
-}
-
-// Whether the current URL is the one this document was reloaded (F5) or
-// traversed back to: the URL the browser last wrote, not a link followed. A
-// link followed in the app since the load (an overview's table, say) has
-// changed the URL, so it still counts as a link.
-function urlFromReload(): boolean {
-	try {
-		const entry = window.performance.getEntriesByType('navigation')[0] as
-			| PerformanceNavigationTiming
-			| undefined
-		return (
-			(entry?.type === 'reload' || entry?.type === 'back_forward') &&
-			entry.name === window.location.href
-		)
-	} catch {
-		return false
-	}
 }
 
 function readPersisted(): PersistedTabs | null {
@@ -235,9 +164,6 @@ export function useDataBrowserTabs() {
 	)
 	// The tables syncUrl named, oldest first, until the route reaches them.
 	const urlWrites = useDmsState<string[]>(URL_WRITES_STATE, () => [])
-	// Set by the first restore of this document: later ones (the page left and
-	// reopened) keep the session's tabs, preview included.
-	const restored = useDmsState<boolean>(RESTORED_STATE, () => false)
 	// Counts the activations, a tab already active included: the sidebar
 	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
@@ -280,7 +206,7 @@ export function useDataBrowserTabs() {
 		if (tab) {
 			query.schema = tab.schema
 			query.table = tab.table
-			const instance = instanceToParam(tab.instance)
+			const instance = instanceToUrl(instanceChoiceOf(tab.instance))
 			if (instance) query.instance = instance
 		}
 		if (
@@ -449,7 +375,7 @@ export function useDataBrowserTabs() {
 			!table
 		)
 			return null
-		const instance = instanceFromParam(route.query.instance)
+		const instance = tabInstanceOf(instanceFromUrl(route.query.instance))
 		return {
 			schema,
 			instance,
@@ -475,32 +401,18 @@ export function useDataBrowserTabs() {
 		return true
 	}
 
-	// Restore persisted tabs, then let the URL win for the active selection.
-	// Call once, from the page's onMounted. On a page load (the first restore
-	// of the document) only the kept tabs come back; see restoreTabs.
+	// Restore persisted tabs, preview included, then let the URL win for the
+	// active selection. Call once, from the page's onMounted.
 	function restore() {
 		const persisted = readPersisted()
-		if (!restored.value) {
-			restored.value = true
-			const target = routeTable()
-			const plan = restoreTabs(
-				persisted,
-				target && !target.match ? target.id : null,
-				urlFromReload(),
-			)
-			tabs.value = plan.tabs
-			activeId.value = plan.activeId
-			persist()
-			if (!plan.openRoute) {
-				// The URL still names the dropped preview: point it at the tab
-				// that took over, or at none.
-				syncUrl()
-				return
-			}
-		} else if (persisted) {
+		if (persisted) {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId
 		}
+		// A URL naming the active tab is the browser's own write (a reload):
+		// followed as a link, it would pin a preview tab.
+		const target = routeTable()
+		if (target && !target.match && target.id === activeId.value) return
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}

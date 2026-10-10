@@ -8,7 +8,7 @@ export interface ColumnFilterState {
 	value: string
 }
 
-export interface GridState {
+interface GridState {
 	page: number
 	pageSize: number
 	sortKey: string | null
@@ -126,7 +126,7 @@ function activeFilterEntries(
 // Single encoder for the `<mode>:<value>` wire tokens parseFilter decodes
 // server-side (src/utils/query.ts) — the grammar is defined here once instead
 // of scattered string literals.
-export function filterToken(mode: 'is' | 'contains', value: string): string {
+function filterToken(mode: 'is' | 'contains', value: string): string {
 	return `${mode}:${value}`
 }
 

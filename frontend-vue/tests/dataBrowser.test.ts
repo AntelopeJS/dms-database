@@ -3,15 +3,15 @@ import {
 	CROSS_INSTANCE_VALUE,
 	DEFAULT_INSTANCE_VALUE,
 	instanceBadge,
-	instanceFromParam,
-	instanceToParam,
+	instanceChoiceOf,
 	settleUrlWrite,
+	tabInstanceOf,
 } from '../app/build/composables/useDataBrowserTabs'
 import { cellLabel, draftText, parseDraft } from '../app/build/data/cellValues'
 import { changesOf, writeRows } from '../app/build/data/stagedWrites'
 import {
-	decodeNamedInstance,
-	encodeNamedInstance,
+	instanceFromUrl,
+	instanceToUrl,
 	tableLink,
 } from '../app/build/utils/databaseLinks'
 
@@ -162,29 +162,41 @@ describe('staged writes', () => {
 	})
 })
 
-describe('data browser URL: instances', () => {
-	it('writes every instance as all, and reads it back', () => {
-		expect(instanceToParam(DEFAULT_INSTANCE_VALUE)).toBeUndefined()
-		expect(instanceToParam(CROSS_INSTANCE_VALUE)).toBe('all')
-		expect(instanceToParam('eu')).toBe('eu')
-		expect(instanceFromParam(undefined)).toBe(DEFAULT_INSTANCE_VALUE)
-		expect(instanceFromParam('')).toBe(DEFAULT_INSTANCE_VALUE)
-		expect(instanceFromParam('all')).toBe(CROSS_INSTANCE_VALUE)
-		expect(instanceFromParam('eu')).toBe('eu')
-		// Links written before still open the cross-instance view.
-		expect(instanceFromParam(CROSS_INSTANCE_VALUE)).toBe(CROSS_INSTANCE_VALUE)
+describe('instance URL parameter', () => {
+	it('reads none as the default instance, all as every instance', () => {
+		expect(instanceFromUrl(undefined)).toEqual({ kind: 'default' })
+		expect(instanceFromUrl('')).toEqual({ kind: 'default' })
+		expect(instanceFromUrl('all')).toEqual({ kind: 'all' })
+		expect(instanceFromUrl('eu')).toEqual({ kind: 'named', id: 'eu' })
+		expect(instanceFromUrl(['eu', 'us'])).toEqual({ kind: 'named', id: 'eu' })
+		// No escaping, and the 0.0.14 cross-instance value is a name now.
+		expect(instanceFromUrl('~all')).toEqual({ kind: 'named', id: '~all' })
+		expect(instanceFromUrl('__CROSS_INSTANCE__')).toEqual({
+			kind: 'named',
+			id: '__CROSS_INSTANCE__',
+		})
 	})
 
-	it('escapes an instance really named all', () => {
-		expect(instanceToParam('all')).toBe('~all')
-		expect(instanceFromParam('~all')).toBe('all')
-		expect(encodeNamedInstance('~eu')).toBe('~~eu')
-		expect(decodeNamedInstance('~~eu')).toBe('~eu')
-		for (const id of ['all', '~all', '~', 'eu', 'tenant-1'])
-			expect(instanceFromParam(instanceToParam(id))).toBe(id)
+	it('writes the default instance as none, every instance as all', () => {
+		expect(instanceToUrl({ kind: 'default' })).toBeUndefined()
+		expect(instanceToUrl({ kind: 'all' })).toBe('all')
+		expect(instanceToUrl({ kind: 'named', id: 'eu' })).toBe('eu')
 		expect(
 			tableLink('data', { schema: 's', table: 't', instance: 'all' }),
-		).toBe('/modules/database/data?schema=s&table=t&instance=%7Eall')
+		).toBe('/modules/database/data?schema=s&table=t&instance=all')
+	})
+
+	it('maps a tab instance to the URL and back', () => {
+		expect(instanceToUrl(instanceChoiceOf(DEFAULT_INSTANCE_VALUE))).toBe(
+			undefined,
+		)
+		expect(instanceToUrl(instanceChoiceOf(CROSS_INSTANCE_VALUE))).toBe('all')
+		for (const instance of [DEFAULT_INSTANCE_VALUE, CROSS_INSTANCE_VALUE, 'eu'])
+			expect(
+				tabInstanceOf(
+					instanceFromUrl(instanceToUrl(instanceChoiceOf(instance))),
+				),
+			).toBe(instance)
 	})
 
 	it('names the instance of a tab', () => {

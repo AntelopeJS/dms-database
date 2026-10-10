@@ -15,7 +15,7 @@ export interface RowWriteOutcome {
 	left: string[]
 }
 
-export function statusOf(error: unknown): number | undefined {
+function statusOf(error: unknown): number | undefined {
 	const failure = error as { statusCode?: number; status?: number } | null
 	return failure?.statusCode ?? failure?.status
 }

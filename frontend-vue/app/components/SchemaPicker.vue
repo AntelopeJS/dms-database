@@ -6,16 +6,12 @@ import {
 	SCHEMA_ICON,
 	schemaMenu,
 } from '../build/data/pickerMenus'
-import {
-	recentSchemas,
-	rememberSchema,
-	sortSchemaIds,
-} from '../build/data/schemaOptions'
+import { sortNames } from '../build/data/instanceOptions'
 
 // A schema picked from a searchable menu, shared by the Schemas page's filter
 // bar and the data browser's sidebar: "All schemas" pinned first when the
-// page can list every schema, the last few picked at hand, and at most a
-// hundred others with how many matched.
+// page can list every schema, and at most a hundred others with how many
+// matched.
 
 const props = defineProps<{
 	/** The schema picked; null for every schema (with `allowAll`) or none yet. */
@@ -33,49 +29,15 @@ const props = defineProps<{
 
 const emit = defineEmits<{ 'update:modelValue': [id: string | null] }>()
 
-// Kept across pages: a schema picked on the Schemas page is at hand in the
-// data browser, and back.
-const RECENT_STORAGE_KEY = 'dms-database:schemas:recent-schemas'
-
 const { t, n } = useI18n()
 const search = ref('')
-const ids = computed(() => sortSchemaIds(props.schemaIds))
-const recent = ref<string[]>([])
-
-function readRecent(): unknown {
-	try {
-		return JSON.parse(localStorage.getItem(RECENT_STORAGE_KEY) ?? '[]')
-	} catch {
-		return []
-	}
-}
-
-function writeRecent(list: string[]) {
-	try {
-		localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(list))
-	} catch {
-		// Storage refused (private window): recents just are not kept.
-	}
-}
-
-// Read once mounted: the server renders without the browser's storage.
-onMounted(() => {
-	watch(
-		ids,
-		(list) => {
-			recent.value = recentSchemas(readRecent(), new Set(list))
-		},
-		{ immediate: true },
-	)
-})
+const ids = computed(() => sortNames(props.schemaIds))
 
 const items = computed(() =>
 	schemaMenu({
 		ids: ids.value,
-		recent: recent.value,
 		search: search.value,
 		allLabel: props.allowAll ? t('dms_database.pickers.schema.all') : null,
-		recentLabel: t('dms_database.pickers.schema.recent'),
 		more: (shown, total) =>
 			t('dms_database.pickers.schema.more', {
 				shown: n(shown),
@@ -86,12 +48,7 @@ const items = computed(() =>
 
 function pick(value: unknown) {
 	if (typeof value !== 'string') return
-	const id = value === PICK_ALL ? null : value
-	if (id) {
-		recent.value = rememberSchema(recent.value, id)
-		writeRecent(recent.value)
-	}
-	emit('update:modelValue', id)
+	emit('update:modelValue', value === PICK_ALL ? null : value)
 }
 </script>
 

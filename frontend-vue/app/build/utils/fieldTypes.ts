@@ -4,7 +4,7 @@ import type { FieldDescriptor } from '../composables/useDatabaseSchemas'
 // icon and a mono label. Colour never encodes the type (D-09): it is kept for
 // structure, primary keys and relations, which `columnRole` names.
 
-export interface FieldTypeView {
+interface FieldTypeView {
 	icon: string
 	label: string
 }
@@ -170,7 +170,7 @@ export const COLUMN_ROLE_CLASSES: Record<ColumnRole, string> = {
 	plain: 'text-muted',
 }
 
-export interface ModifierView {
+interface ModifierView {
 	icon: string
 	/** i18n key of the modifier's name. */
 	labelKey?: string

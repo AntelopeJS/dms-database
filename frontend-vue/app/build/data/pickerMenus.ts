@@ -1,10 +1,10 @@
 import type { InstanceChoice } from './instanceOptions'
-import { matchSchemas } from './schemaOptions'
+import { matchNames } from './instanceOptions'
 
 // The menus of the schema and instance pickers (SchemaPicker.vue,
 // InstancePicker.vue), shared by the Schemas page's filter bar and the data
-// browser's sidebar: what is pinned, the recent schemas, the named instances
-// a search found, and the note under them (loading, failed, more than shown).
+// browser's sidebar: what is pinned, the names a search found, and the note
+// under them (loading, failed, more than shown).
 
 export interface PickerItem {
 	label: string
@@ -31,20 +31,12 @@ export const PICKER_MENU_UI = {
 
 export const SCHEMA_ICON = 'i-ph-stack'
 export const ALL_ICON = 'i-ph-stack-simple'
-export const RECENT_ICON = 'i-ph-clock-counter-clockwise'
 export const INSTANCE_ICON = 'i-ph-cube'
 export const READ_ONLY_ICON = 'i-ph-lock-simple'
 
 /**
- * Marks the read-only view in the menu: a search highlights the first match
- * after it (InstancePicker.vue), an instance one can edit.
- */
-export const READ_ONLY_ITEM_CLASS = 'pick-read-only'
-
-/**
- * How a picker offers every instance, first either way: as a filter
- * ("filter"), or as the data browser's read-only cross-instance view
- * ("readonly").
+ * How a picker offers every instance: as a filter ("filter"), or as the data
+ * browser's read-only cross-instance view ("readonly").
  */
 export type AllInstancesMode = 'filter' | 'readonly'
 
@@ -56,15 +48,12 @@ function groups(...lists: PickerItem[][]): PickerItem[][] {
 	return lists.filter((group) => group.length > 0)
 }
 
-export interface SchemaMenu {
+interface SchemaMenu {
 	/** Schema ids, sorted. */
 	ids: readonly string[]
-	/** The last picked schemas, still registered. */
-	recent: readonly string[]
 	search: string
 	/** "All schemas", pinned first; null when a schema must be picked. */
 	allLabel: string | null
-	recentLabel: string
 	more: (shown: number, total: number) => string
 }
 
@@ -81,10 +70,7 @@ export function schemaMenu(menu: SchemaMenu): PickerItem[][] {
 					},
 				]
 			: []
-	// Without a search, the last picked schemas come first, once.
-	const recentShown = needle ? [] : menu.recent
-	const listed = menu.ids.filter((id) => !recentShown.includes(id))
-	const { shown, total } = matchSchemas(listed, menu.search)
+	const { shown, total } = matchNames(menu.ids, menu.search)
 	const named: PickerItem[] = shown.map((id) => ({
 		label: id,
 		value: id,
@@ -92,23 +78,12 @@ export function schemaMenu(menu: SchemaMenu): PickerItem[][] {
 	}))
 	if (total > shown.length)
 		named.push({ label: menu.more(shown.length, total), type: 'label' })
-	const recentGroup: PickerItem[] =
-		recentShown.length > 0
-			? [
-					{ label: menu.recentLabel, type: 'label' },
-					...recentShown.map((id) => ({
-						label: id,
-						value: id,
-						icon: RECENT_ICON,
-					})),
-				]
-			: []
-	return groups(pinned, recentGroup, named)
+	return groups(pinned, named)
 }
 
 export type InstancesStatus = 'idle' | 'pending' | 'success' | 'error'
 
-export interface InstanceMenuLabels {
+interface InstanceMenuLabels {
 	all: string
 	/** Under "all" in the read-only mode. */
 	readOnly: string
@@ -140,37 +115,35 @@ export interface InstanceMenu {
 export function instanceMenu(menu: InstanceMenu): PickerItem[][] {
 	const { labels } = menu
 	const needle = menu.search.trim().toLowerCase()
-	// Every instance: the default one and the named ones.
-	const allItem: PickerItem = {
-		label:
-			menu.total === null
-				? labels.all
-				: `${labels.all} (${labels.count(menu.total + 1)})`,
-		value: PICK_ALL,
-	}
 	const readOnly = menu.allMode === 'readonly'
-	const pinned: PickerItem[] = []
-	// The read-only view stays offered whatever the search: it also reads rows
-	// of instances never registered. The filter matches the search.
-	if (readOnly)
-		pinned.push({
-			...allItem,
-			description: labels.readOnly,
-			icon: READ_ONLY_ICON,
-			class: `pin-top ${READ_ONLY_ITEM_CLASS}`,
-		})
-	else if (matching(labels.all, needle))
-		pinned.push({ ...allItem, icon: ALL_ICON, class: 'pin-top' })
+	// Every instance: the default one and the named ones. The read-only view
+	// is offered whatever the search, as it also reads rows of instances never
+	// registered; the filter matches the search.
+	const all: PickerItem[] =
+		readOnly || matching(labels.all, needle)
+			? [
+					{
+						label:
+							menu.total === null
+								? labels.all
+								: `${labels.all} (${labels.count(menu.total + 1)})`,
+						value: PICK_ALL,
+						icon: readOnly ? READ_ONLY_ICON : ALL_ICON,
+						...(readOnly ? { description: labels.readOnly } : {}),
+						...(needle ? {} : { class: 'pin-top' }),
+					},
+				]
+			: []
 	const defaultShown = matching(labels.default, needle)
-	if (defaultShown)
-		pinned.push({
-			label: labels.default,
-			value: PICK_DEFAULT,
-			icon: INSTANCE_ICON,
-			...(readOnly ? { class: 'pin-top' } : {}),
-		})
+	const pinned: PickerItem[] = defaultShown
+		? [{ label: labels.default, value: PICK_DEFAULT, icon: INSTANCE_ICON }]
+		: []
+	// Without a search "all" comes first, pinned; while one is typed it comes
+	// after the matches, so that Enter picks the first match.
+	if (!needle) pinned.unshift(...all)
+	const last = needle ? all : []
 	if (!menu.hasSchema)
-		return groups(pinned, [{ label: labels.pickSchema, type: 'label' }])
+		return groups(pinned, [{ label: labels.pickSchema, type: 'label' }], last)
 	const named: PickerItem[] = menu.names.map((id) => ({
 		label: id,
 		value: id,
@@ -184,7 +157,7 @@ export function instanceMenu(menu: InstanceMenu): PickerItem[][] {
 	else if (menu.matched > named.length)
 		note = labels.more(named.length, menu.matched)
 	if (note) named.push({ label: note, type: 'label' })
-	return groups(pinned, named)
+	return groups(pinned, named, last)
 }
 
 /** A picker's menu value for an instance choice. */

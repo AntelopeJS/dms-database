@@ -78,3 +78,35 @@ it('does not revisit an already selected deep link while restoring tabs', () => 
 		},
 	})
 })
+
+it('restores the preview tab as a preview, the URL naming it included', () => {
+	setup()
+	const replace = vi.fn()
+	vi.stubGlobal('useDmsRouter', () => ({ replace }))
+	vi.stubGlobal('useDmsRoute', () => ({
+		query: { schema: 'sales', table: 'orders', instance: 'eu' },
+	}))
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () =>
+				JSON.stringify({
+					tabs: [
+						{ schema: 'sales', instance: 'eu', table: 'customers' },
+						{
+							schema: 'sales',
+							instance: 'eu',
+							table: 'orders',
+							preview: true,
+						},
+					],
+					activeId: 'sales::eu::orders',
+				}),
+			setItem: vi.fn(),
+		},
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore()
+	expect(browser.activeId.value).toBe('sales::eu::orders')
+	expect(browser.tabs.value.map((tab) => tab.preview)).toEqual([false, true])
+	expect(replace).not.toHaveBeenCalled()
+})

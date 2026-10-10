@@ -3,28 +3,29 @@ import {
 	instanceBadge,
 } from '../composables/useDataBrowserTabs'
 import { browseSelectionQuery } from '../composables/useDataBrowserGrid'
-import { useNow } from '@vueuse/core'
-import { h } from 'vue'
+import { h, onScopeDispose } from 'vue'
 import type { BrowserTab } from '../composables/useDataBrowserTabs'
 import { cellLabel } from './cellValues'
-import {
-	liveNotice,
-	UNDO_WINDOW_MS,
-	UNDONE_NOTICE_MS,
-	useSaveNotices,
-} from './saveNotices'
 import { type StagedChange, undoBodies, useStagedEdits } from './stagedEdits'
 import { changesOf, type RowWriteOutcome, writeRows } from './stagedWrites'
 
 // Writes the staged edits of a tab after the user reviewed them, then offers
-// to take them back for a few seconds, in the save bar. Each row is written
-// with one call of the edit route; an undo writes the previous values back
-// the same way. Only the rows written are announced and undone: a row gone
-// meanwhile drops its changes, and a failure stops the save with the rows
-// left still staged.
+// to take them back for a few seconds, in the save bar of the current tab
+// (another tab ends the offer). Each row is written with one call of the
+// edit route; an undo writes the previous values back the same way. Only the
+// rows written are announced and undone: a row gone meanwhile drops its
+// changes, and a failure stops the save with the rows left still staged.
 
 const EDIT_ENDPOINT = '/api/database/browse/edit'
-const SECOND_MS = 1000
+const UNDO_WINDOW_MS = 10_000
+const UNDONE_NOTICE_MS = 3_000
+
+/** What the save bar says once a save is written, then once it is undone. */
+interface SaveNotice {
+	state: 'saved' | 'undoing' | 'undone'
+	changes: StagedChange[]
+	scope: string
+}
 
 interface StagedSaveOptions {
 	tab: () => BrowserTab
@@ -46,30 +47,33 @@ export function useStagedSave(options: StagedSaveOptions) {
 	const { confirm } = useConfirm()
 	const toast = useToast()
 	const staged = useStagedEdits()
-	const saveNotices = useSaveNotices()
-	const now = useNow({ interval: SECOND_MS })
 	const saving = ref(false)
+	const notice = ref<SaveNotice | null>(null)
+	let expiry: ReturnType<typeof setTimeout> | undefined
 
-	const notice = computed(() =>
-		liveNotice(
-			saveNotices.notices.value,
-			options.tab().id,
-			now.value.getTime(),
-		),
+	/** Shows a notice, for `ms` when given, or ends it with null. */
+	function show(next: SaveNotice | null, ms?: number) {
+		clearTimeout(expiry)
+		notice.value = next
+		if (next && ms !== undefined)
+			expiry = setTimeout(() => {
+				notice.value = null
+			}, ms)
+	}
+
+	// The notice belongs to the tab it was written on.
+	watch(
+		() => options.tab().id,
+		() => show(null),
 	)
-	const undoSeconds = computed(() =>
-		notice.value
-			? Math.ceil((notice.value.until - now.value.getTime()) / SECOND_MS)
-			: 0,
-	)
+	onScopeDispose(() => clearTimeout(expiry))
 
 	// A new edit ends the undo: written under it, the old values would make
 	// its review show the wrong "was", and its save would overwrite them.
 	watch(
 		() => staged.count(options.tab().id),
 		(count) => {
-			if (count > 0 && notice.value?.state === 'saved')
-				saveNotices.set(options.tab().id, null)
+			if (count > 0 && notice.value?.state === 'saved') show(null)
 		},
 	)
 
@@ -194,11 +198,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 		const current = notice.value
 		if (current?.state !== 'saved') return
 		// Kept while the values are written back, however long that takes.
-		saveNotices.set(tab.id, {
-			...current,
-			state: 'undoing',
-			until: Number.POSITIVE_INFINITY,
-		})
+		show({ ...current, state: 'undoing' })
 		const outcome = await writeRows(
 			undoBodies(current.changes),
 			(rowId, body) => writeRow(tab, rowId, body),
@@ -206,14 +206,12 @@ export function useStagedSave(options: StagedSaveOptions) {
 		const restored = changesOf(current.changes, outcome.written)
 		const gone = changesOf(current.changes, outcome.gone)
 		const left = changesOf(current.changes, outcome.left)
+		// Another tab since: its bar says nothing of this one, the toasts do.
+		const here = options.tab().id === tab.id
 		if (left.length > 0) {
 			// The rows the failure left keep their undo, for a retry.
-			saveNotices.set(tab.id, {
-				...current,
-				state: 'saved',
-				changes: left,
-				until: Date.now() + UNDO_WINDOW_MS,
-			})
+			if (here)
+				show({ ...current, state: 'saved', changes: left }, UNDO_WINDOW_MS)
 			toast.add({
 				title: t(
 					'dms_database.data.save.undo_partial',
@@ -223,17 +221,12 @@ export function useStagedSave(options: StagedSaveOptions) {
 				description: messageOf(outcome.error),
 				color: 'error',
 			})
-		} else {
-			saveNotices.set(
-				tab.id,
+		} else if (here) {
+			show(
 				restored.length > 0
-					? {
-							...current,
-							state: 'undone',
-							changes: restored,
-							until: Date.now() + UNDONE_NOTICE_MS,
-						}
+					? { ...current, state: 'undone', changes: restored }
 					: null,
+				UNDONE_NOTICE_MS,
 			)
 		}
 		if (gone.length > 0 && left.length === 0)
@@ -254,12 +247,8 @@ export function useStagedSave(options: StagedSaveOptions) {
 	}
 
 	function announce(tab: BrowserTab, saved: StagedChange[]) {
-		saveNotices.set(tab.id, {
-			state: 'saved',
-			changes: saved,
-			scope: scope(tab),
-			until: Date.now() + UNDO_WINDOW_MS,
-		})
+		if (options.tab().id !== tab.id) return
+		show({ state: 'saved', changes: saved, scope: scope(tab) }, UNDO_WINDOW_MS)
 	}
 
 	async function review() {
@@ -305,5 +294,5 @@ export function useStagedSave(options: StagedSaveOptions) {
 		}
 	}
 
-	return { saving, review, notice, undoSeconds, undo }
+	return { saving, review, notice, undo }
 }

@@ -17,7 +17,8 @@ import {
 	describeModifier,
 	isPrimaryKey,
 } from '../build/utils/fieldTypes'
-import { tableLink } from '../build/utils/databaseLinks'
+import { CROSS_INSTANCE_VALUE } from '../build/composables/useDataBrowserTabs'
+import { ALL_INSTANCES_PARAM, tableLink } from '../build/utils/databaseLinks'
 
 // The Schemas page's row drawer (D-07): the facts of one table, its columns,
 // indexes and relations both ways, and a sample row. Whoever opens it loads
@@ -39,13 +40,6 @@ interface RowNavigation {
 	hasNext: boolean
 	prev: () => void
 	next: () => void
-}
-
-/** The table's rows, in all and per instance, from `/tables/counts`. */
-interface TableRowCounts {
-	total: number
-	instances: { instance: string | null; count: number }[]
-	uncounted: number
 }
 
 const props = defineProps<{
@@ -70,7 +64,7 @@ const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
 	'unknown',
 ])
 const BROWSE_LIST = '/api/database/browse/list'
-const TABLE_COUNTS = '/api/database/tables/counts'
+const BROWSE_COUNT = '/api/database/browse/count'
 
 const { t, n } = useI18n()
 const { $authFetch } = useAuthFetch()
@@ -170,53 +164,33 @@ const incoming = computed(() =>
 	),
 )
 
-// --- rows: the total at once, then the share of each instance ---
-const counts = ref<TableRowCounts | null>(null)
+// --- rows: in every instance at once; the data browser shows each one's ---
+const total = ref<number | null>(null)
 
-async function loadCounts(key: string) {
-	counts.value = null
+async function loadTotal(key: string) {
+	total.value = null
 	if (!schemaId.value || !tableName.value) return
 	try {
-		const result = await $authFetch<TableRowCounts>(TABLE_COUNTS, {
-			query: { schema: schemaId.value, table: tableName.value },
+		const result = await $authFetch<{ total: number }>(BROWSE_COUNT, {
+			query: {
+				filter_schema: `is:${schemaId.value}`,
+				filter_table: `is:${tableName.value}`,
+				filter_instance: `is:${CROSS_INSTANCE_VALUE}`,
+			},
 		})
-		if (key === tableKey.value) counts.value = result
+		if (key === tableKey.value) total.value = result.total
 	} catch {
-		// The total the list gave stays: the breakdown is a bonus.
+		// The total the list gave, if any, stays.
 	}
 }
 
-watch(tableKey, loadCounts, { immediate: true })
+watch(tableKey, loadTotal, { immediate: true })
 
 const rowsFact = computed(() => {
-	const total = counts.value?.total ?? props.rowData?.elementCount
-	if (total === undefined) return ''
-	const parts = [
-		t('dms_database.inspector.facts.rows', { count: n(total) }, total),
-	]
-	const breakdown = counts.value
-	// A schema without named instances needs no breakdown.
-	if (breakdown && breakdown.instances.length + breakdown.uncounted > 1) {
-		for (const { instance, count } of breakdown.instances) {
-			if (count === 0) continue
-			parts.push(
-				t('dms_database.inspector.facts.instance_rows', {
-					instance:
-						instance ?? t('dms_database.inspector.facts.default_instance'),
-					count: n(count),
-				}),
-			)
-		}
-		if (breakdown.uncounted > 0)
-			parts.push(
-				t(
-					'dms_database.inspector.facts.uncounted',
-					{ count: n(breakdown.uncounted) },
-					breakdown.uncounted,
-				),
-			)
-	}
-	return parts.join(' · ')
+	const rows = total.value ?? props.rowData?.elementCount
+	return rows === undefined
+		? ''
+		: t('dms_database.inspector.facts.rows', { count: n(rows) }, rows)
 })
 
 const structureFacts = computed(() =>
@@ -420,7 +394,21 @@ async function copyName() {
 				<USkeleton class="h-4 w-64 max-w-full" />
 			</div>
 			<div v-else class="text-muted grid gap-0.5 text-sm tabular-nums">
-				<p v-if="rowsFact">{{ rowsFact }}</p>
+				<p v-if="rowsFact">
+					{{ rowsFact }}
+					<template v-if="instanceCount > 1">
+						·
+						<DmsAutoLink
+							@click="emit('success')"
+							:to="
+								tableLink('data', { ...address, instance: ALL_INSTANCES_PARAM })
+							"
+							class="text-primary hover:underline"
+						>
+							{{ t('dms_database.inspector.facts.by_instance') }}
+						</DmsAutoLink>
+					</template>
+				</p>
 				<p>{{ structureFacts }}</p>
 			</div>
 			<div class="flex flex-wrap gap-2">

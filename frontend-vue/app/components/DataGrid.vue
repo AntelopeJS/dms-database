@@ -496,7 +496,6 @@ const {
 	saving,
 	review,
 	notice: saveNotice,
-	undoSeconds,
 	undo,
 } = useStagedSave({
 	tab: () => props.tab,
@@ -879,27 +878,17 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 								)
 					}}
 				</span>
-				<template v-if="saveNotice.state !== 'undone'">
-					<span
-						v-if="saveNotice.state === 'saved'"
-						class="text-dimmed hidden shrink-0 tabular-nums sm:inline"
-					>
-						·
-						{{
-							t('dms_database.data.save.undo_window', { seconds: undoSeconds })
-						}}
-					</span>
-					<UButton
-						class="ms-auto"
-						:label="t('dms_database.data.save.undo')"
-						icon="i-ph-arrow-counter-clockwise"
-						color="neutral"
-						variant="outline"
-						size="lg"
-						:loading="saveNotice.state === 'undoing'"
-						@click="undo"
-					/>
-				</template>
+				<UButton
+					v-if="saveNotice.state !== 'undone'"
+					class="ms-auto"
+					:label="t('dms_database.data.save.undo')"
+					icon="i-ph-arrow-counter-clockwise"
+					color="neutral"
+					variant="outline"
+					size="lg"
+					:loading="saveNotice.state === 'undoing'"
+					@click="undo"
+				/>
 			</div>
 		</div>
 
