@@ -58,20 +58,33 @@ function save() {
 		@update:open="emit('update:open', $event)"
 	>
 		<template #body>
-			<div class="flex h-full flex-col gap-3">
-				<textarea
-					v-model="draft"
-					:aria-label="t('dms_database.data.json.title', { column })"
-					:readonly="readOnly"
-					class="border-default bg-default focus:border-primary min-h-96 flex-1 resize-none rounded-md border p-3 font-mono text-xs outline-none"
-					spellcheck="false"
-				/>
-				<UAlert
-					v-if="!readOnly && parseError"
-					color="error"
-					icon="i-ph-warning"
-					:description="parseError"
-				/>
+			<!-- A DMS form of one field: the column as its label, the JSON in the
+			DMS code input, the parse error in DMS error style, the required legend. -->
+			<div class="grid gap-2">
+				<DmsFieldRow
+					layout="form"
+					:inset="false"
+					spacing="row"
+					:label="column"
+					label-for="dms-database-json-cell"
+					:description="t('dms_database.data.json.help')"
+					required
+				>
+					<UFormField name="json" :error="(!readOnly && parseError) || false">
+						<DmsInputCode
+							id="dms-database-json-cell"
+							v-model="draft"
+							language="json"
+							:min-lines="12"
+							:max-lines="30"
+							:disabled="readOnly"
+						/>
+						<template #error="{ error }">
+							<DmsFormErrorText :error />
+						</template>
+					</UFormField>
+				</DmsFieldRow>
+				<DmsFormRequiredLegend v-if="!readOnly" class="pb-2" />
 			</div>
 		</template>
 		<template #footer>
