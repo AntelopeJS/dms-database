@@ -247,7 +247,8 @@
 				"title": "Modifier {column}",
 				"invalid": "JSON invalide",
 				"not_structured": "La valeur doit être un objet JSON, un tableau ou null.",
-				"apply": "Appliquer"
+				"apply": "Appliquer",
+				"help": "Un objet ou une liste. Tapez null pour vider la cellule."
 			}
 		},
 		"diagram": {

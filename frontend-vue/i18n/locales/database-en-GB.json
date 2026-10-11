@@ -247,7 +247,8 @@
 				"title": "Edit {column}",
 				"invalid": "Invalid JSON",
 				"not_structured": "The value must be a JSON object, an array or null.",
-				"apply": "Apply"
+				"apply": "Apply",
+				"help": "An object or a list. Type null to empty the cell."
 			}
 		},
 		"diagram": {
