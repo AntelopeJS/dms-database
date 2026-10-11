@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.1
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.1.0...v0.1.1)
+
+### 🩹 Fixes
+
+- **data:** Build the JSON cell editor from DMS form fields with the required legend ([#36](https://github.com/AntelopeJS/dms-database/pull/36))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.1.0
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.0.14...v0.1.0)
