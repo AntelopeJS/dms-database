@@ -31,7 +31,8 @@ import { ALL_INSTANCES_PARAM, tableLink } from '../build/utils/databaseLinks'
 // The Schemas page's row drawer (D-07), also opened from the diagram: the
 // facts of one table, its columns, indexes and relations both ways, and a
 // sample row. The table view hands it the row and the means to step to the
-// next one (J / K); a relation opens the table it names in its place.
+// next one (J / K), or to show another row in place; a relation opens the
+// table it names in its place.
 
 interface TableRow {
 	schema: string
@@ -50,6 +51,7 @@ interface RowNavigation {
 const props = defineProps<{
 	rowData?: TableRow
 	navigation?: RowNavigation
+	showRow?: (row: object | string) => Promise<void>
 }>()
 
 // A link out closes the drawer.
@@ -100,7 +102,8 @@ const failed = computed(
 	() => schemasSettled.value && schemas.value === undefined,
 )
 
-// The table a relation was followed to, in place of the row's.
+// The table a relation was followed to, in place of the row's, where the
+// container cannot show another row (the diagram's drawer).
 const followed = ref<TableRow | null>(null)
 const shown = computed(() => followed.value ?? props.rowData)
 // J / K step from the row the table view opened: its position is not the
@@ -199,8 +202,19 @@ const incoming = computed(() =>
 	),
 )
 
-// The row's own table again closes the detour.
-function follow(target: TableRow) {
+// The table view shows the relation's table as its own row: the URL, the
+// position and J / K follow it. Elsewhere, or should it fail to read the
+// row, the inspector shows it itself, and the row's own table again closes
+// the detour.
+async function follow(target: TableRow) {
+	if (props.showRow) {
+		try {
+			await props.showRow(`${target.schema}::${target.name}`)
+			return
+		} catch {
+			// Shown in place below.
+		}
+	}
 	const own =
 		target.schema === props.rowData?.schema &&
 		target.name === props.rowData?.name

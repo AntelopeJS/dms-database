@@ -114,6 +114,27 @@ function countRows(
   return getTableElementCount(schemaId, tableName, instance.id);
 }
 
+function sourceRowId(schemaId: string, tableName: string): string {
+  return `${schemaId}::${tableName}`;
+}
+
+function toSourceRow(
+  { schemaId, table }: ListedTable,
+  elementCount: number,
+  locale: ServerLocale,
+): TableSourceRow {
+  return {
+    id: sourceRowId(schemaId, table.name),
+    schema: schemaId,
+    name: table.name,
+    elementCount,
+    columnCount: Object.keys(table.fields).length,
+    indexCount: Object.keys(table.indexes ?? {}).length,
+    relations: relationTargets(schemaId, table),
+    modifiers: modifierNames(table, locale),
+  };
+}
+
 interface TableSourceListing {
   rows: TableSourceRow[];
   /** Registered tables before any filter. */
@@ -142,16 +163,9 @@ async function listTableSourceRows(
       countRows(schemaId, table.name, filters.instance),
     ),
   );
-  const rows = tables.map(({ schemaId, table }, index) => ({
-    id: `${schemaId}::${table.name}`,
-    schema: schemaId,
-    name: table.name,
-    elementCount: counts[index] ?? 0,
-    columnCount: Object.keys(table.fields).length,
-    indexCount: Object.keys(table.indexes ?? {}).length,
-    relations: relationTargets(schemaId, table),
-    modifiers: modifierNames(table, locale),
-  }));
+  const rows = tables.map((listed, index) =>
+    toSourceRow(listed, counts[index] ?? 0, locale),
+  );
   return {
     rows: filters.has.includes("empty")
       ? rows.filter((row) => row.elementCount === 0)
@@ -196,6 +210,32 @@ export class DatabaseTablesController extends Controller(
       readSchemaFilters({ scope, instance, q, has }),
     );
     return { results: rows, total: rows.length, all };
+  }
+
+  /**
+   * One table of the source, by its `schema::name` id: the row a deep link
+   * or the inspector names when the filter bar leaves it out. Its rows are
+   * counted in the default instance, as the bare page counts them.
+   */
+  @Get("/source/row")
+  async sourceRow(
+    @AuthRawUser() user: User,
+    @Parameter("id", "query") idRaw: unknown,
+  ): Promise<TableSourceRow> {
+    const id = asNonEmptyString(idRaw);
+    assert(id, 400, "Missing 'id'");
+    const summaries = await listSchemaSummaries();
+    const listed = summaries
+      .flatMap((summary) =>
+        summary.tables.map((table) => ({ schemaId: summary.id, table })),
+      )
+      .find(({ schemaId, table }) => sourceRowId(schemaId, table.name) === id);
+    assert(listed, 404, `Unknown table ${id}`);
+    const count = await getTableElementCount(
+      listed.schemaId,
+      listed.table.name,
+    );
+    return toSourceRow(listed, count, localeOf(user));
   }
 
   /**
