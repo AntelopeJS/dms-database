@@ -1,4 +1,4 @@
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import {
 	readFilterState,
 	sourceQuery,
@@ -16,47 +16,24 @@ interface SourceResponse {
 	all?: number
 }
 
-type ListingStatus = 'idle' | 'pending' | 'success' | 'error'
-
 export function useSchemasListing() {
 	const route = useDmsRoute()
-	const { $authFetch } = useAuthFetch()
 	const state = computed<SchemasFilterState>(() => readFilterState(route.query))
-	const query = computed(() => sourceQuery(state.value))
 
-	// The counts of the last answer stay while the next one loads.
-	const total = ref(0)
-	const all = ref<number | null>(null)
-	const status = ref<ListingStatus>('idle')
-	let latest = 0
-
-	async function load() {
-		const request = ++latest
-		status.value = 'pending'
-		try {
-			const response = await $authFetch<SourceResponse>(TABLES_SOURCE, {
-				query: query.value,
-			})
-			if (request !== latest) return
-			total.value = response.total
-			all.value = response.all ?? null
-			status.value = 'success'
-		} catch {
-			if (request === latest) status.value = 'error'
-		}
-	}
-
-	// In the browser only: the server renders no count.
-	if (typeof window !== 'undefined') {
-		watch(() => JSON.stringify(query.value), load, { immediate: true })
-	}
+	// Rendered on the server and handed over, the counts only (not the rows
+	// the route lists); the counts of the last answer stay while the next one
+	// loads.
+	const { data, status } = useApiData<SourceResponse>(TABLES_SOURCE, {
+		query: () => sourceQuery(state.value),
+		pick: ['total', 'all'],
+	})
 
 	return {
 		state,
 		/** Tables the bar's filters list. */
-		total,
+		total: computed(() => data.value?.total ?? 0),
 		/** Registered tables before any filter; null until known. */
-		all,
+		all: computed(() => data.value?.all ?? null),
 		status,
 	}
 }

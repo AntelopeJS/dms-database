@@ -35,8 +35,7 @@ const EMPTY_HEALTH: OverviewHealth = {
 }
 
 export function useDatabaseHealth() {
-	const { useFetchAuth } = useAuthFetch()
-	const { data, pending, error, refresh } = useFetchAuth<OverviewHealth>(
+	const { data, pending, error, refresh } = useApiData<OverviewHealth>(
 		HEALTH_ENDPOINT,
 		{ default: () => ({ ...EMPTY_HEALTH }) },
 	)

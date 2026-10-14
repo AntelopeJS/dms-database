@@ -64,11 +64,9 @@ const failure = ref<QueryFailure | null>(null)
 const target = ref<QueryTarget>({})
 const loadedSaved = ref<SavedQuery | null>(null)
 const activeHistoryId = ref<string | null>(null)
-const libraryLoading = ref(true)
 // Named instances holding rows of a table the last read found empty in the
 // default instance.
 const elsewhere = ref<InstanceRows[]>([])
-const team = ref<SavedQuery[]>([])
 const editor = useTemplateRef<InstanceType<typeof QueryBuilderPanel>>('editor')
 
 const edited = computed(
@@ -80,24 +78,10 @@ const ownId = computed(
 )
 
 // --- library ---
-async function refreshHistory() {
-	await store.fetchHistory().catch(() => undefined)
-}
-
-async function refreshSaved() {
-	await store.fetchSaved('me').catch(() => undefined)
-	try {
-		const res = await $authFetch<{ items: SavedQuery[] }>(
-			'/api/database/query/saved',
-			{
-				query: { scope: 'shared' },
-			},
-		)
-		team.value = res.items.filter((query) => query.userId !== ownId.value)
-	} catch {
-		team.value = []
-	}
-}
+// The team's queries: the shared ones the caller did not write.
+const team = computed(() =>
+	store.sharedQueries.value.filter((query) => query.userId !== ownId.value),
+)
 
 function openSaved(query: SavedQuery) {
 	loadedSaved.value = query
@@ -151,7 +135,7 @@ async function deleteSaved(query: SavedQuery) {
 	if (!confirmed) return
 	await store.deleteSaved(query.id).catch(() => undefined)
 	if (loadedSaved.value?.id === query.id) loadedSaved.value = null
-	await refreshSaved()
+	await store.refreshSaved()
 }
 
 async function clearHistory() {
@@ -251,7 +235,7 @@ async function execute(query: Record<string, unknown>, text: string) {
 		target.value = next
 		executing.value = false
 		activeHistoryId.value = null
-		await refreshHistory()
+		await store.refreshHistory()
 	}
 }
 
@@ -516,7 +500,7 @@ async function confirmSave() {
 			color: 'success',
 			icon: 'i-ph-check',
 		})
-		await refreshSaved()
+		await store.refreshSaved()
 	} catch (error) {
 		saveError.value =
 			error instanceof Error && !('data' in error)
@@ -570,9 +554,9 @@ async function openFromRoute(): Promise<boolean> {
 	return opened
 }
 
+// The link and the draft name queries of the library: once it is read.
 onMounted(async () => {
-	await Promise.all([refreshHistory(), refreshSaved()])
-	libraryLoading.value = false
+	await store.libraryRead
 	if (!(await openFromRoute())) restoreDraft()
 })
 </script>
@@ -590,7 +574,7 @@ onMounted(async () => {
 			:team="team"
 			:active-saved-id="loadedSaved?.id ?? null"
 			:active-history-id="activeHistoryId"
-			:loading="libraryLoading"
+			:loading="store.libraryLoading.value"
 			@open-history="openHistory"
 			@save-history="openSaveModal"
 			@open-saved="openSaved"

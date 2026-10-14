@@ -151,6 +151,7 @@ describe('query console helpers', () => {
 				entry({ id: 'b', executedAt: '2026-10-06T10:00:00' }),
 			],
 			(run) => run.executedAt,
+			(date) => date.toISOString().slice(0, 10),
 		)
 		expect(groups.map((group) => group.items.map((run) => run.id))).toEqual([
 			['a'],
