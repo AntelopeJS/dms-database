@@ -6,49 +6,25 @@
 <a href="https://antelopejs.com"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
 </div>
 
-Database administration for AntelopeJS DMS. The module uses the Database interface to give the
-platform owner, under `/modules/database`:
+Database administration for the AntelopeJS DMS. Under **Modules → Database**, the platform owner
+checks the connection, inspects every registered schema, draws its diagram, browses and fixes rows,
+and runs AQL queries with a dry run before any write.
 
-- **Overview**: connection health, one card per registered schema, the largest tables and the
-  latest queries.
-- **Schemas**: every registered table, with a filter bar (schema, instance, table or column name,
-  structure flags) kept in the URL, and an inspector on the right listing its columns, indexes,
-  relations (both ways) and a sample row.
-- **Diagram**: the tables and relations of a schema. The layout saves itself and is shared by the
-  team; auto layout is previewed before it is kept.
-- **Data browser**: the rows of any table, in any instance or across all of them (read only).
-  Edits are staged, reviewed and written only when saved, and a save can be undone for a few
-  seconds.
-
-Links between the pages carry the instance in an `instance` query key: absent for the default
-instance, `all` for every instance, otherwise the instance's name.
-- **Query console**: AQL with completion of the workspace's schemas, a library of past, saved and
-  shared queries, and a dry run before any query that changes data.
-
-The module requires `@antelopejs/dms` 0.9 (`@antelopejs/interface-dms` 0.7) and `@antelopejs/dms-frontend` 0.6.
+**Documentation:** [dms.antelopejs.com/docs/modules/database](https://dms.antelopejs.com/docs/modules/database)
+(source in [`docs/`](./docs)).
 
 ## Installation
-
-Add the module to a project that already uses `@antelopejs/dms` and a Database implementation:
 
 ```bash
 ajs project modules add @antelopejs/dms-database
 ```
 
-## Configuration
+The module requires `@antelopejs/dms` 0.9 (`@antelopejs/interface-dms` 0.7),
+`@antelopejs/dms-frontend` 0.6 and a Database implementation. See the
+[configuration](https://dms.antelopejs.com/docs/modules/database/configuration) for `driverLabel`
+and `schemaLabels`.
 
-Configuration is optional. `driverLabel` supplies the database name shown in the health overview;
-the Database interface cannot discover it. `schemaLabels` overrides labels for exact schema IDs or
-glob patterns containing `*`.
-
-```typescript
-config: {
-  driverLabel: "MongoDB 8.0",
-  schemaLabels: {
-    "app-*": { label: "Application", color: "info" },
-  },
-}
-```
+The package ships a Claude Code skill, `skills/dms-database`, declared in `antelopeJs.skills`.
 
 ## Development
 
@@ -67,7 +43,7 @@ imported by path.
 The playground (`pnpm dev`, then `pnpm frontend:dev`) registers a `demo` schema
 and a `shop` schema with `eu` and `us` instances, seeded on first start.
 
-`docs/redesign-v2-grill.md` records the decisions behind the v2 redesign.
+`docs/design/redesign-v2-grill.md` records the decisions behind the v2 redesign.
 
 Run `pnpm --dir frontend-vue install` and `pnpm --dir frontend-vue test` for frontend tests. Set
 `DMS_FRONTEND_WORKSPACE` to a generated Inertia workspace before running

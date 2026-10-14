@@ -10,7 +10,8 @@
     "dist",
     "!dist/test",
     "!dist/.tsbuildinfo",
-    "frontend-vue"
+    "frontend-vue",
+    "skills"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -80,6 +81,9 @@
   "antelopeJs": {
     "baseUrl": "dist",
     "implements": [],
-    "test": "src/test/harness.ts"
+    "test": "src/test/harness.ts",
+    "skills": [
+      "./skills"
+    ]
   }
 }
