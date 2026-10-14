@@ -36,11 +36,12 @@
     "typecheck": "tsc --noEmit",
     "format": "oxfmt . && pnpm --dir frontend-vue format",
     "frontend:dev": "cd playground && pnpm frontend:dev",
-    "test": "pnpm run build && ajs module test .",
+    "test": "([ -n \"$DMS_PREBUILT\" ] || pnpm run build) && ajs module test .",
     "release": "pnpm --dir frontend-vue install --frozen-lockfile && release-it",
     "prepack": "pnpm run build",
     "knip": "knip --dependencies",
     "knip:all": "knip",
+    "test:layer": "pnpm --dir frontend-vue test",
     "test:frontend": "ajs dms verify-source --layer node_modules/@antelopejs/dms/frontend-vue --module frontend-vue"
   },
   "dependencies": {
@@ -54,7 +55,7 @@
   "devDependencies": {
     "@antelopejs/core": ">=1.13.5 <2",
     "@antelopejs/dms": ">=0.7.4 <0.8.0",
-    "@antelopejs/dms-frontend": ">=0.5.2 <0.6.0",
+    "@antelopejs/dms-frontend": ">=0.5.6 <0.6.0",
     "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",

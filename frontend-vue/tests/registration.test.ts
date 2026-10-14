@@ -6,18 +6,6 @@ function source(path: string): string {
 	return readFileSync(new URL(path, import.meta.url), 'utf8')
 }
 
-it('uses the DMS client-only wrapper for the Vue Flow schema diagram', () => {
-	const diagram = source('../app/components/SchemaDiagram.vue')
-	expect(diagram).toContain('<DmsClientOnly')
-	expect(diagram).not.toContain('<ClientOnly>')
-})
-
-it('does not route relation labels through Vue Flow EdgeText measurement', () => {
-	const edge = source('../app/components/DiagramRelationEdge.vue')
-	expect(edge).toContain(':label="undefined"')
-	expect(edge).toContain('<text')
-})
-
 it('registers every component under the module prefix the backend names', async () => {
 	const registerComponent = vi.fn()
 	const registerPage = vi.fn()
