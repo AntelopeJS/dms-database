@@ -16,24 +16,31 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Three jobs in parallel so the wall clock is the slowest of them, not the
+# sum: verify-source builds a whole generated Inertia app, the backend suite
+# boots a real DMS, and the static checks need neither. `ubuntu` gathers them
+# under the name the branch protection knows.
 jobs:
-  ubuntu:
+  static:
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      COREPACK_DEFAULT_TO_LATEST: 0
     steps:
       - uses: actions/checkout@v4
-
+      # Before setup-node: its pnpm cache resolves the store by running pnpm.
+      # The version comes from `packageManager` in package.json.
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           # .nvmrc is the version of record. oxlint needs at least 22.18 to
           # read a TypeScript config, which every value there clears.
           node-version-file: .nvmrc
-      # Node's bundled corepack predates the pnpm version pinned in
-      # packageManager. Pinned so a corepack release cannot break every
-      # build at once.
-      - run: npm i -g --force corepack@0.34.0 && corepack enable
+          cache: pnpm
+          # frontend-vue is its own project with its own lockfile; without it
+          # the cache key ignores half of what the job installs.
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend-vue/pnpm-lock.yaml
+      # The root lint runs the frontend-vue eslint too.
       - run: pnpm install --frozen-lockfile && pnpm --dir frontend-vue install --frozen-lockfile
       - run: pnpm lint
       # oxlint's type-aware pass degrades to `any` on a broken tsconfig
@@ -42,6 +49,71 @@ jobs:
       # Unused dependencies only. `pnpm knip:all` also reports dead files and
       # exports, which need a human to confirm, so they stay out of the gate.
       - run: pnpm knip
+
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      # `ajs module test` packs and installs the package-sourced modules
+      # (dms, mongodb, api...) into `.antelope/cache`, and mongodb-memory-server
+      # downloads its mongod binary; both used to be fetched on every run.
+      # Ranges are still resolved against the registry, so a stale cache only
+      # costs a download, never an outdated module.
+      - uses: actions/cache@v4
+        with:
+          path: .antelope/cache
+          key: antelope-${{ runner.os }}-${{ hashFiles('src/test/harness.ts', 'pnpm-lock.yaml') }}
+          restore-keys: antelope-${{ runner.os }}-
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          # The version pinned as MONGO_BINARY_VERSION in the harness.
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('src/test/harness.ts') }}
+          restore-keys: mongodb-binaries-${{ runner.os }}-
+      # The only build of the job. DMS_PREBUILT below makes the test script
+      # and the harness's `installCommand` reuse it instead of building twice
+      # more.
       - run: pnpm build
       - run: pnpm test
+        env:
+          DMS_PREBUILT: "1"
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend-vue/pnpm-lock.yaml
+      # The root install provides the DMS layer verify-source builds against.
+      - run: pnpm install --frozen-lockfile && pnpm --dir frontend-vue install --frozen-lockfile
+      # vitest over the Vue module's helpers, composables and registration.
+      - run: pnpm test:layer
+      # Builds and type-checks the module inside a generated Inertia app with
+      # the DMS core layer; it needs neither the module's dist nor a database.
       - run: pnpm test:frontend
+
+  # The job name the branch protection requires; it passes only when every
+  # job above passed.
+  ubuntu:
+    if: always()
+    needs: [static, backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo '${{ toJSON(needs) }}'
+          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false" ]
