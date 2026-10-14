@@ -11,11 +11,14 @@ import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { addSchemaFilters } from "../service/schemaFilters";
 
 // The row placeholders the table view fills in a page target.
-const TABLE_QUERY = "schema={schema}&table={name}";
+const TABLE_QUERY = "schema={{row.schema}}&table={{row.name}}";
 
 const tables = TableView.fromSource({
   caption: "$dms_database.schemas.caption",
   fetchUrl: "/api/database/tables/source",
+  // A deep link, or a relation the inspector follows, to a table the
+  // filter bar leaves out.
+  fetchRowUrl: "/api/database/tables/source/row?id={{row.id}}",
   rowIdKey: "id",
   labelKey: "name",
   capabilities: { search: false, filter: true },

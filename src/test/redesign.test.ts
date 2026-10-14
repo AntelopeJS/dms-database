@@ -119,6 +119,24 @@ describe("[integration] v2 redesign: browsing", () => {
     const other = await list(undefined, "is:no-such-schema");
     assert.equal(other.total, 0);
   });
+  it("reads one table of the source by its id, as the filter bar's list does", async () => {
+    const controller = new DatabaseTablesController();
+    const row = await controller.sourceRow(USER, `${SCHEMA}::orders`);
+    const [listed] = (
+      await controller.source(
+        USER,
+        `is:${SCHEMA}`,
+        undefined,
+        "is:orders",
+        undefined,
+      )
+    ).results.filter((candidate) => candidate.name === "orders");
+    assert.deepEqual(row, listed);
+    await assert.rejects(
+      controller.sourceRow(USER, `${SCHEMA}::no_such_table`),
+    );
+    await assert.rejects(controller.sourceRow(USER, undefined));
+  });
   it("counts the rows of other tables pointing at a row", async () => {
     const [orders] = await listRowReferences(
       SCHEMA,
