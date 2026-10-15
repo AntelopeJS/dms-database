@@ -151,22 +151,12 @@ export interface ServerRender {
 
 /**
  * The key a `useApiData(url)` read is transferred under, as the renderer
- * gives it: a digest of the request, which the payload shows instead of the
- * URL.
+ * gives it (`dmsRequestKey`): a digest of the request, which the payload
+ * shows instead of the URL.
  */
 function transferKey(read: BackendRead): string | null {
-	const { signal: _signal, ...options } = readOptions.get(read) ?? {}
-	const scratch = engine.createDmsFrontendRuntime(undefined, {}, true)
-	const app = createSSRApp({ render: () => null })
-	engine.provideDmsFrontendRuntime(app, scratch)
-	return app.runWithContext(
-		() =>
-			engine.useDmsFetch(read.url, {
-				...options,
-				immediate: false,
-				$fetch: (async () => undefined) as never,
-			}).key.value,
-	)
+	const { method, query } = readOptions.get(read) ?? {}
+	return engine.dmsRequestKey(read.url, { method, query }) ?? null
 }
 
 /**
