@@ -22,19 +22,25 @@ export interface BackendRead {
 
 export type Backend = (read: BackendRead) => unknown
 
+interface FetchOptions {
+	method?: string
+	query?: Record<string, unknown>
+	signal?: AbortSignal
+}
+
 let backend: Backend = () => ({})
 const reads: BackendRead[] = []
+/** The options each read was made with, as `useDmsFetch` passed them. */
+const readOptions = new WeakMap<BackendRead, FetchOptions>()
 
-const $authFetch = async (
-	url: string,
-	options: { method?: string; query?: Record<string, unknown> } = {},
-) => {
+const $authFetch = async (url: string, options: FetchOptions = {}) => {
 	const read = {
 		url,
 		method: (options.method ?? 'GET').toUpperCase(),
 		query: options.query ?? {},
 	}
 	reads.push(read)
+	readOptions.set(read, options)
 	return backend(read)
 }
 
@@ -143,23 +149,25 @@ export interface ServerRender {
 	untransferred: BackendRead[]
 }
 
-/** The request a `useApiData(url)` response is transferred under. */
-function transferredRequests(payload: DmsPayload): BackendRead[] {
-	return Object.keys({ ...payload.data, ...payload.errors })
-		.filter((key) => key.startsWith('$dmsfetch:'))
-		.map((key) => {
-			const [method, , url, query] = JSON.parse(
-				key.slice('$dmsfetch:'.length),
-			) as [string, string, string, Record<string, unknown> | null]
-			return { method, url, query: query ?? {} }
-		})
+/**
+ * The key a `useApiData(url)` read is transferred under, as the renderer
+ * gives it: a digest of the request, which the payload shows instead of the
+ * URL.
+ */
+function transferKey(read: BackendRead): string | null {
+	const { signal: _signal, ...options } = readOptions.get(read) ?? {}
+	const scratch = engine.createDmsFrontendRuntime(undefined, {}, true)
+	const app = createSSRApp({ render: () => null })
+	engine.provideDmsFrontendRuntime(app, scratch)
+	return app.runWithContext(
+		() =>
+			engine.useDmsFetch(read.url, {
+				...options,
+				immediate: false,
+				$fetch: (async () => undefined) as never,
+			}).key.value,
+	)
 }
-
-const sameRead = (a: BackendRead, b: BackendRead) =>
-	a.method === b.method &&
-	a.url === b.url &&
-	JSON.stringify(Object.entries(a.query).sort()) ===
-		JSON.stringify(Object.entries(b.query).sort())
 
 /**
  * Renders `component` with `props` as a server renders the page `url`,
@@ -181,14 +189,41 @@ export async function serverRender(
 	app.config.warnHandler = noop
 	const html = await renderToString(app)
 	const payload = engine.serializeDmsPayload(runtime)
-	const transferred = transferredRequests(payload)
+	const transferred = new Set(
+		Object.keys({ ...payload.data, ...payload.errors }),
+	)
 	const made = [...reads]
 	return {
 		html,
 		payload,
 		reads: made,
 		untransferred: made.filter(
-			(read) => !transferred.some((handed) => sameRead(read, handed)),
+			(read) => !transferred.has(transferKey(read) ?? ''),
 		),
 	}
+}
+
+/** What a browser's app context gives a composable, and what it read. */
+export interface BrowserContext<T> {
+	value: T
+	/** Every backend request made since, live. */
+	reads: BackendRead[]
+}
+
+/**
+ * Runs `setup` in a browser's app context (no server render to hydrate),
+ * answering each backend request with `respond`.
+ */
+export function inBrowser<T>(
+	setup: () => T,
+	respond: Backend,
+): BrowserContext<T> {
+	backend = respond
+	reads.length = 0
+	const runtime = engine.createDmsFrontendRuntime(undefined, undefined, false)
+	const app = createSSRApp({ render: () => null })
+	engine.provideDmsFrontendRuntime(app, runtime)
+	const scope = vue.effectScope()
+	const value = app.runWithContext(() => scope.run(setup) as T)
+	return { value, reads }
 }
