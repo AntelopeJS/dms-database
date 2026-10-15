@@ -222,26 +222,23 @@ async function follow(target: TableRow) {
 }
 
 // --- rows: in every instance at once; the data browser shows each one's ---
-const total = ref<number | null>(null)
-
-async function loadTotal(key: string) {
-	total.value = null
-	if (!schemaId.value || !tableName.value) return
-	try {
-		const result = await $authFetch<{ total: number }>(BROWSE_COUNT, {
-			query: {
-				filter_schema: `is:${schemaId.value}`,
-				filter_table: `is:${tableName.value}`,
-				filter_instance: `is:${CROSS_INSTANCE_VALUE}`,
-			},
-		})
-		if (key === tableKey.value) total.value = result.total
-	} catch {
-		// The total the list gave, if any, stays.
-	}
-}
-
-watch(tableKey, loadTotal, { immediate: true })
+// Read with the table, on the server too when the link opens the drawer; no
+// figure shows while another table's loads, nor once it failed.
+const rowTotal = useApiData<{ total: number }>(
+	() => (schemaId.value && tableName.value ? BROWSE_COUNT : null),
+	{
+		query: () => ({
+			filter_schema: `is:${schemaId.value}`,
+			filter_table: `is:${tableName.value}`,
+			filter_instance: `is:${CROSS_INSTANCE_VALUE}`,
+		}),
+	},
+)
+const total = computed(() =>
+	rowTotal.status.value === 'success'
+		? (rowTotal.data.value?.total ?? null)
+		: null,
+)
 
 const rowsFact = computed(() => {
 	const rows = total.value
