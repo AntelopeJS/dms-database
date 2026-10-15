@@ -18,7 +18,8 @@ platform owner, under `/modules/database`:
   team; auto layout is previewed before it is kept.
 - **Data browser**: the rows of any table, in any instance or across all of them (read only).
   Edits are staged, reviewed and written only when saved, and a save can be undone for a few
-  seconds.
+  seconds. A row saved shows at once as the database stored it; the page is read again only when
+  the save may move rows (a field it is sorted or filtered by, or a search).
 
 Links between the pages carry the instance in an `instance` query key: absent for the default
 instance, `all` for every instance, otherwise the instance's name.

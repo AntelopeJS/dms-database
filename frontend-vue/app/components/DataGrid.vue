@@ -14,7 +14,8 @@ import {
 import { onKeyStroke, useEventListener } from '@vueuse/core'
 import { parseDraft } from '../build/data/cellValues'
 import { useStagedEdits } from '../build/data/stagedEdits'
-import { useStagedSave } from '../build/data/useStagedSave'
+import { mayMoveRows, withWrittenRow } from '../build/data/stagedWrites'
+import { type SavedChanges, useStagedSave } from '../build/data/useStagedSave'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
 import type {
@@ -33,6 +34,8 @@ import RowDrawer from './RowDrawer.vue'
 // The grid of one open table. Rows are read a page at a time; a committed
 // cell is staged, not written (D-02): the save bar offers a review of every
 // change before it is written, then the save and its undo for a few seconds.
+// A row written shows as the server answered it, in place: the page is read
+// again only when the write may move rows in or out of it.
 
 const BROWSE_ENDPOINT = '/api/database/browse'
 // Browse-only columns: the source instance of a cross-instance read.
@@ -446,6 +449,30 @@ const pendingCount = computed(() => staged.count(props.tab.id))
 const changedFields = computed(() => [
 	...new Set(staged.list(props.tab.id).map((change) => change.field)),
 ])
+// The page on screen, with a row written in place of the one read: the read's
+// data is replaced (it is shallow), so the cell shows the stored value at once.
+function showWritten(tab: BrowserTab, row: Record<string, unknown>) {
+	const list = listRead.data.value
+	if (tab.id !== props.tab.id || !list) return
+	listRead.data.value = {
+		...list,
+		results: withWrittenRow(list.results ?? [], row, rowIdOf),
+	}
+}
+
+// A save may change which rows the page holds, or their order, only through
+// the fields it sorts, filters or searches by; a row gone meanwhile leaves.
+function afterSave({ fields, gone }: SavedChanges) {
+	const filtered = Object.entries(state.filters)
+		.filter(([, filter]) => filter.value)
+		.map(([field]) => field)
+	if (
+		gone > 0 ||
+		mayMoveRows(fields, { sortKey: state.sortKey, search: state.search, filtered })
+	)
+		reload()
+}
+
 const {
 	saving,
 	review,
@@ -453,7 +480,8 @@ const {
 	undo,
 } = useStagedSave({
 	tab: () => props.tab,
-	onSaved: reload,
+	onWritten: showWritten,
+	onSaved: afterSave,
 })
 
 onKeyStroke('s', (event) => {
