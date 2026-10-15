@@ -94,10 +94,27 @@ export function useQueryStore() {
 		await Promise.all([saved.refresh(), shared.refresh()])
 	}
 
+	// A run a link names (`?history=`), read when the console opens it.
+	const entryId = shallowRef<string | null>(null)
+	const entry = useApiData<HistoryEntry>(
+		() =>
+			entryId.value
+				? `${QUERY_BASE}/history/${encodeURIComponent(entryId.value)}`
+				: null,
+		{
+			immediate: false,
+			server: false,
+			watch: false,
+			refreshOnPageRefresh: false,
+		},
+	)
+
 	async function fetchHistoryEntry(id: string): Promise<HistoryEntry> {
-		return $authFetch<HistoryEntry>(
-			`${QUERY_BASE}/history/${encodeURIComponent(id)}`,
-		)
+		entryId.value = id
+		await entry.execute()
+		if (entry.error.value || !entry.data.value)
+			throw entry.error.value ?? new Error('History entry not read')
+		return entry.data.value
 	}
 
 	async function clearHistory(): Promise<void> {

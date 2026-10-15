@@ -263,13 +263,10 @@ async function load(id: string) {
 	await leaving
 	if (sync !== owner) return
 	try {
-		const [positions, notes] = await Promise.all([
-			persistence.fetchLayout(id),
-			persistence.fetchNotes(id),
-		])
+		const stored = await persistence.readDiagram(id)
 		if (sync !== owner) return
-		state.positions = positions
-		state.notes = notes.map(noteFromStored)
+		state.positions = stored.positions
+		state.notes = stored.notes.map(noteFromStored)
 	} catch {
 		if (sync !== owner) return
 		state.positions = {}

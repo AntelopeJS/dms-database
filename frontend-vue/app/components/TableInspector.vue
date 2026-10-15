@@ -68,7 +68,6 @@ const BROWSE_LIST = '/api/database/browse/list'
 const BROWSE_COUNT = '/api/database/browse/count'
 
 const { t, n } = useI18n()
-const { $authFetch } = useAuthFetch()
 const { copy } = useClipboard()
 const toast = useToast()
 
@@ -280,20 +279,94 @@ const tabs = computed(() => [
 ])
 
 // --- sample row: the latest row, or the next one on demand ---
-const sample = ref<Record<string, unknown> | null>(null)
-const sampleOffset = ref(0)
-const sampleTotal = ref(0)
-const sampleLoading = ref(false)
-const sampleFailed = ref(false)
-
 interface SamplePage {
 	results: Record<string, unknown>[]
 	total: number
 }
 
-// The instance the sample is read from: the default one, or the first named
-// instance holding rows when the default one holds none.
-const sampleInstance = ref<string | null>(null)
+/**
+ * The row asked for: its offset in an instance. No instance at offset 0 reads
+ * the default one, or the first named instance holding rows when the default
+ * one holds none.
+ */
+interface SampleRequest {
+	instance: string | null
+	offset: number
+}
+
+/** A sample read, with the table and the instance it was read from. */
+interface SampleRead {
+	table: string
+	instance: string | null
+	page: SamplePage
+}
+
+const requested = shallowRef<SampleRequest>({ instance: null, offset: 0 })
+
+type ReadSample = (instance: string | null) => Promise<SamplePage>
+
+async function firstFilledInstance(
+	read: ReadSample,
+): Promise<{ instance: string | null; page: SamplePage }> {
+	const page = await read(null)
+	if (page.total > 0) return { instance: null, page }
+	for (const instance of schema.value?.instances ?? []) {
+		const named = await read(instance)
+		if (named.total > 0) return { instance, page: named }
+	}
+	return { instance: null, page }
+}
+
+// Read once the Sample tab shows, in the browser only.
+const sampleRead = useApiData<SampleRead>(
+	() =>
+		schemaId.value && tableName.value
+			? `dms-database:sample:${JSON.stringify([
+					tableKey.value,
+					requested.value.instance,
+					requested.value.offset,
+				])}`
+			: null,
+	async ({ $authFetch, signal }) => {
+		const table = tableKey.value
+		const { instance, offset } = requested.value
+		const read: ReadSample = (from) =>
+			$authFetch<SamplePage>(BROWSE_LIST, {
+				query: {
+					filter_schema: `is:${schemaId.value}`,
+					filter_table: `is:${tableName.value}`,
+					offset,
+					limit: 1,
+					...(from ? { filter_instance: `is:${from}` } : {}),
+				},
+				signal,
+			})
+		const found =
+			instance === null && offset === 0
+				? await firstFilledInstance(read)
+				: { instance, page: await read(instance) }
+		return { table, ...found }
+	},
+	{
+		immediate: false,
+		server: false,
+		watch: false,
+		refreshOnPageRefresh: false,
+	},
+)
+
+// Another table (a relation followed) shows none of the previous one's row.
+const sampleShown = computed(() => {
+	const value = sampleRead.data.value
+	return value?.table === tableKey.value ? value : null
+})
+const sample = computed(() => sampleShown.value?.page.results?.[0] ?? null)
+const sampleTotal = computed(() => sampleShown.value?.page.total ?? 0)
+const sampleOffset = computed(() => requested.value.offset)
+const sampleLoading = computed(() => sampleRead.pending.value)
+const sampleFailed = computed(() => sampleRead.status.value === 'error')
+// The instance the sample is read from.
+const sampleInstance = computed(() => sampleShown.value?.instance ?? null)
 
 const sampleInstanceLabel = computed(() =>
 	sampleInstance.value === null
@@ -303,72 +376,34 @@ const sampleInstanceLabel = computed(() =>
 			}),
 )
 
-function fetchSample(instance: string | null) {
-	const query: Record<string, string | number> = {
-		filter_schema: `is:${schemaId.value}`,
-		filter_table: `is:${tableName.value}`,
-		offset: sampleOffset.value,
-		limit: 1,
-	}
-	if (instance) query.filter_instance = `is:${instance}`
-	return $authFetch<SamplePage>(BROWSE_LIST, { query })
-}
-
-async function firstFilledInstance(): Promise<SamplePage> {
-	const page = await fetchSample(null)
-	if (page.total > 0) return page
-	for (const instance of schema.value?.instances ?? []) {
-		const named = await fetchSample(instance)
-		if (named.total > 0) {
-			sampleInstance.value = instance
-			return named
-		}
-	}
-	return page
-}
-
-async function loadSample() {
-	if (!schemaId.value || !tableName.value) return
-	sampleLoading.value = true
-	sampleFailed.value = false
-	try {
-		const res =
-			sampleInstance.value === null && sampleOffset.value === 0
-				? await firstFilledInstance()
-				: await fetchSample(sampleInstance.value)
-		sample.value = res.results?.[0] ?? null
-		sampleTotal.value = res.total ?? 0
-	} catch {
-		sampleFailed.value = true
-		sample.value = null
-	} finally {
-		sampleLoading.value = false
-	}
+function loadSample() {
+	if (schemaId.value && tableName.value) void sampleRead.execute()
 }
 
 function nextSample() {
-	sampleOffset.value =
-		sampleTotal.value > 0 ? (sampleOffset.value + 1) % sampleTotal.value : 0
+	const total = sampleTotal.value
+	requested.value = {
+		instance: sampleInstance.value,
+		offset: total > 0 ? (requested.value.offset + 1) % total : 0,
+	}
 	loadSample()
 }
 
 // Another table (a relation followed) starts over from its latest row.
 watch(tableKey, () => {
-	sample.value = null
-	sampleOffset.value = 0
-	sampleTotal.value = 0
-	sampleInstance.value = null
-	sampleFailed.value = false
+	requested.value = { instance: null, offset: 0 }
 	if (tab.value === 'sample' && !loading.value) loadSample()
 })
 
 // The sample waits for the schemas: they name the instances to look in.
-watch(
-	() => tab.value === 'sample' && !loading.value,
-	(ready) => {
-		if (ready && !sample.value && !sampleLoading.value) loadSample()
-	},
-	{ immediate: true },
+onMounted(() =>
+	watch(
+		() => tab.value === 'sample' && !loading.value,
+		(ready) => {
+			if (ready && !sample.value && !sampleLoading.value) loadSample()
+		},
+		{ immediate: true },
+	),
 )
 
 // The `_instance` tag the store adds to rows of named instances is not a

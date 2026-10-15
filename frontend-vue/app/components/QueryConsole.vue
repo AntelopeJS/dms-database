@@ -50,7 +50,6 @@ const OPERATION_ICONS: Record<string, string> = {
 const { t, n } = useI18n()
 const route = useDmsRoute()
 const router = useDmsRouter()
-const { $authFetch } = useAuthFetch()
 const { confirm } = useConfirm()
 const toast = useToast()
 const { user } = useUserSession()
@@ -169,22 +168,25 @@ function fetchDuration(error: unknown): number | null {
 	return typeof duration === 'number' ? duration : null
 }
 
+type CountRows = (query: Record<string, string>) => Promise<{ total: number }>
+
 /**
  * The named instances of a table that hold rows, each with its count: asked
  * only when a read found the table empty in the default instance (decision
  * 11). An instance whose count fails is left out.
  */
-async function instancesWithRows(target: QueryTarget): Promise<InstanceRows[]> {
+async function instancesWithRows(
+	target: QueryTarget,
+	count: CountRows,
+): Promise<InstanceRows[]> {
 	const instances =
 		schemas.value.find((schema) => schema.id === target.schema)?.instances ?? []
 	const counts = await Promise.all(
 		instances.map((id) =>
-			$authFetch<{ total: number }>(BROWSE_COUNT, {
-				query: {
-					filter_schema: `is:${target.schema}`,
-					filter_table: `is:${target.table}`,
-					filter_instance: `is:${id}`,
-				},
+			count({
+				filter_schema: `is:${target.schema}`,
+				filter_table: `is:${target.table}`,
+				filter_instance: `is:${id}`,
 			}).then(
 				(res) => ({ id, count: res.total }),
 				() => ({ id, count: 0 }),
@@ -193,6 +195,29 @@ async function instancesWithRows(target: QueryTarget): Promise<InstanceRows[]> {
 	)
 	return counts.filter((entry) => entry.count > 0)
 }
+
+// The table the last read found empty, whose instances are counted: in the
+// browser, after a run.
+const emptyTarget = shallowRef<QueryTarget | null>(null)
+const elsewhereRead = useApiData<InstanceRows[]>(
+	() =>
+		emptyTarget.value
+			? `dms-database:elsewhere:${JSON.stringify([
+					emptyTarget.value.schema,
+					emptyTarget.value.table,
+				])}`
+			: null,
+	({ $authFetch, signal }) =>
+		instancesWithRows(emptyTarget.value as QueryTarget, (query) =>
+			$authFetch<{ total: number }>(BROWSE_COUNT, { query, signal }),
+		),
+	{
+		immediate: false,
+		server: false,
+		watch: false,
+		refreshOnPageRefresh: false,
+	},
+)
 
 // Each run drops the instances found for the previous one; a slow answer
 // for an older run is ignored.
@@ -212,8 +237,9 @@ async function findElsewhere(
 		!next.table
 	)
 		return
-	const found = await instancesWithRows(next)
-	if (id === runId) elsewhere.value = found
+	emptyTarget.value = next
+	await elsewhereRead.execute()
+	if (id === runId) elsewhere.value = elsewhereRead.data.value ?? []
 }
 
 // The result keeps naming the previous run's target until the new one lands.
