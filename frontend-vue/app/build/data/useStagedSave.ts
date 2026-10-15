@@ -12,9 +12,10 @@ import { changesOf, type RowWriteOutcome, writeRows } from './stagedWrites'
 // Writes the staged edits of a tab after the user reviewed them, then offers
 // to take them back for a few seconds, in the save bar of the current tab
 // (another tab ends the offer). Each row is written with one call of the
-// edit route; an undo writes the previous values back the same way. Only the
-// rows written are announced and undone: a row gone meanwhile drops its
-// changes, and a failure stops the save with the rows left still staged.
+// edit route, which answers with the row as stored; an undo writes the
+// previous values back the same way. Only the rows written are announced and
+// undone: a row gone meanwhile drops its changes, and a failure stops the
+// save with the rows left still staged.
 
 const EDIT_ENDPOINT = '/api/database/browse/edit'
 const UNDO_WINDOW_MS = 10_000
@@ -27,9 +28,19 @@ interface SaveNotice {
 	scope: string
 }
 
+/** What a save or an undo wrote, once it is settled. */
+export interface SavedChanges {
+	/** The fields written. */
+	fields: string[]
+	/** Rows gone meanwhile, which the page may still show. */
+	gone: number
+}
+
 interface StagedSaveOptions {
 	tab: () => BrowserTab
-	onSaved: () => void
+	/** A row written, as the server answered: shown at once in place of the one read. */
+	onWritten: (tab: BrowserTab, row: Record<string, unknown>) => void
+	onSaved: (saved: SavedChanges) => void
 }
 
 /** The server's reason when it gave one, else the error's own message. */
@@ -39,6 +50,10 @@ function messageOf(error: unknown): string {
 	const message = (data as { message?: unknown } | null)?.message
 	if (typeof message === 'string' && message) return message
 	return error instanceof Error ? error.message : String(error)
+}
+
+function fieldsOf(changes: StagedChange[]): string[] {
+	return [...new Set(changes.map((change) => change.field))]
 }
 
 export function useStagedSave(options: StagedSaveOptions) {
@@ -85,12 +100,13 @@ export function useStagedSave(options: StagedSaveOptions) {
 		return `${tab.schema}.${tab.table} ${badge}`
 	}
 
-	async function writeRow(
+	/** Writes a row, and answers with it as the server now stores it. */
+	function writeRow(
 		tab: BrowserTab,
 		rowId: string,
 		body: Record<string, unknown>,
-	) {
-		await $authFetch(EDIT_ENDPOINT, {
+	): Promise<Record<string, unknown>> {
+		return $authFetch<Record<string, unknown>>(EDIT_ENDPOINT, {
 			method: 'PUT',
 			query: { ...browseSelectionQuery(tab), id: rowId },
 			body,
@@ -135,8 +151,13 @@ export function useStagedSave(options: StagedSaveOptions) {
 		)
 	}
 
-	// Each row written (or gone) leaves the staged edits at once: a failure
-	// further on keeps only the rows not written.
+	/** Shows a row written as the server answered it. */
+	function showWritten(tab: BrowserTab, row: Record<string, unknown> | undefined) {
+		if (row) options.onWritten(tab, row)
+	}
+
+	// Each row written (or gone) leaves the staged edits at once, its answer
+	// shown in its place: a failure further on keeps only the rows not written.
 	function saveAll(tab: BrowserTab): Promise<RowWriteOutcome> {
 		const rows = staged
 			.rowIds(tab.id)
@@ -147,7 +168,10 @@ export function useStagedSave(options: StagedSaveOptions) {
 		return writeRows(
 			rows,
 			(rowId, body) => writeRow(tab, rowId, body),
-			(rowId) => staged.discard(tab.id, [rowId]),
+			(rowId, row) => {
+				showWritten(tab, row)
+				staged.discard(tab.id, [rowId])
+			},
 		)
 	}
 
@@ -202,6 +226,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 		const outcome = await writeRows(
 			undoBodies(current.changes),
 			(rowId, body) => writeRow(tab, rowId, body),
+			(_rowId, row) => showWritten(tab, row),
 		)
 		const restored = changesOf(current.changes, outcome.written)
 		const gone = changesOf(current.changes, outcome.gone)
@@ -243,7 +268,10 @@ export function useStagedSave(options: StagedSaveOptions) {
 				),
 				color: 'warning',
 			})
-		options.onSaved()
+		options.onSaved({
+			fields: fieldsOf(current.changes),
+			gone: outcome.gone.length,
+		})
 	}
 
 	function announce(tab: BrowserTab, saved: StagedChange[]) {
@@ -259,6 +287,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 		// the dialog closed, what was written is announced and undoable.
 		const saved: StagedChange[] = []
 		let settled = false
+		let gone = 0
 		try {
 			await confirm({
 				title: t(
@@ -281,6 +310,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 					try {
 						const outcome = await saveAll(tab)
 						saved.push(...changesOf(changes, outcome.written))
+						gone += outcome.gone.length
 						if (outcome.written.length + outcome.gone.length > 0) settled = true
 						return partialOutcome(outcome, changes, saved.length)
 					} finally {
@@ -289,7 +319,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 				},
 			})
 		} finally {
-			if (settled) options.onSaved()
+			if (settled) options.onSaved({ fields: fieldsOf(saved), gone })
 			if (saved.length > 0) announce(tab, saved)
 		}
 	}
