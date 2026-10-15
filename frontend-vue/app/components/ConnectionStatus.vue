@@ -11,7 +11,13 @@ const MINUTE_S = 60
 
 const { t, n, locale } = useI18n()
 const { health, isLoading, error, refresh } = useDatabaseHealth()
-const now = useNow({ interval: SECOND_MS })
+const clock = useNow({ interval: SECOND_MS })
+// The probe's own time until the page is mounted: the server renders the age
+// a few seconds before the browser hydrates it, and both must write the same.
+const mounted = ref(false)
+onMounted(() => {
+	mounted.value = true
+})
 
 useIntervalFn(() => refresh(), PROBE_INTERVAL_MS)
 
@@ -24,12 +30,9 @@ const isDown = computed(
 const checkedAgo = computed(() => {
 	const checkedAt = health.value.checkedAt
 	if (!checkedAt) return ''
-	const seconds = Math.max(
-		0,
-		Math.round(
-			(now.value.getTime() - new Date(checkedAt).getTime()) / SECOND_MS,
-		),
-	)
+	const checked = new Date(checkedAt).getTime()
+	const now = mounted.value ? clock.value.getTime() : checked
+	const seconds = Math.max(0, Math.round((now - checked) / SECOND_MS))
 	return seconds < MINUTE_S
 		? t('dms_database.overview.connection.checked_seconds', { count: seconds })
 		: t('dms_database.overview.connection.checked_minutes', {

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
 import { serverRender, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
@@ -198,5 +198,38 @@ describe('server render: every read is handed to the browser', () => {
 		)
 		expect(page.reads.map((read) => read.url)).toEqual(['/api/database/health'])
 		expect(page.untransferred).toEqual([])
+	})
+})
+
+describe('server render: what the browser hydrates the same', () => {
+	afterEach(() => {
+		vi.useRealTimers()
+	})
+
+	it('overview: the probe age, whenever the page renders', async () => {
+		// The browser hydrates a few seconds after the server rendered: the age
+		// of the probe must not follow the clock before the page is mounted.
+		const checkedAt = '2026-10-15T20:00:00.000Z'
+		const health = (read: BackendRead) =>
+			read.url === '/api/database/health'
+				? { ...(backend(read) as object), checkedAt }
+				: backend(read)
+		const renderAt = async (time: string) => {
+			vi.useFakeTimers({ toFake: ['Date'] })
+			vi.setSystemTime(new Date(time))
+			const page = await serverRender(
+				ConnectionStatus,
+				{},
+				{
+					url: '/modules/database/overview',
+					respond: health,
+				},
+			)
+			vi.useRealTimers()
+			return page.html
+		}
+		const rendered = await renderAt('2026-10-15T20:00:00.400Z')
+		expect(rendered).toContain('checked_seconds 0')
+		expect(await renderAt('2026-10-15T20:00:07.000Z')).toBe(rendered)
 	})
 })
