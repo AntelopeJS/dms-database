@@ -300,7 +300,12 @@ onKeyStroke('t', (event) => {
 			<span v-if="countsFailed">
 				{{ t('dms_database.data.scope.counts_failed') }}
 			</span>
-			<i18n-t v-else keypath="dms_database.data.scope.counts_for" tag="span">
+			<i18n-t
+				v-else
+				keypath="dms_database.data.scope.counts_for"
+				tag="span"
+				scope="global"
+			>
 				<template #instance>
 					<span class="text-primary font-mono">{{ instanceName }}</span>
 				</template>

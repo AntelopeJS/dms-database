@@ -248,7 +248,7 @@ async function close(tab: BrowserTab) {
 			v-if="hasPreview"
 			class="text-dimmed hidden shrink-0 self-center whitespace-nowrap px-3 pb-1 pt-1.5 text-[11px] lg:inline"
 		>
-			<i18n-t keypath="dms_database.data.tabs.hint" tag="span">
+			<i18n-t keypath="dms_database.data.tabs.hint" tag="span" scope="global">
 				<template #italic>
 					<em>{{ t('dms_database.data.tabs.italic') }}</em>
 				</template>
