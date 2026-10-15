@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { defineComponent, h } from 'vue'
 import { serverRender, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import DataBrowser from '../app/components/DataBrowser.vue'
@@ -134,6 +135,21 @@ describe('server render: every read is handed to the browser', () => {
 
 	it('diagram: no layout or notes, which only the browser draws', async () => {
 		const page = await render(SchemaDiagram, {}, '/modules/database/diagram')
+		expect(page.reads.map((read) => read.url)).toEqual([
+			'/api/database/schemas',
+		])
+		expect(page.untransferred).toEqual([])
+	})
+
+	it('diagram: no layout or notes either once the schemas are in', async () => {
+		// A block of the page read the schemas before the diagram's setup ran.
+		const SchemasFirst = defineComponent({
+			async setup() {
+				await useApiData('/api/database/schemas')
+				return () => h(SchemaDiagram)
+			},
+		})
+		const page = await render(SchemasFirst, {}, '/modules/database/diagram')
 		expect(page.reads.map((read) => read.url)).toEqual([
 			'/api/database/schemas',
 		])

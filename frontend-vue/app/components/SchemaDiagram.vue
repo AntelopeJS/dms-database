@@ -288,7 +288,10 @@ async function load(id: string) {
 	loaded.value = true
 }
 
-watch(schemaId, (id) => id && load(id), { immediate: true })
+// The canvas is drawn in the browser, from a working copy of the layout and
+// notes it reads there: a server render, which would read them without
+// handing them over, never starts it.
+onMounted(() => watch(schemaId, (id) => id && load(id), { immediate: true }))
 
 function record(op: DiagramOperation) {
 	history.push(op)
