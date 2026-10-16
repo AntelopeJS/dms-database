@@ -1,6 +1,19 @@
 {
   "name": "@antelopejs/dms-database",
   "version": "0.2.0",
+  "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
+  "keywords": [
+    "admin",
+    "antelopejs",
+    "aql",
+    "database",
+    "dms",
+    "dms-module"
+  ],
+  "homepage": "https://dms.antelopejs.com/docs/modules/database",
+  "bugs": {
+    "url": "https://github.com/AntelopeJS/dms-database/issues"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
@@ -10,7 +23,8 @@
     "dist",
     "!dist/test",
     "!dist/.tsbuildinfo",
-    "frontend-vue"
+    "frontend-vue",
+    "skills"
   ],
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -47,13 +61,13 @@
   "dependencies": {
     "@antelopejs/interface-api": ">=0.0.14 <1.0.0",
     "@antelopejs/interface-api-util": ">=0.1.2 <1.0.0",
-    "@antelopejs/interface-core": ">=0.1.1 <1.0.0",
+    "@antelopejs/interface-core": ">=0.2.3 <1.0.0",
     "@antelopejs/interface-database": ">=0.1.8 <1.0.0",
     "@antelopejs/interface-database-decorators": ">=0.1.7 <1.0.0",
     "@antelopejs/interface-dms": ">=0.7.0 <1.0.0"
   },
   "devDependencies": {
-    "@antelopejs/core": ">=1.13.5 <2",
+    "@antelopejs/core": ">=1.15.2 <2",
     "@antelopejs/dms": ">=0.9.0 <1.0.0",
     "@antelopejs/dms-frontend": ">=0.6.0 <0.7.0",
     "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
@@ -80,6 +94,9 @@
   "antelopeJs": {
     "baseUrl": "dist",
     "implements": [],
-    "test": "src/test/harness.ts"
+    "test": "src/test/harness.ts",
+    "skills": [
+      "./skills"
+    ]
   }
 }
