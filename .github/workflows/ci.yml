@@ -42,6 +42,12 @@ jobs:
             frontend-vue/pnpm-lock.yaml
       # The root lint runs the frontend-vue eslint too.
       - run: pnpm install --frozen-lockfile && pnpm --dir frontend-vue install --frozen-lockfile
+      - uses: AntelopeJS/tooling-configs/actions/docs@310e3d861b2da2244902854379176c91e1ebc68e
+        with:
+          files: |
+            README.md
+            docs
+          typescript-project: docs/tsconfig.json
       - run: pnpm lint
       # oxlint's type-aware pass degrades to `any` on a broken tsconfig
       # without failing, so the typecheck is what catches it.
