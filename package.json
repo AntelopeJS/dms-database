@@ -61,13 +61,13 @@
   "dependencies": {
     "@antelopejs/interface-api": ">=0.0.14 <1.0.0",
     "@antelopejs/interface-api-util": ">=0.1.2 <1.0.0",
-    "@antelopejs/interface-core": ">=0.1.1 <1.0.0",
+    "@antelopejs/interface-core": ">=0.2.3 <1.0.0",
     "@antelopejs/interface-database": ">=0.1.8 <1.0.0",
     "@antelopejs/interface-database-decorators": ">=0.1.7 <1.0.0",
     "@antelopejs/interface-dms": ">=0.7.0 <1.0.0"
   },
   "devDependencies": {
-    "@antelopejs/core": ">=1.13.5 <2",
+    "@antelopejs/core": ">=1.15.2 <2",
     "@antelopejs/dms": ">=0.9.0 <1.0.0",
     "@antelopejs/dms-frontend": ">=0.6.0 <0.7.0",
     "@antelopejs/tooling-configs": ">=0.0.7 <1.0.0",
