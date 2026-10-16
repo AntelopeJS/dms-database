@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import type { RequestContext } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
 import {
   GetModel,
@@ -220,6 +221,62 @@ describe("[integration] v2 redesign: browsing", () => {
         params: { count: { type: "count", value: 1 } },
       },
     ]);
+  });
+});
+
+describe("[integration] v2 redesign: edits", () => {
+  it("answers an edit with the row as the listing then serves it", async () => {
+    // The data browser shows that answer in place of the row it read,
+    // without reading the page again.
+    const controller = new DatabaseBrowseController();
+    const table = [`is:${SCHEMA}`, `is:${INSTANCE}`, "is:orders"] as const;
+    const listed = async (id: string) => {
+      const context = {
+        url: new URL("https://example.test/"),
+      } as RequestContext;
+      const page = await controller.list(
+        USER,
+        context,
+        ...table,
+        "0",
+        "50",
+        undefined,
+        undefined,
+        undefined,
+      );
+      return page.results.find(
+        (row) => (row as Record<string, unknown>)._id === id,
+      );
+    };
+    const wire = (value: unknown) => JSON.parse(JSON.stringify(value));
+    const before = await listed("o2");
+    try {
+      const answer = await controller.edit(USER, ...table, "o2", {
+        status: "shipped",
+        created_at: "2026-10-06T09:00:00.000Z",
+        notes: { gift: true, tags: ["red"] },
+      });
+      assert.deepEqual(wire(answer), wire(await listed("o2")));
+      assert.equal(wire(answer).created_at, "2026-10-06T09:00:00.000Z");
+      // MongoDB reports zero modified rows when the submitted value already
+      // matches. That is still a successful edit, not a missing row.
+      const unchanged = await controller.edit(USER, ...table, "o2", {
+        status: "shipped",
+      });
+      assert.deepEqual(wire(unchanged), wire(await listed("o2")));
+      const cleared = await controller.edit(USER, ...table, "o2", {
+        notes: null,
+      });
+      assert.deepEqual(wire(cleared), wire(await listed("o2")));
+    } finally {
+      const row = before as Record<string, unknown>;
+      await shop()
+        .instance(INSTANCE)
+        .table("orders" as never)
+        .get("o2" as never)
+        .replace(row as never)
+        .run();
+    }
   });
 });
 

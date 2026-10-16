@@ -21,6 +21,8 @@ The database console of the AntelopeJS DMS: schemas, diagrams, rows and queries.
 - Browses and fixes rows in any instance: edits are staged, reviewed, saved, and can be undone for ten seconds.
 - Runs AQL queries with completion and history, and a dry run before any query that writes.
 
+A saved row shows in place; the page is read again when a save may move rows (a sorted or filtered field, or a search).
+
 The pages and the module's API answer to the platform owner only.
 
 ## Install

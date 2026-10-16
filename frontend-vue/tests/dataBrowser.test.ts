@@ -7,7 +7,12 @@ import {
 	tabInstanceOf,
 } from '../app/build/composables/useDataBrowserTabs'
 import { cellLabel, draftText, parseDraft } from '../app/build/data/cellValues'
-import { changesOf, writeRows } from '../app/build/data/stagedWrites'
+import {
+	changesOf,
+	mayMoveRows,
+	withWrittenRow,
+	writeRows,
+} from '../app/build/data/stagedWrites'
 import {
 	instanceFromUrl,
 	instanceToUrl,
@@ -148,6 +153,24 @@ describe('staged writes', () => {
 		expect(settled).toEqual(['a'])
 	})
 
+	it('hands each row written its answer, and a row gone none', async () => {
+		const settled: [string, unknown][] = []
+		await writeRows(
+			rows,
+			async (id, body) => {
+				if (id === 'b')
+					throw Object.assign(new Error('gone'), { statusCode: 404 })
+				return { _id: id, ...body, stored: true }
+			},
+			(id, answer) => settled.push([id, answer]),
+		)
+		expect(settled).toEqual([
+			['a', { _id: 'a', name: 'A', stored: true }],
+			['b', undefined],
+			['c', { _id: 'c', name: 'C', stored: true }],
+		])
+	})
+
 	it('picks the changes of the rows written', () => {
 		const changes = [
 			{ rowId: 'a', field: 'x' },
@@ -158,6 +181,41 @@ describe('staged writes', () => {
 			{ rowId: 'a', field: 'x' },
 			{ rowId: 'a', field: 'y' },
 		])
+	})
+})
+
+describe('rows written in place', () => {
+	const idOf = (row: Record<string, unknown>) =>
+		row._id === undefined ? null : String(row._id)
+	const page = [
+		{ _id: 1, name: 'Ada', _instance: 'eu' },
+		{ _id: 2, name: 'Bob', _instance: 'eu' },
+	]
+
+	it('shows the row the server answered in place of the one read', () => {
+		expect(
+			withWrittenRow(page, { _id: 2, name: 'Bea', updated: true }, idOf),
+		).toEqual([
+			{ _id: 1, name: 'Ada', _instance: 'eu' },
+			{ _id: 2, name: 'Bea', updated: true, _instance: 'eu' },
+		])
+		expect(withWrittenRow(page, { _id: 3, name: 'Cy' }, idOf)).toEqual(page)
+		expect(withWrittenRow(page, { name: 'no id' }, idOf)).toBe(page)
+	})
+
+	it('reads the page again only when a write may move rows in or out of it', () => {
+		const plain = { sortKey: null, search: '', filtered: [] }
+		expect(mayMoveRows(['name'], plain)).toBe(false)
+		expect(mayMoveRows(['name'], { ...plain, sortKey: 'total' })).toBe(false)
+		expect(mayMoveRows(['name'], { ...plain, sortKey: 'name' })).toBe(true)
+		expect(mayMoveRows(['name'], { ...plain, filtered: ['status'] })).toBe(
+			false,
+		)
+		expect(
+			mayMoveRows(['name', 'status'], { ...plain, filtered: ['status'] }),
+		).toBe(true)
+		expect(mayMoveRows(['name'], { ...plain, search: 'ad' })).toBe(true)
+		expect(mayMoveRows([], plain)).toBe(false)
 	})
 })
 

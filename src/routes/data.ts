@@ -598,9 +598,6 @@ export class DatabaseBrowseController extends Controller(
     );
 
     const table = resolveTable(selection);
-    // The selection object is reused, but the validation read and the write
-    // still run as two separate queries: a row deleted between them makes the
-    // update touch zero rows while the endpoint still echoes the merged row.
     const target = table.get(id as never);
     const existing = await target;
     assert(existing && typeof existing === "object", 404, "Row not found");
@@ -608,7 +605,19 @@ export class DatabaseBrowseController extends Controller(
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
     const updates = buildEditUpdates(current, body, primaryKey);
     if (Object.keys(updates).length > 0) {
-      await target.update(updates as never).run();
+      const changed = await target.update(updates as never).run();
+      if (changed === 0) {
+        // The adapter counts modified rows, not matches. Zero can mean either
+        // a concurrent deletion or an unchanged value; only a read distinguishes
+        // them. Never echo a successful save of a row that no longer exists.
+        const persisted = await target;
+        assert(
+          persisted && typeof persisted === "object",
+          404,
+          "Row not found",
+        );
+        return persisted;
+      }
     }
     // The values are validated and type-stable, so echo the merged row rather
     // than paying a second read.

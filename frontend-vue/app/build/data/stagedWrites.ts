@@ -20,11 +20,11 @@ function statusOf(error: unknown): number | undefined {
 	return failure?.statusCode ?? failure?.status
 }
 
-export async function writeRows(
+export async function writeRows<T = unknown>(
 	rows: Iterable<[string, Record<string, unknown>]>,
-	write: (rowId: string, body: Record<string, unknown>) => Promise<unknown>,
-	/** Called once a row is settled: written, or gone. */
-	onSettled?: (rowId: string) => void,
+	write: (rowId: string, body: Record<string, unknown>) => Promise<T>,
+	/** Called once a row is settled: written, with the write's answer, or gone. */
+	onSettled?: (rowId: string, answer?: T) => void,
 ): Promise<RowWriteOutcome> {
 	const outcome: RowWriteOutcome = {
 		written: [],
@@ -37,8 +37,9 @@ export async function writeRows(
 			outcome.left.push(rowId)
 			continue
 		}
+		let answer: T | undefined
 		try {
-			await write(rowId, body)
+			answer = await write(rowId, body)
 			outcome.written.push(rowId)
 		} catch (error) {
 			if (statusOf(error) !== NOT_FOUND) {
@@ -49,7 +50,7 @@ export async function writeRows(
 			}
 			outcome.gone.push(rowId)
 		}
-		onSettled?.(rowId)
+		onSettled?.(rowId, answer)
 	}
 	return outcome
 }
@@ -61,4 +62,43 @@ export function changesOf<T extends { rowId: string }>(
 ): T[] {
 	const rows = new Set(rowIds)
 	return changes.filter((change) => rows.has(change.rowId))
+}
+
+/** How the rows of a grid page are narrowed and ordered. */
+export interface PageRefinement {
+	sortKey: string | null
+	search: string
+	/** The fields a column filter narrows, with a value. */
+	filtered: string[]
+}
+
+/**
+ * Whether writing `fields` may take rows in or out of the page, or move them
+ * in it: a field it is sorted or filtered by, or any field while a search
+ * runs (it matches every column). The page is then read again; otherwise
+ * the rows written stay where they are, as the server answered them.
+ */
+export function mayMoveRows(
+	fields: Iterable<string>,
+	refinement: PageRefinement,
+): boolean {
+	if (refinement.search !== '') return true
+	const narrowing = new Set(refinement.filtered)
+	if (refinement.sortKey) narrowing.add(refinement.sortKey)
+	for (const field of fields) if (narrowing.has(field)) return true
+	return false
+}
+
+/**
+ * `rows` with the row the server answered a write with in place of the one of
+ * the same id: the fields it holds replace theirs, the browse-only ones stay.
+ */
+export function withWrittenRow(
+	rows: Record<string, unknown>[],
+	written: Record<string, unknown>,
+	idOf: (row: Record<string, unknown>) => string | null,
+): Record<string, unknown>[] {
+	const id = idOf(written)
+	if (id === null) return rows
+	return rows.map((row) => (idOf(row) === id ? { ...row, ...written } : row))
 }
