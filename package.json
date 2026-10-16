@@ -1,6 +1,19 @@
 {
   "name": "@antelopejs/dms-database",
   "version": "0.2.0",
+  "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
+  "keywords": [
+    "admin",
+    "antelopejs",
+    "aql",
+    "database",
+    "dms",
+    "dms-module"
+  ],
+  "homepage": "https://dms.antelopejs.com/docs/modules/database",
+  "bugs": {
+    "url": "https://github.com/AntelopeJS/dms-database/issues"
+  },
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
