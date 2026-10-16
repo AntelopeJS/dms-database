@@ -58,7 +58,6 @@ const props = defineProps<{
 const emit = defineEmits<{ success: [] }>()
 
 const { t, n } = useI18n()
-const { $authFetch } = useAuthFetch()
 const staged = useStagedEdits()
 
 const active = ref<DrawerTab>('fields')
@@ -169,23 +168,21 @@ function setBoolean(field: string, value: boolean) {
 }
 
 // --- referenced by ---
-const references = ref<RowReference[] | null>(null)
-const referencesFailed = ref(false)
+// Read once the drawer opens, in the browser.
+const referencesRead = useApiData<{ items: RowReference[] }>(
+	() =>
+		props.rowId && !props.readOnly ? '/api/database/browse/references' : null,
+	{
+		query: () => ({ ...browseSelectionQuery(props.tab), id: props.rowId }),
+		immediate: false,
+		server: false,
+	},
+)
+const references = computed(() => referencesRead.data.value?.items ?? null)
+const referencesFailed = computed(() => referencesRead.status.value === 'error')
 
-async function loadReferences() {
-	if (!props.rowId || props.readOnly) return
-	referencesFailed.value = false
-	try {
-		const res = await $authFetch<{ items: RowReference[] }>(
-			'/api/database/browse/references',
-			{
-				query: { ...browseSelectionQuery(props.tab), id: props.rowId },
-			},
-		)
-		references.value = res.items
-	} catch {
-		referencesFailed.value = true
-	}
+function loadReferences() {
+	void referencesRead.execute()
 }
 
 onMounted(loadReferences)

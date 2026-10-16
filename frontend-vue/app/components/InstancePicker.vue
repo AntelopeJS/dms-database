@@ -40,75 +40,83 @@ const emit = defineEmits<{ 'update:modelValue': [choice: InstanceChoice] }>()
 const INSTANCES_ENDPOINT = '/api/database/tables/instances'
 const SEARCH_DEBOUNCE_MS = 250
 
-const { t, n } = useI18n()
-const { $authFetch } = useAuthFetch()
-
-const search = ref('')
-const open = ref(false)
-const names = ref<string[]>([])
-const matched = ref(0)
-// Named instances of the schema, before any search; null until known.
-const total = ref<number | null>(null)
-const status = ref<InstancesStatus>('idle')
-let request = 0
-let loadedKey: string | null = null
-
-async function load() {
-	const schema = props.schema
-	if (!schema) return
-	const term = search.value.trim()
-	const key = `${schema}\u0000${term}`
-	if (key === loadedKey) return
-	const current = ++request
-	status.value = 'pending'
-	try {
-		const res = await $authFetch<{ instances: string[]; total: number }>(
-			INSTANCES_ENDPOINT,
-			{
-				query: {
-					schema,
-					search: term || undefined,
-					limit: PICKER_LIMIT,
-				},
-			},
-		)
-		if (current !== request) return
-		names.value = res.instances
-		matched.value = res.total
-		if (!term) total.value = res.total
-		status.value = 'success'
-		loadedKey = key
-	} catch {
-		if (current === request) status.value = 'error'
-	}
+/** One read of a schema's named instances, with what it searched. */
+interface InstancesPage {
+	schema: string
+	term: string
+	instances: string[]
+	total: number
 }
 
-// Another schema, other instances: they load when the menu opens.
-watch(
-	() => props.schema,
-	() => {
-		request++
-		loadedKey = null
-		names.value = []
-		matched.value = 0
-		total.value = null
-		status.value = 'idle'
-		if (open.value) void load()
+const { t, n } = useI18n()
+
+const search = ref('')
+// What the server searches: the term once typing settles.
+const term = ref('')
+const open = ref(false)
+
+watchDebounced(search, (value) => (term.value = value.trim()), {
+	debounce: SEARCH_DEBOUNCE_MS,
+})
+
+// Read when the menu opens, in the browser only, never on the page's
+// refreshes: a closed menu shows nothing of it.
+const instances = useApiData<InstancesPage>(
+	() =>
+		props.schema
+			? `dms-database:instances:${JSON.stringify([props.schema, term.value])}`
+			: null,
+	async ({ $authFetch, signal }) => {
+		const schema = props.schema as string
+		const searched = term.value
+		const page = await $authFetch<{ instances: string[]; total: number }>(
+			INSTANCES_ENDPOINT,
+			{
+				query: { schema, search: searched || undefined, limit: PICKER_LIMIT },
+				signal,
+			},
+		)
+		return { schema, term: searched, ...page }
+	},
+	{
+		immediate: false,
+		server: false,
+		watch: false,
+		refreshOnPageRefresh: false,
 	},
 )
+
+// Another schema shows none of the previous one's instances while its own
+// load; another search keeps the previous matches on screen meanwhile.
+const page = computed(() => {
+	const value = instances.data.value
+	return value?.schema === props.schema ? value : null
+})
+const names = computed(() => page.value?.instances ?? [])
+const matched = computed(() => page.value?.total ?? 0)
+const status = computed(() => instances.status.value as InstancesStatus)
+
+// Named instances of the schema, before any search; null until known.
+const unsearched = shallowRef<InstancesPage | null>(null)
+watch(page, (value) => {
+	if (value && !value.term) unsearched.value = value
+})
+const total = computed(() =>
+	unsearched.value?.schema === props.schema ? unsearched.value.total : null,
+)
+
+function load() {
+	if (!open.value || !props.schema) return
+	if (instances.pending.value || instances.status.value === 'success') return
+	void instances.execute()
+}
+
+watch([() => props.schema, term], load)
 
 function onOpen(value: boolean) {
 	open.value = value
-	if (value) void load()
+	load()
 }
-
-watchDebounced(
-	search,
-	() => {
-		if (open.value) void load()
-	},
-	{ debounce: SEARCH_DEBOUNCE_MS },
-)
 
 const items = computed(() =>
 	instanceMenu({

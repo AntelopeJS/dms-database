@@ -8,7 +8,6 @@ import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import {
 	GRID_PAGE_SIZES,
 	browseListQuery,
-	browseParamsKey,
 	browseSelectionQuery,
 	useDataBrowserGrid,
 } from '../build/composables/useDataBrowserGrid'
@@ -63,7 +62,6 @@ const props = defineProps<{
 }>()
 
 const { t, n } = useI18n()
-const { $authFetch } = useAuthFetch()
 const router = useDmsRouter()
 const grid = useDataBrowserGrid()
 const staged = useStagedEdits()
@@ -75,12 +73,23 @@ const state = grid.getState(props.tab.id)
 const readOnly = computed(() => props.tab.instance === CROSS_INSTANCE_VALUE)
 
 // --- data loading ---
-const data = ref<GridData | null>(grid.getCache(props.tab.id))
-const loading = ref(false)
-const loadError = ref<string | null>(null)
-let requestSeq = 0
-// Column metadata only depends on the tab, so it is read once per mount.
-const columnsMeta = ref<ColumnsResponse | null>(null)
+const selection = computed(() => browseSelectionQuery(props.tab))
+// The columns sampled from the table: the table alone decides them. A
+// failure leaves the grid on the introspected fields.
+const columnsRead = useApiData<ColumnsResponse>(`${BROWSE_ENDPOINT}/columns`, {
+	query: selection,
+})
+// A page of rows, read again as the selection, the page, the sort, the search
+// or the filters change; the previous page stays on screen meanwhile.
+const listRead = useApiData<ListResponse>(`${BROWSE_ENDPOINT}/list`, {
+	query: () => ({ ...selection.value, ...browseListQuery(state) }),
+})
+const loading = computed(() => listRead.pending.value)
+const loadError = computed(() => {
+	const error = listRead.error.value
+	if (!error) return null
+	return error instanceof Error ? error.message : String(error)
+})
 
 function columnsOf(
 	meta: ColumnsResponse | null,
@@ -96,90 +105,36 @@ function columnsOf(
 	}))
 }
 
-async function fetchPage(force: boolean) {
-	const selection = browseSelectionQuery(props.tab)
-	const needColumns = force || columnsMeta.value === null
-	return Promise.all([
-		needColumns
-			? // A columns failure must not discard the rows: the grid falls back
-				// to the introspected fields.
-				$authFetch<ColumnsResponse>(`${BROWSE_ENDPOINT}/columns`, {
-					query: selection,
-				}).catch(() => null)
-			: Promise.resolve(columnsMeta.value),
-		$authFetch<ListResponse>(`${BROWSE_ENDPOINT}/list`, {
-			query: { ...selection, ...browseListQuery(state) },
-		}),
-	])
-}
-
-async function load(force = false) {
-	const key = browseParamsKey(props.tab, state)
-	const cached = grid.getCache(props.tab.id)
-	if (!force && cached && cached.paramsKey === key) {
-		// Retire a request in flight: its late answer would overwrite the cache
-		// with rows for parameters the user has left.
-		requestSeq += 1
-		data.value = cached
-		loadError.value = null
-		loading.value = false
-		return
+const data = computed<GridData | null>(() => {
+	const list = listRead.data.value
+	if (!list) return null
+	const meta = columnsRead.data.value
+	const primaryKey = list.primaryKey ?? meta?.primaryKey ?? null
+	return {
+		columns: columnsOf(meta, primaryKey),
+		rows: list.results ?? [],
+		total: list.total ?? 0,
+		primaryKey,
 	}
-	const seq = ++requestSeq
-	loading.value = true
-	loadError.value = null
-	try {
-		const [columnsRes, listRes] = await fetchPage(force)
-		if (seq !== requestSeq) return
-		if (columnsRes) columnsMeta.value = columnsRes
-		const primaryKey =
-			listRes.primaryKey ?? columnsMeta.value?.primaryKey ?? null
-		const next: GridData = {
-			columns: columnsOf(columnsMeta.value, primaryKey),
-			rows: listRes.results ?? [],
-			total: listRes.total ?? 0,
-			primaryKey,
-			paramsKey: key,
-		}
-		grid.setCache(props.tab.id, next)
-		data.value = next
-		if (
-			editing.value &&
-			rowIdOf(next.rows[editing.value.r] ?? {}) !== editing.value.rowId
-		) {
-			cancelEdit()
-		}
-		// Rows deleted elsewhere can leave the page past the end.
-		if (next.total > 0 && state.page * state.pageSize >= next.total) {
-			state.page = Math.max(0, Math.ceil(next.total / state.pageSize) - 1)
-		}
-	} catch (error) {
-		if (seq !== requestSeq) return
-		loadError.value = error instanceof Error ? error.message : String(error)
-	} finally {
-		if (seq === requestSeq) loading.value = false
+})
+
+watch(data, (next) => {
+	if (!next) return
+	if (
+		editing.value &&
+		rowIdOf(next.rows[editing.value.r] ?? {}) !== editing.value.rowId
+	) {
+		cancelEdit()
 	}
-}
-
-watch(
-	() => browseParamsKey(props.tab, state),
-	() => load(),
-	{ immediate: true },
-)
-
-// A table cached empty while the schemas were still loading recovers once
-// its introspected fields arrive.
-watch(
-	() => props.table,
-	(table) => {
-		if (table && (data.value?.columns.length ?? 0) === 0 && !loading.value)
-			load(true)
-	},
-)
+	// Rows deleted elsewhere can leave the page past the end.
+	if (next.total > 0 && state.page * state.pageSize >= next.total) {
+		state.page = Math.max(0, Math.ceil(next.total / state.pageSize) - 1)
+	}
+})
 
 function reload() {
-	grid.invalidate(props.tab.id)
-	load(true)
+	void columnsRead.refresh()
+	void listRead.refresh()
 }
 
 const columns = computed(() => data.value?.columns ?? [])
@@ -237,7 +192,6 @@ watch(searchDraft, (value) => {
 })
 onBeforeUnmount(() => {
 	clearTimeout(searchTimer)
-	requestSeq += 1
 	const value = searchDraft.value.trim()
 	if (value !== state.search) {
 		state.search = value

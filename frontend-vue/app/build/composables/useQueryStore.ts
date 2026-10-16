@@ -1,5 +1,4 @@
 export type QueryLanguage = 'aql'
-export type QueryScope = 'me' | 'shared'
 
 export interface SavedQuery {
 	id: string
@@ -68,31 +67,61 @@ import { HISTORY_KEPT } from '../query/runs'
 
 const QUERY_BASE = '/api/database/query'
 
+/**
+ * The query console's library and requests. The library (the caller's saved
+ * queries, the team's shared ones, the runs the server keeps) is read as the
+ * console sets up: a server render reads it and hands it over with the page.
+ * Every write is a request of its own, after which the console refreshes
+ * the part of the library it changed.
+ */
 export function useQueryStore() {
 	const { $authFetch } = useAuthFetch()
 
-	const savedQueries = ref<SavedQuery[]>([])
-	const historyItems = ref<HistoryEntry[]>([])
+	const saved = useApiData<{ items: SavedQuery[] }>(`${QUERY_BASE}/saved`, {
+		query: { scope: 'me' },
+	})
+	const shared = useApiData<{ items: SavedQuery[] }>(`${QUERY_BASE}/saved`, {
+		query: { scope: 'shared' },
+	})
+	const history = useApiData<{ items: HistoryEntry[] }>(
+		`${QUERY_BASE}/history`,
+		{ query: { limit: HISTORY_KEPT } },
+	)
+	const reads = [saved, shared, history]
 
-	async function fetchSaved(scope: QueryScope): Promise<void> {
-		const response = await $authFetch<{ items: SavedQuery[] }>(
-			`${QUERY_BASE}/saved`,
-			{ query: { scope } },
-		)
-		savedQueries.value = response.items ?? []
+	/** The saved queries and the shared ones, read again. */
+	async function refreshSaved(): Promise<void> {
+		await Promise.all([saved.refresh(), shared.refresh()])
 	}
 
+	// A run a link names (`?history=`), read when the console opens it.
+	const entryId = shallowRef<string | null>(null)
+	const entry = useApiData<HistoryEntry>(
+		() =>
+			entryId.value
+				? `${QUERY_BASE}/history/${encodeURIComponent(entryId.value)}`
+				: null,
+		{
+			immediate: false,
+			server: false,
+			watch: false,
+			refreshOnPageRefresh: false,
+		},
+	)
+
 	async function fetchHistoryEntry(id: string): Promise<HistoryEntry> {
-		return $authFetch<HistoryEntry>(
-			`${QUERY_BASE}/history/${encodeURIComponent(id)}`,
-		)
+		entryId.value = id
+		await entry.execute()
+		if (entry.error.value || !entry.data.value)
+			throw entry.error.value ?? new Error('History entry not read')
+		return entry.data.value
 	}
 
 	async function clearHistory(): Promise<void> {
 		await $authFetch<{ success: boolean }>(`${QUERY_BASE}/history`, {
 			method: 'DELETE',
 		})
-		historyItems.value = []
+		history.data.value = { items: [] }
 	}
 
 	async function dryRun(query: Record<string, unknown>): Promise<DryRunResult> {
@@ -100,15 +129,6 @@ export function useQueryStore() {
 			method: 'POST',
 			body: { query },
 		})
-	}
-
-	/** Every run the server keeps, at once. */
-	async function fetchHistory(): Promise<void> {
-		const response = await $authFetch<{ items: HistoryEntry[] }>(
-			`${QUERY_BASE}/history`,
-			{ query: { limit: HISTORY_KEPT } },
-		)
-		historyItems.value = response.items ?? []
 	}
 
 	async function executeQuery(
@@ -147,10 +167,22 @@ export function useQueryStore() {
 	}
 
 	return {
-		savedQueries,
-		historyItems,
-		fetchSaved,
-		fetchHistory,
+		/** The caller's saved queries. A failed refresh keeps the last list. */
+		savedQueries: computed(() => saved.data.value?.items ?? []),
+		/** The queries shared with the team, the caller's own included. */
+		sharedQueries: computed(() => shared.data.value?.items ?? []),
+		/** Every run the server keeps, newest first. */
+		historyItems: computed(() => history.data.value?.items ?? []),
+		/** The library's first read is still running. */
+		libraryLoading: computed(() =>
+			reads.some(
+				(read) => read.data.value === null && read.status.value !== 'error',
+			),
+		),
+		/** Settles once the library's first read did, failed or not. */
+		libraryRead: Promise.all(reads).then(() => undefined),
+		refreshSaved,
+		refreshHistory: () => history.refresh(),
 		fetchHistoryEntry,
 		clearHistory,
 		dryRun,

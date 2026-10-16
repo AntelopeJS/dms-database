@@ -1,7 +1,7 @@
 import { type BrowserTab, DEFAULT_INSTANCE_VALUE } from './useDataBrowserTabs'
-// Per-tab grid state (paging, sort, filters, column widths) and a data cache
-// so switching tabs restores instantly without a refetch. Keyed by
-// BrowserTab.id.
+// Per-tab grid state (paging, sort, filters, column widths), keyed by
+// BrowserTab.id. The rows themselves are `useApiData`'s: a tab switched back
+// to shows its last page at once and reads it again.
 
 export interface ColumnFilterState {
 	mode: 'is' | 'contains'
@@ -31,9 +31,6 @@ export interface GridData {
 	rows: Record<string, unknown>[]
 	total: number
 	primaryKey: string | null
-	// Serialised query parameters that produced this payload; lets the grid
-	// skip refetching when nothing changed.
-	paramsKey: string
 }
 
 export const GRID_PAGE_SIZES = [25, 50, 100, 200]
@@ -55,32 +52,15 @@ export function useDataBrowserGrid() {
 		'dms-database-grid-states',
 		() => ({}),
 	)
-	const cache = useDmsState<Record<string, GridData>>(
-		'dms-database-grid-cache',
-		() => ({}),
-	)
 
 	function getState(tabId: string): GridState {
 		if (!states.value[tabId]) states.value[tabId] = defaultGridState()
 		return states.value[tabId]
 	}
 
-	function getCache(tabId: string): GridData | null {
-		return cache.value[tabId] ?? null
-	}
-
-	function setCache(tabId: string, data: GridData) {
-		cache.value[tabId] = data
-	}
-
-	function invalidate(tabId: string) {
-		Reflect.deleteProperty(cache.value, tabId)
-	}
-
 	// Forget everything about a closed tab.
 	function drop(tabId: string) {
 		Reflect.deleteProperty(states.value, tabId)
-		Reflect.deleteProperty(cache.value, tabId)
 	}
 
 	// A tab switched to another instance keeps what the user narrowed the
@@ -94,10 +74,9 @@ export function useDataBrowserGrid() {
 			columnWidths: { ...from.columnWidths },
 			page: 0,
 		}
-		Reflect.deleteProperty(cache.value, toId)
 	}
 
-	return { getState, getCache, setCache, invalidate, drop, carry }
+	return { getState, drop, carry }
 }
 
 // --- query helpers shared by the grid ---
@@ -161,17 +140,4 @@ export function browseListQuery(
 		query[`filter_${field}`] = filterToken(filter.mode, filter.value)
 	}
 	return query
-}
-
-// Everything that changes the server payload (column widths deliberately not).
-export function browseParamsKey(tab: BrowserTab, state: GridState): string {
-	return JSON.stringify([
-		tab.id,
-		state.page,
-		state.pageSize,
-		state.sortKey,
-		state.sortDirection,
-		state.search,
-		activeFilterEntries(state),
-	])
 }

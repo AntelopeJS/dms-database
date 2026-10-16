@@ -54,3 +54,27 @@ describe('locale messages', () => {
 		)
 	})
 })
+
+// `<i18n-t>` looks for its component's own messages first; the module's
+// components have none, and vue-i18n warns on each page that renders one
+// ("Not found parent scope"). The module's messages are global: say so.
+const COMPONENTS_DIR = join(import.meta.dirname, '../app')
+
+function vueFiles(dir: string): string[] {
+	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+		const path = join(dir, entry.name)
+		if (entry.isDirectory()) return vueFiles(path)
+		return entry.name.endsWith('.vue') ? [path] : []
+	})
+}
+
+describe('translated templates', () => {
+	it('reads every <i18n-t> from the global messages', () => {
+		const unscoped = vueFiles(COMPONENTS_DIR).flatMap((file) =>
+			(readFileSync(file, 'utf8').match(/<i18n-t\b[^>]*>/g) ?? [])
+				.filter((tag) => !/\sscope="global"/.test(tag))
+				.map((tag) => `${file.slice(COMPONENTS_DIR.length)}: ${tag}`),
+		)
+		expect(unscoped).toEqual([])
+	})
+})

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDatabaseHealth } from '../build/composables/useDatabaseHealth'
-import { useIntervalFn, useNow } from '@vueuse/core'
+import { useNow } from '@vueuse/core'
 
 // The overview's health hero: whether the database answers, how fast, and
 // what it holds. The probe runs again every PROBE_INTERVAL_MS while the page
@@ -10,10 +10,16 @@ const SECOND_MS = 1000
 const MINUTE_S = 60
 
 const { t, n, locale } = useI18n()
-const { health, isLoading, error, refresh } = useDatabaseHealth()
-const now = useNow({ interval: SECOND_MS })
-
-useIntervalFn(() => refresh(), PROBE_INTERVAL_MS)
+const { health, isLoading, error, refresh } = useDatabaseHealth({
+	refreshInterval: PROBE_INTERVAL_MS,
+})
+const clock = useNow({ interval: SECOND_MS })
+// The probe's own time until the page is mounted: the server renders the age
+// a few seconds before the browser hydrates it, and both must write the same.
+const mounted = ref(false)
+onMounted(() => {
+	mounted.value = true
+})
 
 // A failed health request is a lost connection too: the route answers
 // whenever the backend is up.
@@ -24,12 +30,9 @@ const isDown = computed(
 const checkedAgo = computed(() => {
 	const checkedAt = health.value.checkedAt
 	if (!checkedAt) return ''
-	const seconds = Math.max(
-		0,
-		Math.round(
-			(now.value.getTime() - new Date(checkedAt).getTime()) / SECOND_MS,
-		),
-	)
+	const checked = new Date(checkedAt).getTime()
+	const now = mounted.value ? clock.value.getTime() : checked
+	const seconds = Math.max(0, Math.round((now - checked) / SECOND_MS))
 	return seconds < MINUTE_S
 		? t('dms_database.overview.connection.checked_seconds', { count: seconds })
 		: t('dms_database.overview.connection.checked_minutes', {

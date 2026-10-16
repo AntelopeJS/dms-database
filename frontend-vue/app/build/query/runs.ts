@@ -33,45 +33,25 @@ export interface DayGroup<T> {
 	items: T[]
 }
 
-function dayKey(date: Date): string {
-	return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`
-}
-
-/** Entries by local calendar day, newest day first, in their given order. */
+/**
+ * Entries by calendar day, newest day first, in their given order. `dayOf`
+ * names a date's day: the reader's (`regionalDayKey`), so that a server
+ * render groups as the browser does.
+ */
 export function groupByDay<T>(
 	entries: T[],
 	dateOf: (entry: T) => string,
+	dayOf: (date: Date) => string,
 ): DayGroup<T>[] {
 	const groups = new Map<string, DayGroup<T>>()
 	for (const entry of entries) {
 		const date = new Date(dateOf(entry))
-		const key = dayKey(date)
+		const key = dayOf(date)
 		const group = groups.get(key) ?? { key, date, items: [] }
 		group.items.push(entry)
 		groups.set(key, group)
 	}
 	return [...groups.values()]
-}
-
-const DAY_MS = 86_400_000
-
-/** "Today", "Yesterday" or the date, in the interface language. */
-export function dayLabel(
-	date: Date,
-	locale: string,
-	words: { today: string; yesterday: string },
-): string {
-	const today = new Date()
-	today.setHours(0, 0, 0, 0)
-	const day = new Date(date)
-	day.setHours(0, 0, 0, 0)
-	const days = Math.round((today.getTime() - day.getTime()) / DAY_MS)
-	if (days === 0) return words.today
-	if (days === 1) return words.yesterday
-	return new Intl.DateTimeFormat(locale, {
-		day: 'numeric',
-		month: 'short',
-	}).format(date)
 }
 
 export type UnknownKind = 'schema' | 'instance' | 'table'

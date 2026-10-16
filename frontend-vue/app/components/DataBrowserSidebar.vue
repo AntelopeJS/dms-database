@@ -6,10 +6,11 @@ import {
 	tabInstanceOf,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
-import { isFilterToken } from '../build/composables/useDataBrowserGrid'
+import { useTableCounts } from '../build/composables/useTableCounts'
 import type { InstanceChoice } from '../build/data/instanceOptions'
 import { onKeyStroke } from '@vueuse/core'
 import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
+import { instanceFromUrl } from '../build/utils/databaseLinks'
 import InstancePicker from './InstancePicker.vue'
 import SchemaPicker from './SchemaPicker.vue'
 
@@ -19,13 +20,6 @@ import SchemaPicker from './SchemaPicker.vue'
 // instance. A
 // table open in a tab carries a hollow ring, the active one included: the
 // fill of the row says which is shown.
-
-const TABLES_ENDPOINT = '/api/database/browse/tables'
-
-interface TableEntry {
-	name: string
-	elementCount: number
-}
 
 const props = defineProps<{
 	schemas: SchemaSummary[]
@@ -38,7 +32,6 @@ const props = defineProps<{
 const emit = defineEmits<{ retry: [] }>()
 
 const { t, n } = useI18n()
-const { $authFetch } = useAuthFetch()
 const { tabs, activeId, activeTab, activations, openTab } = useDataBrowserTabs()
 const route = useDmsRoute()
 
@@ -49,13 +42,17 @@ const filterInput = useTemplateRef<{ inputRef?: HTMLInputElement }>(
 	'filterInput',
 )
 
-// A schema-only link (?schema=X with no table) picks the schema; otherwise
-// the active tab leads, then the first schema. A schema or instance picked
-// here holds until the user goes to a tab (another one, or the same again).
+// The schema a link names (?schema=X) leads, else the first one; once a tab
+// is active, it leads. A table link (?schema=X&table=Y) opens its tab once
+// mounted, in the instance it names: that scope is shown from the start, so
+// the server renders the counts the browser keeps. A schema or instance
+// picked here holds until the user goes to a tab (another one, or the same
+// again).
 const linkedSchema =
-	typeof route.query.schema === 'string' && !route.query.table
-		? route.query.schema
-		: null
+	typeof route.query.schema === 'string' ? route.query.schema : null
+const linkedInstance = route.query.table
+	? tabInstanceOf(instanceFromUrl(route.query.instance))
+	: DEFAULT_INSTANCE_VALUE
 
 watch(
 	[activeId, activations],
@@ -74,6 +71,7 @@ watch(
 		if (schemaId.value || list.length === 0) return
 		const linked = list.find((schema) => schema.id === linkedSchema)
 		schemaId.value = linked?.id ?? list[0]?.id ?? null
+		if (linked) instance.value = linkedInstance
 	},
 	{ immediate: true },
 )
@@ -111,32 +109,7 @@ const instanceName = computed(() => {
 })
 
 // --- tables and their counts in the picked instance ---
-const counts = ref<Record<string, number>>({})
-const countsFailed = ref(false)
-
-watch(
-	[schemaId, instance],
-	async ([id, picked]) => {
-		counts.value = {}
-		countsFailed.value = false
-		if (!id) return
-		const query: Record<string, string> = { filter_schema: isFilterToken(id) }
-		if (picked !== DEFAULT_INSTANCE_VALUE)
-			query.filter_instance = isFilterToken(picked)
-		try {
-			const res = await $authFetch<{ items: TableEntry[] }>(TABLES_ENDPOINT, {
-				query,
-			})
-			if (schemaId.value !== id || instance.value !== picked) return
-			counts.value = Object.fromEntries(
-				res.items.map((item) => [item.name, item.elementCount]),
-			)
-		} catch {
-			if (schemaId.value === id) countsFailed.value = true
-		}
-	},
-	{ immediate: true },
-)
+const { counts, failed: countsFailed } = useTableCounts(schemaId, instance)
 
 const openIds = computed(() => new Set(tabs.value.map((tab) => tab.id)))
 
@@ -327,7 +300,12 @@ onKeyStroke('t', (event) => {
 			<span v-if="countsFailed">
 				{{ t('dms_database.data.scope.counts_failed') }}
 			</span>
-			<i18n-t v-else keypath="dms_database.data.scope.counts_for" tag="span">
+			<i18n-t
+				v-else
+				keypath="dms_database.data.scope.counts_for"
+				tag="span"
+				scope="global"
+			>
 				<template #instance>
 					<span class="text-primary font-mono">{{ instanceName }}</span>
 				</template>

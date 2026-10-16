@@ -32,6 +32,13 @@ export type DiagramNoteUpdate = Partial<
 	Pick<DiagramNote, 'text' | 'x' | 'y' | 'width' | 'height' | 'color'>
 >
 
+/** A schema's diagram as stored: its layout and its notes. */
+export interface StoredDiagram {
+	schema: string
+	positions: DiagramPositions
+	notes: DiagramNote[]
+}
+
 const BASE = '/api/database/diagram'
 // A request that hangs fails after this (ofetch's own `timeout`), so the
 // canvas shows the error and its "Try again" instead of "Saving…" forever.
@@ -40,12 +47,47 @@ const REQUEST_TIMEOUT_MS = 15_000
 export function useDiagramPersistence() {
 	const { $authFetch } = useAuthFetch()
 
-	async function fetchLayout(schema: string): Promise<DiagramPositions> {
-		const res = await $authFetch<{ positions: DiagramPositions }>(
-			`${BASE}/layout/${encodeURIComponent(schema)}`,
-			{ timeout: REQUEST_TIMEOUT_MS },
-		)
-		return res.positions ?? {}
+	// The schema whose diagram is read: in the browser only, when the canvas
+	// asks, since it draws and edits a working copy of it.
+	const readSchema = shallowRef<string | null>(null)
+	const stored = useApiData<StoredDiagram>(
+		() =>
+			readSchema.value ? `dms-database:diagram:${readSchema.value}` : null,
+		async ({ $authFetch: read, signal }) => {
+			const schema = readSchema.value as string
+			const [layout, notes] = await Promise.all([
+				read<{ positions: DiagramPositions }>(
+					`${BASE}/layout/${encodeURIComponent(schema)}`,
+					{ timeout: REQUEST_TIMEOUT_MS, signal },
+				),
+				read<{ items: DiagramNote[] }>(`${BASE}/notes`, {
+					query: { schema },
+					timeout: REQUEST_TIMEOUT_MS,
+					signal,
+				}),
+			])
+			return {
+				schema,
+				positions: layout.positions ?? {},
+				notes: notes.items ?? [],
+			}
+		},
+		{
+			immediate: false,
+			server: false,
+			watch: false,
+			refreshOnPageRefresh: false,
+		},
+	)
+
+	/** Reads a schema's layout and notes; throws when they cannot be read. */
+	async function readDiagram(schema: string): Promise<StoredDiagram> {
+		readSchema.value = schema
+		await stored.execute()
+		const diagram = stored.data.value
+		if (stored.error.value || diagram?.schema !== schema)
+			throw stored.error.value ?? new Error('Diagram not read')
+		return diagram
 	}
 
 	async function saveLayout(
@@ -60,14 +102,6 @@ export function useDiagramPersistence() {
 				timeout: REQUEST_TIMEOUT_MS,
 			},
 		)
-	}
-
-	async function fetchNotes(schema: string): Promise<DiagramNote[]> {
-		const res = await $authFetch<{ items: DiagramNote[] }>(`${BASE}/notes`, {
-			query: { schema },
-			timeout: REQUEST_TIMEOUT_MS,
-		})
-		return res.items ?? []
 	}
 
 	async function createNote(payload: DiagramNoteCreate): Promise<DiagramNote> {
@@ -97,9 +131,8 @@ export function useDiagramPersistence() {
 	}
 
 	return {
-		fetchLayout,
+		readDiagram,
 		saveLayout,
-		fetchNotes,
 		createNote,
 		updateNote,
 		deleteNote,

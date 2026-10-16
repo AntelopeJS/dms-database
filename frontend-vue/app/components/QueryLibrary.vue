@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import {
-	dayLabel,
 	groupByDay,
 	HISTORY_KEPT,
 	RUN_DOT_CLASSES,
@@ -38,7 +37,10 @@ const emit = defineEmits<{
 	'clear-history': []
 }>()
 
-const { t, n, locale } = useI18n()
+const { t, n } = useI18n()
+// Times and days in the user's time zone, which a server render writes in
+// the browser's: the HTML shows what the browser shows.
+const { dateTimeFormat } = useRegionalFormat()
 
 const tab = ref<LibraryTab>('history')
 const search = ref('')
@@ -76,14 +78,17 @@ const historyGroups = computed(() =>
 			matches(entry.source, entry.error, target),
 		),
 		({ entry }) => entry.executedAt,
-	).map((group) => ({
-		...group,
-		label: dayLabel(group.date, locale.value, {
-			today: t('dms_database.query.library.today'),
-			yesterday: t('dms_database.query.library.yesterday'),
-		}),
-	})),
+		regionalDayKey,
+	).map((group) => ({ ...group, label: dayLabel(group.date) })),
 )
+
+/** "Today", "Yesterday" or the date. */
+function dayLabel(date: Date): string {
+	const daysAgo = regionalDayNumber(new Date()) - regionalDayNumber(date)
+	if (daysAgo === 0) return t('dms_database.query.library.today')
+	if (daysAgo === 1) return t('dms_database.query.library.yesterday')
+	return dateTimeFormat({ day: 'numeric', month: 'short' }).format(date)
+}
 
 const savedItems = computed(() =>
 	(tab.value === 'team' ? props.team : props.saved).filter((query) =>
@@ -92,10 +97,9 @@ const savedItems = computed(() =>
 )
 
 function time(iso: string): string {
-	return new Intl.DateTimeFormat(locale.value, {
-		hour: '2-digit',
-		minute: '2-digit',
-	}).format(new Date(iso))
+	return dateTimeFormat({ hour: '2-digit', minute: '2-digit' }).format(
+		new Date(iso),
+	)
 }
 
 function runMeta(entry: HistoryEntry): string {
@@ -116,10 +120,9 @@ function runMeta(entry: HistoryEntry): string {
 }
 
 function savedMeta(query: SavedQuery): string {
-	const date = new Intl.DateTimeFormat(locale.value, {
-		day: 'numeric',
-		month: 'short',
-	}).format(new Date(query.updatedAt ?? query.createdAt))
+	const date = dateTimeFormat({ day: 'numeric', month: 'short' }).format(
+		new Date(query.updatedAt ?? query.createdAt),
+	)
 	return query.ownerName ? `${query.ownerName} · ${date}` : date
 }
 

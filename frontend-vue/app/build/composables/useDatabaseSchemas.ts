@@ -110,8 +110,7 @@ export function inboundRelationsIn(
 }
 
 export function useDatabaseSchemas() {
-	const { useFetchAuth } = useAuthFetch()
-	const { data, pending, error, status, refresh } = useFetchAuth<{
+	const { data, pending, error, status, refresh } = useApiData<{
 		schemas: SchemaSummary[]
 	}>(SCHEMAS_ENDPOINT, { default: () => EMPTY_SCHEMAS })
 
