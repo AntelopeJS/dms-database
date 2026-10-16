@@ -258,6 +258,12 @@ describe("[integration] v2 redesign: edits", () => {
       });
       assert.deepEqual(wire(answer), wire(await listed("o2")));
       assert.equal(wire(answer).created_at, "2026-10-06T09:00:00.000Z");
+      // MongoDB reports zero modified rows when the submitted value already
+      // matches. That is still a successful edit, not a missing row.
+      const unchanged = await controller.edit(USER, ...table, "o2", {
+        status: "shipped",
+      });
+      assert.deepEqual(wire(unchanged), wire(await listed("o2")));
       const cleared = await controller.edit(USER, ...table, "o2", {
         notes: null,
       });
