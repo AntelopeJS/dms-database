@@ -34,10 +34,14 @@ const EMPTY_HEALTH: OverviewHealth = {
 	storage: [],
 }
 
-export function useDatabaseHealth() {
+/** `refreshInterval` probes again on that interval while the page shows it. */
+export function useDatabaseHealth(options: { refreshInterval?: number } = {}) {
 	const { data, pending, error, refresh } = useApiData<OverviewHealth>(
 		HEALTH_ENDPOINT,
-		{ default: () => ({ ...EMPTY_HEALTH }) },
+		{
+			default: () => ({ ...EMPTY_HEALTH }),
+			refreshInterval: options.refreshInterval,
+		},
 	)
 
 	return {

@@ -76,7 +76,7 @@ vi.stubGlobal('useToast', () => ({ add: noop }))
 vi.stubGlobal('useConfirm', () => ({ confirm: async () => false }))
 vi.stubGlobal('useDrawer', () => ({ open: noop }))
 vi.stubGlobal('useUnsavedChanges', noop)
-vi.stubGlobal('useUserSession', () => ({
+vi.stubGlobal('useDmsUserSession', () => ({
 	user: vue.ref({ _id: 'me' }),
 	loggedIn: vue.ref(true),
 }))

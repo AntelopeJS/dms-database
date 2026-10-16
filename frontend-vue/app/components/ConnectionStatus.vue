@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useDatabaseHealth } from '../build/composables/useDatabaseHealth'
-import { useIntervalFn, useNow } from '@vueuse/core'
+import { useNow } from '@vueuse/core'
 
 // The overview's health hero: whether the database answers, how fast, and
 // what it holds. The probe runs again every PROBE_INTERVAL_MS while the page
@@ -10,7 +10,9 @@ const SECOND_MS = 1000
 const MINUTE_S = 60
 
 const { t, n, locale } = useI18n()
-const { health, isLoading, error, refresh } = useDatabaseHealth()
+const { health, isLoading, error, refresh } = useDatabaseHealth({
+	refreshInterval: PROBE_INTERVAL_MS,
+})
 const clock = useNow({ interval: SECOND_MS })
 // The probe's own time until the page is mounted: the server renders the age
 // a few seconds before the browser hydrates it, and both must write the same.
@@ -18,8 +20,6 @@ const mounted = ref(false)
 onMounted(() => {
 	mounted.value = true
 })
-
-useIntervalFn(() => refresh(), PROBE_INTERVAL_MS)
 
 // A failed health request is a lost connection too: the route answers
 // whenever the backend is up.

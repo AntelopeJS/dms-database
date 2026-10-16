@@ -52,7 +52,7 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const { confirm } = useConfirm()
 const toast = useToast()
-const { user } = useUserSession()
+const { user } = useDmsUserSession()
 const store = useQueryStore()
 const { schemas } = useDatabaseSchemas()
 
