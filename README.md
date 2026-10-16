@@ -1,54 +1,100 @@
+<div align="center">
+
 # @antelopejs/dms-database
 
-<div align="center">
-<a href="./LICENSE"><img alt="License" src="https://img.shields.io/badge/license-Apache--2.0-blue?style=for-the-badge&labelColor=000000"></a>
-<a href="https://discord.gg/sjK28QHrA7"><img src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000" alt="Discord"></a>
-<a href="https://antelopejs.com"><img src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000" alt="Documentation"></a>
+<a href="https://www.npmjs.com/package/@antelopejs/dms-database"><img alt="npm" src="https://img.shields.io/npm/v/@antelopejs/dms-database?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="./LICENSE"><img alt="License" src="https://img.shields.io/npm/l/@antelopejs/dms-database?style=for-the-badge&labelColor=000000&color=000000"></a>
+<a href="https://discord.gg/sjK28QHrA7"><img alt="Discord" src="https://img.shields.io/badge/Discord-18181B?logo=discord&style=for-the-badge&color=000000"></a>
+<a href="https://dms.antelopejs.com/docs/modules/database"><img alt="Documentation" src="https://img.shields.io/badge/Docs-18181B?style=for-the-badge&color=000000"></a>
+
+The database console of the AntelopeJS DMS: schemas, diagrams, rows and queries.
+
 </div>
 
-Database administration for the AntelopeJS DMS. Under **Modules → Database**, the platform owner
-checks the connection, inspects every registered schema, draws its diagram, browses and fixes rows,
-and runs AQL queries with a dry run before any write.
+![The Database diagram: the tables and relations of a shop schema](./docs/images/diagram-shop.png)
 
-**Documentation:** [dms.antelopejs.com/docs/modules/database](https://dms.antelopejs.com/docs/modules/database)
-(source in [`docs/`](./docs)).
+## What it does
 
-## Installation
+- Checks the connection and its latency, with one card per registered schema and the largest tables.
+- Lists every table the loaded modules register, with its columns, indexes, relations and a sample row.
+- Draws the tables and relations of a schema, with a layout and notes shared by the whole team.
+- Browses and fixes rows in any instance: edits are staged, reviewed, saved, and can be undone for ten seconds.
+- Runs AQL queries with completion and history, and a dry run before any query that writes.
+
+The pages and the module's API answer to the platform owner only.
+
+## Install
+
+Run the AntelopeJS CLI from the root of a project that already loads `@antelopejs/dms`:
 
 ```bash
 ajs project modules add @antelopejs/dms-database
 ```
 
-The module requires `@antelopejs/dms` 0.9 (`@antelopejs/interface-dms` 0.7),
-`@antelopejs/dms-frontend` 0.6 and a Database implementation. See the
-[configuration](https://dms.antelopejs.com/docs/modules/database/configuration) for `driverLabel`
-and `schemaLabels`.
+## Quick start
 
-The package ships a Claude Code skill, `skills/dms-database`, declared in `antelopeJs.skills`.
+The module works without configuration. To show the database name on the Overview and label your schemas, add a `config` block:
 
-## Development
+```ts
+// antelope.config.ts
+"dms-database": {
+  source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.2.0 <1.0.0" },
+  config: {
+    driverLabel: "MongoDB 8.0",
+    schemaLabels: {
+      "app-*": { label: "Application", color: "info" },
+    },
+  },
+},
+```
+
+Restart the backend, then the frontend, sign in as the platform owner and open **Modules → Database** (`/modules/database/overview`).
+
+## Compatibility
+
+| Package | Version |
+| --- | --- |
+| `@antelopejs/dms` | `>=0.9.0 <1.0.0` |
+| `@antelopejs/interface-dms` | `>=0.7.0 <1.0.0` |
+| `@antelopejs/dms-frontend` (renderer) | `>=0.6.0 <0.7.0` |
+| Database | an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb` |
+
+On DMS 0.8, use `@antelopejs/dms-database` 0.1.
+
+## Documentation
+
+- [Introduction](https://dms.antelopejs.com/docs/modules/database/introduction)
+- [Installation](https://dms.antelopejs.com/docs/modules/database/installation)
+- [Configuration](https://dms.antelopejs.com/docs/modules/database/configuration)
+- [Usage](https://dms.antelopejs.com/docs/modules/database/usage/overview)
+- [Extending](https://dms.antelopejs.com/docs/modules/database/extending)
+- [FAQ](https://dms.antelopejs.com/docs/modules/database/faq)
+
+The guide's sources live in [`docs/`](./docs). The package also ships the `dms-database` Claude Code skill in [`skills/`](./skills), declared under `antelopeJs.skills`.
+
+## Contributing
+
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. The playground registers a `demo` schema and a `shop` schema with `eu` and `us` instances, seeded on first start.
 
 ```bash
 pnpm install
-pnpm build
+pnpm dev            # playground backend
+pnpm frontend:dev   # dashboard, in a second terminal
+pnpm lint
+pnpm typecheck
 pnpm test
 ```
 
-The module registers its Vue 3 frontend through `frontend-vue/dms.frontend.ts`, under the
-`DmsDatabase` component prefix: `app/components/DataBrowser.vue` is the `DmsDatabaseDataBrowser`
-the backend page names. The pages themselves are declared in `src/pages`, as DMS blocks plus the
-module's own components. Everything under `frontend-vue/app/build` is private to the layer and
-imported by path.
+<details>
+<summary>Repository notes</summary>
 
-The playground (`pnpm dev`, then `pnpm frontend:dev`) registers a `demo` schema
-and a `shop` schema with `eu` and `us` instances, seeded on first start.
+- The module registers its Vue 3 frontend through `frontend-vue/dms.frontend.ts`, under the `DmsDatabase` component prefix: `app/components/DataBrowser.vue` is the `DmsDatabaseDataBrowser` the backend page names. The pages are declared in `src/pages`, as DMS blocks plus the module's own components. Everything under `frontend-vue/app/build` is private to the layer and imported by path.
+- Run `pnpm --dir frontend-vue install` and `pnpm --dir frontend-vue test` for the frontend tests. Set `DMS_FRONTEND_WORKSPACE` to a generated Inertia workspace before running `pnpm --dir frontend-vue typecheck`.
+- `DMS_SOURCE=/absolute/path/to/dms pnpm test` tests against a local DMS runtime with disposable MongoDB and filesystem storage. Only the test harness loads that runtime; the types come from `@antelopejs/interface-dms`.
+- `docs/design/redesign-v2-grill.md` records the decisions behind the v2 redesign.
 
-`docs/design/redesign-v2-grill.md` records the decisions behind the v2 redesign.
+</details>
 
-Run `pnpm --dir frontend-vue install` and `pnpm --dir frontend-vue test` for frontend tests. Set
-`DMS_FRONTEND_WORKSPACE` to a generated Inertia workspace before running
-`pnpm --dir frontend-vue typecheck`.
+## License
 
-Run `DMS_SOURCE=/absolute/path/to/dms pnpm test` to test a local DMS runtime with disposable MongoDB
-and filesystem storage. Only the test harness loads the runtime; the types come from
-`@antelopejs/interface-dms`, so `pnpm typecheck` is unaffected by that path.
+[Apache-2.0](./LICENSE)
