@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-database",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
   "keywords": [
     "admin",

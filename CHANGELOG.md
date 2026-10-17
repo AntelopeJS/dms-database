@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.2.2
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.1...v0.2.2)
+
+### 🩹 Fixes
+
+- Install database frontend from the root workspace ([#47](https://github.com/AntelopeJS/dms-database/pull/47))
+- **catalog:** Remove obsolete database beta status ([#49](https://github.com/AntelopeJS/dms-database/pull/49))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.1
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.0...v0.2.1)
