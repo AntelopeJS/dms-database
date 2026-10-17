@@ -31,9 +31,6 @@ export const databaseModule = RegisterModule({
   landingPage: "overview",
   version: readVersion(),
   catalogCategory: "$dms_database.catalog_category",
-  // Saved edits write straight to the database while structure editing is
-  // still to come: the module says so on its catalog tile too.
-  status: () => "beta",
   readout: (context) => readCatalogReadout(context.user),
 });
 
