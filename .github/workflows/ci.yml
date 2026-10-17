@@ -35,13 +35,13 @@ jobs:
           # read a TypeScript config, which every value there clears.
           node-version-file: .nvmrc
           cache: pnpm
-          # frontend-vue is its own project with its own lockfile; without it
+          # frontend-vue retains its own lockfile; without it
           # the cache key ignores half of what the job installs.
           cache-dependency-path: |
             pnpm-lock.yaml
             frontend-vue/pnpm-lock.yaml
       # The root lint runs the frontend-vue eslint too.
-      - run: pnpm install --frozen-lockfile && pnpm --dir frontend-vue install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       - uses: AntelopeJS/tooling-configs/actions/docs@310e3d861b2da2244902854379176c91e1ebc68e
         with:
           files: |
@@ -66,7 +66,9 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend-vue/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
       # `ajs module test` packs and installs the package-sourced modules
       # (dms, mongodb, api...) into `.antelope/cache`, and mongodb-memory-server
@@ -106,7 +108,7 @@ jobs:
             pnpm-lock.yaml
             frontend-vue/pnpm-lock.yaml
       # The root install provides the DMS layer verify-source builds against.
-      - run: pnpm install --frozen-lockfile && pnpm --dir frontend-vue install --frozen-lockfile
+      - run: pnpm install --frozen-lockfile
       # vitest over the Vue module's helpers, composables and registration.
       - run: pnpm test:layer
       # Builds and type-checks the module inside a generated Inertia app with
