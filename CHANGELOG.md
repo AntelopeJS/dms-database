@@ -1,5 +1,24 @@
 # Changelog
 
+## v0.2.1
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.0...v0.2.1)
+
+### 🔥 Performance
+
+- **frontend:** Show the rows a save writes in place, without reading the page again ([#44](https://github.com/AntelopeJS/dms-database/pull/44))
+
+### 📖 Documentation
+
+- Add user guide and module skill ([#40](https://github.com/AntelopeJS/dms-database/pull/40))
+- Clarify Database integration boundaries and table declarations ([#45](https://github.com/AntelopeJS/dms-database/pull/45))
+- Make dense guide sections easier to scan ([#46](https://github.com/AntelopeJS/dms-database/pull/46))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.2.0
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.1.2...v0.2.0)
