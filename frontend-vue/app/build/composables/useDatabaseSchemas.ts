@@ -110,9 +110,10 @@ export function inboundRelationsIn(
 }
 
 export function useDatabaseSchemas() {
-	const { data, pending, error, status, refresh } = useApiData<{
+	const read = useApiData<{
 		schemas: SchemaSummary[]
 	}>(SCHEMAS_ENDPOINT, { default: () => EMPTY_SCHEMAS })
+	const { data, pending, error, status, refresh } = read
 
 	const schemas = computed(() => data.value?.schemas ?? [])
 
@@ -127,6 +128,12 @@ export function useDatabaseSchemas() {
 		),
 		error,
 		refresh,
+		/**
+		 * Settles once the first read is in, at once when the schemas were read
+		 * before. Awaited in a setup, a client navigation waits for the
+		 * schemas instead of showing the page without what they decide.
+		 */
+		ready: read.then(() => undefined),
 	}
 }
 
