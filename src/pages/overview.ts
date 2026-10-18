@@ -3,7 +3,6 @@ import { ActivityFeed } from "@antelopejs/interface-dms/base/activity-feed";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
-import { NavCardGrid } from "@antelopejs/interface-dms/base/nav-card-grid";
 import { Section } from "@antelopejs/interface-dms/base/section";
 import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
@@ -53,17 +52,12 @@ export class DatabaseOverviewPage extends PageController(
     description: "$dms_database.overview.schemas.description",
     card: false,
   })
+    // A NavCardGrid read with the page: the number of schemas decides its
+    // rows, so a client navigation waits for the cards instead of drawing
+    // placeholders of another count.
     .child(
       "cards",
-      NavCardGrid({
-        fetchUrl: "/api/database/overview/schemas",
-        columns: 3,
-        skeletonCount: 3,
-        empty: {
-          title: "$dms_database.overview.schemas.empty_title",
-          description: "$dms_database.overview.schemas.empty_description",
-        },
-      }).meta({
+      CustomComponent("DmsDatabaseSchemaCards").meta({
         name: "$dms_database.overview.schemas.cards_meta",
         icon: "i-ph-stack",
       }),
