@@ -13,6 +13,9 @@ import {
 // a neutral icon. Colour only marks structure: the primary key, and the
 // relation columns, which light up with the selected table's relations.
 
+// A table with many columns comes folded: its first columns and every column
+// an arrow ends on, then a row that unfolds it and folds it back.
+
 // The canvas keeps the selection in `data.selected`: Vue Flow's own one is
 // off for tables, so one table at most is drawn selected.
 const props = defineProps<{ data: TableNodeData }>()
@@ -32,7 +35,8 @@ const relationTargets = computed(
 )
 
 const rows = computed(() =>
-	Object.entries(props.data.table.fields).map(([name, descriptor]) => {
+	props.data.columns.map((name) => {
+		const descriptor = props.data.table.fields[name]
 		const key = isPrimaryKey(name, props.data.table.indexes ?? {})
 		const relation = relationTargets.value.get(name)
 		const role: ColumnRole = key ? 'key' : relation ? 'relation' : 'plain'
@@ -119,6 +123,26 @@ const rows = computed(() =>
 				<span class="text-dimmed ml-auto max-w-24 truncate pl-2 text-[10.5px]">
 					{{ row.type }}
 				</span>
+			</li>
+			<li v-if="data.foldable" class="h-6">
+				<!-- `nodrag`: a click unfolds the table instead of grabbing it. -->
+				<button
+					type="button"
+					class="nodrag text-muted hover:text-highlighted hover:bg-elevated focus-visible:ring-primary flex h-full w-full cursor-pointer items-center gap-1.5 pl-3 pr-2.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"
+					:aria-expanded="data.expanded"
+					@click.stop="data.onToggleColumns(data.tableName)"
+					@dblclick.stop
+				>
+					<UIcon
+						:name="data.expanded ? 'i-ph-caret-up' : 'i-ph-caret-down'"
+						class="size-3 shrink-0"
+					/>
+					{{
+						data.expanded
+							? $t('dms_database.diagram.columns.fold')
+							: $t('dms_database.diagram.columns.more', data.hiddenCount)
+					}}
+				</button>
 			</li>
 		</ul>
 	</div>
