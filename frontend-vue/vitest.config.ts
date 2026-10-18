@@ -25,5 +25,12 @@ export default defineConfig({
 			'vue-i18n': resolve(__dirname, 'tests/fixtures/vueI18n.ts'),
 		},
 	},
-	test: { environment: 'node', include: ['tests/**/*.test.ts'] },
+	test: {
+		environment: 'node',
+		include: ['tests/**/*.test.ts'],
+		// Still Node, but the components compiled for a browser (a client
+		// `render`, not the server's `ssrRender`): what a client navigation
+		// mounts.
+		testTransformMode: { web: ['**/clientNavigation.test.ts'] },
+	},
 })

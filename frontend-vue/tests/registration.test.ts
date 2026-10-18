@@ -31,6 +31,7 @@ it('registers every component under the module prefix the backend names', async 
 		'SchemaDiagram',
 		'DataBrowser',
 		'QueryConsole',
+		'SchemaCards',
 	]) {
 		expect(names).toContain(name)
 	}
