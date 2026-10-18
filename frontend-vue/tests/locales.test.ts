@@ -78,3 +78,51 @@ describe('translated templates', () => {
 		expect(unscoped).toEqual([])
 	})
 })
+
+// The backend pages name their texts by key: a key left behind in a page, or
+// a page block whose keys were dropped, shows the raw `$dms_database...` path.
+const PAGES_DIR = join(import.meta.dirname, '../../src/pages')
+
+function resolves(messages: Messages, key: string): boolean {
+	let node: string | Messages | undefined = messages
+	for (const part of key.split('.')) {
+		if (typeof node !== 'object') return false
+		node = node[part]
+	}
+	return typeof node === 'string'
+}
+
+describe('page texts', () => {
+	const pageKeys = readdirSync(PAGES_DIR)
+		.filter((file) => file.endsWith('.ts'))
+		.flatMap((file) => [
+			...readFileSync(join(PAGES_DIR, file), 'utf8').matchAll(
+				/"\$(dms_database\.[\w.]+)"/g,
+			),
+		])
+		.map(([, key]) => key)
+
+	it('finds the keys of the pages', () => {
+		expect(pageKeys.length).toBeGreaterThan(0)
+	})
+
+	it.each(files)('translates every key the pages name in %s', (file) => {
+		const messages = JSON.parse(
+			readFileSync(join(LOCALES_DIR, file), 'utf8'),
+		) as Messages
+		expect(pageKeys.filter((key) => !resolves(messages, key))).toEqual([])
+	})
+
+	it('shows no beta notice on the overview', () => {
+		const overview = readFileSync(join(PAGES_DIR, 'overview.ts'), 'utf8')
+		expect(overview).not.toMatch(/\bBanner\(/)
+		for (const file of files) {
+			const messages = JSON.parse(
+				readFileSync(join(LOCALES_DIR, file), 'utf8'),
+			) as Messages
+			expect(resolves(messages, 'dms_database.overview.beta.title')).toBe(
+				false,
+			)
+		}
+	})
+})
