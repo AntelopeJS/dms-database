@@ -65,7 +65,7 @@ function instanceLabel(instance: string): string {
 
 <template>
 	<div
-		class="border-default bg-default flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border md:flex-row"
+		class="border-default bg-default flex min-h-fit flex-1 flex-col overflow-hidden rounded-xl border md:min-h-0 md:flex-row"
 	>
 		<DataBrowserSidebar
 			:schemas="schemas"
@@ -73,7 +73,7 @@ function instanceLabel(instance: string): string {
 			:error="Boolean(schemasError)"
 			@retry="refreshSchemas()"
 		/>
-		<section class="flex min-h-0 min-w-0 flex-1 flex-col">
+		<section class="flex min-w-0 flex-1 flex-col md:min-h-0">
 			<DataBrowserTabBar />
 			<DataGrid
 				v-if="activeTab"
