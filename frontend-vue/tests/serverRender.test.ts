@@ -119,6 +119,20 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).toContain('>7<')
 	})
 
+	it('data browser: the table list stacks above the grid below md', async () => {
+		const page = await render(DataBrowser, {}, '/modules/database/data')
+		const root = page.html.match(/^<div class="([^"]*)"/)?.[1]?.split(' ')
+		const aside = page.html.match(/<aside class="([^"]*)"/)?.[1]?.split(' ')
+		expect(root).toEqual(expect.arrayContaining(['flex-col', 'md:flex-row']))
+		expect(aside).toEqual(
+			expect.arrayContaining(['w-full', 'max-h-[40vh]', 'border-b']),
+		)
+		expect(aside).toEqual(
+			expect.arrayContaining(['md:w-[264px]', 'md:max-h-none', 'md:border-r']),
+		)
+		expect(aside).not.toContain('w-[264px]')
+	})
+
 	it('query console: the library, saved, shared and run', async () => {
 		const page = await render(QueryConsole, {}, '/modules/database/query')
 		expect(page.reads.map((read) => read.url).sort()).toEqual([
