@@ -170,6 +170,28 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).toContain('9876')
 	})
 
+	it('table inspector: leaves the position and steps to the DMS header', async () => {
+		const page = await render(
+			TableInspector,
+			{
+				rowData: { schema: 'shop', name: 'orders' },
+				navigation: {
+					index: 2,
+					total: 87,
+					hasPrev: true,
+					hasNext: true,
+					prev: () => {},
+					next: () => {},
+				},
+			},
+			'/modules/database/schemas',
+		)
+		expect(page.html).toContain('orders')
+		expect(page.html).not.toMatch(/3\s*\/\s*87/)
+		expect(page.html).not.toContain('i-ph-caret-up')
+		expect(page.html).not.toContain('i-ph-caret-down')
+	})
+
 	it('schemas filter bar: the tables listed out of all', async () => {
 		const page = await render(
 			SchemasFilterBar,

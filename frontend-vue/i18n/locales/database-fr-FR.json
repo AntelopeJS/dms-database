@@ -84,6 +84,7 @@
 				"title": "Table",
 				"meta": "Inspecteur de table",
 				"meta_description": "Colonnes, index, relations et ligne exemple d'une table.",
+				"position": "Table {index} sur {total}",
 				"not_found": "Table introuvable"
 			},
 			"caption": "Tables",
@@ -491,8 +492,6 @@
 		"inspector": {
 			"load_error": "Impossible de charger les schémas de cette table.",
 			"eyebrow": "Schéma · {schema}",
-			"previous": "Table précédente (K)",
-			"next": "Table suivante (J)",
 			"instances": "{count} instance | {count} instances",
 			"copy_name": "Copier le nom de la table",
 			"copied": "{name} copié",

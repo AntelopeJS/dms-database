@@ -6,6 +6,7 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 import type { User } from "@antelopejs/interface-dms/auth/db";
+import { INSPECT_TARGET } from "../pages/schemas";
 import { DatabaseTablesController } from "../routes/tables";
 import { listSchemaSummaries } from "../service/introspect";
 import {
@@ -191,5 +192,17 @@ describe("Schemas filter bar parameters", () => {
     assert.deepEqual(filters.instance, { kind: "default" });
     assert.equal(filters.q, "invoice");
     assert.deepEqual(filters.has, []);
+  });
+});
+
+describe("Schemas page inspector", () => {
+  it("opens in a drawer whose DMS header names the table and its position", () => {
+    assert.equal(INSPECT_TARGET.type, "drawer");
+    assert.equal(INSPECT_TARGET.direction, "right");
+    assert.equal(INSPECT_TARGET.rowTitle, "{name}");
+    assert.equal(
+      INSPECT_TARGET.positionLabel,
+      "$dms_database.schemas.inspector.position",
+    );
   });
 });

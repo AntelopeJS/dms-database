@@ -84,6 +84,7 @@
 				"title": "Table",
 				"meta": "Table inspector",
 				"meta_description": "Columns, indexes, relations and a sample row of one table.",
+				"position": "Table {index} of {total}",
 				"not_found": "Table not found"
 			},
 			"caption": "Tables",
@@ -491,8 +492,6 @@
 		"inspector": {
 			"load_error": "Couldn't load the schemas of this table.",
 			"eyebrow": "Schema · {schema}",
-			"previous": "Previous table (K)",
-			"next": "Next table (J)",
 			"instances": "{count} instance | {count} instances",
 			"copy_name": "Copy table name",
 			"copied": "{name} copied",

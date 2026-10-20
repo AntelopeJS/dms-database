@@ -13,6 +13,24 @@ import { addSchemaFilters } from "../service/schemaFilters";
 // The row placeholders the table view fills in a page target.
 const TABLE_QUERY = "schema={{row.schema}}&table={{row.name}}";
 
+/**
+ * The table inspector, in a DMS drawer on the right: the DMS draws its row
+ * header (the table's name, "Table 3 of 87" over the whole list, previous /
+ * next, J / K, close), the inspector the table.
+ */
+export const INSPECT_TARGET = {
+  type: "drawer" as const,
+  direction: "right" as const,
+  title: "$dms_database.schemas.inspector.title",
+  rowTitle: "{name}",
+  positionLabel: "$dms_database.schemas.inspector.position",
+  component: CustomComponent("DmsDatabaseTableInspector").meta({
+    name: "$dms_database.schemas.inspector.meta",
+    icon: "i-ph-sidebar-simple",
+    description: "$dms_database.schemas.inspector.meta_description",
+  }),
+};
+
 const tables = TableView.fromSource({
   caption: "$dms_database.schemas.caption",
   fetchUrl: "/api/database/tables/source",
@@ -73,22 +91,12 @@ const tables = TableView.fromSource({
   rowActions: {
     custom: [
       {
-        // From the right, as on the diagram; J / K step through the rows
-        // as the table shows them, and the URL keeps the open table.
+        // A click on a row opens it; the URL keeps the open table.
         label: "$dms_database.schemas.actions.inspect",
         icon: "i-ph-sidebar-simple",
         isDefault: true,
         deepLink: true,
-        target: {
-          type: "drawer",
-          direction: "right",
-          title: "$dms_database.schemas.inspector.title",
-          component: CustomComponent("DmsDatabaseTableInspector").meta({
-            name: "$dms_database.schemas.inspector.meta",
-            icon: "i-ph-sidebar-simple",
-            description: "$dms_database.schemas.inspector.meta_description",
-          }),
-        },
+        target: INSPECT_TARGET,
       },
       {
         label: "$dms_database.schemas.actions.browse",
