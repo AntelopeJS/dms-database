@@ -7,6 +7,7 @@ import {
 import { useDiagramPersistence } from '../app/build/composables/useDiagramPersistence'
 import { useQueryStore } from '../app/build/composables/useQueryStore'
 import InstancePicker from '../app/components/InstancePicker.vue'
+import JsonCellPanel from '../app/components/JsonCellPanel.vue'
 import RowDrawer from '../app/components/RowDrawer.vue'
 
 // The reads the module makes on demand go through `useApiData` too
@@ -93,6 +94,27 @@ describe('server render: what only the browser reads', () => {
 			{ respond: backend },
 		)
 		expect(page.reads).toEqual([])
+	})
+
+	it("a structured cell's JSON editor is a drawer body, with its own Apply and Cancel", async () => {
+		const page = await serverRender(JsonCellPanel, {
+			column: 'address',
+			value: { city: 'Liège' },
+			readOnly: false,
+		})
+		expect(page.reads).toEqual([])
+		// The DMS drawer is the surface: no slideover of its own.
+		expect(page.html).not.toContain('USlideover')
+		expect(page.html).toContain('DmsInputCode')
+		expect(page.html).toContain('dms_database.data.json.apply')
+		expect(page.html).toContain('dms_database.common.cancel')
+		const readOnly = await serverRender(JsonCellPanel, {
+			column: 'address',
+			value: { city: 'Liège' },
+			readOnly: true,
+		})
+		expect(readOnly.html).not.toContain('dms_database.data.json.apply')
+		expect(readOnly.html).toContain('dms_database.common.cancel')
 	})
 
 	it('the instance picker reads nothing until its menu opens', async () => {
