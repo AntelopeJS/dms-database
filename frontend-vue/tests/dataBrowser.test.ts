@@ -24,6 +24,7 @@ import {
 	instanceToUrl,
 	tableLink,
 } from '../app/build/utils/databaseLinks'
+import { fillingLines } from '../app/build/utils/fillingLines'
 
 describe('cell drafts: null', () => {
 	it('empties a cell of any type with null', () => {
@@ -133,6 +134,37 @@ describe('cell drafts: JSON', () => {
 		const invalid = parseJsonDraft('{"a":')
 		expect(invalid).toMatchObject({ ok: false, reason: 'invalid' })
 		expect(invalid.ok || invalid.detail).toBeTruthy()
+	})
+})
+
+describe('JSON cell editor: filling the drawer', () => {
+	// 12 lines of 19px in a 40px frame; label, legend and footer take 160px.
+	const measure = {
+		room: 800,
+		used: 160,
+		editor: 12 * 19 + 40,
+		lines: 12,
+		lineHeight: 19,
+		minLines: 12,
+	}
+
+	it('shows as many lines as the room left to the editor holds', () => {
+		// 800 - 160 - 40 = 600px of lines.
+		expect(fillingLines(measure)).toBe(31)
+		// The same answer once grown: its frame is what it measures beyond.
+		expect(fillingLines({ ...measure, lines: 31, editor: 31 * 19 + 40 })).toBe(
+			31,
+		)
+	})
+
+	it('follows the room: a wider or taller drawer, an error shown', () => {
+		expect(fillingLines({ ...measure, room: 1000 })).toBe(42)
+		expect(fillingLines({ ...measure, used: 200 })).toBe(29)
+	})
+
+	it('never shows fewer than its minimum, on a short screen', () => {
+		expect(fillingLines({ ...measure, room: 300 })).toBe(12)
+		expect(fillingLines({ ...measure, room: 0 })).toBe(12)
 	})
 })
 

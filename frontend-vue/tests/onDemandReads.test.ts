@@ -106,6 +106,11 @@ describe('server render: what only the browser reads', () => {
 		// The DMS drawer is the surface: no slideover of its own.
 		expect(page.html).not.toContain('USlideover')
 		expect(page.html).toContain('DmsInputCode')
+		// Stacked for the drawer: the label above an editor across it, which
+		// shows its minimum lines until it measures the drawer's height.
+		expect(page.html).toContain('layout="stack"')
+		expect(page.html).toContain('min-lines="12" max-lines="12"')
+		expect(page.html).toMatch(/<footer[^>]*mt-auto/)
 		expect(page.html).toContain('dms_database.data.json.apply')
 		expect(page.html).toContain('dms_database.common.cancel')
 		const readOnly = await serverRender(JsonCellPanel, {

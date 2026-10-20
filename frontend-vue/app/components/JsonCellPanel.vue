@@ -1,9 +1,11 @@
 <script setup lang="ts">
+import { useFillingCodeLines } from '../build/composables/useFillingCodeLines'
 import { jsonDraftText, parseJsonDraft } from '../build/data/cellValues'
 
 // Edits a structured cell (an object or a list) as JSON in a DMS drawer;
 // applying stages the value like any other cell. null empties the cell.
-// Opened through `useDrawer`, it mounts anew for each cell.
+// Opened through `useDrawer`, it mounts anew for each cell. The editor fills
+// the drawer's height, whatever its size, the footer at the drawer's end.
 
 const props = defineProps<{
 	column: string
@@ -17,7 +19,19 @@ const emit = defineEmits<{ success: [result?: { value: unknown }] }>()
 
 const { t } = useI18n()
 
+const MIN_LINES = 12
+
 const draft = ref(jsonDraftText(props.value))
+
+const { lines, room } = useFillingCodeLines(
+	{
+		panel: useTemplateRef('panel'),
+		body: useTemplateRef('body'),
+		editor: useTemplateRef('editor'),
+		footer: useTemplateRef('footer'),
+	},
+	MIN_LINES,
+)
 
 const parsed = computed(() => parseJsonDraft(draft.value))
 
@@ -40,28 +54,35 @@ function save() {
 </script>
 
 <template>
-	<div class="flex h-full w-full min-w-0 flex-col gap-4">
-		<!-- A DMS form of one field: the column as its label, the JSON in the
-		DMS code input, the parse error in DMS error style, the required legend. -->
-		<div class="grid min-h-0 flex-1 content-start gap-2">
+	<div
+		ref="panel"
+		class="flex w-full min-w-0 flex-col gap-4"
+		:style="room === null ? undefined : { minHeight: `${room}px` }"
+	>
+		<!-- A DMS form of one field, stacked for the drawer: the column as its
+		label and the help above, the JSON in the DMS code input across the
+		drawer, the parse error under it in DMS error style, the legend. -->
+		<div ref="body" class="grid gap-2">
 			<DmsFieldRow
-				layout="form"
+				layout="stack"
 				:inset="false"
-				spacing="row"
+				spacing="list"
 				:label="column"
 				label-for="dms-database-json-cell"
 				:description="t('dms_database.data.json.help')"
 				required
 			>
 				<UFormField name="json" :error="(!readOnly && parseError) || false">
-					<DmsInputCode
-						id="dms-database-json-cell"
-						v-model="draft"
-						language="json"
-						:min-lines="12"
-						:max-lines="30"
-						:disabled="readOnly"
-					/>
+					<div ref="editor">
+						<DmsInputCode
+							id="dms-database-json-cell"
+							v-model="draft"
+							language="json"
+							:min-lines="lines"
+							:max-lines="lines"
+							:disabled="readOnly"
+						/>
+					</div>
 					<template #error="{ error }">
 						<DmsFormErrorText :error />
 					</template>
@@ -70,17 +91,22 @@ function save() {
 			<DmsFormRequiredLegend v-if="!readOnly" />
 		</div>
 
+		<!-- The DMS drawer form's footer band: at the drawer's end, flush with
+		its edge, kept in sight while the body scrolls. -->
 		<footer
-			class="border-default flex items-center justify-end gap-2 border-t pt-3"
+			ref="footer"
+			class="border-default bg-default sticky bottom-[calc(var(--dms-form-foot-pb,0px)*-1)] z-10 -mx-[var(--dms-form-foot-px,0px)] -mb-[var(--dms-form-foot-pb,0px)] mt-auto flex items-center justify-end gap-2 border-t px-[var(--dms-form-foot-px,0px)] pb-[var(--dms-form-foot-pb,12px)] pt-3"
 		>
 			<UButton
-				variant="ghost"
+				variant="outline"
 				color="neutral"
+				size="lg"
 				:label="t('dms_database.common.cancel')"
 				@click="emit('success')"
 			/>
 			<UButton
 				v-if="!readOnly"
+				size="lg"
 				:label="t('dms_database.data.json.apply')"
 				:disabled="Boolean(parseError)"
 				@click="save"
