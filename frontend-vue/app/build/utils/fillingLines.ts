@@ -15,10 +15,11 @@ export interface FillingLinesMeasure {
 /**
  * The lines a code editor shows to fill the room it is left, never fewer than
  * `minLines`: its frame (padding, status bar, borders) is what it measures
- * beyond its lines.
+ * beyond its lines. An editor shorter than its lines (short code its minimum
+ * does not hold open) gives no frame: the lines then only follow the room.
  */
 export function fillingLines(measure: FillingLinesMeasure): number {
-	const frame = measure.editor - measure.lines * measure.lineHeight
+	const frame = Math.max(0, measure.editor - measure.lines * measure.lineHeight)
 	const free = measure.room - measure.used - frame
 	return Math.max(measure.minLines, Math.floor(free / measure.lineHeight))
 }

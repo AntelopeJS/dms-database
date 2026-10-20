@@ -162,6 +162,13 @@ describe('JSON cell editor: filling the drawer', () => {
 		expect(fillingLines({ ...measure, used: 200 })).toBe(29)
 	})
 
+	it('does not grow on code shorter than its lines', () => {
+		// 4 lines shown of 31 asked: the same lines, measure after measure.
+		const short = { ...measure, editor: 4 * 19 + 40 }
+		expect(fillingLines({ ...short, lines: 31 })).toBe(33)
+		expect(fillingLines({ ...short, lines: 33 })).toBe(33)
+	})
+
 	it('never shows fewer than its minimum, on a short screen', () => {
 		expect(fillingLines({ ...measure, room: 300 })).toBe(12)
 		expect(fillingLines({ ...measure, room: 0 })).toBe(12)
