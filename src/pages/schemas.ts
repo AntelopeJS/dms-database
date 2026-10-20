@@ -42,6 +42,9 @@ const tables = TableView.fromSource({
   capabilities: { search: false, filter: true },
   defaultSort: { field: "elementCount", desc: true },
   pageSize: 50,
+  // A single click opens a row's inspector, as in every DMS list read row
+  // after row in a drawer; a double-click is the DMS default.
+  rowClick: "single",
   columns: {
     name: {
       name: "$dms_database.schemas.cols.table",
@@ -91,7 +94,8 @@ const tables = TableView.fromSource({
   rowActions: {
     custom: [
       {
-        // A click on a row opens it; the URL keeps the open table.
+        // A click on a row opens it (`rowClick: "single"` above); the URL
+        // keeps the open table. The row menu offers it too.
         label: "$dms_database.schemas.actions.inspect",
         icon: "i-ph-sidebar-simple",
         isDefault: true,

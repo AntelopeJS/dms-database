@@ -6,7 +6,7 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 import type { User } from "@antelopejs/interface-dms/auth/db";
-import { INSPECT_TARGET } from "../pages/schemas";
+import { DatabaseSchemasPage, INSPECT_TARGET } from "../pages/schemas";
 import { DatabaseTablesController } from "../routes/tables";
 import { listSchemaSummaries } from "../service/introspect";
 import {
@@ -204,5 +204,18 @@ describe("Schemas page inspector", () => {
       INSPECT_TARGET.positionLabel,
       "$dms_database.schemas.inspector.position",
     );
+  });
+
+  it("opens on a single click on a row, and from the row menu", async () => {
+    const { options } = await DatabaseSchemasPage.tables.serialize();
+    assert.ok(options, "the table serializes its options");
+    assert.equal(options.rowClick, "single");
+    const inspect = options.rowActions?.custom?.find(
+      (action) => action.label === "$dms_database.schemas.actions.inspect",
+    );
+    assert.ok(inspect, "the row menu offers Inspect");
+    assert.equal(inspect.isDefault, true);
+    assert.equal(inspect.deepLink, true);
+    assert.equal(inspect.target.type, "drawer");
   });
 });
