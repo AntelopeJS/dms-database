@@ -6,7 +6,13 @@ import {
 	instanceChoiceOf,
 	tabInstanceOf,
 } from '../app/build/composables/useDataBrowserTabs'
-import { cellLabel, draftText, parseDraft } from '../app/build/data/cellValues'
+import {
+	cellLabel,
+	draftText,
+	jsonDraftText,
+	parseDraft,
+	parseJsonDraft,
+} from '../app/build/data/cellValues'
 import {
 	changesOf,
 	mayMoveRows,
@@ -98,6 +104,35 @@ describe('cell drafts: dates', () => {
 		expect(parseDraft(stored, stored, 'date')).toMatchObject({
 			unchanged: true,
 		})
+	})
+})
+
+describe('cell drafts: JSON', () => {
+	it('opens a structured cell as indented JSON', () => {
+		expect(jsonDraftText({ a: [1, 2] })).toBe(
+			JSON.stringify({ a: [1, 2] }, null, 2),
+		)
+		expect(jsonDraftText({ a: 1 }).split('\n')).toHaveLength(3)
+		const cyclic: Record<string, unknown> = {}
+		cyclic.self = cyclic
+		expect(jsonDraftText(cyclic)).toBe('')
+	})
+
+	it('takes an object, a list, or null to empty the cell', () => {
+		expect(parseJsonDraft('{"a":1}')).toEqual({ ok: true, value: { a: 1 } })
+		expect(parseJsonDraft('[1]')).toEqual({ ok: true, value: [1] })
+		expect(parseJsonDraft(' null ')).toEqual({ ok: true, value: null })
+	})
+
+	it('refuses a scalar, and invalid JSON with its parse detail', () => {
+		for (const draft of ['42', '"text"', 'true'])
+			expect(parseJsonDraft(draft)).toEqual({
+				ok: false,
+				reason: 'not_structured',
+			})
+		const invalid = parseJsonDraft('{"a":')
+		expect(invalid).toMatchObject({ ok: false, reason: 'invalid' })
+		expect(invalid.ok || invalid.detail).toBeTruthy()
 	})
 })
 

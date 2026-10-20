@@ -130,3 +130,37 @@ export function cellLabel(value: unknown): string {
 export function isStructured(value: unknown): boolean {
 	return value !== null && typeof value === 'object'
 }
+
+type JsonDraftResult =
+	| { ok: true; value: unknown }
+	| { ok: false; reason: 'invalid' | 'not_structured'; detail?: string }
+
+/** The text the JSON editor opens a structured cell with. */
+export function jsonDraftText(value: unknown): string {
+	try {
+		return JSON.stringify(value, null, 2) ?? ''
+	} catch {
+		return ''
+	}
+}
+
+/**
+ * The value a JSON editor's draft stands for: an object, a list, or null to
+ * empty the cell. A scalar is not a structured cell.
+ */
+export function parseJsonDraft(text: string): JsonDraftResult {
+	let value: unknown
+	try {
+		value = JSON.parse(text)
+	} catch (error) {
+		// The engine's parse detail (position, token…).
+		return {
+			ok: false,
+			reason: 'invalid',
+			detail: error instanceof Error ? error.message : undefined,
+		}
+	}
+	if (value !== null && typeof value !== 'object')
+		return { ok: false, reason: 'not_structured' }
+	return { ok: true, value }
+}
