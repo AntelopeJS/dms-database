@@ -131,6 +131,22 @@ export function isStructured(value: unknown): boolean {
 	return value !== null && typeof value === 'object'
 }
 
+// Past this length a text no longer reads whole in the drawer's value column.
+const WIDE_TEXT_LENGTH = 48
+
+/**
+ * Whether a row drawer gives the value the drawer's width, its label above:
+ * an object or a list (edited as JSON), and a text of several lines or too
+ * long for the value column (edited in a text area).
+ */
+export function isWideValue(value: unknown): boolean {
+	if (isStructured(value)) return true
+	return (
+		typeof value === 'string' &&
+		(value.length > WIDE_TEXT_LENGTH || value.includes('\n'))
+	)
+}
+
 type JsonDraftResult =
 	| { ok: true; value: unknown }
 	| { ok: false; reason: 'invalid' | 'not_structured'; detail?: string }

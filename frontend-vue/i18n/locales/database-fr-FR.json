@@ -226,10 +226,7 @@
 				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus."
 			},
 			"row": {
-				"title": "Ligne de {table}",
-				"eyebrow": "Ligne · {scope}",
-				"previous": "Ligne précédente (K)",
-				"next": "Ligne suivante (J)",
+				"position": "Ligne {index} sur {total}",
 				"fields": "Champs",
 				"json": "JSON",
 				"references": "Référencée par",
@@ -518,6 +515,8 @@
 				"column": "Colonne",
 				"type": "Type",
 				"null": "Null",
+				"nullable": "oui",
+				"not_nullable": "non",
 				"notes": "Notes"
 			},
 			"index": {

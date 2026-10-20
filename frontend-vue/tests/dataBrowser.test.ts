@@ -9,6 +9,7 @@ import {
 import {
 	cellLabel,
 	draftText,
+	isWideValue,
 	jsonDraftText,
 	parseDraft,
 	parseJsonDraft,
@@ -25,6 +26,11 @@ import {
 	tableLink,
 } from '../app/build/utils/databaseLinks'
 import { fillingLines } from '../app/build/utils/fillingLines'
+import {
+	ROW_HEADER_COMPONENT,
+	rowHeaderOptions,
+} from '../app/build/data/rowDrawerHeader'
+import { describeField, valueDescriptor } from '../app/build/utils/fieldTypes'
 
 describe('cell drafts: null', () => {
 	it('empties a cell of any type with null', () => {
@@ -334,5 +340,77 @@ describe('instance URL parameter', () => {
 		expect(instanceBadge(DEFAULT_INSTANCE_VALUE, 'all')).toBeNull()
 		expect(instanceBadge(CROSS_INSTANCE_VALUE, 'toutes')).toBe('@toutes')
 		expect(instanceBadge('eu', 'all')).toBe('@eu')
+	})
+})
+
+describe('row drawer', () => {
+	it('gives JSON and long or multi-line text the drawer width', () => {
+		expect(isWideValue({ city: 'Liège' })).toBe(true)
+		expect(isWideValue([1, 2])).toBe(true)
+		expect(isWideValue('x'.repeat(49))).toBe(true)
+		expect(isWideValue('line one\nline two')).toBe(true)
+		expect(isWideValue('x'.repeat(48))).toBe(false)
+		expect(isWideValue('open')).toBe(false)
+		expect(isWideValue(true)).toBe(false)
+		expect(isWideValue(null)).toBe(false)
+		expect(isWideValue(42)).toBe(false)
+	})
+
+	it('heads the drawer with the DMS row header, "Row N of M" and the steps', () => {
+		const navigation = {
+			index: 2,
+			total: 50,
+			hasPrev: true,
+			hasNext: true,
+			prev: () => undefined,
+			next: () => undefined,
+		}
+		expect(ROW_HEADER_COMPONENT).toBe('DmsRowHeader')
+		expect(rowHeaderOptions('ticket-182', navigation)).toEqual({
+			part: 'dms-row-drawer',
+			heading: 'ticket-182',
+			positionLabel: '$dms_database.data.row.position',
+			navigation,
+			headingClass: expect.stringContaining('text-[17px]'),
+		})
+	})
+})
+
+describe('column types', () => {
+	it('reads a nullable union as the type it holds, with its icon', () => {
+		const nullable = {
+			kind: 'union' as const,
+			members: [{ kind: 'string' as const }, { kind: 'null' as const }],
+		}
+		expect(describeField(valueDescriptor(nullable))).toEqual({
+			icon: 'i-ph-text-aa',
+			label: 'string',
+		})
+		const several = {
+			kind: 'union' as const,
+			members: [
+				{ kind: 'string' as const },
+				{ kind: 'number' as const },
+				{ kind: 'undefined' as const },
+			],
+		}
+		expect(describeField(valueDescriptor(several)).label).toBe(
+			'string | number',
+		)
+		// Only null: nothing else to read it as.
+		const onlyNull = {
+			kind: 'union' as const,
+			members: [{ kind: 'null' as const }],
+		}
+		expect(valueDescriptor(onlyNull)).toBe(onlyNull)
+	})
+
+	it('draws a union with an icon of the Phosphor set', () => {
+		expect(
+			describeField({
+				kind: 'union',
+				members: [{ kind: 'string' }, { kind: 'number' }],
+			}).icon,
+		).toBe('i-ph-arrows-split')
 	})
 })

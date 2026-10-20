@@ -24,7 +24,7 @@ const BOOLEAN_ICON = 'i-ph-toggle-right'
 const LIST_ICON = 'i-ph-brackets-square'
 const OBJECT_ICON = 'i-ph-brackets-curly'
 const ENUM_ICON = 'i-ph-list-checks'
-const UNION_ICON = 'i-ph-split'
+const UNION_ICON = 'i-ph-arrows-split'
 
 const NAMED_FIELDS: Record<string, FieldTypeView> = {
 	email: { icon: 'i-ph-at', label: 'email' },
@@ -114,6 +114,21 @@ export function describeField(
 	if (!isDescriptor(descriptor)) return UNKNOWN
 	const view = VIEWS[descriptor.kind] as (d: FieldDescriptor) => FieldTypeView
 	return view(descriptor)
+}
+
+const NULL_KINDS = new Set<FieldDescriptor['kind']>(['null', 'undefined'])
+
+/**
+ * The type a column holds when it holds a value: a union's `null` and
+ * `undefined` members off (`string | null` reads `string`), for a view that
+ * says apart whether the column takes null.
+ */
+export function valueDescriptor(descriptor: FieldDescriptor): FieldDescriptor {
+	if (descriptor.kind !== 'union') return descriptor
+	const members = descriptor.members.filter((m) => !NULL_KINDS.has(m.kind))
+	if (members.length === 0 || members.length === descriptor.members.length)
+		return descriptor
+	return members.length === 1 ? members[0]! : { ...descriptor, members }
 }
 
 const RUNTIME_KINDS = new Set([

@@ -226,10 +226,7 @@
 				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist."
 			},
 			"row": {
-				"title": "Row of {table}",
-				"eyebrow": "Row · {scope}",
-				"previous": "Previous row (K)",
-				"next": "Next row (J)",
+				"position": "Row {index} of {total}",
 				"fields": "Fields",
 				"json": "JSON",
 				"references": "Referenced by",
@@ -518,6 +515,8 @@
 				"column": "Column",
 				"type": "Type",
 				"null": "Null",
+				"nullable": "yes",
+				"not_nullable": "no",
 				"notes": "Notes"
 			},
 			"index": {

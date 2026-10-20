@@ -14,7 +14,10 @@ import TableInspector from '../app/components/TableInspector.vue'
 
 const table = (name: string) => ({
 	name,
-	fields: { _id: { kind: 'string' } },
+	fields: {
+		_id: { kind: 'string' },
+		note: { kind: 'union', members: [{ kind: 'string' }, { kind: 'null' }] },
+	},
 	indexes: {},
 	relations: [],
 })
@@ -190,6 +193,30 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).not.toMatch(/3\s*\/\s*87/)
 		expect(page.html).not.toContain('i-ph-caret-up')
 		expect(page.html).not.toContain('i-ph-caret-down')
+	})
+
+	it('table inspector: the name in the header only, the columns at their width', async () => {
+		const page = await render(
+			TableInspector,
+			{ rowData: { schema: 'shop', name: 'orders' } },
+			'/modules/database/schemas',
+		)
+		// The DMS header names the table: no heading of its own in the body.
+		expect(page.html).not.toMatch(/<h3[^>]*>\s*orders/)
+		// Narrower than its columns, the table scrolls sideways; the types
+		// and the tabs stay on one line.
+		expect(page.html).toMatch(
+			/data-columns-scroller[^>]*overflow-x-auto|overflow-x-auto[^>]*data-columns-scroller/,
+		)
+		expect(page.html).toContain('min-w-[30rem]')
+		expect(page.html).toContain('whitespace-nowrap')
+		expect(page.html).toContain('data-drawer-tabs')
+		// `string | null` reads `string`, with its icon; the Null column
+		// answers the same way for every column.
+		expect(page.html).not.toContain('string | null')
+		expect(page.html).not.toContain('border-dashed')
+		expect(page.html).toContain('dms_database.inspector.cols.nullable')
+		expect(page.html).toContain('dms_database.inspector.cols.not_nullable')
 	})
 
 	it('schemas filter bar: the tables listed out of all', async () => {

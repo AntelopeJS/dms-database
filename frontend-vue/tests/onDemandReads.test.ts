@@ -96,6 +96,59 @@ describe('server render: what only the browser reads', () => {
 		expect(page.reads).toEqual([])
 	})
 
+	it("a row's drawer: values given the room, an even end slot, a sticky footer", async () => {
+		const page = await serverRender(RowDrawer, {
+			tab: { id: 't', schema: 'shop', table: 'orders', instance: '' },
+			rowId: 'r1',
+			row: {
+				_id: 'r1',
+				status: 'open',
+				pinned: true,
+				description:
+					'A long description that runs past what the value column shows.',
+				address: { city: 'Liège' },
+			},
+			columns: [
+				{ name: '_id', type: 'string', isPrimaryKey: true },
+				{ name: 'status', type: 'string', isPrimaryKey: false },
+				{ name: 'pinned', type: 'boolean', isPrimaryKey: false },
+				{ name: 'description', type: 'string', isPrimaryKey: false },
+				{ name: 'address', type: 'object', isPrimaryKey: false },
+			],
+			readOnly: false,
+			navigation: {
+				index: 0,
+				total: 50,
+				hasPrev: false,
+				hasNext: true,
+				prev: () => undefined,
+				next: () => undefined,
+			},
+			onStage: () => undefined,
+			onReview: () => undefined,
+		})
+		// The DMS row header holds the position and the steps.
+		expect(page.html).not.toMatch(/1\s*\/\s*50/)
+		expect(page.html).not.toContain('i-ph-caret-up')
+		expect(page.html).toContain('data-row-scope')
+		// A short value beside its label, a long text and JSON across the row.
+		const row = (field: string) =>
+			page.html.match(
+				new RegExp(`<div[^>]*data-field-row="${field}"[^>]*>`),
+			)?.[0] ?? ''
+		expect(row('status')).toContain('layout="form"')
+		expect(row('description')).toContain('layout="stack"')
+		expect(row('address')).toContain('layout="stack"')
+		expect(page.html.match(/data-stub="DmsTextarea"/g)).toHaveLength(2)
+		// Every editable field, the switch too, keeps the same end slot.
+		expect(page.html.match(/data-null-slot/g)).toHaveLength(4)
+		expect(page.html.match(/icon="i-ph-circle-dashed"/g)).toHaveLength(4)
+		// The footer sticks to the drawer's bottom, flush with its edge.
+		expect(page.html).toMatch(
+			/<footer[^>]*data-row-footer[^>]*sticky[^>]*mt-auto/,
+		)
+	})
+
 	it("a structured cell's JSON editor is a drawer body, with its own Apply and Cancel", async () => {
 		const page = await serverRender(JsonCellPanel, {
 			column: 'address',

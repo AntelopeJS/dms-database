@@ -75,6 +75,7 @@ vi.stubGlobal('regionalDayNumber', regional.regionalDayNumber)
 vi.stubGlobal('useToast', () => ({ add: noop }))
 vi.stubGlobal('useConfirm', () => ({ confirm: async () => false }))
 vi.stubGlobal('useDrawer', () => ({ open: noop }))
+vi.stubGlobal('resolveDmsComponent', engine.resolveDmsComponent)
 vi.stubGlobal('useUnsavedChanges', noop)
 vi.stubGlobal('useDmsUserSession', () => ({
 	user: vue.ref({ _id: 'me' }),

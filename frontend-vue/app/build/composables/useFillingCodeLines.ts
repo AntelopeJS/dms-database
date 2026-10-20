@@ -1,6 +1,7 @@
 import { useResizeObserver } from '@vueuse/core'
 import type { ShallowRef } from 'vue'
 import { fillingLines } from '../utils/fillingLines'
+import { roomBelow, scrollParent } from './useDrawerRoom'
 
 // DmsInputCode's line height: its size is given in lines.
 const CODE_LINE_PX = 19
@@ -14,14 +15,6 @@ interface FillingCodeLinesElements {
 	editor: Readonly<ShallowRef<HTMLElement | null>>
 	/** The footer, pinned to the panel's end. */
 	footer: Readonly<ShallowRef<HTMLElement | null>>
-}
-
-function scrollParent(element: HTMLElement): HTMLElement | null {
-	for (let node = element.parentElement; node; node = node.parentElement) {
-		const { overflowY } = getComputedStyle(node)
-		if (overflowY === 'auto' || overflowY === 'scroll') return node
-	}
-	return null
 }
 
 /**
@@ -46,15 +39,8 @@ export function useFillingCodeLines(
 		const footer = elements.footer.value
 		const area = scroller.value
 		if (!panel || !body || !editor || !footer || !area) return
-		const areaStyle = getComputedStyle(area)
-		const areaEnd =
-			area.getBoundingClientRect().top +
-			area.clientTop +
-			area.clientHeight -
-			Number.parseFloat(areaStyle.paddingBottom)
 		const panelBox = panel.getBoundingClientRect()
-		// In the scroll area's content: scrolling does not change it.
-		room.value = Math.max(0, areaEnd - panelBox.top - area.scrollTop)
+		room.value = roomBelow(area, panel)
 		const editorHeight = editor.getBoundingClientRect().height
 		// The footer sits at the panel's end, past the room the body leaves.
 		const footerHeight = panelBox.bottom - footer.getBoundingClientRect().top

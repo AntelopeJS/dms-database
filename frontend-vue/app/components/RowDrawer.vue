@@ -6,32 +6,28 @@ import {
 } from '../build/composables/useDataBrowserTabs'
 import { browseSelectionQuery } from '../build/composables/useDataBrowserGrid'
 import { onKeyStroke } from '@vueuse/core'
+import { useDrawerRoom } from '../build/composables/useDrawerRoom'
 import {
 	cellLabel,
 	cellText,
 	draftText,
 	isStructured,
+	isWideValue,
 	parseDraft,
 } from '../build/data/cellValues'
+import type { RowNavigation } from '../build/data/rowDrawerHeader'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
 import type { GridColumn } from '../build/composables/useDataBrowserGrid'
 import { tableLink } from '../build/utils/databaseLinks'
 import { describeRuntimeType } from '../build/utils/fieldTypes'
+import DrawerTabs from './DrawerTabs.vue'
 
 // One row of the data browser in a drawer: its fields, editable and staged
 // like the grid's cells, its JSON, and the rows of other tables pointing at
-// it. J and K step to the next and previous row of the page.
-
-interface RowNavigation {
-	index: number
-	total: number
-	hasPrev: boolean
-	hasNext: boolean
-	prev: () => void
-	next: () => void
-}
+// it. The DMS row header names the row, its position and previous / next; J
+// and K step to the next and previous row of the page.
 
 interface RowReference {
 	schema: string
@@ -61,6 +57,8 @@ const { t, n } = useI18n()
 const staged = useStagedEdits()
 
 const active = ref<DrawerTab>('fields')
+// The footer sits at the drawer's end however short the tab.
+const room = useDrawerRoom(useTemplateRef('panel'))
 const drafts = reactive<Record<string, string>>({})
 const errors = reactive<Record<string, string>>({})
 
@@ -91,6 +89,8 @@ const fields = computed(() =>
 			key: column.isPrimaryKey,
 			relation,
 			structured: isStructured(value),
+			// Laid out by the value read: editing it does not move the row.
+			wide: isWideValue(props.row[column.name]),
 			type: relation
 				? relation.toTable
 				: describeRuntimeType(column.type, column.name).label,
@@ -191,23 +191,23 @@ const referenceTotal = computed(() =>
 	(references.value ?? []).reduce((sum, reference) => sum + reference.count, 0),
 )
 
-const tabs = computed(() => [
-	{
-		value: 'fields',
-		label: t('dms_database.data.row.fields'),
-		badge: props.columns.length,
-	},
-	{ value: 'json', label: t('dms_database.data.row.json') },
-	...(props.readOnly
-		? []
-		: [
-				{
-					value: 'references',
-					label: t('dms_database.data.row.references'),
-					badge: referenceTotal.value,
-				},
-			]),
-])
+const tabs = computed(() => {
+	const items: { value: DrawerTab; label: string; badge?: number }[] = [
+		{
+			value: 'fields',
+			label: t('dms_database.data.row.fields'),
+			badge: props.columns.length,
+		},
+		{ value: 'json', label: t('dms_database.data.row.json') },
+	]
+	if (!props.readOnly)
+		items.push({
+			value: 'references',
+			label: t('dms_database.data.row.references'),
+			badge: referenceTotal.value,
+		})
+	return items
+})
 
 const scope = computed(() => {
 	const badge = instanceBadge(
@@ -240,60 +240,38 @@ onKeyStroke('k', (event) => {
 </script>
 
 <template>
-	<!-- As wide as the side drawer, as the table inspector. -->
-	<div class="flex h-full w-full min-w-0 flex-col gap-4">
-		<header class="grid gap-2">
-			<div class="flex items-center gap-1">
-				<DmsEyebrow :label="t('dms_database.data.row.eyebrow', { scope })" />
-				<span class="flex-1" />
-				<template v-if="navigation">
-					<span class="text-dimmed mr-1 font-mono text-[11px] tabular-nums">
-						{{ navigation.index + 1 }} / {{ navigation.total }}
-					</span>
-					<UButton
-						icon="i-ph-caret-up"
-						color="neutral"
-						variant="ghost"
-						size="xs"
-						:disabled="!navigation.hasPrev"
-						:title="t('dms_database.data.row.previous')"
-						:aria-label="t('dms_database.data.row.previous')"
-						@click="navigation.prev()"
-					/>
-					<UButton
-						icon="i-ph-caret-down"
-						color="neutral"
-						variant="ghost"
-						size="xs"
-						:disabled="!navigation.hasNext"
-						:title="t('dms_database.data.row.next')"
-						:aria-label="t('dms_database.data.row.next')"
-						@click="navigation.next()"
-					/>
-				</template>
-			</div>
-			<h3 class="text-highlighted font-mono text-lg font-semibold">
-				{{ rowId ?? t('dms_database.data.row.no_id') }}
-			</h3>
-			<UTabs
-				v-model="active"
-				:items="tabs"
-				variant="link"
-				size="sm"
-				:content="false"
-			/>
+	<!-- As wide as the side drawer, as the table inspector; as tall as its
+		body, so the footer sits at its end. The drawer's body scrolls: the DMS
+		row header stays in view, the footer sticks to the bottom. -->
+	<div
+		ref="panel"
+		class="flex w-full min-w-0 flex-col gap-4"
+		:style="room === null ? undefined : { minHeight: `${room}px` }"
+	>
+		<header class="grid gap-3">
+			<p
+				class="text-muted flex min-w-0 items-start gap-1.5 font-mono text-xs"
+				data-row-scope
+			>
+				<UIcon name="i-ph-table" class="mt-px size-3.5 shrink-0" />
+				<span class="min-w-0 [overflow-wrap:anywhere]">{{ scope }}</span>
+			</p>
+			<DrawerTabs v-model="active" :items="tabs" />
 		</header>
 
-		<div class="min-h-0 flex-1 overflow-y-auto">
+		<div class="min-w-0">
 			<!-- Each field is a DMS form row: the column's name in the label
 				column, its type and staged change as help, the error under the
-				control. The drawer is narrower than the label column's step, so
-				the label sits above the control, as in a DMS form drawer. -->
+				control. A wide value (JSON, a long text) takes the row's width
+				under its label; the others sit beside it once the row is wide
+				enough (the row's container query). Every control keeps the same
+				end slot, "Set to null" or nothing: the column stays even. -->
 			<div v-if="active === 'fields'" class="flex flex-col">
 				<DmsFieldRow
 					v-for="field in fields"
 					:key="field.name"
-					layout="form"
+					:layout="field.wide ? 'stack' : 'form'"
+					:data-field-row="field.name"
 					:inset="false"
 					spacing="row"
 					:label-for="field.editable ? controlId(field.name) : undefined"
@@ -338,33 +316,46 @@ onKeyStroke('k', (event) => {
 							· {{ t('dms_database.data.row.not_editable') }}
 						</span>
 					</p>
-					<div v-else class="grid min-w-0 gap-1.5">
-						<UFormField
-							:name="field.name"
-							:error="errors[field.name] ?? false"
-							:data-field="field.name"
+					<UFormField
+						v-else
+						:name="field.name"
+						:error="errors[field.name] ?? false"
+						:data-field="field.name"
+						class="min-w-0"
+					>
+						<div
+							class="flex min-w-0 gap-2"
+							:class="field.wide ? 'items-start' : 'min-h-8 items-center'"
 						>
-							<DmsSwitch
-								v-if="typeof field.value === 'boolean'"
-								:id="controlId(field.name)"
-								:model-value="field.value"
-								class="pt-1.5"
-								@update:model-value="setBoolean(field.name, Boolean($event))"
-							/>
-							<DmsTextarea
-								v-else-if="field.structured"
-								:id="controlId(field.name)"
-								:model-value="draftOf(field.name, field.value)"
-								:rows="4"
-								autoresize
-								class="w-full font-mono text-xs"
-								:color="field.staged ? 'warning' : 'primary'"
-								:highlight="Boolean(field.staged || errors[field.name])"
-								@update:model-value="drafts[field.name] = String($event)"
-								@blur="commit(field)"
-							/>
-							<div v-else class="flex min-w-0 items-center gap-2">
+							<div class="min-w-0 flex-1">
+								<DmsSwitch
+									v-if="typeof field.value === 'boolean'"
+									:id="controlId(field.name)"
+									:model-value="field.value"
+									@update:model-value="setBoolean(field.name, Boolean($event))"
+								/>
+								<!-- JSON, or a text of several lines: a text area. -->
+								<DmsTextarea
+									v-else-if="field.wide"
+									:id="controlId(field.name)"
+									:model-value="draftOf(field.name, field.value)"
+									:rows="field.structured ? 4 : 2"
+									autoresize
+									class="w-full font-mono"
+									:class="{ 'text-xs': field.structured }"
+									:color="
+										errors[field.name]
+											? 'error'
+											: field.staged
+												? 'warning'
+												: 'primary'
+									"
+									:highlight="Boolean(field.staged || errors[field.name])"
+									@update:model-value="drafts[field.name] = String($event)"
+									@blur="commit(field)"
+								/>
 								<DmsInputText
+									v-else
 									:id="controlId(field.name)"
 									:model-value="draftOf(field.name, field.value)"
 									:title="t('dms_database.data.grid.null_hint')"
@@ -373,7 +364,7 @@ onKeyStroke('k', (event) => {
 											? 'null'
 											: undefined
 									"
-									class="min-w-0 flex-1 font-mono"
+									class="w-full font-mono"
 									:color="
 										errors[field.name]
 											? 'error'
@@ -386,20 +377,26 @@ onKeyStroke('k', (event) => {
 									@blur="commit(field)"
 									@keydown.enter.prevent="commit(field)"
 								/>
+							</div>
+							<!-- The end slot, as wide with its button or without. -->
+							<div class="flex w-8 shrink-0 justify-center" data-null-slot>
 								<UButton
 									v-if="field.value !== null && field.value !== undefined"
+									icon="i-ph-circle-dashed"
 									size="sm"
 									color="neutral"
 									variant="ghost"
-									:label="t('dms_database.data.row.set_null')"
+									square
+									:title="t('dms_database.data.row.set_null')"
+									:aria-label="t('dms_database.data.row.set_null')"
 									@click="setNull(field.name)"
 								/>
 							</div>
-							<template v-if="errors[field.name]" #error="{ error }">
-								<DmsFormErrorText :error />
-							</template>
-						</UFormField>
-					</div>
+						</div>
+						<template v-if="errors[field.name]" #error="{ error }">
+							<DmsFormErrorText :error />
+						</template>
+					</UFormField>
 					<DmsAutoLink
 						@click="emit('success')"
 						v-if="
@@ -492,9 +489,13 @@ onKeyStroke('k', (event) => {
 			</div>
 		</div>
 
+		<!-- The DMS drawer form's footer band, as the JSON editor's: at the
+			drawer's end, flush with its edge, kept in sight while the body
+			scrolls. -->
 		<footer
 			v-if="!readOnly"
-			class="border-default flex items-center gap-2 border-t pt-3"
+			data-row-footer
+			class="border-default bg-default sticky bottom-[calc(var(--dms-form-foot-pb,0px)*-1)] z-10 -mx-[var(--dms-form-foot-px,0px)] -mb-[var(--dms-form-foot-pb,0px)] mt-auto flex min-h-14 flex-wrap items-center gap-2 border-t px-[var(--dms-form-foot-px,0px)] pb-[var(--dms-form-foot-pb,12px)] pt-3"
 		>
 			<span class="text-dimmed flex items-center gap-1.5 text-xs">
 				<span v-if="pending" class="bg-warning size-1.5 rounded-full" />
