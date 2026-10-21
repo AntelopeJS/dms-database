@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import { browserMount, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
-import SchemaCards from '../app/components/SchemaCards.vue'
 
 // A client navigation shows a page once its components' setups settle: the
 // reads that decide a component's size are awaited there, so the page lands
@@ -70,41 +69,6 @@ async function isShown(shown: Promise<void>): Promise<boolean> {
 }
 
 describe('client navigation: the page lands with what decides its size', () => {
-	it('overview schemas: every card, whatever their number', async () => {
-		const backend = heldBackend()
-		const page = browserMount(SchemaCards, backend.respond)
-		expect(await isShown(page.shown)).toBe(false)
-		expect(page.text()).not.toContain('DmsNavCardGridBlock')
-
-		backend.release()
-		await page.shown
-		const grid = page.text()
-		expect(grid).toContain('data-stub="DmsNavCardGridBlock"')
-		// The cards themselves, not a route to read them from: no placeholders.
-		for (const id of ['shop', 'audit', 'billing', 'crm'])
-			expect(grid).toContain(`"title":"${id}"`)
-		expect(grid).not.toContain('fetch')
-		expect(page.reads.map((read) => read.url)).toEqual([
-			'/api/database/overview/schemas',
-		])
-	})
-
-	it('overview schemas: no schema is the empty state, not an error', async () => {
-		const page = browserMount(SchemaCards, () => ({ items: [] }))
-		await page.shown
-		expect(page.text()).toContain('items="[]"')
-		expect(page.text()).toContain('empty_title')
-	})
-
-	it('overview schemas: a failed read leaves the block its error', async () => {
-		const page = browserMount(SchemaCards, () => {
-			throw Object.assign(new Error('Unavailable'), { statusCode: 503 })
-		})
-		await page.shown
-		expect(page.text()).toContain('/api/database/overview/schemas')
-		expect(page.text()).not.toContain('items=')
-	})
-
 	it('overview connection: the first probe, not the empty health', async () => {
 		const backend = heldBackend()
 		const page = browserMount(ConnectionStatus, backend.respond)

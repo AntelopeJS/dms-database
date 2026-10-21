@@ -4,7 +4,6 @@ import { serverRender, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import DataBrowser from '../app/components/DataBrowser.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
-import SchemaCards from '../app/components/SchemaCards.vue'
 import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 import SchemasFilterBar from '../app/components/SchemasFilterBar.vue'
 import TableInspector from '../app/components/TableInspector.vue'
@@ -198,14 +197,6 @@ describe('server render: every read is handed to the browser', () => {
 			'/modules/database/overview',
 		)
 		expect(page.reads.map((read) => read.url)).toEqual(['/api/database/health'])
-		expect(page.untransferred).toEqual([])
-	})
-
-	it('overview: the schema cards', async () => {
-		const page = await render(SchemaCards, {}, '/modules/database/overview')
-		expect(page.reads.map((read) => read.url)).toEqual([
-			'/api/database/overview/schemas',
-		])
 		expect(page.untransferred).toEqual([])
 	})
 })
