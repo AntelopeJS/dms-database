@@ -23,7 +23,6 @@ import {
 	neighbourIds,
 	noteNodeId,
 	RELATION_EDGE_TYPE,
-	type Rect,
 	type Sides,
 	STUB_NODE_TYPE,
 	searchTables,
@@ -37,7 +36,12 @@ import {
 	type DiagramOperation,
 	type DiagramState,
 } from '../build/diagram/history'
-import { boundsOf, fitZoom, startViewport } from '../build/diagram/packing'
+import {
+	boundsOf,
+	fitZoom,
+	type Rect,
+	startViewport,
+} from '../build/diagram/packing'
 import {
 	canvasOwnsKey,
 	type DiagramCommand,

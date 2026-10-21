@@ -21,8 +21,6 @@ import {
 	type Size,
 } from './packing'
 
-export type { Rect } from './packing'
-
 // Turns a schema into the nodes and edges of the diagram: one node per table,
 // a dashed stub for a table a relation points to that is not drawn, the
 // notes, and one edge per relation column. Table positions come from the
