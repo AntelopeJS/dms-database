@@ -143,9 +143,9 @@ describe('server render: what only the browser reads', () => {
 		// Every editable field, the switch too, keeps the same end slot.
 		expect(page.html.match(/data-null-slot/g)).toHaveLength(4)
 		expect(page.html.match(/icon="i-ph-circle-dashed"/g)).toHaveLength(4)
-		// The footer sticks to the drawer's bottom, flush with its edge.
+		// The DMS footer, at the drawer's bottom.
 		expect(page.html).toMatch(
-			/<footer[^>]*data-row-footer[^>]*sticky[^>]*mt-auto/,
+			/data-stub="DmsContainerFooter"[^>]*data-row-footer|data-row-footer[^>]*data-stub="DmsContainerFooter"/,
 		)
 	})
 
@@ -162,8 +162,8 @@ describe('server render: what only the browser reads', () => {
 		// Stacked for the drawer: the label above an editor across it, which
 		// shows its minimum lines until it measures the drawer's height.
 		expect(page.html).toContain('layout="stack"')
-		expect(page.html).toContain('min-lines="12" max-lines="12"')
-		expect(page.html).toMatch(/<footer[^>]*mt-auto/)
+		expect(page.html).toContain('min-lines="12" max-lines="40"')
+		expect(page.html).toContain('data-stub="DmsContainerFooter"')
 		expect(page.html).toContain('dms_database.data.json.apply')
 		expect(page.html).toContain('dms_database.common.cancel')
 		const readOnly = await serverRender(JsonCellPanel, {

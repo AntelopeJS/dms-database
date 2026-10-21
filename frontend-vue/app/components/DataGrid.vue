@@ -14,11 +14,6 @@ import {
 import { onKeyStroke, useEventListener } from '@vueuse/core'
 import { parseDraft } from '../build/data/cellValues'
 import { useStagedEdits } from '../build/data/stagedEdits'
-import {
-	ROW_HEADER_COMPONENT,
-	ROW_POSITION_KEY,
-	rowHeaderOptions,
-} from '../build/data/rowDrawerHeader'
 import { mayMoveRows, withWrittenRow } from '../build/data/stagedWrites'
 import { type SavedChanges, useStagedSave } from '../build/data/useStagedSave'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
@@ -503,12 +498,13 @@ onKeyStroke('s', (event) => {
 })
 
 // --- the row drawer ---
-// The DMS row header names the row and holds its position on the page and
-// previous / next; J and K are the drawer's own. A DMS without it draws the
-// row's id as the title, the position under it.
-const rowHeader = resolveDmsComponent(ROW_HEADER_COMPONENT)
+// The DMS row header (`rowHeader`) names the row and holds its position on
+// the page, previous / next and J / K.
 
-function rowNavigation(index: number) {
+/** The position over the rows of the page, "Row 3 of 50". */
+const ROW_POSITION_KEY = 'dms_database.data.row.position'
+
+function rowNavigation(index: number): RowNavigation {
 	return {
 		index,
 		total: rows.value.length,
@@ -524,18 +520,15 @@ let drawer: ReturnType<typeof openDrawer> | null = null
 function rowDrawerOptions(index: number) {
 	const row = rows.value[index] ?? {}
 	const rowId = rowIdOf(row)
-	const navigation = rowNavigation(index)
 	const heading = rowId ?? t('dms_database.data.row.no_id')
 	return {
 		componentKey: `${props.tab.id}:${rowId ?? index}`,
 		title: heading,
-		description: t(ROW_POSITION_KEY, {
-			index: n(index + 1),
-			total: n(navigation.total),
-		}),
-		...(rowHeader && {
-			headerComponentOptions: rowHeaderOptions(heading, navigation),
-		}),
+		rowHeader: {
+			title: heading,
+			positionLabel: `$${ROW_POSITION_KEY}`,
+			navigation: rowNavigation(index),
+		},
 		componentOptions: {
 			tab: props.tab,
 			row,
@@ -543,7 +536,6 @@ function rowDrawerOptions(index: number) {
 			columns: visibleColumns.value,
 			table: props.table,
 			readOnly: readOnly.value,
-			navigation,
 			onStage: stage,
 			onReview: review,
 		},
@@ -560,7 +552,6 @@ function openRow(index: number) {
 	drawer = openDrawer({
 		direction: 'right',
 		component: RowDrawer,
-		...(rowHeader && { headerComponent: rowHeader }),
 		...rowDrawerOptions(index),
 	})
 	drawer.result.finally(() => {

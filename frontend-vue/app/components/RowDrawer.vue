@@ -5,8 +5,6 @@ import {
 	instanceBadge,
 } from '../build/composables/useDataBrowserTabs'
 import { browseSelectionQuery } from '../build/composables/useDataBrowserGrid'
-import { onKeyStroke } from '@vueuse/core'
-import { useDrawerRoom } from '../build/composables/useDrawerRoom'
 import {
 	cellLabel,
 	cellText,
@@ -15,7 +13,6 @@ import {
 	isWideValue,
 	parseDraft,
 } from '../build/data/cellValues'
-import type { RowNavigation } from '../build/data/rowDrawerHeader'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
@@ -26,8 +23,8 @@ import DrawerTabs from './DrawerTabs.vue'
 
 // One row of the data browser in a drawer: its fields, editable and staged
 // like the grid's cells, its JSON, and the rows of other tables pointing at
-// it. The DMS row header names the row, its position and previous / next; J
-// and K step to the next and previous row of the page.
+// it. The DMS row header (the drawer's `rowHeader`) names the row, its
+// position, previous / next and J / K.
 
 interface RowReference {
 	schema: string
@@ -45,7 +42,6 @@ const props = defineProps<{
 	columns: GridColumn[]
 	table?: TableSummary
 	readOnly: boolean
-	navigation?: RowNavigation
 	onStage: (rowId: string, field: string, value: unknown) => void
 	onReview: () => void
 }>()
@@ -57,8 +53,6 @@ const { t, n } = useI18n()
 const staged = useStagedEdits()
 
 const active = ref<DrawerTab>('fields')
-// The footer sits at the drawer's end however short the tab.
-const room = useDrawerRoom(useTemplateRef('panel'))
 const drafts = reactive<Record<string, string>>({})
 const errors = reactive<Record<string, string>>({})
 
@@ -224,30 +218,12 @@ const scopedInstance = computed(() =>
 		? undefined
 		: props.tab.instance,
 )
-
-function typing(event: KeyboardEvent): boolean {
-	return Boolean(
-		(event.target as HTMLElement | null)?.closest('input, textarea, select'),
-	)
-}
-
-onKeyStroke('j', (event) => {
-	if (!typing(event) && props.navigation?.hasNext) props.navigation.next()
-})
-onKeyStroke('k', (event) => {
-	if (!typing(event) && props.navigation?.hasPrev) props.navigation.prev()
-})
 </script>
 
 <template>
-	<!-- As wide as the side drawer, as the table inspector; as tall as its
-		body, so the footer sits at its end. The drawer's body scrolls: the DMS
-		row header stays in view, the footer sticks to the bottom. -->
-	<div
-		ref="panel"
-		class="flex w-full min-w-0 flex-col gap-4"
-		:style="room === null ? undefined : { minHeight: `${room}px` }"
-	>
+	<!-- As wide as the side drawer, as the table inspector; it fills the
+		drawer's flex body, so the DMS footer sits at its end. -->
+	<div class="flex w-full min-w-0 flex-1 flex-col gap-4">
 		<header class="grid gap-3">
 			<p
 				class="text-muted flex min-w-0 items-start gap-1.5 font-mono text-xs"
@@ -489,13 +465,11 @@ onKeyStroke('k', (event) => {
 			</div>
 		</div>
 
-		<!-- The DMS drawer form's footer band, as the JSON editor's: at the
-			drawer's end, flush with its edge, kept in sight while the body
-			scrolls. -->
-		<footer
+		<DmsContainerFooter
 			v-if="!readOnly"
 			data-row-footer
-			class="border-default bg-default sticky bottom-[calc(var(--dms-form-foot-pb,0px)*-1)] z-10 -mx-[var(--dms-form-foot-px,0px)] -mb-[var(--dms-form-foot-pb,0px)] mt-auto flex min-h-14 flex-wrap items-center gap-2 border-t px-[var(--dms-form-foot-px,0px)] pb-[var(--dms-form-foot-pb,12px)] pt-3"
+			class="min-h-14"
+			justify="between"
 		>
 			<span class="text-dimmed flex items-center gap-1.5 text-xs">
 				<span v-if="pending" class="bg-warning size-1.5 rounded-full" />
@@ -507,12 +481,11 @@ onKeyStroke('k', (event) => {
 			</span>
 			<UButton
 				v-if="tabPending > 0"
-				class="ml-auto"
 				size="sm"
 				icon="i-ph-check"
 				:label="t('dms_database.data.save.review', tabPending)"
 				@click="onReview"
 			/>
-		</footer>
+		</DmsContainerFooter>
 	</div>
 </template>

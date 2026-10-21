@@ -99,6 +99,7 @@ const UI_COMPONENTS = [
 	'DmsCard',
 	'DmsChart',
 	'DmsCodeSnippet',
+	'DmsContainerFooter',
 	'DmsEmptyState',
 	'DmsEyebrow',
 	'DmsFieldRow',
