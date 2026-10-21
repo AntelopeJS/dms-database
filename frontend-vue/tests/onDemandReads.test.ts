@@ -160,9 +160,10 @@ describe('server render: what only the browser reads', () => {
 		expect(page.html).not.toContain('USlideover')
 		expect(page.html).toContain('DmsInputCode')
 		// Stacked for the drawer: the label above an editor across it, which
-		// shows its minimum lines until it measures the drawer's height.
-		expect(page.html).toContain('layout="stack"')
-		expect(page.html).toContain('min-lines="12" max-lines="40"')
+		// fills the drawer's height, never fewer than 12 lines.
+		expect(page.html).toMatch(/layout="stack"[^>]*fill/)
+		expect(page.html).toMatch(/fill[^>]*min-lines="12"/)
+		expect(page.html).not.toContain('max-lines')
 		expect(page.html).toContain('data-stub="DmsContainerFooter"')
 		expect(page.html).toContain('dms_database.data.json.apply')
 		expect(page.html).toContain('dms_database.common.cancel')

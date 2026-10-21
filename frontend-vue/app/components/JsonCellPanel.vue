@@ -3,9 +3,9 @@ import { jsonDraftText, parseJsonDraft } from '../build/data/cellValues'
 
 // Edits a structured cell (an object or a list) as JSON in a DMS drawer;
 // applying stages the value like any other cell. null empties the cell.
-// Opened through `useDrawer`, it mounts anew for each cell. The panel fills
-// the drawer's flex body, its DMS footer at the drawer's end; the editor
-// grows with the JSON up to MAX_LINES, then scrolls.
+// Opened through `useDrawer`, it mounts anew for each cell. The editor fills
+// the drawer's height, whatever its size (`fill`, never fewer than
+// MIN_LINES), the DMS footer at the drawer's end.
 
 const props = defineProps<{
 	column: string
@@ -20,7 +20,8 @@ const emit = defineEmits<{ success: [result?: { value: unknown }] }>()
 const { t } = useI18n()
 
 const MIN_LINES = 12
-const MAX_LINES = 40
+// The form field hands the drawer's height down to the editor.
+const FILL = { root: 'flex flex-1 flex-col', container: 'flex flex-1 flex-col' }
 
 const draft = ref(jsonDraftText(props.value))
 
@@ -48,10 +49,12 @@ function save() {
 	<div class="flex w-full min-w-0 flex-1 flex-col gap-4">
 		<!-- A DMS form of one field, stacked for the drawer: the column as its
 		label and the help above, the JSON in the DMS code input across the
-		drawer, the parse error under it in DMS error style, the legend. -->
-		<div class="grid gap-2">
+		drawer and down to the footer, the parse error under it in DMS error
+		style, the legend. -->
+		<div class="flex flex-1 flex-col gap-2">
 			<DmsFieldRow
 				layout="stack"
+				fill
 				:inset="false"
 				spacing="list"
 				:label="column"
@@ -59,13 +62,17 @@ function save() {
 				:description="t('dms_database.data.json.help')"
 				required
 			>
-				<UFormField name="json" :error="(!readOnly && parseError) || false">
+				<UFormField
+					name="json"
+					:error="(!readOnly && parseError) || false"
+					:ui="FILL"
+				>
 					<DmsInputCode
 						id="dms-database-json-cell"
 						v-model="draft"
 						language="json"
+						fill
 						:min-lines="MIN_LINES"
-						:max-lines="MAX_LINES"
 						:disabled="readOnly"
 					/>
 					<template #error="{ error }">
