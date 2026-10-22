@@ -20,15 +20,6 @@ const schema = (id: string) => ({
 
 function answer({ url }: BackendRead): unknown {
 	switch (url) {
-		case '/api/database/overview/schemas':
-			return {
-				items: ['shop', 'audit', 'billing', 'crm'].map((id) => ({
-					id,
-					title: id,
-					icon: 'i-ph-stack',
-					to: `/modules/database/schemas?scope=${id}`,
-				})),
-			}
 		case '/api/database/health':
 			return {
 				status: 'ok',

@@ -58,10 +58,7 @@ export class DatabaseOverviewPage extends PageController(
       NavCardGrid({
         fetchUrl: "/api/database/overview/schemas",
         columns: 3,
-        // The number of schemas decides the grid's rows: a client navigation
-        // waits for the cards rather than drawing placeholders of another
-        // count.
-        holdNavigation: true,
+        skeletonCount: 3,
         empty: {
           title: "$dms_database.overview.schemas.empty_title",
           description: "$dms_database.overview.schemas.empty_description",
