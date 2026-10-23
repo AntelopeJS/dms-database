@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-database",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
   "keywords": [
     "admin",
@@ -67,7 +67,7 @@
     "@antelopejs/interface-dms": ">=0.8.0 <1.0.0"
   },
   "devDependencies": {
-    "@antelopejs/core": ">=1.16.0 <2",
+    "@antelopejs/core": ">=1.17.0 <2",
     "@antelopejs/dms": ">=0.10.0 <1.0.0",
     "@antelopejs/dms-frontend": ">=0.6.3 <0.7.0",
     "@antelopejs/tooling-configs": ">=0.0.9 <1.0.0",
@@ -98,5 +98,6 @@
     "skills": [
       "./skills"
     ]
-  }
+  },
+  "dmsFrontend": "dist/frontend-module.js"
 }

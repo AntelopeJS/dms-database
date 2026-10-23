@@ -300,6 +300,10 @@
 				"focus": "Focus",
 				"show_all": "Show all tables"
 			},
+			"columns": {
+				"more": "+ {count} column | + {count} columns",
+				"fold": "Fold columns"
+			},
 			"legend": {
 				"key": "Primary key",
 				"relation": "Relation",

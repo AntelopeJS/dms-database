@@ -300,6 +300,10 @@
 				"focus": "Isoler",
 				"show_all": "Afficher toutes les tables"
 			},
+			"columns": {
+				"more": "+ {count} colonne | + {count} colonnes",
+				"fold": "Replier les colonnes"
+			},
 			"legend": {
 				"key": "Clé primaire",
 				"relation": "Relation",

@@ -3,6 +3,7 @@ import { defineComponent, h } from 'vue'
 import { serverRender, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import DataBrowser from '../app/components/DataBrowser.vue'
+import DataGrid from '../app/components/DataGrid.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
 import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 import SchemasFilterBar from '../app/components/SchemasFilterBar.vue'
@@ -117,6 +118,38 @@ describe('server render: every read is handed to the browser', () => {
 		})
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('>7<')
+	})
+
+	it('data browser: the table list stacks above the grid below md', async () => {
+		const page = await render(DataBrowser, {}, '/modules/database/data')
+		const root = page.html.match(/^<div class="([^"]*)"/)?.[1]?.split(' ')
+		const aside = page.html.match(/<aside class="([^"]*)"/)?.[1]?.split(' ')
+		expect(root).toEqual(expect.arrayContaining(['flex-col', 'md:flex-row']))
+		expect(aside).toEqual(
+			expect.arrayContaining(['w-full', 'max-h-[40vh]', 'border-b']),
+		)
+		expect(aside).toEqual(
+			expect.arrayContaining(['md:w-[264px]', 'md:max-h-none', 'md:border-r']),
+		)
+		expect(aside).not.toContain('w-[264px]')
+	})
+
+	it('data browser: the stacked grid keeps a usable height below md', async () => {
+		const browser = await render(DataBrowser, {}, '/modules/database/data')
+		const root = browser.html.match(/^<div class="([^"]*)"/)?.[1]?.split(' ')
+		expect(root).toEqual(expect.arrayContaining(['min-h-fit', 'md:min-h-0']))
+		expect(root).not.toContain('min-h-0')
+
+		const grid = await render(
+			DataGrid,
+			{ tab: { id: 'shop.orders', schema: 'shop', instance: '', table: 'orders' } },
+			'/modules/database/data?schema=shop&table=orders',
+		)
+		const scroller = grid.html
+			.match(/<div class="([^"]*scroll-pl-14[^"]*)"/)?.[1]
+			?.split(' ')
+		expect(scroller).toEqual(expect.arrayContaining(['min-h-80', 'md:min-h-0']))
+		expect(scroller).not.toContain('min-h-0')
 	})
 
 	it('query console: the library, saved, shared and run', async () => {
