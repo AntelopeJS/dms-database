@@ -10,7 +10,7 @@ const SECOND_MS = 1000
 const MINUTE_S = 60
 
 const { t, n, locale } = useI18n()
-const { health, isLoading, error, refresh } = useDatabaseHealth({
+const { health, isLoading, error, refresh, ready } = useDatabaseHealth({
 	refreshInterval: PROBE_INTERVAL_MS,
 })
 const clock = useNow({ interval: SECOND_MS })
@@ -94,6 +94,10 @@ const downMetrics = computed(() => [
 		sub: t('dms_database.overview.connection.next_probe_sub'),
 	},
 ])
+
+// A client navigation shows the first probe, as a server render does, not
+// the empty health whose missing driver and age lines it would then grow by.
+await ready
 </script>
 
 <template>

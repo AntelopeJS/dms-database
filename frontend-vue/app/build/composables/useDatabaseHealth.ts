@@ -36,18 +36,22 @@ const EMPTY_HEALTH: OverviewHealth = {
 
 /** `refreshInterval` probes again on that interval while the page shows it. */
 export function useDatabaseHealth(options: { refreshInterval?: number } = {}) {
-	const { data, pending, error, refresh } = useApiData<OverviewHealth>(
-		HEALTH_ENDPOINT,
-		{
-			default: () => ({ ...EMPTY_HEALTH }),
-			refreshInterval: options.refreshInterval,
-		},
-	)
+	const read = useApiData<OverviewHealth>(HEALTH_ENDPOINT, {
+		default: () => ({ ...EMPTY_HEALTH }),
+		refreshInterval: options.refreshInterval,
+	})
+	const { data, pending, error, refresh } = read
 
 	return {
 		health: computed(() => data.value ?? { ...EMPTY_HEALTH }),
 		isLoading: pending,
 		error,
 		refresh,
+		/**
+		 * Settles once the first probe is in, at once when it ran before:
+		 * awaited in a setup, a client navigation shows the probe, not the
+		 * empty health it replaces.
+		 */
+		ready: read.then(() => undefined),
 	}
 }

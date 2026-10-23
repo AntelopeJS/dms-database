@@ -54,7 +54,7 @@ const { confirm } = useConfirm()
 const toast = useToast()
 const { user } = useDmsUserSession()
 const store = useQueryStore()
-const { schemas } = useDatabaseSchemas()
+const { schemas, ready: schemasRead } = useDatabaseSchemas()
 
 const source = ref('')
 const executing = ref(false)
@@ -585,6 +585,11 @@ onMounted(async () => {
 	await store.libraryRead
 	if (!(await openFromRoute())) restoreDraft()
 })
+
+// The page shows once the schemas (the first run's examples) and the library
+// are read: a client navigation waits for them, as a server render does,
+// instead of growing the result panel and filling the sidebar after it.
+await Promise.all([schemasRead, store.libraryRead])
 </script>
 
 <template>
