@@ -5,12 +5,6 @@
 		"overview": {
 			"title": "Vue d'ensemble",
 			"description": "Santé de la connexion, schémas et activité récente de la base.",
-			"beta": {
-				"title": "Bêta",
-				"body": "Les modifications enregistrées dans l'explorateur de données sont écrites directement en base. L'édition de la structure (colonnes, index, relations) arrive avec le Module Builder.",
-				"meta": "Avertissement bêta",
-				"meta_description": "L'avertissement d'une ligne sur les écritures et ce qui arrive."
-			},
 			"actions": {
 				"query": "Ouvrir la console",
 				"browse": "Parcourir les données"
@@ -303,6 +297,10 @@
 				"inspect": "Inspecter",
 				"focus": "Isoler",
 				"show_all": "Afficher toutes les tables"
+			},
+			"columns": {
+				"more": "+ {count} colonne | + {count} colonnes",
+				"fold": "Replier les colonnes"
 			},
 			"legend": {
 				"key": "Clé primaire",

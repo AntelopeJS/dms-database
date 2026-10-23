@@ -5,12 +5,6 @@
 		"overview": {
 			"title": "Overview",
 			"description": "Connection health, schemas and recent activity of the database.",
-			"beta": {
-				"title": "Beta",
-				"body": "Saved edits in the data browser are written straight to the database. Structure editing (columns, indexes, relations) comes with the Module Builder.",
-				"meta": "Beta notice",
-				"meta_description": "The one-line notice about writes and what is coming."
-			},
 			"actions": {
 				"query": "Open query console",
 				"browse": "Browse data"
@@ -303,6 +297,10 @@
 				"inspect": "Inspect",
 				"focus": "Focus",
 				"show_all": "Show all tables"
+			},
+			"columns": {
+				"more": "+ {count} column | + {count} columns",
+				"fold": "Fold columns"
 			},
 			"legend": {
 				"key": "Primary key",

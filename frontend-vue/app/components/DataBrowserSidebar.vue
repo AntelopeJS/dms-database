@@ -158,7 +158,7 @@ onKeyStroke('t', (event) => {
 
 <template>
 	<aside
-		class="border-default bg-default flex h-full w-[264px] shrink-0 flex-col border-r"
+		class="border-default bg-default flex max-h-[40vh] w-full shrink-0 flex-col border-b md:h-full md:max-h-none md:w-[264px] md:border-r md:border-b-0"
 	>
 		<div class="border-default grid gap-2 border-b p-3">
 			<DmsEyebrow :label="t('dms_database.data.scope.schema')" />

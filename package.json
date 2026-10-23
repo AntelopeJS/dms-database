@@ -67,9 +67,9 @@
     "@antelopejs/interface-dms": ">=0.8.0 <1.0.0"
   },
   "devDependencies": {
-    "@antelopejs/core": ">=1.16.0 <2",
+    "@antelopejs/core": ">=1.17.0 <2",
     "@antelopejs/dms": ">=0.10.0 <1.0.0",
-    "@antelopejs/dms-frontend": ">=0.6.3 <0.7.0",
+    "@antelopejs/dms-frontend": ">=0.8.0 <0.9.0",
     "@antelopejs/tooling-configs": ">=0.0.9 <1.0.0",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
@@ -98,5 +98,6 @@
     "skills": [
       "./skills"
     ]
-  }
+  },
+  "dmsFrontend": "dist/frontend-module.js"
 }

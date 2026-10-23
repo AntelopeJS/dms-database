@@ -1,6 +1,5 @@
 import { ButtonVariant } from "@antelopejs/interface-dms/base/types/button";
 import { ActivityFeed } from "@antelopejs/interface-dms/base/activity-feed";
-import { Banner } from "@antelopejs/interface-dms/base/banner";
 import { CustomComponent } from "@antelopejs/interface-dms/base/custom";
 import { Grid, GridRow } from "@antelopejs/interface-dms/base/grid";
 import { DefaultLayout } from "@antelopejs/interface-dms/base/layouts";
@@ -10,10 +9,6 @@ import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { OVERVIEW_FEED_LIMIT } from "../types/constants";
-
-// Bumped whenever the notice says something new, so a reader who dismissed
-// the previous one sees it again.
-const BETA_NOTICE_KEY = "dms-database-beta-v2";
 
 @RegisterPage()
 export class DatabaseOverviewPage extends PageController(
@@ -47,19 +42,6 @@ export class DatabaseOverviewPage extends PageController(
     ],
   }),
 ) {
-  static beta = Banner({
-    tone: "warning",
-    size: "sm",
-    title: "$dms_database.overview.beta.title",
-    description: "$dms_database.overview.beta.body",
-    dismissible: true,
-    dismissKey: BETA_NOTICE_KEY,
-  }).meta({
-    name: "$dms_database.overview.beta.meta",
-    icon: "i-ph-flask",
-    description: "$dms_database.overview.beta.meta_description",
-  });
-
   static connection = CustomComponent("DmsDatabaseConnectionStatus").meta({
     name: "$dms_database.overview.connection.meta",
     icon: "i-ph-heartbeat",

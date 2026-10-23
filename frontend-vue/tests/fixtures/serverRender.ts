@@ -108,6 +108,7 @@ const UI_COMPONENTS = [
 	'DmsFormRequiredLegend',
 	'DmsInputCode',
 	'DmsInputText',
+	'DmsNavCardGridBlock',
 	'DmsSaveBar',
 	'DmsSegmented',
 	'DmsStatusSummary',
@@ -141,6 +142,117 @@ const uiStub = (name: string): Component =>
 			() =>
 				h('div', { 'data-stub': name }, slots.default?.()),
 	})
+
+/** A node of the browser mount's tree: an element, a text or a comment. */
+interface MountNode {
+	tag?: string
+	text?: string
+	props: Record<string, unknown>
+	children: MountNode[]
+	parent: MountNode | null
+}
+
+const mountNode = (fields: Partial<MountNode>): MountNode => ({
+	props: {},
+	children: [],
+	parent: null,
+	...fields,
+})
+
+function detach(node: MountNode): void {
+	const siblings = node.parent?.children
+	if (siblings) siblings.splice(siblings.indexOf(node), 1)
+	node.parent = null
+}
+
+// A DOM-less renderer: enough of Vue's node operations to mount a component
+// tree in Node and read back what it shows.
+const { createApp: createMountApp } = vue.createRenderer<MountNode, MountNode>({
+	createElement: (tag) => mountNode({ tag }),
+	createText: (text) => mountNode({ text }),
+	createComment: () => mountNode({ text: '' }),
+	setText: (node, text) => {
+		node.text = text
+	},
+	setElementText: (node, text) => {
+		node.children = [mountNode({ text, parent: node })]
+	},
+	insert: (child, parent, anchor) => {
+		detach(child)
+		const at = anchor ? parent.children.indexOf(anchor) : -1
+		if (at < 0) parent.children.push(child)
+		else parent.children.splice(at, 0, child)
+		child.parent = parent
+	},
+	remove: detach,
+	parentNode: (node) => node.parent,
+	nextSibling: (node) => {
+		const siblings = node.parent?.children ?? []
+		return siblings[siblings.indexOf(node) + 1] ?? null
+	},
+	patchProp: (node, key, _previous, next) => {
+		node.props[key] = next
+	},
+})
+
+function mountText(node: MountNode): string {
+	if (node.tag === undefined) return node.text ?? ''
+	const attributes = Object.entries(node.props)
+		.filter(([, value]) => typeof value !== 'function')
+		.map(
+			([key, value]) =>
+				` ${key}="${typeof value === 'string' ? value : JSON.stringify(value)}"`,
+		)
+		.join('')
+	return `<${node.tag}${attributes}>${node.children.map(mountText).join('')}</${node.tag}>`
+}
+
+/** A component mounted in a browser, as a client navigation shows it. */
+export interface BrowserMount {
+	/**
+	 * Settles once the page's suspense resolved: when a client navigation
+	 * would show the component.
+	 */
+	shown: Promise<void>
+	/** What the component shows now (`''` while the navigation waits). */
+	text: () => string
+	reads: BackendRead[]
+}
+
+/**
+ * Mounts `component` in a browser's app (no server render to hydrate) inside
+ * the `<Suspense>` a page navigation renders in, answering each backend
+ * request with `respond`, which may answer later (a promise).
+ */
+export function browserMount(
+	component: Component,
+	respond: Backend,
+	props: Record<string, unknown> = {},
+): BrowserMount {
+	backend = respond
+	reads.length = 0
+	const runtime = engine.createDmsFrontendRuntime(undefined, {}, false)
+	let resolveShown!: () => void
+	const shown = new Promise<void>((resolve) => (resolveShown = resolve))
+	const app = createMountApp({
+		render: () =>
+			h(
+				vue.Suspense,
+				{ onResolve: () => resolveShown() },
+				{ default: () => h(component, props) },
+			),
+	})
+	engine.provideDmsFrontendRuntime(app, runtime)
+	// The tests compile the components for a server, whose setups record
+	// themselves in the render's context: an empty one stands in for it.
+	app.provide(vue.ssrContextKey, {})
+	app.component('DmsClientOnly', engine.DmsClientOnly)
+	for (const name of UI_COMPONENTS) app.component(name, uiStub(name))
+	app.config.warnHandler = noop
+	const root = mountNode({ tag: 'root' })
+	app.mount(root)
+	return { shown, text: () => mountText(root), reads }
+}
 
 export interface ServerRender {
 	html: string
