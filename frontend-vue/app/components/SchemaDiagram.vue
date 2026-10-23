@@ -12,7 +12,9 @@ import { DiagramAutosave, type SaveStatus } from '../build/diagram/autosave'
 import {
 	buildGraph,
 	type DiagramNode,
+	expandForSearch,
 	freeSpot,
+	type LayoutOptions,
 	layOutSchema,
 	NODE_WIDTH,
 	nodeHeight,
@@ -21,7 +23,6 @@ import {
 	neighbourIds,
 	noteNodeId,
 	RELATION_EDGE_TYPE,
-	type Rect,
 	type Sides,
 	STUB_NODE_TYPE,
 	searchTables,
@@ -35,6 +36,12 @@ import {
 	type DiagramOperation,
 	type DiagramState,
 } from '../build/diagram/history'
+import {
+	boundsOf,
+	fitZoom,
+	type Rect,
+	startViewport,
+} from '../build/diagram/packing'
 import {
 	canvasOwnsKey,
 	type DiagramCommand,
@@ -60,6 +67,10 @@ const NOTE_HEIGHT = 140
 const MINUTE_MS = 60_000
 // Room around the tables for the floating toolbars.
 const FIT_PADDING = 0.25
+// Below this zoom a table cannot be read: a diagram too large to fit at it
+// starts there, on its top-left corner, clear of the toolbars.
+const START_MIN_ZOOM = 0.4
+const START_INSET = { x: 32, y: 80 }
 // Above this many tables the canvas suggests focusing on one of them.
 const LARGE_SCHEMA_TABLES = 40
 const SEARCH_HINT_ID = 'diagram-search-hint'
@@ -90,7 +101,18 @@ const panMode = ref(false)
 const search = ref('')
 const searchIndex = ref(-1)
 const viewport = ref({ x: 0, y: 0, zoom: RESET_ZOOM })
-const preview = ref<{ from: DiagramState['positions'] } | null>(null)
+const preview = ref<{
+	from: DiagramState['positions']
+	basis: LayoutOptions
+} | null>(null)
+// Tables showing all their columns, per schema: a view setting of this
+// visit, not part of the shared layout.
+const expanded = shallowRef(new Set<string>())
+const expandedBySchema = new Map<string, Set<string>>()
+// The canvas shape and the notes the layout of unsaved tables works around,
+// read when the schema loads and when auto layout runs, so a note moved
+// later does not move them.
+const layoutBasis = shallowRef<LayoutOptions>({})
 const saveState = ref<SaveStatus>('idle')
 const savedAt = ref<Date | null>(null)
 const loaded = ref(false)
@@ -163,11 +185,36 @@ const focusIds = computed(() =>
 		: null,
 )
 
-// Where dagre puts every table of the schema: the place of a table without a
-// saved one, focused or not (D-4).
+// Where the layout puts every table of the schema: the place of a table
+// without a saved one, focused or not (D-4).
 const fullLayout = computed(() =>
-	schema.value ? layOutSchema(schema.value) : undefined,
+	schema.value ? layOutSchema(schema.value, layoutBasis.value) : undefined,
 )
+
+function currentLayoutBasis(): LayoutOptions {
+	const rect = canvasWrapper.value?.getBoundingClientRect()
+	return {
+		aspect: rect?.width && rect.height ? rect.width / rect.height : undefined,
+		obstacles: state.notes.map(({ x, y, width, height }) => ({
+			x,
+			y,
+			width,
+			height,
+		})),
+	}
+}
+
+function toggleColumns(tableName: string) {
+	const next = new Set(expanded.value)
+	if (!next.delete(tableName)) next.add(tableName)
+	setExpanded(next)
+	render()
+}
+
+function setExpanded(next: Set<string>) {
+	expanded.value = next
+	if (schemaId.value) expandedBySchema.set(schemaId.value, next)
+}
 
 function render() {
 	if (!canvas.value || !schema.value || !loaded.value) return
@@ -186,6 +233,8 @@ function render() {
 		onOpenSchema: openTable,
 		routing,
 		layout: fullLayout.value,
+		expanded: expanded.value,
+		onToggleColumns: toggleColumns,
 	})
 	canvas.value.setNodes(built.nodes)
 	canvas.value.setEdges(built.edges)
@@ -196,11 +245,35 @@ function render() {
 function onNodesInitialized() {
 	if (!fitPending) return
 	fitPending = false
-	if (!centerOnQueryTable()) fitAll()
+	if (!centerOnQueryTable()) startView()
 }
 
 function fitAll() {
 	canvas.value?.fitView({ padding: FIT_PADDING, maxZoom: RESET_ZOOM })
+}
+
+// The whole diagram when it fits at a readable zoom; else its top-left
+// corner at that zoom, the minimap and "Fit view" giving the overview.
+function startView() {
+	const flow = canvas.value
+	const rect = canvasWrapper.value?.getBoundingClientRect()
+	if (!flow || !rect?.width || !rect.height) return fitAll()
+	const bounds = boundsOf(
+		flow.getNodes.map((node) => ({
+			x: node.position.x,
+			y: node.position.y,
+			width: node.dimensions.width,
+			height: node.dimensions.height,
+		})),
+	)
+	const view = startViewport(
+		bounds,
+		fitZoom(bounds, rect, FIT_PADDING),
+		START_MIN_ZOOM,
+		START_INSET,
+	)
+	if (view) flow.setViewport(view)
+	else fitAll()
 }
 
 watch([canvas, schema, selectedId, focusIds, loaded], render)
@@ -272,6 +345,8 @@ async function load(id: string) {
 		state.positions = {}
 		state.notes = []
 	}
+	expanded.value = expandedBySchema.get(id) ?? new Set()
+	layoutBasis.value = currentLayoutBasis()
 	owner.reset(state)
 	autosave = new DiagramAutosave(
 		owner,
@@ -336,7 +411,7 @@ function redo() {
 const movedCount = computed(() => {
 	if (!preview.value || !schema.value) return 0
 	return schema.value.tables.filter((table) => {
-		// A table without a saved position already sat where dagre puts it.
+		// A table without a saved position already sat where the layout puts it.
 		const before = preview.value?.from[table.name]
 		const after = state.positions[table.name]
 		return Boolean(
@@ -347,11 +422,16 @@ const movedCount = computed(() => {
 
 function startAutoLayout() {
 	if (!fullLayout.value || preview.value) return
-	preview.value = { from: clonePositions(state.positions) }
+	preview.value = {
+		from: clonePositions(state.positions),
+		basis: layoutBasis.value,
+	}
+	// Laid out for the canvas and the notes as they are now.
+	layoutBasis.value = currentLayoutBasis()
 	state.positions = clonePositions(fullLayout.value.tables)
 	routing.clear()
 	render()
-	nextTick(fitAll)
+	nextTick(startView)
 }
 
 function keepLayout() {
@@ -364,6 +444,8 @@ function keepLayout() {
 function discardLayout() {
 	if (!preview.value) return
 	state.positions = preview.value.from
+	// Unsaved tables go back where they were before the preview.
+	layoutBasis.value = preview.value.basis
 	preview.value = null
 	render()
 }
@@ -517,8 +599,22 @@ function runSearch() {
 	const matches = searchMatches.value
 	if (!matches.length || !schemaId.value) return
 	searchIndex.value = (searchIndex.value + 1) % matches.length
-	const id = tableNodeId(schemaId.value, matches[searchIndex.value] ?? '')
+	const tableName = matches[searchIndex.value] ?? ''
+	const id = tableNodeId(schemaId.value, tableName)
 	if (focusIds.value && !focusIds.value.has(id)) focusId.value = null
+	// A column found in a folded table unfolds it.
+	if (schema.value) {
+		const next = expandForSearch(
+			schema.value,
+			tableName,
+			search.value,
+			expanded.value,
+		)
+		if (next !== expanded.value) {
+			setExpanded(next)
+			render()
+		}
+	}
 	nextTick(() => centerOn(id))
 }
 
@@ -532,13 +628,14 @@ function leaveSearch() {
 function takenRects(): Rect[] {
 	const tables = (canvas.value?.getNodes ?? []).flatMap((node) => {
 		if (node.type !== TABLE_NODE_TYPE) return []
-		const { table } = node.data as TableNodeData
+		const { table, expanded: open } = node.data as TableNodeData
+		if (!schema.value) return []
 		return [
 			{
 				x: node.position.x,
 				y: node.position.y,
 				width: NODE_WIDTH,
-				height: nodeHeight(table),
+				height: nodeHeight(schema.value, table, open),
 			},
 		]
 	})

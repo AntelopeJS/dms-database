@@ -8,12 +8,26 @@ import type {
 	DiagramPosition,
 	DiagramPositions,
 } from '../composables/useDiagramPersistence'
+import { isPrimaryKey } from '../utils/fieldTypes'
+import {
+	type Block,
+	boundsOf,
+	DEFAULT_ASPECT,
+	linkedGroups,
+	overlaps,
+	packBlocks,
+	prefixOrder,
+	type Rect,
+	type Size,
+} from './packing'
 
 // Turns a schema into the nodes and edges of the diagram: one node per table,
 // a dashed stub for a table a relation points to that is not drawn, the
 // notes, and one edge per relation column. Table positions come from the
-// saved layout; a table without one takes the place dagre gives it in the
-// whole schema, so it stays put when the canvas focuses on a few tables.
+// saved layout; a table without one takes the place the layout of the whole
+// schema gives it, so it stays put when the canvas focuses on a few tables.
+// That layout runs dagre on each group of related tables, then sets the
+// groups and the tables on their own in rows shaped like the canvas.
 
 export const NODE_WIDTH = 232
 const NODE_HEIGHT_PER_FIELD = 24
@@ -21,6 +35,8 @@ const NODE_HEIGHT_HEADER = 44
 export const STUB_NODE_WIDTH = 180
 const STUB_NODE_HEIGHT = 28
 const LAYOUT = { rankdir: 'LR', nodesep: 48, ranksep: 120 } as const
+/** Columns a folded table shows, besides the ones an arrow ends on. */
+export const FOLDED_COLUMNS = 12
 const HYSTERESIS_PX = 15
 // Notes sit above the tables, so a new one is never hidden under a table.
 export const NOTE_Z_INDEX = 10
@@ -56,6 +72,14 @@ export interface TableNodeData {
 	dimmed: boolean
 	/** Picked on the canvas, by a search or from a link. */
 	selected: boolean
+	/** The columns drawn, in the table's order: all of them when unfolded. */
+	columns: string[]
+	/** Columns the folded table leaves out; 0 when it shows them all. */
+	hiddenCount: number
+	/** Has more columns than a folded table shows. */
+	foldable: boolean
+	expanded: boolean
+	onToggleColumns: (tableName: string) => void
 }
 
 export interface NoteNodeData {
@@ -134,10 +158,14 @@ export interface GraphInput {
 	/** Sides each edge used last, so an edge does not flip on every drag. */
 	routing: Map<string, Sides>
 	/**
-	 * Where dagre puts every table of the whole schema; computed when absent.
-	 * The canvas keeps it per schema, so a render does not lay out again.
+	 * Where the layout puts every table of the whole schema; computed when
+	 * absent. The canvas keeps it per schema, so a render does not lay out
+	 * again.
 	 */
 	layout?: SchemaLayout
+	/** Tables showing all their columns; the others are folded. */
+	expanded?: Set<string>
+	onToggleColumns?: (tableName: string) => void
 }
 
 export interface BuiltGraph {
@@ -157,11 +185,90 @@ export function noteNodeId(noteId: string): string {
 	return `note::${noteId}`
 }
 
-export function nodeHeight(table: TableSummary): number {
-	return (
-		NODE_HEIGHT_HEADER +
-		Object.keys(table.fields).length * NODE_HEIGHT_PER_FIELD
+/**
+ * Columns of `table` an arrow ends on: its primary key, its relation
+ * columns, and the columns relations of `schema` point at.
+ */
+function anchorColumns(
+	schema: SchemaSummary,
+	table: TableSummary,
+): Set<string> {
+	const anchors = new Set(table.relations.map((r) => r.fromField))
+	for (const field of Object.keys(table.fields))
+		if (isPrimaryKey(field, table.indexes ?? {})) anchors.add(field)
+	for (const other of schema.tables) {
+		for (const relation of other.relations) {
+			if (relation.toSchema === schema.id && relation.toTable === table.name)
+				anchors.add(relation.toField)
+		}
+	}
+	return anchors
+}
+
+export interface ShownColumns {
+	columns: string[]
+	hiddenCount: number
+	foldable: boolean
+}
+
+/**
+ * The columns a table node draws: every one when expanded; folded, the first
+ * FOLDED_COLUMNS and every column an arrow ends on, so no edge points to a
+ * row that is not drawn.
+ */
+export function shownColumns(
+	schema: SchemaSummary,
+	table: TableSummary,
+	expanded: boolean,
+): ShownColumns {
+	const all = Object.keys(table.fields)
+	const foldable = all.length > FOLDED_COLUMNS
+	if (!foldable || expanded) return { columns: all, hiddenCount: 0, foldable }
+	const anchors = anchorColumns(schema, table)
+	const columns = all.filter(
+		(name, i) => i < FOLDED_COLUMNS || anchors.has(name),
 	)
+	return { columns, hiddenCount: all.length - columns.length, foldable }
+}
+
+/**
+ * The height of a table node: its header, its rows, and the row that folds
+ * or unfolds it when it has one.
+ */
+export function nodeHeight(
+	schema: SchemaSummary,
+	table: TableSummary,
+	expanded = false,
+): number {
+	const shown = shownColumns(schema, table, expanded)
+	const rows = shown.columns.length + (shown.foldable ? 1 : 0)
+	return NODE_HEIGHT_HEADER + rows * NODE_HEIGHT_PER_FIELD
+}
+
+/** Column names of `table` that hold `needle`, as the search reads it. */
+function matchingColumns(table: TableSummary, needle: string): string[] {
+	const text = needle.trim().toLowerCase()
+	if (!text) return []
+	return Object.keys(table.fields).filter((field) =>
+		field.toLowerCase().includes(text),
+	)
+}
+
+/**
+ * The expanded tables once a search lands on `tableName`: it unfolds when a
+ * column the search finds is folded away.
+ */
+export function expandForSearch(
+	schema: SchemaSummary,
+	tableName: string,
+	needle: string,
+	expanded: Set<string>,
+): Set<string> {
+	const table = schema.tables.find((t) => t.name === tableName)
+	if (!table || expanded.has(tableName)) return expanded
+	const shown = new Set(shownColumns(schema, table, false).columns)
+	const folded = matchingColumns(table, needle).some((c) => !shown.has(c))
+	return folded ? new Set([...expanded, tableName]) : expanded
 }
 
 /** Ids of a table and of every table it points to or is pointed at from. */
@@ -285,34 +392,104 @@ function relationEdges(
 	return { stubs, pending }
 }
 
-/**
- * Lays out the whole schema with dagre: every table, and a stub for each
- * table of another schema a relation points to.
- */
-export function layOutSchema(schema: SchemaSummary): SchemaLayout {
+export interface LayoutOptions {
+	/** Width / height of the canvas: the shape the rows aim at. */
+	aspect?: number
+	/** What the tables must not cover: the notes, which never move. */
+	obstacles?: Rect[]
+}
+
+interface LaidGroup extends Size {
+	/** Each node's top-left corner, from the group's own. */
+	offsets: Map<string, DiagramPosition>
+}
+
+/** Lays out one group of related nodes with dagre. */
+function layOutGroup(
+	ids: string[],
+	sizes: Map<string, Size>,
+	links: [string, string][],
+): LaidGroup {
 	const graph = new dagre.graphlib.Graph()
 	graph.setDefaultEdgeLabel(() => ({}))
 	graph.setGraph({ ...LAYOUT })
-	const all = new Set<string>()
+	const members = new Set(ids)
+	for (const id of ids) graph.setNode(id, { ...sizes.get(id) })
+	for (const [from, to] of links)
+		if (members.has(from) && members.has(to)) graph.setEdge(from, to)
+	dagre.layout(graph)
+	const rects = ids.map((id) => {
+		const laid = graph.node(id) as LaidNode
+		const x = laid.x - laid.width / 2
+		const y = laid.y - laid.height / 2
+		return { id, x, y, width: laid.width, height: laid.height }
+	})
+	const bounds = boundsOf(rects)
+	const offsets = new Map(
+		rects.map((r) => [r.id, { x: r.x - bounds.x, y: r.y - bounds.y }]),
+	)
+	return { offsets, width: bounds.width, height: bounds.height }
+}
+
+/**
+ * Lays out the whole schema, every table and a stub for each table of
+ * another schema a relation points to: dagre on each group of tables linked
+ * by relations, a stub staying with the tables it hangs from, then the
+ * groups, largest first, and the tables on their own, by name prefix then
+ * name, in rows shaped like the canvas. Tables count at their folded height.
+ */
+export function layOutSchema(
+	schema: SchemaSummary,
+	options: LayoutOptions = {},
+): SchemaLayout {
+	const sizes = new Map<string, Size>()
+	const names = new Map<string, string>()
 	for (const table of schema.tables) {
 		const id = tableNodeId(schema.id, table.name)
-		all.add(id)
-		graph.setNode(id, { width: NODE_WIDTH, height: nodeHeight(table) })
+		names.set(id, table.name)
+		sizes.set(id, { width: NODE_WIDTH, height: nodeHeight(schema, table) })
 	}
-	const { stubs, pending } = relationEdges(schema, null, all)
+	const { stubs, pending } = relationEdges(schema, null, new Set(names.keys()))
 	for (const id of stubs.keys())
-		graph.setNode(id, { width: STUB_NODE_WIDTH, height: STUB_NODE_HEIGHT })
-	for (const edge of pending) graph.setEdge(edge.sourceId, edge.targetId)
-	dagre.layout(graph)
-	const topLeft = (id: string): DiagramPosition => {
-		const laid = graph.node(id) as LaidNode
-		return { x: laid.x - laid.width / 2, y: laid.y - laid.height / 2 }
+		sizes.set(id, { width: STUB_NODE_WIDTH, height: STUB_NODE_HEIGHT })
+	const links = pending.map((e): [string, string] => [e.sourceId, e.targetId])
+
+	const groups: (Block & LaidGroup & { count: number })[] = []
+	const alone: string[] = []
+	for (const ids of linkedGroups([...sizes.keys()], links)) {
+		const [first = ''] = ids
+		if (ids.length === 1 && names.has(first)) {
+			alone.push(names.get(first) ?? first)
+			continue
+		}
+		const laid = layOutGroup(ids, sizes, links)
+		groups.push({ id: `group::${first}`, count: ids.length, ...laid })
+	}
+	groups.sort(
+		(a, b) => b.count - a.count || b.width * b.height - a.width * a.height,
+	)
+	const single: Block[] = prefixOrder(alone).map((name) => {
+		const id = tableNodeId(schema.id, name)
+		return { id, ...(sizes.get(id) as Size) }
+	})
+
+	const packed = packBlocks(
+		[...groups, ...single],
+		options.aspect ?? DEFAULT_ASPECT,
+		options.obstacles,
+	)
+	const positions = new Map(packed)
+	for (const group of groups) {
+		const at = packed.get(group.id) ?? { x: 0, y: 0 }
+		for (const [id, offset] of group.offsets)
+			positions.set(id, { x: at.x + offset.x, y: at.y + offset.y })
 	}
 	const tables: DiagramPositions = {}
-	for (const table of schema.tables)
-		tables[table.name] = topLeft(tableNodeId(schema.id, table.name))
+	for (const [id, name] of names)
+		tables[name] = positions.get(id) ?? { x: 0, y: 0 }
 	const stubPositions: DiagramPositions = {}
-	for (const id of stubs.keys()) stubPositions[id] = topLeft(id)
+	for (const id of stubs.keys())
+		stubPositions[id] = positions.get(id) ?? { x: 0, y: 0 }
 	return { tables, stubs: stubPositions }
 }
 
@@ -363,6 +540,7 @@ function tableNodes(
 		.map((table) => {
 			const id = tableNodeId(input.schema.id, table.name)
 			const highlighted = highlightedColumns(input, table)
+			const expanded = input.expanded?.has(table.name) ?? false
 			const data: TableNodeData = {
 				schemaId: input.schema.id,
 				tableName: table.name,
@@ -374,10 +552,15 @@ function tableNodes(
 					input.selectedId !== null &&
 					input.selectedId !== id &&
 					highlighted.length === 0,
+				...shownColumns(input.schema, table, expanded),
+				expanded,
+				onToggleColumns: input.onToggleColumns ?? (() => undefined),
 			}
 			return {
 				id,
 				type: TABLE_NODE_TYPE,
+				// An unfolded table runs over the tables below it: drawn above them.
+				...(expanded ? { zIndex: 1 } : {}),
 				position: { ...tablePosition(input, layout, table.name) },
 				// The canvas keeps its own selection (`data.selected`), and a
 				// table leaves the diagram only with its schema.
@@ -396,7 +579,7 @@ export interface StubNodeData {
 
 /**
  * A stub for a table of this schema left out by the focus sits where that
- * table is; one for another schema takes the place dagre gives it.
+ * table is; one for another schema takes the place the layout gives it.
  */
 function stubPosition(
 	input: GraphInput,
@@ -523,28 +706,9 @@ export function searchTables(schema: SchemaSummary, needle: string): string[] {
 	)
 	const byColumn = schema.tables.filter(
 		(table) =>
-			!byName.includes(table) &&
-			Object.keys(table.fields).some((field) =>
-				field.toLowerCase().includes(text),
-			),
+			!byName.includes(table) && matchingColumns(table, text).length > 0,
 	)
 	return [...byName, ...byColumn].map((table) => table.name)
-}
-
-export interface Rect {
-	x: number
-	y: number
-	width: number
-	height: number
-}
-
-function overlaps(a: Rect, b: Rect, margin: number): boolean {
-	return (
-		a.x < b.x + b.width + margin &&
-		b.x < a.x + a.width + margin &&
-		a.y < b.y + b.height + margin &&
-		b.y < a.y + a.height + margin
-	)
 }
 
 const FREE_SPOT_STEP = 40
