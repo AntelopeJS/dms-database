@@ -569,7 +569,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 </script>
 
 <template>
-	<div class="flex min-h-0 flex-1 flex-col">
+	<div class="flex flex-1 flex-col md:min-h-0">
 		<div
 			class="border-default flex flex-wrap items-center gap-2 border-b px-3 py-2"
 		>
@@ -663,7 +663,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 
 		<div
 			ref="scroller"
-			class="relative min-h-0 flex-1 scroll-pl-14 scroll-pt-9 overflow-auto outline-none"
+			class="relative min-h-80 flex-1 scroll-pl-14 scroll-pt-9 overflow-auto outline-none md:min-h-0"
 			tabindex="0"
 			@keydown="onKeydown"
 		>
