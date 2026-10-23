@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.2.3
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.2...v0.2.3)
+
+### 🩹 Fixes
+
+- **frontend:** Run on @antelopejs/dms-frontend 0.7 ([#54](https://github.com/AntelopeJS/dms-database/pull/54))
+
+### 📖 Documentation
+
+- Clarify learning paths and illustrate real outcomes ([#50](https://github.com/AntelopeJS/dms-database/pull/50))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.2
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.1...v0.2.2)
