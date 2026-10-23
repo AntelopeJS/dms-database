@@ -6,7 +6,14 @@ import {
 	instanceChoiceOf,
 	tabInstanceOf,
 } from '../app/build/composables/useDataBrowserTabs'
-import { cellLabel, draftText, parseDraft } from '../app/build/data/cellValues'
+import {
+	cellLabel,
+	draftText,
+	isWideValue,
+	jsonDraftText,
+	parseDraft,
+	parseJsonDraft,
+} from '../app/build/data/cellValues'
 import {
 	changesOf,
 	mayMoveRows,
@@ -18,6 +25,7 @@ import {
 	instanceToUrl,
 	tableLink,
 } from '../app/build/utils/databaseLinks'
+import { describeField, valueDescriptor } from '../app/build/utils/fieldTypes'
 
 describe('cell drafts: null', () => {
 	it('empties a cell of any type with null', () => {
@@ -98,6 +106,35 @@ describe('cell drafts: dates', () => {
 		expect(parseDraft(stored, stored, 'date')).toMatchObject({
 			unchanged: true,
 		})
+	})
+})
+
+describe('cell drafts: JSON', () => {
+	it('opens a structured cell as indented JSON', () => {
+		expect(jsonDraftText({ a: [1, 2] })).toBe(
+			JSON.stringify({ a: [1, 2] }, null, 2),
+		)
+		expect(jsonDraftText({ a: 1 }).split('\n')).toHaveLength(3)
+		const cyclic: Record<string, unknown> = {}
+		cyclic.self = cyclic
+		expect(jsonDraftText(cyclic)).toBe('')
+	})
+
+	it('takes an object, a list, or null to empty the cell', () => {
+		expect(parseJsonDraft('{"a":1}')).toEqual({ ok: true, value: { a: 1 } })
+		expect(parseJsonDraft('[1]')).toEqual({ ok: true, value: [1] })
+		expect(parseJsonDraft(' null ')).toEqual({ ok: true, value: null })
+	})
+
+	it('refuses a scalar, and invalid JSON with its parse detail', () => {
+		for (const draft of ['42', '"text"', 'true'])
+			expect(parseJsonDraft(draft)).toEqual({
+				ok: false,
+				reason: 'not_structured',
+			})
+		const invalid = parseJsonDraft('{"a":')
+		expect(invalid).toMatchObject({ ok: false, reason: 'invalid' })
+		expect(invalid.ok || invalid.detail).toBeTruthy()
 	})
 })
 
@@ -260,5 +297,58 @@ describe('instance URL parameter', () => {
 		expect(instanceBadge(DEFAULT_INSTANCE_VALUE, 'all')).toBeNull()
 		expect(instanceBadge(CROSS_INSTANCE_VALUE, 'toutes')).toBe('@toutes')
 		expect(instanceBadge('eu', 'all')).toBe('@eu')
+	})
+})
+
+describe('row drawer', () => {
+	it('gives JSON and long or multi-line text the drawer width', () => {
+		expect(isWideValue({ city: 'Liège' })).toBe(true)
+		expect(isWideValue([1, 2])).toBe(true)
+		expect(isWideValue('x'.repeat(49))).toBe(true)
+		expect(isWideValue('line one\nline two')).toBe(true)
+		expect(isWideValue('x'.repeat(48))).toBe(false)
+		expect(isWideValue('open')).toBe(false)
+		expect(isWideValue(true)).toBe(false)
+		expect(isWideValue(null)).toBe(false)
+		expect(isWideValue(42)).toBe(false)
+	})
+})
+
+describe('column types', () => {
+	it('reads a nullable union as the type it holds, with its icon', () => {
+		const nullable = {
+			kind: 'union' as const,
+			members: [{ kind: 'string' as const }, { kind: 'null' as const }],
+		}
+		expect(describeField(valueDescriptor(nullable))).toEqual({
+			icon: 'i-ph-text-aa',
+			label: 'string',
+		})
+		const several = {
+			kind: 'union' as const,
+			members: [
+				{ kind: 'string' as const },
+				{ kind: 'number' as const },
+				{ kind: 'undefined' as const },
+			],
+		}
+		expect(describeField(valueDescriptor(several)).label).toBe(
+			'string | number',
+		)
+		// Only null: nothing else to read it as.
+		const onlyNull = {
+			kind: 'union' as const,
+			members: [{ kind: 'null' as const }],
+		}
+		expect(valueDescriptor(onlyNull)).toBe(onlyNull)
+	})
+
+	it('draws a union with an icon of the Phosphor set', () => {
+		expect(
+			describeField({
+				kind: 'union',
+				members: [{ kind: 'string' }, { kind: 'number' }],
+			}).icon,
+		).toBe('i-ph-arrows-split')
 	})
 })

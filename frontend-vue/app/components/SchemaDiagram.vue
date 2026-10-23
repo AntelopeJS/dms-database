@@ -512,15 +512,35 @@ function onPaneClick() {
 	selectedId.value = null
 }
 
+// The drawer is titled with the table it shows, as the Schemas page's; a
+// relation the inspector follows shows its table in the same drawer. No
+// position nor J / K: the diagram's tables are not a list.
+let inspector: ReturnType<typeof openDrawer> | null = null
+
+function inspectorOptions(schema: string, name: string) {
+	return {
+		componentKey: `${schema}::${name}`,
+		title: name,
+		componentOptions: {
+			rowData: { schema, name },
+			showRow: async (row: object | string) => {
+				if (typeof row !== 'string') throw new Error('not a table id')
+				const [toSchema = '', toName = ''] = row.split('::')
+				inspector?.patch(inspectorOptions(toSchema, toName))
+			},
+		},
+	}
+}
+
 function inspect(tableName: string) {
 	if (!schemaId.value) return
-	openDrawer({
-		title: t('dms_database.schemas.inspector.title'),
+	inspector = openDrawer({
 		direction: 'right',
 		component: TableInspector,
-		componentOptions: {
-			rowData: { schema: schemaId.value, name: tableName },
-		},
+		...inspectorOptions(schemaId.value, tableName),
+	})
+	inspector.result.finally(() => {
+		inspector = null
 	})
 }
 

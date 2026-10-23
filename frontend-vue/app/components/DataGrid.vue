@@ -360,12 +360,6 @@ const editing = ref<{
 	field: string
 } | null>(null)
 const invalidReason = ref<string | null>(null)
-const jsonPanel = ref<{
-	rowId: string | null
-	field: string
-	value: unknown
-	readOnly: boolean
-} | null>(null)
 
 function stagedCell(row: Record<string, unknown>, field: string) {
 	const rowId = rowIdOf(row)
@@ -384,12 +378,7 @@ function openEditorAt(r: number, c: number) {
 	const value = currentValue(row, column.name)
 	const rowId = rowIdOf(row)
 	if (value !== null && typeof value === 'object') {
-		jsonPanel.value = {
-			rowId,
-			field: column.name,
-			value,
-			readOnly: !isCellEditable(column.name, row),
-		}
+		openJsonEditor(rowId, column.name, value, !isCellEditable(column.name, row))
 		return
 	}
 	if (!isCellEditable(column.name, row) || rowId === null) return
@@ -437,11 +426,25 @@ function commitCell(draft: string | boolean, source: 'enter' | 'blur') {
 	refocusGrid()
 }
 
-function stageJson(value: unknown) {
-	const panel = jsonPanel.value
-	if (!panel || panel.readOnly || !panel.rowId) return
-	stage(panel.rowId, panel.field, value)
-	jsonPanel.value = null
+// A structured cell opens its JSON in a DMS drawer; applying stages it.
+function openJsonEditor(
+	rowId: string | null,
+	field: string,
+	value: unknown,
+	cellReadOnly: boolean,
+) {
+	const editor = openDrawer<{ value: unknown } | undefined>({
+		direction: 'right',
+		component: JsonCellPanel,
+		title: t('dms_database.data.json.title', { column: field }),
+		componentOptions: { column: field, value, readOnly: cellReadOnly },
+	})
+	editor.result
+		.then((result) => {
+			if (result && !cellReadOnly && rowId !== null)
+				stage(rowId, field, result.value)
+		})
+		.finally(refocusGrid)
 }
 
 // --- staged changes: review, save, undo ---
@@ -468,7 +471,11 @@ function afterSave({ fields, gone }: SavedChanges) {
 		.map(([field]) => field)
 	if (
 		gone > 0 ||
-		mayMoveRows(fields, { sortKey: state.sortKey, search: state.search, filtered })
+		mayMoveRows(fields, {
+			sortKey: state.sortKey,
+			search: state.search,
+			filtered,
+		})
 	)
 		reload()
 }
@@ -491,7 +498,13 @@ onKeyStroke('s', (event) => {
 })
 
 // --- the row drawer ---
-function rowNavigation(index: number) {
+// The DMS row header (`rowHeader`) names the row and holds its position on
+// the page, previous / next and J / K.
+
+/** The position over the rows of the page, "Row 3 of 50". */
+const ROW_POSITION_KEY = 'dms_database.data.row.position'
+
+function rowNavigation(index: number): RowNavigation {
 	return {
 		index,
 		total: rows.value.length,
@@ -506,17 +519,23 @@ let drawer: ReturnType<typeof openDrawer> | null = null
 
 function rowDrawerOptions(index: number) {
 	const row = rows.value[index] ?? {}
+	const rowId = rowIdOf(row)
+	const heading = rowId ?? t('dms_database.data.row.no_id')
 	return {
-		componentKey: `${props.tab.id}:${rowIdOf(row) ?? index}`,
-		title: t('dms_database.data.row.title', { table: props.tab.table }),
+		componentKey: `${props.tab.id}:${rowId ?? index}`,
+		title: heading,
+		rowHeader: {
+			title: heading,
+			positionLabel: `$${ROW_POSITION_KEY}`,
+			navigation: rowNavigation(index),
+		},
 		componentOptions: {
 			tab: props.tab,
 			row,
-			rowId: rowIdOf(row),
+			rowId,
 			columns: visibleColumns.value,
 			table: props.table,
 			readOnly: readOnly.value,
-			navigation: rowNavigation(index),
 			onStage: stage,
 			onReview: review,
 		},
@@ -942,14 +961,5 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 				/>
 			</nav>
 		</footer>
-
-		<JsonCellPanel
-			:open="jsonPanel !== null"
-			:column="jsonPanel?.field ?? ''"
-			:value="jsonPanel?.value"
-			:read-only="jsonPanel?.readOnly ?? true"
-			@update:open="jsonPanel = $event ? jsonPanel : null"
-			@save="stageJson"
-		/>
 	</div>
 </template>

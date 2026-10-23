@@ -78,6 +78,7 @@
 				"title": "Table",
 				"meta": "Table inspector",
 				"meta_description": "Columns, indexes, relations and a sample row of one table.",
+				"position": "Table {index} of {total}",
 				"not_found": "Table not found"
 			},
 			"caption": "Tables",
@@ -219,10 +220,7 @@
 				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist."
 			},
 			"row": {
-				"title": "Row of {table}",
-				"eyebrow": "Row · {scope}",
-				"previous": "Previous row (K)",
-				"next": "Next row (J)",
+				"position": "Row {index} of {total}",
 				"fields": "Fields",
 				"json": "JSON",
 				"references": "Referenced by",
@@ -489,8 +487,6 @@
 		"inspector": {
 			"load_error": "Couldn't load the schemas of this table.",
 			"eyebrow": "Schema · {schema}",
-			"previous": "Previous table (K)",
-			"next": "Next table (J)",
 			"instances": "{count} instance | {count} instances",
 			"copy_name": "Copy table name",
 			"copied": "{name} copied",
@@ -517,6 +513,8 @@
 				"column": "Column",
 				"type": "Type",
 				"null": "Null",
+				"nullable": "yes",
+				"not_nullable": "no",
 				"notes": "Notes"
 			},
 			"index": {

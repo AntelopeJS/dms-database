@@ -141,8 +141,9 @@ flags), its state kept in the URL and passed to the source route as hidden
 `queryParamFilters` through the table view's public `mergeOptions`.
 
 **Q13. What does clicking a table do?**
-It opens the table inspector, a custom row action marked `isDefault` with
-`deepLink: true`, whose target is a drawer rendering the custom
+A single click on its row (`rowClick: "single"` on the table view) opens the
+table inspector, a custom row action marked `isDefault` with
+`deepLink: true`, also in the row menu as "Inspect", whose target is a drawer rendering the custom
 `DmsDatabaseTableInspector`. J / K step through the tables (built into row
 drawers). The drawer target opens from the right (`direction: "right"`, DMS
 0.7.2); the diagram opens the same inspector from the right, through

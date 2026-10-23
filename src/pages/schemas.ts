@@ -24,6 +24,9 @@ const tables = TableView.fromSource({
   capabilities: { search: false, filter: true },
   defaultSort: { field: "elementCount", desc: true },
   pageSize: 50,
+  // A single click opens a row's inspector, as in every DMS list read row
+  // after row in a drawer; a double-click is the DMS default.
+  rowClick: "single",
   columns: {
     name: {
       name: "$dms_database.schemas.cols.table",
@@ -73,16 +76,20 @@ const tables = TableView.fromSource({
   rowActions: {
     custom: [
       {
-        // From the right, as on the diagram; J / K step through the rows
-        // as the table shows them, and the URL keeps the open table.
+        // A click on a row opens it (`rowClick: "single"` above); the URL
+        // keeps the open table. The row menu offers it too.
         label: "$dms_database.schemas.actions.inspect",
         icon: "i-ph-sidebar-simple",
         isDefault: true,
         deepLink: true,
+        // The DMS draws its row header over the inspector: the table's
+        // name, "Table 3 of 87" over the whole list, previous / next, J / K.
         target: {
           type: "drawer",
           direction: "right",
           title: "$dms_database.schemas.inspector.title",
+          rowTitle: "{name}",
+          positionLabel: "$dms_database.schemas.inspector.position",
           component: CustomComponent("DmsDatabaseTableInspector").meta({
             name: "$dms_database.schemas.inspector.meta",
             icon: "i-ph-sidebar-simple",

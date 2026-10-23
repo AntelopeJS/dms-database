@@ -78,6 +78,7 @@
 				"title": "Table",
 				"meta": "Inspecteur de table",
 				"meta_description": "Colonnes, index, relations et ligne exemple d'une table.",
+				"position": "Table {index} sur {total}",
 				"not_found": "Table introuvable"
 			},
 			"caption": "Tables",
@@ -219,10 +220,7 @@
 				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus."
 			},
 			"row": {
-				"title": "Ligne de {table}",
-				"eyebrow": "Ligne · {scope}",
-				"previous": "Ligne précédente (K)",
-				"next": "Ligne suivante (J)",
+				"position": "Ligne {index} sur {total}",
 				"fields": "Champs",
 				"json": "JSON",
 				"references": "Référencée par",
@@ -489,8 +487,6 @@
 		"inspector": {
 			"load_error": "Impossible de charger les schémas de cette table.",
 			"eyebrow": "Schéma · {schema}",
-			"previous": "Table précédente (K)",
-			"next": "Table suivante (J)",
 			"instances": "{count} instance | {count} instances",
 			"copy_name": "Copier le nom de la table",
 			"copied": "{name} copié",
@@ -517,6 +513,8 @@
 				"column": "Colonne",
 				"type": "Type",
 				"null": "Null",
+				"nullable": "oui",
+				"not_nullable": "non",
 				"notes": "Notes"
 			},
 			"index": {

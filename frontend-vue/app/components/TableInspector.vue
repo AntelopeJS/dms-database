@@ -24,33 +24,26 @@ import {
 	describeField,
 	describeModifier,
 	isPrimaryKey,
+	valueDescriptor,
 } from '../build/utils/fieldTypes'
 import { CROSS_INSTANCE_VALUE } from '../build/composables/useDataBrowserTabs'
 import { ALL_INSTANCES_PARAM, tableLink } from '../build/utils/databaseLinks'
+import DrawerTabs from './DrawerTabs.vue'
 
 // The Schemas page's row drawer (D-07), also opened from the diagram: the
 // facts of one table, its columns, indexes and relations both ways, and a
-// sample row. The table view hands it the row and the means to step to the
-// next one (J / K), or to show another row in place; a relation opens the
-// table it names in its place.
+// sample row. The container draws the header naming the table and, on the
+// Schemas page, its position and the steps to the next one (J / K); it
+// hands the inspector the row, and the means to show another row in place:
+// a relation opens the table it names in its place.
 
 interface TableRow {
 	schema: string
 	name: string
 }
 
-interface RowNavigation {
-	index: number
-	total: number
-	hasPrev: boolean
-	hasNext: boolean
-	prev: () => void
-	next: () => void
-}
-
 const props = defineProps<{
 	rowData?: TableRow
-	navigation?: RowNavigation
 	showRow?: (row: object | string) => Promise<void>
 }>()
 
@@ -101,15 +94,13 @@ const failed = computed(
 	() => schemasSettled.value && schemas.value === undefined,
 )
 
-// The table a relation was followed to, in place of the row's, where the
-// container cannot show another row (the diagram's drawer).
+// The table a relation was followed to, in place of the row's, should the
+// container fail to show it as its own row.
 const followed = ref<TableRow | null>(null)
 const shown = computed(() => followed.value ?? props.rowData)
-// J / K step from the row the table view opened: its position is not the
-// followed table's.
-const rowNavigation = computed(() =>
-	followed.value ? undefined : props.navigation,
-)
+// The drawer's header names the row's table; one followed in place is named
+// in the body.
+const namedInBody = computed(() => followed.value !== null)
 
 const schemaId = computed(() => shown.value?.schema ?? '')
 const tableName = computed(() => shown.value?.name ?? '')
@@ -149,7 +140,9 @@ const columns = computed(() => {
 		const relation = relationByField.value.get(name)
 		const key = isPrimaryKey(name, current.indexes ?? {})
 		const role: ColumnRole = key ? 'key' : relation ? 'relation' : 'plain'
-		const type = describeField(descriptor, name)
+		// Whether it takes null is the Null column's: `string | null` reads
+		// `string`, with the string's icon.
+		const type = describeField(valueDescriptor(descriptor), name)
 		return {
 			name,
 			role,
@@ -201,10 +194,10 @@ const incoming = computed(() =>
 	),
 )
 
-// The table view shows the relation's table as its own row: the URL, the
-// position and J / K follow it. Elsewhere, or should it fail to read the
-// row, the inspector shows it itself, and the row's own table again closes
-// the detour.
+// The container shows the relation's table as its own row: on the Schemas
+// page, the URL, the position and J / K follow it. Should it fail to read
+// the row, the inspector shows it itself, and the row's own table again
+// closes the detour.
 async function follow(target: TableRow) {
 	if (props.showRow) {
 		try {
@@ -257,26 +250,28 @@ const structureFacts = computed(() =>
 	].join(' · '),
 )
 
-const tabs = computed(() => [
-	{
-		value: 'columns',
-		label: t('dms_database.inspector.tabs.columns'),
-		badge: loading.value ? undefined : columns.value.length,
-	},
-	{
-		value: 'indexes',
-		label: t('dms_database.inspector.tabs.indexes'),
-		badge: loading.value ? undefined : indexes.value.length,
-	},
-	{
-		value: 'relations',
-		label: t('dms_database.inspector.tabs.relations'),
-		badge: loading.value
-			? undefined
-			: outgoing.value.length + incoming.value.length,
-	},
-	{ value: 'sample', label: t('dms_database.inspector.tabs.sample') },
-])
+const tabs = computed<{ value: InspectorTab; label: string; badge?: number }[]>(
+	() => [
+		{
+			value: 'columns',
+			label: t('dms_database.inspector.tabs.columns'),
+			badge: loading.value ? undefined : columns.value.length,
+		},
+		{
+			value: 'indexes',
+			label: t('dms_database.inspector.tabs.indexes'),
+			badge: loading.value ? undefined : indexes.value.length,
+		},
+		{
+			value: 'relations',
+			label: t('dms_database.inspector.tabs.relations'),
+			badge: loading.value
+				? undefined
+				: outgoing.value.length + incoming.value.length,
+		},
+		{ value: 'sample', label: t('dms_database.inspector.tabs.sample') },
+	],
+)
 
 // --- sample row: the latest row, or the next one on demand ---
 interface SamplePage {
@@ -425,47 +420,15 @@ async function copyName() {
 </script>
 
 <template>
-	<!-- As wide as the side drawer, whatever the open tab holds. -->
-	<div class="flex h-full w-full min-w-0 flex-col gap-4">
+	<!-- As wide as the side drawer, whatever the open tab holds. The drawer's
+		body scrolls, its header (the table's name, position, steps) in view. -->
+	<div class="flex w-full min-w-0 flex-col gap-4">
 		<header class="grid grid-cols-[minmax(0,1fr)] gap-3">
-			<div class="flex min-w-0 items-center gap-2">
+			<div class="flex min-w-0 flex-wrap items-center gap-2">
 				<DmsEyebrow
 					class="min-w-0 truncate"
 					:label="t('dms_database.inspector.eyebrow', { schema: schemaId })"
 				/>
-				<span class="flex-1" />
-				<template v-if="rowNavigation">
-					<span class="text-dimmed shrink-0 font-mono text-[11px] tabular-nums">
-						{{ rowNavigation.index + 1 }} / {{ rowNavigation.total }}
-					</span>
-					<UButton
-						icon="i-ph-caret-up"
-						color="neutral"
-						variant="ghost"
-						size="xs"
-						:disabled="!rowNavigation.hasPrev"
-						:aria-label="t('dms_database.inspector.previous')"
-						:title="t('dms_database.inspector.previous')"
-						@click="rowNavigation.prev()"
-					/>
-					<UButton
-						icon="i-ph-caret-down"
-						color="neutral"
-						variant="ghost"
-						size="xs"
-						:disabled="!rowNavigation.hasNext"
-						:aria-label="t('dms_database.inspector.next')"
-						:title="t('dms_database.inspector.next')"
-						@click="rowNavigation.next()"
-					/>
-				</template>
-			</div>
-			<div class="flex min-w-0 flex-wrap items-center gap-2">
-				<h3
-					class="text-highlighted min-w-0 break-all font-mono text-lg font-semibold"
-				>
-					{{ tableName }}
-				</h3>
 				<UBadge
 					v-if="!loading"
 					color="neutral"
@@ -485,6 +448,12 @@ async function copyName() {
 					@click="copyName"
 				/>
 			</div>
+			<h3
+				v-if="namedInBody"
+				class="text-highlighted min-w-0 break-all font-mono text-lg font-semibold"
+			>
+				{{ tableName }}
+			</h3>
 			<div v-if="loading" class="grid gap-2" aria-busy="true">
 				<USkeleton class="h-4 w-40" />
 				<USkeleton class="h-4 w-64 max-w-full" />
@@ -534,19 +503,12 @@ async function copyName() {
 					:label="t('dms_database.inspector.actions.diagram')"
 				/>
 			</div>
-			<!-- The tab list scrolls sideways on its own: held to the header's
-				width, the four tabs scroll on a phone rather than overflow. -->
-			<UTabs
-				v-model="tab"
-				:items="tabs"
-				variant="link"
-				size="sm"
-				:content="false"
-				class="min-w-0"
-			/>
+			<!-- Held to the header's width, the four tabs scroll sideways on a
+				phone, a fade on the side the others hide in. -->
+			<DrawerTabs v-model="tab" :items="tabs" />
 		</header>
 
-		<div class="min-h-0 min-w-0 flex-1 overflow-auto">
+		<div class="min-w-0">
 			<div v-if="loading" class="grid gap-3" aria-busy="true">
 				<USkeleton v-for="line in 6" :key="line" class="h-7 w-full" />
 			</div>
@@ -574,65 +536,76 @@ async function copyName() {
 				:description="`${schemaId}.${tableName}`"
 			/>
 
-			<table v-else-if="tab === 'columns'" class="w-full text-sm">
-				<thead>
-					<tr class="border-default border-b text-left">
-						<th class="text-dimmed py-2 pr-3 text-xs font-semibold">
-							{{ t('dms_database.inspector.cols.column') }}
-						</th>
-						<th class="text-dimmed px-3 py-2 text-xs font-semibold">
-							{{ t('dms_database.inspector.cols.type') }}
-						</th>
-						<th class="text-dimmed px-3 py-2 text-xs font-semibold">
-							{{ t('dms_database.inspector.cols.null') }}
-						</th>
-						<th class="text-dimmed py-2 pl-3 text-xs font-semibold">
-							{{ t('dms_database.inspector.cols.notes') }}
-						</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr
-						v-for="column in columns"
-						:key="column.name"
-						class="border-default/60 border-b last:border-0"
-					>
-						<td
-							class="text-highlighted break-all py-2 pr-3 font-mono text-[12.5px]"
+			<!-- Its columns keep their width: narrower than them, the table
+				scrolls sideways. -->
+			<div
+				v-else-if="tab === 'columns'"
+				class="min-w-0 overflow-x-auto"
+				data-columns-scroller
+			>
+				<table class="w-full min-w-[30rem] text-sm">
+					<thead>
+						<tr class="border-default border-b text-left">
+							<th class="text-dimmed py-2 pr-3 text-xs font-semibold">
+								{{ t('dms_database.inspector.cols.column') }}
+							</th>
+							<th class="text-dimmed px-3 py-2 text-xs font-semibold">
+								{{ t('dms_database.inspector.cols.type') }}
+							</th>
+							<th class="text-dimmed px-3 py-2 text-xs font-semibold">
+								{{ t('dms_database.inspector.cols.null') }}
+							</th>
+							<th class="text-dimmed py-2 pl-3 text-xs font-semibold">
+								{{ t('dms_database.inspector.cols.notes') }}
+							</th>
+						</tr>
+					</thead>
+					<tbody>
+						<tr
+							v-for="column in columns"
+							:key="column.name"
+							class="border-default/60 border-b last:border-0"
 						>
-							{{ column.name }}
-						</td>
-						<td class="px-3 py-2">
-							<span
-								class="inline-flex items-center gap-1.5 font-mono text-[11.5px]"
-								:class="COLUMN_ROLE_CLASSES[column.role]"
+							<td
+								class="text-highlighted break-all py-2 pr-3 font-mono text-[12.5px]"
 							>
-								<UIcon :name="column.icon" class="size-3.5 shrink-0" />
-								{{ column.label }}
-							</span>
-						</td>
-						<td class="px-3 py-2">
-							<span
-								v-if="column.nullable"
-								class="text-dimmed rounded border border-dashed border-current px-1 font-mono text-[10.5px]"
-							>
-								null
-							</span>
-							<span v-else class="text-dimmed">—</span>
-						</td>
-						<td class="text-muted py-2 pl-3 text-xs">
-							<span
-								v-for="modifier in column.modifiers"
-								:key="modifier.id"
-								class="mr-2 inline-flex items-center gap-1"
-							>
-								<UIcon :name="modifier.icon" class="size-3.5" />
-								{{ modifier.labelKey ? t(modifier.labelKey) : modifier.id }}
-							</span>
-						</td>
-					</tr>
-				</tbody>
-			</table>
+								{{ column.name }}
+							</td>
+							<td class="px-3 py-2">
+								<span
+									class="inline-flex items-center gap-1.5 whitespace-nowrap font-mono text-[11.5px]"
+									:class="COLUMN_ROLE_CLASSES[column.role]"
+								>
+									<UIcon :name="column.icon" class="size-3.5 shrink-0" />
+									{{ column.label }}
+								</span>
+							</td>
+							<td class="px-3 py-2">
+								<span
+									class="font-mono text-[11.5px]"
+									:class="column.nullable ? 'text-toned' : 'text-dimmed'"
+								>
+									{{
+										column.nullable
+											? t('dms_database.inspector.cols.nullable')
+											: t('dms_database.inspector.cols.not_nullable')
+									}}
+								</span>
+							</td>
+							<td class="text-muted py-2 pl-3 text-xs">
+								<span
+									v-for="modifier in column.modifiers"
+									:key="modifier.id"
+									class="mr-2 inline-flex items-center gap-1"
+								>
+									<UIcon :name="modifier.icon" class="size-3.5" />
+									{{ modifier.labelKey ? t(modifier.labelKey) : modifier.id }}
+								</span>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</div>
 
 			<div v-else-if="tab === 'indexes'" class="grid gap-2">
 				<div

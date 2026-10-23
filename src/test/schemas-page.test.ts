@@ -6,6 +6,7 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 import type { User } from "@antelopejs/interface-dms/auth/db";
+import { DatabaseSchemasPage } from "../pages/schemas";
 import { DatabaseTablesController } from "../routes/tables";
 import { listSchemaSummaries } from "../service/introspect";
 import {
@@ -191,5 +192,35 @@ describe("Schemas filter bar parameters", () => {
     assert.deepEqual(filters.instance, { kind: "default" });
     assert.equal(filters.q, "invoice");
     assert.deepEqual(filters.has, []);
+  });
+});
+
+describe("Schemas page inspector", () => {
+  it("opens on a single click on a row, and from the row menu", async () => {
+    const { options } = await DatabaseSchemasPage.tables.serialize();
+    assert.ok(options, "the table serializes its options");
+    assert.equal(options.rowClick, "single");
+    const inspect = options.rowActions?.custom?.find(
+      (action) => action.label === "$dms_database.schemas.actions.inspect",
+    );
+    assert.ok(inspect, "the row menu offers Inspect");
+    assert.equal(inspect.isDefault, true);
+    assert.equal(inspect.deepLink, true);
+    // The DMS header names the table and its position.
+    assert.deepEqual(
+      {
+        type: inspect.target.type,
+        direction: "direction" in inspect.target && inspect.target.direction,
+        rowTitle: "rowTitle" in inspect.target && inspect.target.rowTitle,
+        positionLabel:
+          "positionLabel" in inspect.target && inspect.target.positionLabel,
+      },
+      {
+        type: "drawer",
+        direction: "right",
+        rowTitle: "{name}",
+        positionLabel: "$dms_database.schemas.inspector.position",
+      },
+    );
   });
 });
