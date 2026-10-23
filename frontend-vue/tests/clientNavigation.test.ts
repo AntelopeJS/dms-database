@@ -1,7 +1,13 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { browserMount, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
+
+// The CodeMirror editor mounts on a real DOM, which this mount has not; it
+// reads nothing and does not decide when the page lands.
+vi.mock('../app/components/QueryBuilderPanel.vue', () => ({
+	default: { name: 'QueryBuilderPanel', render: () => null },
+}))
 
 // A client navigation shows a page once its components' setups settle: the
 // reads that decide a component's size are awaited there, so the page lands
