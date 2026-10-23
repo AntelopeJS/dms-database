@@ -1,5 +1,33 @@
 # Changelog
 
+## v0.3.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.3...v0.3.0)
+
+### 🚀 Enhancements
+
+- **frontend:** The frontend registration as a pure function, declared as dmsFrontend ([#56](https://github.com/AntelopeJS/dms-database/pull/56))
+- **diagram:** Readable auto layout for large schemas, fold very tall tables ([#52](https://github.com/AntelopeJS/dms-database/pull/52))
+
+### 🩹 Fixes
+
+- **data:** Stack the table list above the grid on narrow screens ([#53](https://github.com/AntelopeJS/dms-database/pull/53))
+- **overview:** No beta notice, no layout shift ([#51](https://github.com/AntelopeJS/dms-database/pull/51))
+- **data:** Open the JSON cell editor in the DMS drawer ([#55](https://github.com/AntelopeJS/dms-database/pull/55))
+
+### 📦 Build
+
+- Run on @antelopejs/dms 0.10 and @antelopejs/dms-frontend 0.8 ([#58](https://github.com/AntelopeJS/dms-database/pull/58))
+
+### ✅ Tests
+
+- Render secret for dms 0.10, api 1.4.0 and core 1.17.0 in the test stack ([#57](https://github.com/AntelopeJS/dms-database/pull/57))
+
+### ❤️ Contributors
+
+- Maxime Westhoven ([@mwesto](http://github.com/mwesto))
+- Antony Rizzitelli <rizzitelli.antony@pm.me>
+
 ## v0.2.3
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.2.2...v0.2.3)
