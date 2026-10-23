@@ -32,4 +32,5 @@ A read-mostly database console for the platform owner. It has no API for other m
 - Owner-only: pages and `/api/database/*` routes answer the platform owner alone.
 - The data browser is read-only on **All instances**; a saved edit can be undone for 10 seconds only.
 - Write queries in the console always run a dry run and need the table name typed to confirm.
+- Diagram: a table with more than 12 columns is drawn folded (key and relation columns stay visible); folding is per viewer, not saved. Auto layout keeps related tables together and sets the others in rows by `<prefix>__` name; it overwrites the team's saved layout once kept.
 - `table-watch` needs a change feed: MongoDB must run as a replica set.
