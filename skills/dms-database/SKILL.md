@@ -18,7 +18,7 @@ A read-mostly database console for the platform owner. It has no API for other m
 
 ## Config (`antelope.config.ts`, all optional)
 
-- Version 0.2+ needs `@antelopejs/dms` 0.9 (`interface-dms` 0.7) and `@antelopejs/dms-frontend` 0.6; 0.1 is the DMS 0.8 line.
+- It needs `@antelopejs/dms` 0.11 (`interface-dms` 0.9) and `@antelopejs/dms-frontend` 0.9; 0.3 is the DMS 0.10 line.
 
 - `driverLabel: "MongoDB 8.0"`: the database name on the Overview (the interface cannot discover it).
 - `schemaLabels: { "<schemaId or glob*>": { label, color?: Tone } }`: badges; built-in patterns cover `app*`, `core*`, `global*`, `staging*`, `review*`, `prod*`.

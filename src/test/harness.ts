@@ -40,7 +40,7 @@ export default defineConfig({
         : {
             type: "package",
             package: "@antelopejs/dms",
-            version: ">=0.10.0 <1.0.0",
+            version: ">=0.11.0 <1.0.0",
           },
       config: {
         // No frontend server runs here: the dashboard URL is the API, whose
@@ -49,7 +49,7 @@ export default defineConfig({
         auth: {
           jwtSecret: JWT_SECRET,
         },
-        // Outside development, which the test run is not, dms 0.10 refuses
+        // Outside development, which the test run is not, dms 0.11 refuses
         // to start without a render secret of its own.
         htmlRender: {
           serviceSecret: HTML_RENDER_SECRET,
@@ -60,7 +60,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/mongodb",
-        version: "1.4.4",
+        version: "1.5.0",
       },
     },
     "auth-jwt": {
@@ -77,7 +77,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: "0.1.12",
+        version: "0.1.13",
       },
     },
     nodemailer: {
@@ -97,7 +97,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/api",
-        version: "1.4.0",
+        version: "1.5.0",
       },
       config: {
         servers: [{ protocol: "http", host: "127.0.0.1", port: API_PORT }],
