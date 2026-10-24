@@ -4,6 +4,11 @@
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.3.0...v0.3.1)
 
+### Upgrade notes
+
+- ⚠️ **Minimum versions raised:** requires `@antelopejs/dms` 0.11 (`>=0.11.0`), `@antelopejs/interface-dms` 0.9 (`>=0.9.0`) and the renderer `@antelopejs/dms-frontend` 0.9 (the frontend layer's `engines` is `>=0.9.0 <0.10.0`: the 0.9 loader refuses an older layer, and an older loader refuses this one). `@antelopejs/interface-database` is floored at `>=0.1.11` and `@antelopejs/interface-database-decorators` at `>=0.1.10`, as interface-dms 0.9 asks. Upgrade the backend, interface and renderer together; on DMS 0.10 or earlier, stay on dms-database 0.3.0 ([#59](https://github.com/AntelopeJS/dms-database/pull/59)).
+- No API, configuration or data change.
+
 ### 📦 Build
 
 - Run on @antelopejs/dms 0.11 and @antelopejs/dms-frontend 0.9 ([#59](https://github.com/AntelopeJS/dms-database/pull/59))
