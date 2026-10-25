@@ -62,7 +62,7 @@ start_mongodb() {
 
 build_playground() {
   pnpm build
-  pnpm --dir playground install --frozen-lockfile --force
+  pnpm --dir playground install --ignore-workspace --frozen-lockfile --force
   pnpm --dir playground build
 }
 

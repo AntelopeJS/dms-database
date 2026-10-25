@@ -7,13 +7,13 @@
 - `src`: the backend module. `src/pages` declares the pages as DMS blocks; `src/routes` serves the module's API.
 - `frontend-vue`: the Vue layer, registered through `dms.frontend.ts` under the `DmsDatabase` prefix. ESLint and Prettier own it, not oxlint and oxfmt. `app/build` is private to the layer and imported by path.
 - `playground`: a project with a `demo` and a `shop` schema. It has its own lockfile and is not a workspace package.
-- `skills` and `docs` ship in the package. `skills` is declared under `antelopeJs.skills`; `docs` is the source of the module's documentation pages.
+- `skills` ships in the package, declared under `antelopeJs.skills`. `docs` is not packed; it is the source of the module's pages on the documentation site.
 
 `frontend-vue` is a pnpm workspace package with its own lockfile (`shared-workspace-lockfile=false`), so one root install covers both.
 
 ## Versioning
 
-- `@antelopejs/dms-frontend` is capped below the next minor (`<0.10.0`), in `package.json`, `frontend-vue/package.json` (`engines`) and the README compatibility table. Move the three together.
+- `@antelopejs/dms-frontend` is capped below the next minor (`<0.10.0`), in `package.json`, `frontend-vue/package.json` (`engines`), `playground/package.json` and the README compatibility table. Move the four together.
 - The `@antelopejs/interface-*` ranges stay `>=x.y.z <1.0.0`; `antelopejs-check-interface-ranges` in `pnpm lint` enforces the shape.
 - The release commit writes `CHANGELOG.md`. Upgrade notes for that version follow in a separate `docs(changelog)` pull request, under `### Upgrade notes`.
 
