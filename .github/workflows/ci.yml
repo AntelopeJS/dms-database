@@ -16,12 +16,21 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Three jobs in parallel so the wall clock is the slowest of them, not the
-# sum: verify-source builds a whole generated Inertia app, the backend suite
-# boots a real DMS, and the static checks need neither. `ubuntu` gathers them
-# under the name the branch protection knows.
+# Two jobs in parallel so the wall clock is the slower of them, not the sum:
+# `pnpm run checks` covers the static checks and the backend suite (which
+# builds once and boots a real DMS), and verify-source builds a whole
+# generated Inertia app. `ubuntu` gathers them under the name the branch
+# protection knows.
 jobs:
-  static:
+  checks:
+    uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v1
+    with:
+      docs-files: |
+        README.md
+        docs
+      docs-typescript-project: docs/tsconfig.json
+
+  frontend:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -31,78 +40,10 @@ jobs:
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
-          # .nvmrc is the version of record. oxlint needs at least 22.18 to
-          # read a TypeScript config, which every value there clears.
           node-version-file: .nvmrc
           cache: pnpm
           # frontend-vue retains its own lockfile; without it
           # the cache key ignores half of what the job installs.
-          cache-dependency-path: |
-            pnpm-lock.yaml
-            frontend-vue/pnpm-lock.yaml
-      # The root lint runs the frontend-vue eslint too.
-      - run: pnpm install --frozen-lockfile
-      - uses: AntelopeJS/tooling-configs/actions/docs@310e3d861b2da2244902854379176c91e1ebc68e
-        with:
-          files: |
-            README.md
-            docs
-          typescript-project: docs/tsconfig.json
-      - run: pnpm lint
-      # oxlint's type-aware pass degrades to `any` on a broken tsconfig
-      # without failing, so the typecheck is what catches it.
-      - run: pnpm typecheck
-      # Unused dependencies only. `pnpm knip:all` also reports dead files and
-      # exports, which need a human to confirm, so they stay out of the gate.
-      - run: pnpm knip
-
-  backend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-          cache-dependency-path: |
-            pnpm-lock.yaml
-            frontend-vue/pnpm-lock.yaml
-      - run: pnpm install --frozen-lockfile
-      # `ajs module test` packs and installs the package-sourced modules
-      # (dms, mongodb, api...) into `.antelope/cache`, and mongodb-memory-server
-      # downloads its mongod binary; both used to be fetched on every run.
-      # Ranges are still resolved against the registry, so a stale cache only
-      # costs a download, never an outdated module.
-      - uses: actions/cache@v4
-        with:
-          path: .antelope/cache
-          key: antelope-${{ runner.os }}-${{ hashFiles('src/test/harness.ts', 'pnpm-lock.yaml') }}
-      - uses: actions/cache@v4
-        with:
-          path: ~/.cache/mongodb-binaries
-          # The version pinned as MONGO_BINARY_VERSION in the harness.
-          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('src/test/harness.ts') }}
-          restore-keys: mongodb-binaries-${{ runner.os }}-
-      # The only build of the job. DMS_PREBUILT below makes the test script
-      # and the harness's `installCommand` reuse it instead of building twice
-      # more.
-      - run: pnpm build
-      - run: pnpm test
-        env:
-          DMS_PREBUILT: "1"
-
-  frontend:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
           cache-dependency-path: |
             pnpm-lock.yaml
             frontend-vue/pnpm-lock.yaml
@@ -118,7 +59,7 @@ jobs:
   # job above passed.
   ubuntu:
     if: always()
-    needs: [static, backend, frontend]
+    needs: [checks, frontend]
     runs-on: ubuntu-latest
     steps:
       - run: |
