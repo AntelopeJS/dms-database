@@ -1,0 +1,21 @@
+/* As wide as its content: a centred panel only gets half the canvas, which
+   would wrap a bar that fits. It wraps only when the screen is narrower. */
+.diagram-float {
+	display: flex;
+	flex-wrap: wrap;
+	width: max-content;
+	max-width: calc(100vw - 4rem);
+	align-items: center;
+	gap: 2px;
+	padding: 4px;
+	border: 1px solid var(--ui-border-accented);
+	border-radius: var(--ui-radius);
+	background: var(--ui-bg-elevated);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 0.18);
+}
+.diagram-float__sep {
+	width: 1px;
+	height: 18px;
+	margin: 0 4px;
+	background: var(--ui-border);
+}

@@ -5,11 +5,5 @@
     "anti-slop/no-unsafe-dictionary-type": 7,
     "anti-slop/require-safety-comment-for-type-assertion": 3
   },
-  "oversizeFiles": {
-    "frontend-vue/app/build/diagram/graph.ts": 22393,
-    "frontend-vue/app/components/DataGrid.vue": 27761,
-    "frontend-vue/app/components/QueryConsole.vue": 21783,
-    "frontend-vue/app/components/SchemaDiagram.vue": 36411,
-    "frontend-vue/app/components/TableInspector.vue": 22634
-  }
+  "oversizeFiles": {}
 }
