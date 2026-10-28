@@ -1,0 +1,12 @@
+{
+  "rules": {
+    "anti-slop/no-chained-type-assertions": 2,
+    "anti-slop/no-object-parameters": 2,
+    "eslint/max-params": 3,
+    "typescript/no-base-to-string": 1,
+    "typescript/unbound-method": 1
+  },
+  "tsExpectError": 0,
+  "tsIgnore": 0,
+  "safety": 0
+}
