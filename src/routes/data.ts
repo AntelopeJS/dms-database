@@ -26,6 +26,7 @@ import {
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
+import { isJsonObjectBody } from "../types/json";
 import type { ListResult } from "../types/responses";
 import { isNonEmptyString, isObject, isString } from "../utils/guards";
 import {
@@ -250,7 +251,7 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
+    assert(isJsonObjectBody(body), 400, "Invalid request body");
 
     const table = resolveTable(selection);
     const target = table.get(id);

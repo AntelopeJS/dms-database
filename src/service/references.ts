@@ -1,4 +1,5 @@
 import { type InstanceId, Schema } from "@antelopejs/interface-database";
+import type { CellValue, Row } from "../types/row";
 import { listSchemaSummaries } from "./introspect";
 import type { RelationDeclaration } from "./types";
 
@@ -18,7 +19,7 @@ interface InboundRelation extends RelationDeclaration {
 
 interface CountInput {
   relation: InboundRelation;
-  value: unknown;
+  value: CellValue;
   instance: InstanceId | undefined;
 }
 
@@ -76,7 +77,7 @@ async function countReferences({
 export async function listRowReferences(
   schema: string,
   table: string,
-  row: Record<string, unknown>,
+  row: Row,
   instance: InstanceId | undefined,
 ): Promise<RowReference[]> {
   const relations = await listInboundRelations(schema, table);

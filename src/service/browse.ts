@@ -6,7 +6,16 @@ import {
   type Stream,
 } from "@antelopejs/interface-database";
 import { getTablePrimaryKey } from "./introspect";
-import { isObject, isString } from "../utils/guards";
+import type { CellValue, Row } from "../types/row";
+import {
+  isBigInt,
+  isBoolean,
+  isFunction,
+  isNumber,
+  isObject,
+  isString,
+  isSymbol,
+} from "../utils/guards";
 import {
   applyFilterToList,
   cellToText,
@@ -56,10 +65,7 @@ export interface BrowseQuery extends BrowseSelection {
  * Free-text search across every cell of a row (case-insensitive substring),
  * mirroring what the table view's search box implies.
  */
-function searchRows(
-  rows: Record<string, unknown>[],
-  search: string,
-): Record<string, unknown>[] {
+function searchRows(rows: Row[], search: string): Row[] {
   const needle = search.toLowerCase();
   return rows.filter((row) =>
     Object.values(row).some((value) =>
@@ -112,11 +118,8 @@ export function resolveTable(selection: BrowseSelection) {
  * Arbitrary JSON stringification and Unicode matching must retain JS
  * semantics.
  */
-async function refinePage(
-  sorted: Stream<Record<string, unknown>>,
-  query: BrowseQuery,
-) {
-  const results: Record<string, unknown>[] = [];
+async function refinePage(sorted: Stream<Row>, query: BrowseQuery) {
+  const results: Row[] = [];
   let total = 0;
   for await (const row of sorted) {
     let matches = [row];
@@ -219,9 +222,16 @@ export async function fetchColumns(
  * it in (so a number/boolean column is not silently turned into a string);
  * editability itself does not depend on the type.
  */
-function jsTypeOf(value: unknown): string {
+function jsTypeOf(value: CellValue): string {
   if (value === null) return "null";
   if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
-  return typeof value;
+  if (isString(value)) return "string";
+  if (isNumber(value)) return "number";
+  if (isBoolean(value)) return "boolean";
+  if (isBigInt(value)) return "bigint";
+  if (isSymbol(value)) return "symbol";
+  if (isFunction(value)) return "function";
+  if (value === undefined) return "undefined";
+  return "object";
 }

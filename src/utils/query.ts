@@ -3,6 +3,7 @@ import {
   type InstanceId,
 } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import type { CellValue } from "../types/row";
 import { isBoolean, isNumber, isString } from "./guards";
 
 const FILTER_MODE_SEPARATOR = ":";
@@ -89,7 +90,7 @@ export function applyFilterToList<T>(
  * non-callable `toString` (the browser is schemaless), which makes even that
  * throw: the cell then reads as empty.
  */
-export function cellToText(value: unknown): string {
+export function cellToText(value: CellValue): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;
   if (isNumber(value) || isBoolean(value)) return value.toString();

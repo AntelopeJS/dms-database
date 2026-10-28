@@ -70,7 +70,9 @@ interface LayoutResponse {
   positions: Record<string, Position>;
 }
 
-function asPositions(value: JsonValue | undefined): Record<string, Position> {
+function asPositions(
+  value: JsonValue | undefined,
+): LayoutResponse["positions"] {
   assert(
     value !== undefined && isJsonObjectValue(value),
     400,

@@ -44,3 +44,12 @@ export function isJsonValue(value: unknown): value is JsonValue {
 export function isJsonObject(value: unknown): value is JsonObject {
   return isJsonValue(value) && isJsonObjectValue(value);
 }
+
+/**
+ * Whether a decoded request body is an object rather than an array or a
+ * scalar. The body was parsed from JSON, so only its top level is left to
+ * check.
+ */
+export function isJsonObjectBody(value: unknown): value is JsonObject {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}

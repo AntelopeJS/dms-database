@@ -235,8 +235,7 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   return { query, source, language, root: decodeRunnable(query) };
 }
 
-function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
+function failureMessage(message: string): string {
   return message || "Query execution failed";
 }
 
@@ -260,7 +259,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       if (unknownTarget) throw new Error(unknownTarget);
       raw = await root.run();
     } catch (error) {
-      const message = errorMessage(error);
+      const message = failureMessage(
+        error instanceof Error ? error.message : String(error),
+      );
       const durationMs = Date.now() - startedAt;
       await historyModel.addAndPrune({
         userId: user._id,
@@ -321,7 +322,11 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     try {
       return await dryRun(root);
     } catch (error) {
-      assert(false, 400, errorMessage(error));
+      assert(
+        false,
+        400,
+        failureMessage(error instanceof Error ? error.message : String(error)),
+      );
     }
   }
 

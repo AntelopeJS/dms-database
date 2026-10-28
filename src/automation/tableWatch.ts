@@ -2,6 +2,7 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { Schema, type Table } from "@antelopejs/interface-database";
 import type { Changes } from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
+import type { Row } from "../types/row";
 import { isObject, isString } from "../utils/guards";
 
 type WatchEventType = "insert" | "update" | "delete";
@@ -21,14 +22,14 @@ interface TableWatchConfig {
 
 interface TableWatchOutput {
   type: WatchEventType;
-  old: Record<string, unknown> | null;
-  new: Record<string, unknown> | null;
+  old: Row | null;
+  new: Row | null;
   schema: string;
   table: string;
   at: string;
 }
 
-type ChangeRow = Record<string, unknown>;
+type ChangeRow = Row;
 type ChangeFeed = AsyncGenerator<Changes<ChangeRow>, void, unknown>;
 
 interface TableWatchHandle {

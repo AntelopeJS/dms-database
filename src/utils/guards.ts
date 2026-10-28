@@ -13,6 +13,16 @@ export function isNumber(value: unknown): value is number {
   return typeof value === "number";
 }
 
+/** Whether `value` is a bigint. */
+export function isBigInt(value: unknown): value is bigint {
+  return typeof value === "bigint";
+}
+
+/** Whether `value` is a symbol. */
+export function isSymbol(value: unknown): value is symbol {
+  return typeof value === "symbol";
+}
+
 /** Whether `value` is a number other than `NaN` and the infinities. */
 export function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);

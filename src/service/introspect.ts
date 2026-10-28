@@ -14,6 +14,7 @@ import {
   type Table,
 } from "@antelopejs/interface-database-decorators";
 import { getModuleConfig } from "../config";
+import type { CellValue } from "../types/row";
 import {
   isBoolean,
   isFiniteNumber,
@@ -88,7 +89,7 @@ function resolveRelations(
 
 function resolveModifiers(
   TableClass: Class<Table> | undefined,
-): Record<string, string[]> {
+): TableSummary["modifiers"] {
   if (!TableClass) return {};
   const meta = getMetadata(TableClass, ModifiersStaticMetadata, true);
   const out: Record<string, string[]> = {};
@@ -110,7 +111,7 @@ const fieldsCache = new Map<string, CachedFields>();
  * An array's element type, from its elements other than `null`: one kind
  * gives `kind[]`, several a union of them, none leaves it untyped (D-20).
  */
-function inferArrayType(items: unknown[]): FieldDescriptor {
+function inferArrayType(items: CellValue[]): FieldDescriptor {
   const members: FieldDescriptor[] = [];
   for (const item of items) {
     const type = inferFieldType(item);
@@ -147,7 +148,7 @@ function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
 }
 
-function inferFieldType(value: unknown): FieldDescriptor | undefined {
+function inferFieldType(value: CellValue): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
   if (Array.isArray(value)) return inferArrayType(value);
@@ -232,7 +233,7 @@ function withNull(descriptor: FieldDescriptor): FieldDescriptor {
  * A column holding `null` in some sampled rows is nullable: its type is a
  * union with `null`, and a column holding only `null` is typed `null`.
  */
-function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
+function inferFromRows(rows: unknown[]): TableSummary["fields"] {
   const observed = new Map<string, ObservedField>();
   for (const row of rows) {
     if (!isObject(row)) continue;

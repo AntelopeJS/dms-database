@@ -1,5 +1,10 @@
 import { assert } from "@antelopejs/interface-api-util";
-import { isJsonContainer, type JsonValue } from "../types/json";
+import {
+  isJsonContainer,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
+import type { CellValue, Row } from "../types/row";
 import { isBoolean, isObject } from "../utils/guards";
 import { cellToText } from "../utils/query";
 
@@ -17,12 +22,10 @@ const SYNTHETIC_FIELDS = new Set(["_instance"]);
  */
 const READONLY_FIELDS = new Set(["_id"]);
 
-/**
- * `object` is the contract: this round-trips anything non-primitive through
- * JSON.
- */
-// oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because the null and undefined cases returned earlier, and `typeof value === "object"` alone yields `object | null`; a narrower type here would only push an assertion up
-function normalizeJsonValue(value: object): JsonValue | undefined {
+/** Round-trips a structured value through JSON. */
+function normalizeJsonValue(
+  value: JsonObject | JsonValue[],
+): JsonValue | undefined {
   try {
     return JSON.parse(JSON.stringify(value));
   } catch {
@@ -30,7 +33,7 @@ function normalizeJsonValue(value: object): JsonValue | undefined {
   }
 }
 
-function sameJson(a: unknown, b: unknown): boolean {
+function sameJson(a: CellValue, b: CellValue): boolean {
   try {
     return JSON.stringify(a) === JSON.stringify(b);
   } catch {
@@ -57,7 +60,7 @@ function isProtectedField(field: string, primaryKey: string | undefined) {
 
 /** `null` clears a cell, which is also how an undo restores an empty one. */
 function resolveClearedValue(
-  current: Record<string, unknown>,
+  current: Row,
   field: string,
 ): null | typeof SKIP_FIELD {
   return current[field] === null || current[field] === undefined
@@ -66,10 +69,9 @@ function resolveClearedValue(
 }
 
 function resolveStructuredValue(
-  current: Record<string, unknown>,
+  current: Row,
   field: string,
-  // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and that is what the caller narrowed it to
-  value: object,
+  value: JsonObject | JsonValue[],
 ): JsonValue | typeof SKIP_FIELD {
   const normalized = normalizeJsonValue(value);
   if (!isJsonContainer(normalized)) return SKIP_FIELD;
@@ -78,7 +80,9 @@ function resolveStructuredValue(
   return normalized;
 }
 
-function isWritableScalar(value: unknown): value is string | number | boolean {
+function isWritableScalar(
+  value: JsonValue,
+): value is string | number | boolean {
   if (typeof value === "number") return Number.isFinite(value);
   return typeof value === "string" || typeof value === "boolean";
 }
@@ -114,9 +118,9 @@ function resolveDateValue(
  * really can be named `toString`.
  */
 function resolveEditValue(
-  current: Record<string, unknown>,
+  current: Row,
   field: string,
-  value: unknown,
+  value: JsonValue | undefined,
   primaryKey: string | undefined,
 ): EditValue {
   if (value === undefined || isProtectedField(field, primaryKey)) {
@@ -158,11 +162,11 @@ function resolveEditValue(
  * object, which would silently drop the edit while reporting success.
  */
 export function buildEditUpdates(
-  current: Record<string, unknown>,
-  body: Record<string, unknown>,
+  current: Row,
+  body: JsonObject,
   primaryKey: string | undefined,
-): Record<string, unknown> {
-  const updates: Record<string, unknown> = Object.create(null);
+): Row {
+  const updates: Row = Object.create(null);
   for (const [field, value] of Object.entries(body)) {
     const resolved = resolveEditValue(current, field, value, primaryKey);
     if (resolved !== SKIP_FIELD) updates[field] = resolved;
