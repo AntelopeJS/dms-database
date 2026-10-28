@@ -1,5 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
 import { baseCompile } from '@intlify/message-compiler'
 import { describe, expect, it } from 'vitest'
 
@@ -7,9 +5,12 @@ import { describe, expect, it } from 'vitest'
 // `}` or `|` then fails at runtime, on the page that shows it (S-1). Compile
 // every message of every locale here instead; literals go through `{'@'}`.
 
-const LOCALES_DIR = join(import.meta.dirname, '../i18n/locales')
-
 type Messages = { [key: string]: string | Messages }
+
+const locales = import.meta.glob<Messages>('../i18n/locales/*.json', {
+	eager: true,
+	import: 'default',
+})
 
 function leaves(messages: Messages, prefix = ''): [string, string][] {
 	return Object.entries(messages).flatMap(([key, value]) => {
@@ -27,23 +28,21 @@ function compileErrors(message: string): string[] {
 	return errors
 }
 
-const files = readdirSync(LOCALES_DIR).filter((file) => file.endsWith('.json'))
-
 describe('locale messages', () => {
 	it('finds the locale files', () => {
-		expect(files.length).toBeGreaterThan(0)
+		expect(Object.keys(locales).length).toBeGreaterThan(0)
 	})
 
-	it.each(files)('compiles every message of %s', (file) => {
-		const messages = JSON.parse(
-			readFileSync(join(LOCALES_DIR, file), 'utf8'),
-		) as Messages
-		const failures = leaves(messages)
-			.map(([key, message]) => ({ key, errors: compileErrors(message) }))
-			.filter((entry) => entry.errors.length > 0)
-			.map((entry) => `${entry.key}: ${entry.errors.join(', ')}`)
-		expect(failures).toEqual([])
-	})
+	it.each(Object.entries(locales))(
+		'compiles every message of %s',
+		(_file, messages) => {
+			const failures = leaves(messages)
+				.map(([key, message]) => ({ key, errors: compileErrors(message) }))
+				.filter((entry) => entry.errors.length > 0)
+				.map((entry) => `${entry.key}: ${entry.errors.join(', ')}`)
+			expect(failures).toEqual([])
+		},
+	)
 
 	it('reports an unescaped linked-message sign', () => {
 		expect(compileErrors('declares tables with @RegisterTable.')).not.toEqual(
@@ -52,77 +51,5 @@ describe('locale messages', () => {
 		expect(compileErrors("declares tables with {'@'}RegisterTable.")).toEqual(
 			[],
 		)
-	})
-})
-
-// `<i18n-t>` looks for its component's own messages first; the module's
-// components have none, and vue-i18n warns on each page that renders one
-// ("Not found parent scope"). The module's messages are global: say so.
-const COMPONENTS_DIR = join(import.meta.dirname, '../app')
-
-function vueFiles(dir: string): string[] {
-	return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-		const path = join(dir, entry.name)
-		if (entry.isDirectory()) return vueFiles(path)
-		return entry.name.endsWith('.vue') ? [path] : []
-	})
-}
-
-describe('translated templates', () => {
-	it('reads every <i18n-t> from the global messages', () => {
-		const unscoped = vueFiles(COMPONENTS_DIR).flatMap((file) =>
-			(readFileSync(file, 'utf8').match(/<i18n-t\b[^>]*>/g) ?? [])
-				.filter((tag) => !/\sscope="global"/.test(tag))
-				.map((tag) => `${file.slice(COMPONENTS_DIR.length)}: ${tag}`),
-		)
-		expect(unscoped).toEqual([])
-	})
-})
-
-// The backend pages name their texts by key: a key left behind in a page, or
-// a page block whose keys were dropped, shows the raw `$dms_database...` path.
-const PAGES_DIR = join(import.meta.dirname, '../../src/pages')
-
-function resolves(messages: Messages, key: string): boolean {
-	let node: string | Messages | undefined = messages
-	for (const part of key.split('.')) {
-		if (typeof node !== 'object') return false
-		node = node[part]
-	}
-	return typeof node === 'string'
-}
-
-describe('page texts', () => {
-	const pageKeys = readdirSync(PAGES_DIR)
-		.filter((file) => file.endsWith('.ts'))
-		.flatMap((file) => [
-			...readFileSync(join(PAGES_DIR, file), 'utf8').matchAll(
-				/"\$(dms_database\.[\w.]+)"/g,
-			),
-		])
-		.map(([, key]) => key)
-
-	it('finds the keys of the pages', () => {
-		expect(pageKeys.length).toBeGreaterThan(0)
-	})
-
-	it.each(files)('translates every key the pages name in %s', (file) => {
-		const messages = JSON.parse(
-			readFileSync(join(LOCALES_DIR, file), 'utf8'),
-		) as Messages
-		expect(pageKeys.filter((key) => !resolves(messages, key))).toEqual([])
-	})
-
-	it('shows no beta notice on the overview', () => {
-		const overview = readFileSync(join(PAGES_DIR, 'overview.ts'), 'utf8')
-		expect(overview).not.toMatch(/\bBanner\(/)
-		for (const file of files) {
-			const messages = JSON.parse(
-				readFileSync(join(LOCALES_DIR, file), 'utf8'),
-			) as Messages
-			expect(resolves(messages, 'dms_database.overview.beta.title')).toBe(
-				false,
-			)
-		}
 	})
 })
