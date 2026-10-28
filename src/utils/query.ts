@@ -97,11 +97,7 @@ export function cellToText(value: unknown): string {
   try {
     const json = JSON.stringify(value);
     if (json !== undefined) return json;
-  } catch {
-    // A cycle or a BigInt. This runs per cell on a browse request, which has no
-    // catch of its own, and `String()` never threw -- so it falls through
-    // rather than answering a search with a 500.
-  }
+  } catch {}
   try {
     // oxlint-disable-next-line typescript/no-base-to-string -- the cell is arbitrary JSON from a schemaless store, and the catch below handles a toString that throws
     return String(value);

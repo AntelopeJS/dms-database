@@ -196,9 +196,7 @@ async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
     try {
       const user = await users.get(userId);
       if (user?.name) names.set(userId, user.name);
-    } catch {
-      // A deleted account leaves its shared queries unnamed.
-    }
+    } catch {}
   }
   return names;
 }
