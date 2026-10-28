@@ -55,13 +55,13 @@ export interface SchemaFilters {
 /**
  * A hidden filter arrives as `<mode>:<value>`; the bar only ever sends `is`.
  */
-function filterValue(raw: unknown): string {
+function filterValue(raw: string | undefined): string {
   return parseFilter(raw)?.value.trim() ?? "";
 }
 
 /** The filter bar's state from the `filter_<key>` values of a list query. */
 export function readSchemaFilters(
-  raw: Partial<Record<SchemaFilterKey, unknown>>,
+  raw: Partial<Record<SchemaFilterKey, string | undefined>>,
 ): SchemaFilters {
   return {
     scope: filterValue(raw.scope) || undefined,

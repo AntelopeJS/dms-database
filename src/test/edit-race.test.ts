@@ -4,6 +4,7 @@ import { Query, Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { SessionModel, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { DEFAULT_TENANT_ID } from "@antelopejs/interface-dms/constants";
+import type { JsonValue } from "../types/json";
 
 const SCHEMA = "edit-race-regression";
 const schema = new Schema<{ items: { _id: string; name: string } }>(SCHEMA, {
@@ -36,7 +37,7 @@ describe("[integration] public PUT edit", () => {
       createdAt: now,
       lastActiveAt: now,
     });
-    const encode = (value: unknown) =>
+    const encode = (value: JsonValue) =>
       Buffer.from(JSON.stringify(value)).toString("base64url");
     const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({
       id: userId,

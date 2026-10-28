@@ -3,6 +3,7 @@ import {
   type InstanceId,
 } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import { isBoolean, isNumber, isString } from "./guards";
 
 const FILTER_MODE_SEPARATOR = ":";
 const FILTER_MODE_IS = "is";
@@ -13,14 +14,10 @@ export interface ParsedFilter {
   value: string;
 }
 
-export function asNonEmptyString(value: unknown): string | undefined {
-  if (typeof value !== "string") return undefined;
-  if (value.length === 0) return undefined;
-  return value;
-}
-
-export function parseInteger(value: unknown, fallback: number): number {
-  const text = asNonEmptyString(value);
+export function parseInteger(
+  text: string | undefined,
+  fallback: number,
+): number {
   if (!text) return fallback;
   const parsed = Number.parseInt(text, 10);
   return Number.isFinite(parsed) ? parsed : fallback;
@@ -30,16 +27,17 @@ export function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
-export function parseFilter(raw: unknown): ParsedFilter | undefined {
-  const text = asNonEmptyString(raw);
+export function parseFilter(
+  text: string | undefined,
+): ParsedFilter | undefined {
   if (!text) return undefined;
   const idx = text.indexOf(FILTER_MODE_SEPARATOR);
   if (idx < 0) return { mode: FILTER_MODE_IS, value: text };
   return { mode: text.slice(0, idx), value: text.slice(idx + 1) };
 }
 
-export function unwrapIsFilter(raw: unknown): string | undefined {
-  const parsed = parseFilter(raw);
+export function unwrapIsFilter(text: string | undefined): string | undefined {
+  const parsed = parseFilter(text);
   if (!parsed || parsed.mode !== FILTER_MODE_IS) return undefined;
   return parsed.value;
 }
@@ -49,31 +47,34 @@ export function unwrapIsFilter(raw: unknown): string | undefined {
  * endpoint understands it: absent/empty → default instance, the cross-instance
  * sentinel → CROSS_INSTANCE, anything else → the named instance id.
  */
-export function decodeInstanceFilter(raw: unknown): InstanceId | undefined {
-  const value = unwrapIsFilter(raw);
-  if (value === undefined || value === null || value === "") return undefined;
+export function decodeInstanceFilter(
+  text: string | undefined,
+): InstanceId | undefined {
+  const value = unwrapIsFilter(text);
+  if (value === undefined || value === "") return undefined;
   if (value === CROSS_INSTANCE_SENTINEL) return CROSS_INSTANCE;
   return value;
 }
 
-const FILTER_PREDICATES: Record<
-  string,
-  (cell: string, value: string) => boolean
-> = {
+const FILTER_PREDICATES = {
   [FILTER_MODE_IS]: (cell, value) => cell === value,
   [FILTER_MODE_CONTAINS]: (cell, value) =>
     cell.toLowerCase().includes(value.toLowerCase()),
-};
+} satisfies Record<string, (cell: string, value: string) => boolean>;
+
+function isFilterMode(mode: string): mode is keyof typeof FILTER_PREDICATES {
+  return Object.hasOwn(FILTER_PREDICATES, mode);
+}
 
 export function applyFilterToList<T>(
   rows: T[],
   field: keyof T,
-  rawFilter: unknown,
+  rawFilter: string,
 ): T[] {
   const parsed = parseFilter(rawFilter);
   if (!parsed) return rows;
+  if (!isFilterMode(parsed.mode)) return rows;
   const predicate = FILTER_PREDICATES[parsed.mode];
-  if (!predicate) return rows;
   return rows.filter((row) =>
     predicate(String(row[field] ?? ""), parsed.value),
   );
@@ -90,10 +91,8 @@ export function applyFilterToList<T>(
  */
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
-  if (typeof value === "string") return value;
-  if (typeof value === "number" || typeof value === "boolean") {
-    return value.toString();
-  }
+  if (isString(value)) return value;
+  if (isNumber(value) || isBoolean(value)) return value.toString();
   try {
     const json = JSON.stringify(value);
     if (json !== undefined) return json;
@@ -109,6 +108,8 @@ export function cellToText(value: unknown): string {
 const SORT_DIRECTION_DESC = "desc";
 export type SortDirection = "asc" | "desc";
 
-export function normalizeSortDirection(value: unknown): SortDirection {
-  return asNonEmptyString(value) === SORT_DIRECTION_DESC ? "desc" : "asc";
+export function normalizeSortDirection(
+  text: string | undefined,
+): SortDirection {
+  return text === SORT_DIRECTION_DESC ? "desc" : "asc";
 }

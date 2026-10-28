@@ -6,7 +6,7 @@ import {
   RegisterTable,
   Table,
 } from "@antelopejs/interface-database-decorators";
-import type { User } from "@antelopejs/interface-dms/auth/db";
+import { User } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel } from "../db";
 import { DatabaseQueryController } from "../routes/query";
 import {
@@ -14,12 +14,18 @@ import {
   describeUnknownQueryTarget,
   readQueryTarget,
 } from "../service/queryInspection";
+import {
+  isJsonObjectValue,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
+import { isNumber } from "../utils/guards";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "query-console-qa";
 const INSTANCE = "eu";
 const FORGED_INSTANCE = "forged";
-const USER = { _id: "query-console-user" } as User;
+const USER = Object.assign(new User(), { _id: "query-console-user" });
 
 @RegisterTable("tags", SCHEMA)
 class ConsoleTag extends Table {
@@ -31,15 +37,13 @@ class ConsoleTag extends Table {
 const TABLES = [ConsoleTag];
 
 function schema() {
-  const registered = Schema.get(SCHEMA);
+  const registered = Schema.get<{ tags: ConsoleTag }>(SCHEMA);
   assert.ok(registered, "the test schema is registered");
   return registered;
 }
 
 function tags(instance?: string) {
-  return schema()
-    .instance(instance)
-    .table("tags" as never);
+  return schema().instance(instance).table("tags");
 }
 
 async function lastRun() {
@@ -55,7 +59,7 @@ async function lastRun() {
  * Predicate bodies that are not staged values: decoded as plain objects,
  * the driver would read each as an always-true expression.
  */
-const FORGED_BODIES = [
+const FORGED_BODIES: JsonValue[] = [
   { label: "kept" },
   { __cls: "NoSuchClass", stages: [] },
   { __cls: "ValueProxy" },
@@ -63,24 +67,31 @@ const FORGED_BODIES = [
   { __cls: "ValueProxy", stages: [{ args: [] }] },
 ];
 
-interface WireStage {
-  stage: string;
-  args: { args: unknown[] }[];
-}
-
 /** The query's filter predicate swapped for another body. */
-function withPredicate(
-  query: Record<string, unknown>,
-  body: unknown,
-): Record<string, unknown> {
-  const stages = query.stages as WireStage[];
-  const filter = stages.find((stage) => stage.stage === "filter");
-  assert.ok(filter, "the query filters");
-  filter.args[0].args[1] = body;
+function withPredicate(query: JsonObject, body: JsonValue): JsonObject {
+  const { stages } = query;
+  assert.ok(Array.isArray(stages), "the query has stages");
+  const filter = stages.find(
+    (stage) => isJsonObjectValue(stage) && stage.stage === "filter",
+  );
+  assert.ok(
+    filter !== undefined && isJsonObjectValue(filter),
+    "the query filters",
+  );
+  const { args } = filter;
+  assert.ok(Array.isArray(args), "the filter has arguments");
+  const [predicate] = args;
+  assert.ok(
+    predicate !== undefined && isJsonObjectValue(predicate),
+    "the filter has a predicate",
+  );
+  const { args: predicateArgs } = predicate;
+  assert.ok(Array.isArray(predicateArgs), "the predicate has arguments");
+  predicateArgs[1] = body;
   return query;
 }
 
-async function assertRefused(query: Record<string, unknown>): Promise<void> {
+async function assertRefused(query: JsonObject): Promise<void> {
   await assert.rejects(
     new DatabaseQueryController().execute(USER, {
       query,
@@ -89,10 +100,9 @@ async function assertRefused(query: Record<string, unknown>): Promise<void> {
     }),
     (error: { getStatus(): number; getBody(): string }) => {
       assert.equal(error.getStatus(), 400);
-      const answer = JSON.parse(error.getBody()) as {
-        message: string;
-        durationMs: number;
-      };
+      const answer: { message: string; durationMs: number } = JSON.parse(
+        error.getBody(),
+      );
       assert.match(answer.message, /^Malformed query/);
       assert.equal(answer.durationMs, 0);
       return true;
@@ -114,7 +124,7 @@ describe("[integration] query console", () => {
         { _id: "t2", label: "qa" },
         { _id: "t3", label: "qa" },
         { _id: "t4", label: "kept" },
-      ] as never)
+      ])
       .run();
   });
 
@@ -133,11 +143,9 @@ describe("[integration] query console", () => {
     assert.equal(affectedRows(7, 1, false), 1);
 
     const controller = new DatabaseQueryController();
-    const qa = tags(INSTANCE).filter((row) =>
-      row.key("label" as never).eq("qa"),
-    );
+    const qa = tags(INSTANCE).filter((row) => row.key("label").eq("qa"));
     const update = await controller.execute(USER, {
-      query: encode(qa.update({ label: "qa-2" } as never) as never),
+      query: encode(qa.update({ label: "qa-2" })),
       source: "update",
       language: "aql",
     });
@@ -146,7 +154,7 @@ describe("[integration] query console", () => {
     assert.equal((await lastRun())?.rowCount, 3);
 
     const none = await controller.execute(USER, {
-      query: encode(qa.update({ label: "none" } as never) as never),
+      query: encode(qa.update({ label: "none" })),
       source: "update nothing",
       language: "aql",
     });
@@ -155,8 +163,8 @@ describe("[integration] query console", () => {
     const removal = await controller.execute(USER, {
       query: encode(
         tags(INSTANCE)
-          .filter((row) => row.key("label" as never).eq("qa-2"))
-          .delete() as never,
+          .filter((row) => row.key("label").eq("qa-2"))
+          .delete(),
       ),
       source: "delete",
       language: "aql",
@@ -176,11 +184,7 @@ describe("[integration] query console", () => {
     );
     assert.equal(
       await describeUnknownQueryTarget(
-        readQueryTarget(
-          schema()
-            .instance(CROSS_INSTANCE)
-            .table("tags" as never),
-        ),
+        readQueryTarget(schema().instance(CROSS_INSTANCE).table("tags")),
       ),
       null,
     );
@@ -193,17 +197,16 @@ describe("[integration] query console", () => {
     const controller = new DatabaseQueryController();
     await assert.rejects(
       controller.execute(USER, {
-        query: encode(tags("zz").count() as never),
+        query: encode(tags("zz").count()),
         source: "count zz",
         language: "aql",
       }),
-      (error: unknown) => {
-        const body = JSON.parse((error as { getBody(): string }).getBody()) as {
-          message: string;
-          durationMs: number;
-        };
+      (error: { getBody(): string }) => {
+        const body: { message: string; durationMs: number } = JSON.parse(
+          error.getBody(),
+        );
         assert.match(body.message, /Unknown instance "zz"/);
-        assert.equal(typeof body.durationMs, "number");
+        assert.ok(isNumber(body.durationMs));
         return true;
       },
     );
@@ -223,7 +226,7 @@ describe("[integration] query console: malformed bodies", () => {
       .insert([
         { _id: "f1", label: "kept" },
         { _id: "f2", label: "other" },
-      ] as never)
+      ])
       .run();
   });
 
@@ -235,20 +238,17 @@ describe("[integration] query console: malformed bodies", () => {
     const before = await tags(FORGED_INSTANCE).count();
     assert.ok(before > 0, "the table holds rows to protect");
     const kept = tags(FORGED_INSTANCE).filter((row) =>
-      row.key("label" as never).eq("kept"),
+      row.key("label").eq("kept"),
     );
-    const writes = [
-      kept.delete(),
-      kept.update({ label: "overwritten" } as never),
-    ];
+    const writes = [kept.delete(), kept.update({ label: "overwritten" })];
     for (const write of writes) {
       for (const body of FORGED_BODIES) {
-        await assertRefused(withPredicate(encode(write as never), body));
+        await assertRefused(withPredicate(encode(write), body));
       }
     }
     assert.equal(await tags(FORGED_INSTANCE).count(), before);
     const overwritten = await tags(FORGED_INSTANCE)
-      .filter((row) => row.key("label" as never).eq("overwritten"))
+      .filter((row) => row.key("label").eq("overwritten"))
       .count();
     assert.equal(overwritten, 0);
   });

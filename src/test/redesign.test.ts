@@ -1,5 +1,4 @@
 import { strict as assert } from "node:assert";
-import type { RequestContext } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
 import {
   GetModel,
@@ -9,7 +8,7 @@ import {
   Relation,
   Table,
 } from "@antelopejs/interface-database-decorators";
-import type { User } from "@antelopejs/interface-dms/auth/db";
+import { User } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel } from "../db";
 import { DatabaseBrowseController } from "../routes/data";
 import { DatabaseQueryController } from "../routes/query";
@@ -22,11 +21,16 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import { listRowReferences } from "../service/references";
+import type { JsonValue } from "../types/json";
+import { requestContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "redesign-shop";
 const INSTANCE = "eu";
-const USER = { _id: "redesign-user", language: "fr" } as User;
+const USER = Object.assign(new User(), {
+  _id: "redesign-user",
+  language: "fr",
+});
 
 @RegisterTable("customers", SCHEMA)
 class RedesignCustomer extends Table {
@@ -42,10 +46,24 @@ class RedesignOrder extends Table {
   declare created_at: Date;
 }
 
+/** The date of an order as it travels on the wire. */
+interface WireOrder {
+  created_at: string;
+}
+
 /** Keeps the decorated classes referenced: the decorators register them. */
 const TABLES = [RedesignCustomer, RedesignOrder];
 
 function shop() {
+  const schema = Schema.get<{
+    customers: RedesignCustomer;
+    orders: RedesignOrder;
+  }>(SCHEMA);
+  assert.ok(schema, "the test schema is registered");
+  return schema;
+}
+
+function unknownTableShop() {
   const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
@@ -60,14 +78,14 @@ async function seed(): Promise<void> {
     .run()
     .catch(() => undefined);
   await instance
-    .table("customers" as never)
+    .table("customers")
     .insert([
       { _id: "c1", company: "Globex" },
       { _id: "c2", company: "Initech" },
-    ] as never)
+    ])
     .run();
   await instance
-    .table("orders" as never)
+    .table("orders")
     .insert([
       {
         _id: "o1",
@@ -87,7 +105,7 @@ async function seed(): Promise<void> {
         status: "pending",
         created_at: new Date("2026-10-03T10:00:00Z"),
       },
-    ] as never)
+    ])
     .run();
 }
 
@@ -164,16 +182,10 @@ describe("[integration] v2 redesign: browsing", () => {
       status: null,
       created_at: "2026-10-05T08:00:00.000Z",
     });
-    const row = (await shop()
-      .instance(INSTANCE)
-      .table("orders" as never)
-      .get("o3" as never)) as Record<string, unknown>;
+    const row = await shop().instance(INSTANCE).table("orders").get("o3");
     assert.equal(row.status, null);
     assert.ok(row.created_at instanceof Date);
-    assert.equal(
-      (row.created_at as Date).toISOString(),
-      "2026-10-05T08:00:00.000Z",
-    );
+    assert.equal(row.created_at.toISOString(), "2026-10-05T08:00:00.000Z");
   });
   it("refuses a value that is not a date for a date cell", async () => {
     const controller = new DatabaseBrowseController();
@@ -228,12 +240,9 @@ describe("[integration] v2 redesign: edits", () => {
     const controller = new DatabaseBrowseController();
     const table = [`is:${SCHEMA}`, `is:${INSTANCE}`, "is:orders"] as const;
     const listed = async (id: string) => {
-      const context = {
-        url: new URL("https://example.test/"),
-      } as RequestContext;
       const page = await controller.list(
         USER,
-        context,
+        requestContext("https://example.test/"),
         ...table,
         "0",
         "50",
@@ -241,11 +250,10 @@ describe("[integration] v2 redesign: edits", () => {
         undefined,
         undefined,
       );
-      return page.results.find(
-        (row) => (row as Record<string, unknown>)._id === id,
-      );
+      return page.results.find((row) => row._id === id);
     };
-    const wire = (value: unknown) => JSON.parse(JSON.stringify(value));
+    const wire = (value: JsonValue): WireOrder =>
+      JSON.parse(JSON.stringify(value));
     const before = await listed("o2");
     try {
       const answer = await controller.edit(USER, ...table, "o2", {
@@ -264,12 +272,11 @@ describe("[integration] v2 redesign: edits", () => {
       });
       assert.deepEqual(wire(cleared), wire(await listed("o2")));
     } finally {
-      const row = before as Record<string, unknown>;
       await shop()
         .instance(INSTANCE)
-        .table("orders" as never)
-        .get("o2" as never)
-        .replace(row as never)
+        .table("orders")
+        .get("o2")
+        .replace(before)
         .run();
     }
   });
@@ -277,11 +284,9 @@ describe("[integration] v2 redesign: edits", () => {
 
 describe("[integration] v2 redesign: queries", () => {
   it("measures what a write would touch without writing", async () => {
-    const orders = shop()
-      .instance(INSTANCE)
-      .table("orders" as never);
+    const orders = shop().instance(INSTANCE).table("orders");
     const deletion = orders
-      .filter((row) => row.key("customer_id" as never).eq("c1"))
+      .filter((row) => row.key("customer_id").eq("c1"))
       .delete();
     assert.equal(containsMutation(deletion), true);
     assert.deepEqual(await dryRun(deletion), {
@@ -291,9 +296,7 @@ describe("[integration] v2 redesign: queries", () => {
       operation: "delete",
       rows: 2,
     });
-    const single = orders
-      .get("o2" as never)
-      .update({ status: "refunded" } as never);
+    const single = orders.get("o2").update({ status: "refunded" });
     assert.equal((await dryRun(single)).rows, 1);
     assert.equal(await orders.count(), 3, "a dry run writes nothing");
     const read = await dryRun(orders.slice(0, 1));
@@ -301,9 +304,7 @@ describe("[integration] v2 redesign: queries", () => {
   });
   it("names an unknown table instead of answering no row", async () => {
     const target = readQueryTarget(
-      shop()
-        .instance()
-        .table("invoice" as never),
+      unknownTableShop().instance().table("invoice"),
     );
     assert.equal(
       await describeUnknownQueryTarget(target),
@@ -313,11 +314,7 @@ describe("[integration] v2 redesign: queries", () => {
     const source = `schemas["${SCHEMA}"].instance().table("invoice")`;
     await assert.rejects(
       controller.execute(USER, {
-        query: encode(
-          shop()
-            .instance()
-            .table("invoice" as never) as never,
-        ),
+        query: encode(unknownTableShop().instance().table("invoice")),
         source,
         language: "aql",
       }),
@@ -333,11 +330,7 @@ describe("[integration] v2 redesign: queries", () => {
   it("records a run and lists it as a recent query", async () => {
     const controller = new DatabaseQueryController();
     const result = await controller.execute(USER, {
-      query: encode(
-        shop()
-          .instance(INSTANCE)
-          .table("orders" as never) as never,
-      ),
+      query: encode(shop().instance(INSTANCE).table("orders")),
       source: "orders",
       language: "aql",
     });

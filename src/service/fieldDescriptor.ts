@@ -1,3 +1,6 @@
+import type { FieldType } from "@antelopejs/interface-database/schema";
+import { isBoolean, isNumber, isObject, isString } from "../utils/guards";
+
 export type FieldDescriptor =
   | { kind: "string" }
   | { kind: "number" }
@@ -26,35 +29,33 @@ interface CodecLike {
   readonly _tag?: string;
   readonly name?: string;
   readonly type?: unknown;
-  readonly types?: unknown;
+  readonly types?: unknown[];
   readonly value?: unknown;
   readonly codomain?: unknown;
   readonly domain?: unknown;
-  readonly props?: Record<string, unknown>;
-  readonly keys?: Record<string, unknown>;
-  decode(i: unknown): unknown;
+  readonly props?: Record<string, CodecLike>;
+  readonly keys?: Record<string, string | number | boolean | null>;
 }
 
-function isCodec(value: unknown): value is CodecLike {
-  if (value === null || typeof value !== "object") return false;
-  const obj = value as Record<string, unknown>;
-  return typeof obj.decode === "function" && "_tag" in obj;
+function isCodec<T>(value: T): value is T & CodecLike {
+  return (
+    isObject(value) &&
+    "decode" in value &&
+    typeof value.decode === "function" &&
+    "_tag" in value
+  );
 }
 
-function codecMembers(value: unknown): CodecLike[] {
+function codecMembers(value: unknown[] | undefined): CodecLike[] {
   if (!Array.isArray(value)) return [];
-  return value.filter(isCodec) as CodecLike[];
+  return value.filter(isCodec);
 }
 
 type CodecDescriptorHandler = (codec: CodecLike) => FieldDescriptor;
 
 function literalDescriptor(codec: CodecLike): FieldDescriptor {
   const v = codec.value;
-  if (
-    typeof v === "string" ||
-    typeof v === "number" ||
-    typeof v === "boolean"
-  ) {
+  if (isString(v) || isNumber(v) || isBoolean(v)) {
     return { kind: "literal", value: v };
   }
   return { kind: "unknown" };
@@ -88,10 +89,7 @@ function tupleDescriptor(codec: CodecLike): FieldDescriptor {
 
 function objectDescriptor(codec: CodecLike): FieldDescriptor {
   const props =
-    (codec.props as Record<string, unknown> | undefined) ??
-    (isCodec(codec.type)
-      ? ((codec.type as CodecLike).props as Record<string, unknown> | undefined)
-      : undefined);
+    codec.props ?? (isCodec(codec.type) ? codec.type.props : undefined);
   const fields: Record<string, FieldDescriptor> = {};
   if (props) {
     for (const [name, sub] of Object.entries(props)) {
@@ -102,7 +100,7 @@ function objectDescriptor(codec: CodecLike): FieldDescriptor {
     codec._tag === "PartialType" ||
     (codec._tag === "ExactType" &&
       isCodec(codec.type) &&
-      (codec.type as CodecLike)._tag === "PartialType");
+      codec.type._tag === "PartialType");
   return partial
     ? { kind: "object", fields, partial: true }
     : { kind: "object", fields };
@@ -134,7 +132,7 @@ function recursiveDescriptor(codec: CodecLike): FieldDescriptor {
   return { kind: "recursive", name: codec.name ?? "recursive" };
 }
 
-const CODEC_DESCRIPTORS: Record<string, CodecDescriptorHandler> = {
+const CODEC_DESCRIPTORS = {
   StringType: () => ({ kind: "string" }),
   NumberType: () => ({ kind: "number" }),
   BooleanType: () => ({ kind: "boolean" }),
@@ -159,28 +157,40 @@ const CODEC_DESCRIPTORS: Record<string, CodecDescriptorHandler> = {
   KeyofType: keyofDescriptor,
   RefinementType: refinementDescriptor,
   RecursiveType: recursiveDescriptor,
-};
+} satisfies Record<string, CodecDescriptorHandler>;
+
+function isCodecTag(
+  tag: string | undefined,
+): tag is keyof typeof CODEC_DESCRIPTORS {
+  return tag !== undefined && Object.hasOwn(CODEC_DESCRIPTORS, tag);
+}
 
 export function codecToDescriptor(codec: CodecLike): FieldDescriptor {
-  const handler = codec._tag ? CODEC_DESCRIPTORS[codec._tag] : undefined;
-  if (handler) return handler(codec);
+  if (isCodecTag(codec._tag)) return CODEC_DESCRIPTORS[codec._tag](codec);
   if (codec.name === "Date") return { kind: "date" };
   return { kind: "unknown" };
 }
 
-const STRING_FIELD_DESCRIPTORS: Record<string, () => FieldDescriptor> = {
+const STRING_FIELD_DESCRIPTORS = {
   string: () => ({ kind: "string" }),
   number: () => ({ kind: "number" }),
   boolean: () => ({ kind: "boolean" }),
   date: () => ({ kind: "date" }),
   any: () => ({ kind: "any" }),
   unknown: () => ({ kind: "unknown" }),
-};
+} satisfies Record<string, () => FieldDescriptor>;
 
-export function stringFieldTypeToDescriptor(value: unknown): FieldDescriptor {
-  if (typeof value === "string") {
-    const build = STRING_FIELD_DESCRIPTORS[value];
-    return build ? build() : { kind: "unknown" };
+function isStringFieldName(
+  name: string,
+): name is keyof typeof STRING_FIELD_DESCRIPTORS {
+  return Object.hasOwn(STRING_FIELD_DESCRIPTORS, name);
+}
+
+export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
+  if (isString(value)) {
+    return isStringFieldName(value)
+      ? STRING_FIELD_DESCRIPTORS[value]()
+      : { kind: "unknown" };
   }
   if (Array.isArray(value)) {
     const first = value[0];
@@ -188,11 +198,9 @@ export function stringFieldTypeToDescriptor(value: unknown): FieldDescriptor {
       first === undefined ? undefined : stringFieldTypeToDescriptor(first);
     return { kind: "array", element };
   }
-  if (value !== null && typeof value === "object") {
+  if (isObject(value)) {
     const fields: Record<string, FieldDescriptor> = {};
-    for (const [name, sub] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
+    for (const [name, sub] of Object.entries(value)) {
       fields[name] = stringFieldTypeToDescriptor(sub);
     }
     return { kind: "object", fields };
@@ -204,7 +212,7 @@ export function stringFieldTypeToDescriptor(value: unknown): FieldDescriptor {
  * `InterfaceFieldType | unknown` collapsed to `unknown`, so the union only
  * documented the intent. It says so in words instead.
  */
-export function toFieldDescriptor(value: unknown): FieldDescriptor {
+export function toFieldDescriptor(value: FieldType): FieldDescriptor {
   if (isCodec(value)) return codecToDescriptor(value);
   return stringFieldTypeToDescriptor(value);
 }

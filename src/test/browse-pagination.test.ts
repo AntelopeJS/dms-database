@@ -1,8 +1,8 @@
 import { strict as assert } from "node:assert";
-import type { RequestContext } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
-import type { User } from "@antelopejs/interface-dms/auth/db";
+import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseBrowseController } from "../routes/data";
+import { requestContext } from "./requestContext";
 
 const SCHEMA = "browse-pagination-regression";
 const INSTANCE = "tenant-a";
@@ -50,11 +50,11 @@ describe("[integration] refined browse pagination", () => {
 
   it("returns exact filtered totals and sorted page results from one tenant", async () => {
     const controller = new DatabaseBrowseController();
-    const context = {
-      url: new URL("https://example.test/?filter_name=contains:vidence"),
-    } as RequestContext;
+    const context = requestContext(
+      "https://example.test/?filter_name=contains:vidence",
+    );
     const result = await controller.list(
-      {} as User,
+      new User(),
       context,
       `is:${SCHEMA}`,
       `is:${INSTANCE}`,

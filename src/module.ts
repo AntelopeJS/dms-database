@@ -16,7 +16,8 @@ function readVersion(): string | undefined {
       path.join(__dirname, "../package.json"),
       "utf8",
     );
-    return (JSON.parse(manifest) as PackageManifest).version;
+    const parsed: PackageManifest = JSON.parse(manifest);
+    return parsed.version;
   } catch {
     return undefined;
   }

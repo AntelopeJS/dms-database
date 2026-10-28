@@ -1,3 +1,4 @@
+import type { Class } from "@antelopejs/interface-core/decorators";
 import { Logging } from "@antelopejs/interface-core/logging";
 import {
   CROSS_INSTANCE,
@@ -13,6 +14,14 @@ import {
   type Table,
 } from "@antelopejs/interface-database-decorators";
 import { getModuleConfig } from "../config";
+import {
+  isBoolean,
+  isFiniteNumber,
+  isFunction,
+  isNumber,
+  isObject,
+  isString,
+} from "../utils/guards";
 import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
 import { resolveSchemaLabel } from "./schemaLabels";
 import { getRegistry } from "./schemaRegistry";
@@ -41,7 +50,7 @@ function warnOnce(key: string, message: string): void {
 function resolveRelations(
   schemaId: string,
   tableName: string,
-  TableClass: typeof Table,
+  TableClass: Class<Table>,
 ): RelationDeclaration[] {
   const meta = getMetadata(TableClass, RelationStaticMetadata, true);
   const out: RelationDeclaration[] = [];
@@ -53,11 +62,11 @@ function resolveRelations(
     } catch (err) {
       warnOnce(
         warnKey,
-        `relation ${warnKey} target thunk threw: ${(err as Error).message}`,
+        `relation ${warnKey} target thunk threw: ${err instanceof Error ? err.message : String(err)}`,
       );
       continue;
     }
-    if (typeof TargetClass !== "function") {
+    if (!isFunction(TargetClass)) {
       warnOnce(warnKey, `relation ${warnKey} target is not a class`);
       continue;
     }
@@ -78,7 +87,7 @@ function resolveRelations(
 }
 
 function resolveModifiers(
-  TableClass: typeof Table | undefined,
+  TableClass: Class<Table> | undefined,
 ): Record<string, string[]> {
   if (!TableClass) return {};
   const meta = getMetadata(TableClass, ModifiersStaticMetadata, true);
@@ -142,10 +151,10 @@ function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
   if (Array.isArray(value)) return inferArrayType(value);
-  if (typeof value === "object") return { kind: "object", fields: {} };
-  if (typeof value === "string") return { kind: "string" };
-  if (typeof value === "number") return { kind: "number" };
-  if (typeof value === "boolean") return { kind: "boolean" };
+  if (isObject(value)) return { kind: "object", fields: {} };
+  if (isString(value)) return { kind: "string" };
+  if (isNumber(value)) return { kind: "number" };
+  if (isBoolean(value)) return { kind: "boolean" };
   return undefined;
 }
 
@@ -155,10 +164,11 @@ async function sampleRows(
   instance?: string,
 ): Promise<unknown[]> {
   try {
-    return (await schema
+    const rows: unknown[] = await schema
       .instance(instance)
-      .table(tableName as never)
-      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)) as unknown[];
+      .table(tableName)
+      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE);
+    return rows;
   } catch {
     return [];
   }
@@ -225,8 +235,8 @@ function withNull(descriptor: FieldDescriptor): FieldDescriptor {
 function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
   const observed = new Map<string, ObservedField>();
   for (const row of rows) {
-    if (!row || typeof row !== "object") continue;
-    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+    if (!isObject(row)) continue;
+    for (const [key, value] of Object.entries(row)) {
       if (key === INSTANCE_TAG_FIELD) continue;
       const field = observed.get(key) ?? { nullable: false };
       if (value === null) field.nullable = true;
@@ -260,7 +270,9 @@ async function inferTableFields(
   return inferred;
 }
 
-function mapDesignType(ctor: unknown): FieldDescriptor | undefined {
+function mapDesignType(
+  ctor: (new (...args: never[]) => object) | undefined,
+): FieldDescriptor | undefined {
   if (ctor === String) return { kind: "string" };
   if (ctor === Number) return { kind: "number" };
   if (ctor === Boolean) return { kind: "boolean" };
@@ -280,7 +292,7 @@ interface DeclaredFields {
  * the indexed fields (insertion order preserves the `@Index` source order),
  * the relation fields, then the modifier fields.
  */
-function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
+function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
   const ordered: string[] = [];
   const seen = new Set<string>();
   const push = (name: string) => {
@@ -290,7 +302,7 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
   };
 
   try {
-    const instance = new (TableClass as new () => object)();
+    const instance = new TableClass();
     for (const name of Object.keys(instance)) push(name);
   } catch {}
 
@@ -334,7 +346,7 @@ async function summarizeTable(
   def: SchemaTableDefinition,
   tableClasses: ReturnType<typeof getTablesForSchema>,
 ): Promise<TableSummary> {
-  const TableClass = tableClasses?.[tableName] as typeof Table | undefined;
+  const TableClass = tableClasses?.[tableName];
   const relations = TableClass
     ? resolveRelations(id, tableName, TableClass)
     : [];
@@ -344,7 +356,7 @@ async function summarizeTable(
   const sampled = await inferTableFields(id, schema, tableName);
   const modifiers = resolveModifiers(TableClass);
 
-  const definitionFields = (def.fields ?? {}) as Record<string, unknown>;
+  const definitionFields = def.fields ?? {};
   const fromDefinition: Record<string, FieldDescriptor> = {};
   for (const [name, value] of Object.entries(definitionFields)) {
     fromDefinition[name] = toFieldDescriptor(value);
@@ -424,9 +436,9 @@ async function countTableRows(
   tableName: string,
   instance?: InstanceId,
 ): Promise<number> {
-  const table = schema.instance(instance).table(tableName as never);
+  const table = schema.instance(instance).table(tableName);
   const total = await table.count();
-  return typeof total === "number" && Number.isFinite(total) ? total : 0;
+  return isFiniteNumber(total) ? total : 0;
 }
 
 async function cachedCount(
@@ -553,7 +565,7 @@ export function getTablePrimaryKey(
   tableName: string,
 ): string | undefined {
   const tableClasses = getTablesForSchema(schemaId);
-  const TableClass = tableClasses?.[tableName] as typeof Table | undefined;
+  const TableClass = tableClasses?.[tableName];
   if (!TableClass) return undefined;
   const meta = getMetadata(TableClass, DatumStaticMetadata, true);
   return meta.primary || undefined;

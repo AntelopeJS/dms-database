@@ -16,7 +16,8 @@ import {
 } from "../service/schemaFilters";
 import { getRegistry } from "../service/schemaRegistry";
 import type { TableSummary } from "../service/types";
-import { asNonEmptyString, clamp, parseInteger } from "../utils/query";
+import { isNonEmptyString, isString } from "../utils/guards";
+import { clamp, parseInteger } from "../utils/query";
 
 /** One table of the Schemas page, as its source table view lists it. */
 export interface TableSourceRow {
@@ -211,7 +212,12 @@ export class DatabaseTablesController extends Controller(
   ): Promise<TableSourceResult> {
     const { rows, all } = await listTableSourceRows(
       localeOf(user),
-      readSchemaFilters({ scope, instance, q, has }),
+      readSchemaFilters({
+        scope: isString(scope) ? scope : undefined,
+        instance: isString(instance) ? instance : undefined,
+        q: isString(q) ? q : undefined,
+        has: isString(has) ? has : undefined,
+      }),
     );
     return { results: rows, total: rows.length, all };
   }
@@ -226,8 +232,8 @@ export class DatabaseTablesController extends Controller(
     @AuthRawUser() user: User,
     @Parameter("id", "query") idRaw: unknown,
   ): Promise<TableSourceRow> {
-    const id = asNonEmptyString(idRaw);
-    assert(id, 400, "Missing 'id'");
+    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    const id = idRaw;
     const summaries = await listSchemaSummaries();
     const listed = summaries
       .flatMap((summary) =>
@@ -253,16 +259,23 @@ export class DatabaseTablesController extends Controller(
     @Parameter("search", "query") search: unknown,
     @Parameter("limit", "query") limitRaw: unknown,
   ): Promise<InstancesResult> {
-    const schema = asNonEmptyString(schemaRaw);
-    assert(schema, 400, "Missing 'schema'");
+    assert(isNonEmptyString(schemaRaw), 400, "Missing 'schema'");
+    const schema = schemaRaw;
     const registered = getRegistry().get(schema);
     assert(registered, 404, `Unknown schema ${schema}`);
     const named = await listSchemaInstances(registered);
     const limit = clamp(
-      parseInteger(limitRaw, INSTANCE_LIMIT_DEFAULT),
+      parseInteger(
+        isString(limitRaw) ? limitRaw : undefined,
+        INSTANCE_LIMIT_DEFAULT,
+      ),
       1,
       INSTANCE_LIMIT_MAX,
     );
-    return matchNamedInstances(named, asNonEmptyString(search), limit);
+    return matchNamedInstances(
+      named,
+      isNonEmptyString(search) ? search : undefined,
+      limit,
+    );
   }
 }

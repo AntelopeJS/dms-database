@@ -28,6 +28,7 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import {
+  type Decoded,
   decodeStaged,
   StagedDecodeError,
 } from "../service/stagedSerialization";
@@ -43,8 +44,10 @@ import type {
   SuccessResponse,
 } from "../types/responses";
 import { MAX_HISTORY_PER_USER } from "../types/constants";
+import { isJsonObject, type JsonObject } from "../types/json";
+import { isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
-import { asNonEmptyString, asString } from "../utils/requestValidation";
+import { assertNonEmptyString } from "../utils/requestValidation";
 
 const DEFAULT_HISTORY_LIMIT = 25;
 /** Rows a run sends back at most; the console says when it cut the rest. */
@@ -52,8 +55,6 @@ const MAX_RESULT_ROWS = 1000;
 /** Every kept run can be listed: the console pages through them. */
 const MAX_HISTORY_LIMIT = MAX_HISTORY_PER_USER;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
-
-type SavedScope = "me" | "shared";
 
 interface ExecuteBody {
   query?: unknown;
@@ -70,33 +71,8 @@ interface SaveBody {
   shared?: unknown;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  assert(
-    typeof value === "object" && value !== null && !Array.isArray(value),
-    400,
-    "Expected query to be an object",
-  );
-  return value as Record<string, unknown>;
-}
-
-function asLanguage(value: unknown): QueryLanguage {
-  const lang = asString(value);
-  assert(
-    lang !== undefined && SUPPORTED_LANGUAGES.includes(lang as QueryLanguage),
-    400,
-    "Unsupported query language",
-  );
-  return lang as QueryLanguage;
-}
-
-function asSavedScope(value: unknown): SavedScope {
-  const str = asString(value);
-  if (str === "shared") return "shared";
-  return "me";
-}
-
-function asBoolean(value: unknown): boolean {
-  return value === true;
+function isQueryLanguage(value: unknown): value is QueryLanguage {
+  return SUPPORTED_LANGUAGES.some((language) => language === value);
 }
 
 /** A failed run answers what failed and how long it took. */
@@ -108,8 +84,8 @@ function runFailure(message: string, durationMs: number): HTTPResult {
  * A body that does not decode to a runnable query reaches no table: it
  * answers like a failed run, in no time.
  */
-function decodeRunnable(query: Record<string, unknown>): Query<unknown> {
-  let root: unknown;
+function decodeRunnable(query: JsonObject): Query<unknown> {
+  let root: Decoded;
   try {
     root = decodeStaged(query);
   } catch (error) {
@@ -128,7 +104,7 @@ function decodeRunnable(query: Record<string, unknown>): Query<unknown> {
 interface ParsedSaveBody {
   name: string;
   description: string;
-  query: Record<string, unknown>;
+  query: JsonObject;
   source: string;
   language: QueryLanguage;
   shared: boolean;
@@ -136,15 +112,23 @@ interface ParsedSaveBody {
 
 /** Shared create/update payload validation, including the runnable check. */
 function parseSaveBody(body: SaveBody): ParsedSaveBody {
-  const query = asRecord(body?.query);
+  const query = body?.query;
+  assert(isJsonObject(query), 400, "Expected query to be an object");
   decodeRunnable(query);
+  const name = body?.name;
+  assertNonEmptyString(name);
+  const description = body?.description;
+  const source = body?.source;
+  assertNonEmptyString(source);
+  const language = body?.language;
+  assert(isQueryLanguage(language), 400, "Unsupported query language");
   return {
-    name: asNonEmptyString(body?.name),
-    description: asString(body?.description) ?? "",
+    name,
+    description: isString(description) ? description : "",
     query,
-    source: asNonEmptyString(body?.source),
-    language: asLanguage(body?.language),
-    shared: asBoolean(body?.shared),
+    source,
+    language,
+    shared: body?.shared === true,
   };
 }
 
@@ -153,15 +137,13 @@ function parseSaveBody(body: SaveBody): ParsedSaveBody {
  * a missing id so the route does not leak other users' query ids.
  */
 async function getOwnedSavedQuery(
-  id: unknown,
+  id: string,
   userId: string,
-): Promise<SavedQueryRow & { _id: string }> {
-  const queryId = asNonEmptyString(id);
-  const row = await GetModel(SavedQueryModel).get(queryId);
+): Promise<SavedQueryRow> {
+  const row = await GetModel(SavedQueryModel).get(id);
   assert(row !== undefined, 404, "Saved query not found");
-  const owned = row as SavedQueryRow & { _id: string };
-  assert(owned.userId === userId, 404, "Saved query not found");
-  return owned;
+  assert(row.userId === userId, 404, "Saved query not found");
+  return row;
 }
 
 function toIso(value: Date | string): string {
@@ -170,7 +152,7 @@ function toIso(value: Date | string): string {
     : new Date(value).toISOString();
 }
 
-function toSavedWire(row: SavedQueryRow & { _id: string }): SavedQuery {
+function toSavedWire(row: SavedQueryRow): SavedQuery {
   return {
     id: row._id,
     userId: row.userId,
@@ -216,7 +198,7 @@ function normaliseRows(raw: unknown): Record<string, unknown>[] {
   return [{ value: raw }];
 }
 
-function toHistoryWire(row: QueryHistoryRow & { _id: string }): HistoryEntry {
+function toHistoryWire(row: QueryHistoryRow): HistoryEntry {
   const entry: HistoryEntry = {
     id: row._id,
     userId: row.userId,
@@ -237,20 +219,20 @@ function toHistoryWire(row: QueryHistoryRow & { _id: string }): HistoryEntry {
 }
 
 interface ExecuteBodyParsed {
-  query: Record<string, unknown>;
+  query: JsonObject;
   source: string;
   language: QueryLanguage;
   root: Query<unknown>;
 }
 
 function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
-  const query = asRecord(body?.query);
-  return {
-    query,
-    source: asNonEmptyString(body?.source),
-    language: asLanguage(body?.language),
-    root: decodeRunnable(query),
-  };
+  const query = body?.query;
+  assert(isJsonObject(query), 400, "Expected query to be an object");
+  const source = body?.source;
+  assertNonEmptyString(source);
+  const language = body?.language;
+  assert(isQueryLanguage(language), 400, "Unsupported query language");
+  return { query, source, language, root: decodeRunnable(query) };
 }
 
 function errorMessage(error: unknown): string {
@@ -329,7 +311,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @AuthRawUser() _user: User,
     @JSONBody() body: ExecuteBody,
   ): Promise<DryRunResult> {
-    const root = decodeRunnable(asRecord(body?.query));
+    const query = body?.query;
+    assert(isJsonObject(query), 400, "Expected query to be an object");
+    const root = decodeRunnable(query);
     const unknownTarget = await describeUnknownQueryTarget(
       readQueryTarget(root),
     );
@@ -360,7 +344,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     assert(id !== undefined, 500, "Failed to persist saved query");
     const row = await savedModel.get(id);
     assert(row !== undefined, 500, "Failed to load saved query after insert");
-    return toSavedWire(row as SavedQueryRow & { _id: string });
+    return toSavedWire(row);
   }
 
   /**
@@ -377,6 +361,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @JSONBody() body: SaveBody,
   ): Promise<SavedQuery> {
     const input = parseSaveBody(body);
+    assertNonEmptyString(id);
     const existing = await getOwnedSavedQuery(id, user._id);
     const updatedAt = new Date();
     await GetModel(SavedQueryModel).update(existing._id, {
@@ -396,7 +381,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @Parameter("scope", "query") scope: unknown,
   ): Promise<ListResult<SavedQuery>> {
     const savedModel = GetModel(SavedQueryModel);
-    const shared = asSavedScope(scope) === "shared";
+    const shared = scope === "shared";
     const rows = shared
       ? await savedModel.listShared()
       : await savedModel.listForUser(user._id);
@@ -405,7 +390,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       : new Map<string, string>();
     return {
       items: rows.map((row) => {
-        const wire = toSavedWire(row as SavedQueryRow & { _id: string });
+        const wire = toSavedWire(row);
         const ownerName = names.get(row.userId);
         return ownerName ? { ...wire, ownerName } : wire;
       }),
@@ -417,6 +402,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: unknown,
   ): Promise<SuccessResponse> {
+    assertNonEmptyString(id);
     const existing = await getOwnedSavedQuery(id, user._id);
     await GetModel(SavedQueryModel).delete(existing._id);
     return { success: true };
@@ -434,13 +420,14 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: unknown,
   ): Promise<HistoryEntry> {
-    const row = await GetModel(QueryHistoryModel).get(asNonEmptyString(id));
+    assertNonEmptyString(id);
+    const row = await GetModel(QueryHistoryModel).get(id);
     assert(
       row !== undefined && row.userId === user._id,
       404,
       "History entry not found",
     );
-    return toHistoryWire(row as QueryHistoryRow & { _id: string });
+    return toHistoryWire(row);
   }
 
   @Get("/history")
@@ -450,11 +437,17 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @Parameter("offset", "query") offsetRaw: unknown,
   ): Promise<PaginatedResult<HistoryEntry>> {
     const limit = clamp(
-      parseInteger(limitRaw, DEFAULT_HISTORY_LIMIT),
+      parseInteger(
+        isString(limitRaw) ? limitRaw : undefined,
+        DEFAULT_HISTORY_LIMIT,
+      ),
       1,
       MAX_HISTORY_LIMIT,
     );
-    const offset = Math.max(0, parseInteger(offsetRaw, 0));
+    const offset = Math.max(
+      0,
+      parseInteger(isString(offsetRaw) ? offsetRaw : undefined, 0),
+    );
 
     const historyModel = GetModel(QueryHistoryModel);
     const { items, total } = await historyModel.listForUser(
@@ -463,9 +456,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       offset,
     );
     return {
-      items: items.map((r) =>
-        toHistoryWire(r as QueryHistoryRow & { _id: string }),
-      ),
+      items: items.map((r) => toHistoryWire(r)),
       total,
     };
   }

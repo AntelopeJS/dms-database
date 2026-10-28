@@ -64,6 +64,10 @@ export function formatCompact(locale: ServerLocale, value: number): string {
   }).format(value);
 }
 
+function hasMessage(locale: ServerLocale, id: string): id is MessageKey {
+  return id in MESSAGES[locale];
+}
+
 export function formatMessage(
   locale: ServerLocale,
   key: MessageKey,
@@ -77,7 +81,7 @@ export function formatMessage(
 
 /** The name of a column modifier, or its id when it has none. */
 export function formatModifier(locale: ServerLocale, id: string): string {
-  return id in MESSAGES[locale] ? MESSAGES[locale][id as MessageKey] : id;
+  return hasMessage(locale, id) ? MESSAGES[locale][id] : id;
 }
 
 /** "1 table" or "9 tables", the number in the reader's short form. */

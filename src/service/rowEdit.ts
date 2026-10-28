@@ -1,4 +1,6 @@
 import { assert } from "@antelopejs/interface-api-util";
+import { isJsonContainer, type JsonValue } from "../types/json";
+import { isBoolean, isObject } from "../utils/guards";
 import { cellToText } from "../utils/query";
 
 /**
@@ -20,7 +22,7 @@ const READONLY_FIELDS = new Set(["_id"]);
  * JSON.
  */
 // oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because the null and undefined cases returned earlier, and `typeof value === "object"` alone yields `object | null`; a narrower type here would only push an assertion up
-function normalizeJsonValue(value: object): unknown {
+function normalizeJsonValue(value: object): JsonValue | undefined {
   try {
     return JSON.parse(JSON.stringify(value));
   } catch {
@@ -39,6 +41,8 @@ function sameJson(a: unknown, b: unknown): boolean {
 /** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
 
+type EditValue = JsonValue | Date | typeof SKIP_FIELD;
+
 /**
  * Fields a write never touches: the primary key, `_id` and the browse-only
  * synthetic columns.
@@ -55,7 +59,7 @@ function isProtectedField(field: string, primaryKey: string | undefined) {
 function resolveClearedValue(
   current: Record<string, unknown>,
   field: string,
-): unknown {
+): null | typeof SKIP_FIELD {
   return current[field] === null || current[field] === undefined
     ? SKIP_FIELD
     : null;
@@ -66,19 +70,11 @@ function resolveStructuredValue(
   field: string,
   // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and that is what the caller narrowed it to
   value: object,
-): unknown {
+): JsonValue | typeof SKIP_FIELD {
   const normalized = normalizeJsonValue(value);
-  if (normalized === null || typeof normalized !== "object") {
-    return SKIP_FIELD;
-  }
+  if (!isJsonContainer(normalized)) return SKIP_FIELD;
   const before = current[field];
-  if (
-    before !== null &&
-    typeof before === "object" &&
-    sameJson(before, normalized)
-  ) {
-    return SKIP_FIELD;
-  }
+  if (isObject(before) && sameJson(before, normalized)) return SKIP_FIELD;
   return normalized;
 }
 
@@ -96,7 +92,7 @@ function resolveDateValue(
   before: Date,
   value: string | number | boolean,
 ) {
-  const date = typeof value === "boolean" ? null : new Date(value);
+  const date = isBoolean(value) ? null : new Date(value);
   assert(
     date && !Number.isNaN(date.getTime()),
     400,
@@ -122,14 +118,12 @@ function resolveEditValue(
   field: string,
   value: unknown,
   primaryKey: string | undefined,
-): unknown {
+): EditValue {
   if (value === undefined || isProtectedField(field, primaryKey)) {
     return SKIP_FIELD;
   }
   if (value === null) return resolveClearedValue(current, field);
-  if (typeof value === "object") {
-    return resolveStructuredValue(current, field, value);
-  }
+  if (isObject(value)) return resolveStructuredValue(current, field, value);
   if (!isWritableScalar(value)) return SKIP_FIELD;
   const before = current[field];
   if (before instanceof Date) return resolveDateValue(field, before, value);
