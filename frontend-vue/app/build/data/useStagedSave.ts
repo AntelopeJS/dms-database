@@ -22,7 +22,7 @@ const UNDO_WINDOW_MS = 10_000
 const UNDONE_NOTICE_MS = 3_000
 
 /** What the save bar says once a save is written, then once it is undone. */
-interface SaveNotice {
+export interface SaveNotice {
 	state: 'saved' | 'undoing' | 'undone'
 	changes: StagedChange[]
 	scope: string

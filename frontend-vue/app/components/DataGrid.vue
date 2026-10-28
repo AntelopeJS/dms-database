@@ -6,7 +6,6 @@ import {
 } from '../build/composables/useDataBrowserTabs'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import {
-	GRID_PAGE_SIZES,
 	browseListQuery,
 	browseSelectionQuery,
 	useDataBrowserGrid,
@@ -25,6 +24,18 @@ import type {
 } from '../build/composables/useDataBrowserGrid'
 import { DATABASE_PAGES, tableAccess } from '../build/utils/databaseLinks'
 import { type ColumnRole, isPrimaryKey } from '../build/utils/fieldTypes'
+import {
+	DEFAULT_PRIMARY_KEY,
+	columnsOf,
+	moveFocus,
+	type ColumnsResponse,
+	type ListResponse,
+} from '../build/data/gridData'
+import DataGridEmpty from '../build/components/DataGridEmpty.vue'
+import DataGridFooter from '../build/components/DataGridFooter.vue'
+import DataGridReadOnlyBanner from '../build/components/DataGridReadOnlyBanner.vue'
+import DataGridSaveStatus from '../build/components/DataGridSaveStatus.vue'
+import DataGridToolbar from '../build/components/DataGridToolbar.vue'
 import DataFilterBar from './DataFilterBar.vue'
 import DataGridCell from './DataGridCell.vue'
 import DataGridHeaderCell from './DataGridHeaderCell.vue'
@@ -41,22 +52,7 @@ const BROWSE_ENDPOINT = '/api/database/browse'
 // Browse-only columns: the source instance of a cross-instance read.
 const SYNTHETIC_FIELDS = new Set(['_instance'])
 const DEFAULT_COLUMN_WIDTH = 180
-// Primary key assumed when the backend reports none (MongoDB's implicit id).
-const DEFAULT_PRIMARY_KEY = '_id'
 const SEARCH_DEBOUNCE_MS = 300
-const PAGE_WINDOW = 2
-
-interface ColumnsResponse {
-	columns: string[]
-	types: Record<string, string>
-	primaryKey: string | null
-}
-
-interface ListResponse {
-	results: Record<string, unknown>[]
-	total: number
-	primaryKey: string | null
-}
 
 const props = defineProps<{
 	tab: BrowserTab
@@ -64,7 +60,7 @@ const props = defineProps<{
 	table?: TableSummary
 }>()
 
-const { t, n } = useI18n()
+const { t } = useI18n()
 const router = useDmsRouter()
 const grid = useDataBrowserGrid()
 const staged = useStagedEdits()
@@ -94,27 +90,13 @@ const loadError = computed(() => {
 	return error instanceof Error ? error.message : String(error)
 })
 
-function columnsOf(
-	meta: ColumnsResponse | null,
-	primaryKey: string | null,
-): GridColumn[] {
-	const sampled = meta?.columns ?? []
-	const names =
-		sampled.length > 0 ? sampled : Object.keys(props.table?.fields ?? {})
-	return names.map((name) => ({
-		name,
-		type: meta?.types[name] ?? 'string',
-		isPrimaryKey: name === (primaryKey ?? DEFAULT_PRIMARY_KEY),
-	}))
-}
-
 const data = computed<GridData | null>(() => {
 	const list = listRead.data.value
 	if (!list) return null
 	const meta = columnsRead.data.value
 	const primaryKey = list.primaryKey ?? meta?.primaryKey ?? null
 	return {
-		columns: columnsOf(meta, primaryKey),
+		columns: columnsOf(meta, primaryKey, props.table),
 		rows: list.results ?? [],
 		total: list.total ?? 0,
 		primaryKey,
@@ -182,9 +164,7 @@ function isCellEditable(field: string, row: Record<string, unknown>): boolean {
 
 // --- toolbar: debounced search ---
 const searchDraft = ref(state.search)
-const searchInput = useTemplateRef<{ inputRef?: HTMLInputElement }>(
-	'searchInput',
-)
+const toolbar = useTemplateRef<{ focusSearch: () => void }>('toolbar')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 watch(searchDraft, (value) => {
 	clearTimeout(searchTimer)
@@ -244,38 +224,6 @@ function resizeColumn(name: string, width: number) {
 	state.columnWidths = { ...state.columnWidths, [name]: width }
 }
 
-// --- pagination ---
-const pageSizeOptions = GRID_PAGE_SIZES.map((size) => ({
-	label: String(size),
-	value: size,
-}))
-const pageCount = computed(() =>
-	Math.max(1, Math.ceil(total.value / state.pageSize)),
-)
-const pageStart = computed(() =>
-	total.value === 0 ? 0 : state.page * state.pageSize + 1,
-)
-const pageEnd = computed(() =>
-	Math.min(total.value, (state.page + 1) * state.pageSize),
-)
-const pages = computed(() => {
-	const last = pageCount.value - 1
-	const around = new Set([0, last])
-	for (
-		let page = state.page - PAGE_WINDOW;
-		page <= state.page + PAGE_WINDOW;
-		page += 1
-	) {
-		if (page >= 0 && page <= last) around.add(page)
-	}
-	return [...around].sort((a, b) => a - b)
-})
-
-function setPageSize(size: number) {
-	state.pageSize = size
-	state.page = 0
-}
-
 // --- links out ---
 function openInQueryConsole() {
 	const instance =
@@ -315,16 +263,6 @@ function focusCell(r: number, c: number) {
 	})
 }
 
-const MOVES: Record<
-	string,
-	(cell: { r: number; c: number }) => { r: number; c: number }
-> = {
-	ArrowUp: ({ r, c }) => ({ r: r - 1, c }),
-	ArrowDown: ({ r, c }) => ({ r: r + 1, c }),
-	ArrowLeft: ({ r, c }) => ({ r, c: c - 1 }),
-	ArrowRight: ({ r, c }) => ({ r, c: c + 1 }),
-}
-
 function onKeydown(event: KeyboardEvent) {
 	const current = focused.value
 	if (editing.value || !current) return
@@ -342,14 +280,15 @@ function onKeydown(event: KeyboardEvent) {
 		focused.value = null
 		return
 	}
-	const move = MOVES[event.key]
-	if (!move) return
-	event.preventDefault()
-	const next = move(current)
-	focusCell(
-		Math.max(0, Math.min(rows.value.length - 1, next.r)),
-		Math.max(0, Math.min(visibleColumns.value.length - 1, next.c)),
+	const next = moveFocus(
+		event.key,
+		current,
+		rows.value.length,
+		visibleColumns.value.length,
 	)
+	if (!next) return
+	event.preventDefault()
+	focusCell(next.r, next.c)
 }
 
 // --- inline editing: a commit stages the value ---
@@ -577,7 +516,7 @@ const hasRefinements = computed(
 useEventListener('keydown', (event: KeyboardEvent) => {
 	if (event.key === '/' && (event.metaKey || event.ctrlKey)) {
 		event.preventDefault()
-		searchInput.value?.inputRef?.focus()
+		toolbar.value?.focusSearch()
 		return
 	}
 	const target = event.target as HTMLElement | null
@@ -589,52 +528,15 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 
 <template>
 	<div class="flex flex-1 flex-col md:min-h-0">
-		<div
-			class="border-default flex flex-wrap items-center gap-2 border-b px-3 py-2"
-		>
-			<div class="flex items-baseline gap-2">
-				<span class="text-highlighted font-mono text-sm font-semibold">
-					{{ tab.table }}
-				</span>
-				<span class="text-dimmed font-mono text-xs tabular-nums">
-					{{ t('dms_database.data.grid.rows', { count: n(total) }, total) }}
-				</span>
-			</div>
-			<UInput
-				ref="searchInput"
-				v-model="searchDraft"
-				icon="i-ph-magnifying-glass"
-				size="sm"
-				class="w-64"
-				:placeholder="t('dms_database.data.grid.search')"
-			>
-				<template #trailing>
-					<UKbd value="meta" size="sm" />
-					<UKbd value="/" size="sm" />
-				</template>
-			</UInput>
-			<div class="ml-auto flex items-center gap-1.5">
-				<UTooltip :text="t('dms_database.data.grid.refresh')">
-					<UButton
-						icon="i-ph-arrows-clockwise"
-						color="neutral"
-						variant="ghost"
-						size="sm"
-						:loading="loading"
-						:aria-label="t('dms_database.data.grid.refresh')"
-						@click="reload"
-					/>
-				</UTooltip>
-				<UButton
-					icon="i-ph-code"
-					color="neutral"
-					variant="ghost"
-					size="sm"
-					:label="t('dms_database.data.grid.open_query')"
-					@click="openInQueryConsole"
-				/>
-			</div>
-		</div>
+		<DataGridToolbar
+			ref="toolbar"
+			v-model:search="searchDraft"
+			:table="tab.table"
+			:total="total"
+			:loading="loading"
+			@reload="reload"
+			@open-query="openInQueryConsole"
+		/>
 
 		<DataFilterBar
 			:columns="visibleColumns"
@@ -643,42 +545,12 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 			@clear="clearFilters"
 		/>
 
-		<div
+		<DataGridReadOnlyBanner
 			v-if="readOnly"
-			class="border-default bg-warning/5 flex flex-wrap items-center gap-2 border-b px-3 py-2 text-sm"
-		>
-			<UIcon name="i-ph-lock-simple" class="text-warning size-4" />
-			<span>
-				<b>{{ t('dms_database.data.grid.read_only') }}</b>
-				<span class="text-muted ml-1">
-					{{
-						t('dms_database.data.grid.read_only_detail', { table: tab.table })
-					}}
-				</span>
-			</span>
-			<span class="ml-auto flex gap-1.5">
-				<UButton
-					v-for="instance in namedInstances"
-					:key="instance"
-					size="xs"
-					color="neutral"
-					variant="outline"
-					:label="t('dms_database.data.grid.switch_to', { instance })"
-					@click="switchInstance(instance)"
-				/>
-				<UButton
-					size="xs"
-					color="neutral"
-					variant="outline"
-					:label="
-						t('dms_database.data.grid.switch_to', {
-							instance: t('dms_database.data.scope.default'),
-						})
-					"
-					@click="switchInstance(DEFAULT_INSTANCE_VALUE)"
-				/>
-			</span>
-		</div>
+			:table="tab.table"
+			:instances="namedInstances"
+			@switch-instance="switchInstance"
+		/>
 
 		<div
 			ref="scroller"
@@ -763,203 +635,37 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 				</tbody>
 			</table>
 
-			<div v-if="loadError" class="grid h-full place-items-center p-6">
-				<DmsEmptyState
-					variant="error"
-					:title="
-						t('dms_database.data.empty.error_title', { table: tab.table })
-					"
-					:actions="[
-						{
-							label: t('dms_database.common.retry'),
-							icon: 'i-ph-arrows-clockwise',
-							color: 'neutral',
-							variant: 'outline',
-							onClick: reload,
-						},
-						{
-							label: t('dms_database.data.empty.check_connection'),
-							color: 'neutral',
-							variant: 'ghost',
-							to: DATABASE_PAGES.overview,
-						},
-					]"
-				>
-					<p class="text-muted text-sm">
-						{{ t('dms_database.data.empty.error_description') }}
-					</p>
-					<p class="text-dimmed mt-1 font-mono text-[11px]">{{ loadError }}</p>
-				</DmsEmptyState>
-			</div>
-			<div
-				v-else-if="!loading && rows.length === 0 && hasRefinements"
-				class="grid h-full place-items-center p-6"
-			>
-				<DmsEmptyState
-					variant="no-result"
-					:title="t('dms_database.data.empty.no_match_title')"
-					:description="
-						t('dms_database.data.empty.no_match_description', {
-							count: n(total),
-							table: tab.table,
-						})
-					"
-					:actions="[
-						{
-							label: t('dms_database.data.empty.clear_filters'),
-							color: 'neutral',
-							variant: 'outline',
-							onClick: clearRefinements,
-						},
-						...(readOnly
-							? []
-							: [
-									{
-										label: t('dms_database.data.empty.search_all'),
-										color: 'neutral' as const,
-										variant: 'ghost' as const,
-										onClick: () => switchInstance(CROSS_INSTANCE_VALUE),
-									},
-								]),
-					]"
-				/>
-			</div>
-			<div
-				v-else-if="!loading && rows.length === 0"
-				class="grid h-full place-items-center p-6"
-			>
-				<DmsEmptyState
-					:title="
-						t('dms_database.data.empty.no_rows_title', { table: tab.table })
-					"
-					:description="t('dms_database.data.empty.no_rows_description')"
-				/>
-			</div>
+			<DataGridEmpty
+				:table="tab.table"
+				:total="total"
+				:load-error="loadError"
+				:loading="loading"
+				:empty="rows.length === 0"
+				:has-refinements="hasRefinements"
+				:read-only="readOnly"
+				@reload="reload"
+				@clear-refinements="clearRefinements"
+				@search-all="switchInstance(CROSS_INSTANCE_VALUE)"
+			/>
 			<div v-if="loading" class="absolute inset-x-0 top-0">
 				<UProgress size="xs" />
 			</div>
 		</div>
 
-		<div
-			v-if="pendingCount > 0 || saveNotice"
-			class="border-default border-t px-3 py-2"
-		>
-			<DmsSaveBar
-				v-if="pendingCount > 0"
-				variant="band"
-				dirty
-				:saving="saving"
-				:changes="changedFields"
-				:save-label="t('dms_database.data.save.review', pendingCount)"
-				@discard="staged.discard(tab.id)"
-				@save="review"
-			/>
-			<div
-				v-else-if="saveNotice"
-				role="status"
-				class="flex min-h-9 items-center gap-2 text-[13px]"
-			>
-				<UIcon
-					:name="
-						saveNotice.state === 'undone'
-							? 'i-ph-arrow-counter-clockwise'
-							: 'i-ph-check-circle'
-					"
-					class="size-4 shrink-0"
-					:class="saveNotice.state === 'undone' ? 'text-muted' : 'text-success'"
-				/>
-				<span class="text-toned truncate">
-					{{
-						saveNotice.state === 'undone'
-							? t('dms_database.data.save.undone', saveNotice.changes.length)
-							: t(
-									'dms_database.data.save.saved',
-									{ scope: saveNotice.scope },
-									saveNotice.changes.length,
-								)
-					}}
-				</span>
-				<UButton
-					v-if="saveNotice.state !== 'undone'"
-					class="ms-auto"
-					:label="t('dms_database.data.save.undo')"
-					icon="i-ph-arrow-counter-clockwise"
-					color="neutral"
-					variant="outline"
-					size="lg"
-					:loading="saveNotice.state === 'undoing'"
-					@click="undo"
-				/>
-			</div>
-		</div>
+		<DataGridSaveStatus
+			:pending-count="pendingCount"
+			:changed-fields="changedFields"
+			:saving="saving"
+			:notice="saveNotice"
+			@discard="staged.discard(tab.id)"
+			@save="review"
+			@undo="undo"
+		/>
 
-		<footer
-			class="border-default text-muted flex flex-wrap items-center gap-3 border-t px-3 py-1.5 text-xs"
-		>
-			<span class="tabular-nums">
-				{{ t('dms_database.data.grid.rows', { count: n(total) }, total) }}
-			</span>
-			<span class="flex items-center gap-1.5">
-				{{ t('dms_database.data.grid.page_size') }}
-				<USelect
-					:model-value="state.pageSize"
-					:items="pageSizeOptions"
-					size="xs"
-					class="w-20"
-					@update:model-value="setPageSize(Number($event))"
-				/>
-			</span>
-			<span class="text-dimmed hidden items-center gap-1 2xl:flex">
-				<UKbd value="enter" size="sm" />
-				{{ t('dms_database.data.grid.kbd_edit') }}
-				<UKbd value="esc" size="sm" class="ml-1.5" />
-				{{ t('dms_database.data.grid.kbd_cancel') }}
-				<UKbd value="space" size="sm" class="ml-1.5" />
-				{{ t('dms_database.data.grid.kbd_open') }}
-				<UKbd value="meta" size="sm" class="ml-1.5" />
-				<UKbd value="s" size="sm" />
-				{{ t('dms_database.data.grid.kbd_save') }}
-			</span>
-			<nav
-				class="ml-auto flex items-center gap-1"
-				:aria-label="t('dms_database.data.grid.pagination')"
-			>
-				<span class="mr-2 tabular-nums">{{ pageStart }}–{{ pageEnd }}</span>
-				<UButton
-					icon="i-ph-caret-left"
-					color="neutral"
-					variant="ghost"
-					size="xs"
-					:disabled="state.page === 0"
-					:aria-label="t('dms_database.data.grid.previous_page')"
-					@click="state.page -= 1"
-				/>
-				<template v-for="(page, index) in pages" :key="page">
-					<span
-						v-if="index > 0 && page - (pages[index - 1] ?? page) > 1"
-						class="text-dimmed px-1"
-					>
-						…
-					</span>
-					<UButton
-						size="xs"
-						:color="page === state.page ? 'primary' : 'neutral'"
-						:variant="page === state.page ? 'soft' : 'ghost'"
-						:label="String(page + 1)"
-						class="tabular-nums"
-						@click="state.page = page"
-					/>
-				</template>
-				<UButton
-					icon="i-ph-caret-right"
-					color="neutral"
-					variant="ghost"
-					size="xs"
-					:disabled="pageEnd >= total"
-					:aria-label="t('dms_database.data.grid.next_page')"
-					@click="state.page += 1"
-				/>
-			</nav>
-		</footer>
+		<DataGridFooter
+			v-model:page="state.page"
+			v-model:page-size="state.pageSize"
+			:total="total"
+		/>
 	</div>
 </template>
