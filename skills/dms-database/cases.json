@@ -1,0 +1,48 @@
+{
+  "version": 1,
+  "cases": [
+    {
+      "id": "database-aql-console",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Run an AQL query on the orders table from the dashboard.",
+      "expect": {
+        "skills": ["dms-database"],
+        "acceptable": ["database-interface", "dms"]
+      }
+    },
+    {
+      "id": "dms-database-missing-table-casual",
+      "area": "modules",
+      "style": "casual",
+      "prompt": "my new table is missing from the dms database console",
+      "expect": {
+        "skills": ["dms-database"],
+        "acceptable": ["dms", "database-decorators-interface"],
+        "mustMention": ["RegisterSchema", "RegisterTable"]
+      }
+    },
+    {
+      "id": "dms-database-table-watch",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "Run an automation procedure whenever a row is inserted into the orders table of the shop schema. Which trigger type do I pick, and what does it require from the database? Keep it short, no project config.",
+      "expect": {
+        "skills": ["dms-database"],
+        "acceptable": ["dms-automation", "dms"],
+        "mustMention": ["database.table-watch"]
+      }
+    },
+    {
+      "id": "dms-database-not-aql-code",
+      "area": "modules",
+      "style": "clean",
+      "prompt": "In my module code, how do I write a chainable AQL query that joins orders to customers and sums the totals?",
+      "expect": {
+        "skills": ["database-interface"],
+        "acceptable": ["database-decorators-interface"],
+        "avoid": ["dms-database"]
+      }
+    }
+  ]
+}
