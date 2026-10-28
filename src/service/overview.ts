@@ -22,7 +22,7 @@ function tableLink(schema: string, table: string): string {
   return `${DATABASE_PATHS.data}?${query.toString()}`;
 }
 
-// The cards' texts, composed by the dashboard in the reader's language.
+/** The cards' texts, composed by the dashboard in the reader's language. */
 const CARD_TEXT = "$dms_database.overview.schemas.card";
 
 function cardText(
@@ -32,7 +32,7 @@ function cardText(
   return { key: `${CARD_TEXT}.${name}`, params };
 }
 
-// A count in its short form (501.6k), which still picks the plural.
+/** A count in its short form (501.6k), which still picks the plural. */
 function compactCount(name: string, value: number): ComposedText {
   return {
     ...cardText(name, { count: { type: "number", value, format: "compact" } }),
@@ -88,8 +88,10 @@ export async function listLargestTables(): Promise<TopListItem[]> {
   }));
 }
 
-// Rows written before runs recorded their status succeeded: only successful
-// runs used to be stored.
+/**
+ * Rows written before runs recorded their status succeeded: only successful
+ * runs used to be stored.
+ */
 export function runStatusOf(
   row: Pick<QueryHistoryRow, "status">,
 ): QueryRunStatus {

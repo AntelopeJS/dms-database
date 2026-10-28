@@ -9,7 +9,7 @@ interface PackageManifest {
   version?: string;
 }
 
-// The release shown on the catalog tile, read from the published manifest.
+/** The release shown on the catalog tile, read from the published manifest. */
 function readVersion(): string | undefined {
   try {
     const manifest = readFileSync(
@@ -34,8 +34,10 @@ export const databaseModule = RegisterModule({
   readout: (context) => readCatalogReadout(context.user),
 });
 
-// Both sections only title the sidebar: `urlSlug: "/"` keeps them out of the
-// page URLs, so every page stays at /modules/database/<page>.
+/**
+ * Both sections only title the sidebar: `urlSlug: "/"` keeps them out of the
+ * page URLs, so every page stays at /modules/database/<page>.
+ */
 export const exploreSection = Category("explore", {
   displayName: "$dms_database.nav.explore",
   icon: "i-ph-compass",

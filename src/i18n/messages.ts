@@ -1,9 +1,10 @@
-// Texts the server writes where the dashboard composes none: the catalog
-// tile's readout (plain strings) and the Schemas table's modifier tags. These
-// few lines are composed here, in the reader's language. Blocks compose their
-// own texts (`ComposedText`), and everything a Vue component draws lives in
-// the layer's locales.
-
+/**
+ * Texts the server writes where the dashboard composes none: the catalog
+ * tile's readout (plain strings) and the Schemas table's modifier tags. These
+ * few lines are composed here, in the reader's language. Blocks compose their
+ * own texts (`ComposedText`), and everything a Vue component draws lives in
+ * the layer's locales.
+ */
 export type ServerLocale = "en" | "fr";
 
 const DEFAULT_LOCALE: ServerLocale = "en";

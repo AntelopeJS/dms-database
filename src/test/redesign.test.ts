@@ -42,7 +42,7 @@ class RedesignOrder extends Table {
   declare created_at: Date;
 }
 
-// Keeps the decorated classes referenced: the decorators register them.
+/** Keeps the decorated classes referenced: the decorators register them. */
 const TABLES = [RedesignCustomer, RedesignOrder];
 
 function shop() {
@@ -99,7 +99,6 @@ async function cleanUp(): Promise<void> {
     .run();
 }
 
-// One seed for both suites: mocha runs every root `before` first.
 before(seed);
 after(cleanUp);
 
@@ -226,8 +225,6 @@ describe("[integration] v2 redesign: browsing", () => {
 
 describe("[integration] v2 redesign: edits", () => {
   it("answers an edit with the row as the listing then serves it", async () => {
-    // The data browser shows that answer in place of the row it read,
-    // without reading the page again.
     const controller = new DatabaseBrowseController();
     const table = [`is:${SCHEMA}`, `is:${INSTANCE}`, "is:orders"] as const;
     const listed = async (id: string) => {
@@ -258,8 +255,6 @@ describe("[integration] v2 redesign: edits", () => {
       });
       assert.deepEqual(wire(answer), wire(await listed("o2")));
       assert.equal(wire(answer).created_at, "2026-10-06T09:00:00.000Z");
-      // MongoDB reports zero modified rows when the submitted value already
-      // matches. That is still a successful edit, not a missing row.
       const unchanged = await controller.edit(USER, ...table, "o2", {
         status: "shipped",
       });

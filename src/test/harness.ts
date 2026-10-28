@@ -41,14 +41,18 @@ export default defineConfig({
             version: ">=0.11.0 <1.0.0",
           },
       config: {
-        // No frontend server runs here: the dashboard URL is the API, whose
-        // paths the front proxy serves unchanged.
+        /**
+         * No frontend server runs here: the dashboard URL is the API, whose
+         * paths the front proxy serves unchanged.
+         */
         clientBaseUrl: `http://127.0.0.1:${API_PORT}`,
         auth: {
           jwtSecret: JWT_SECRET,
         },
-        // Outside development, which the test run is not, dms 0.11 refuses
-        // to start without a render secret of its own.
+        /**
+         * Outside development, which the test run is not, dms 0.11 refuses
+         * to start without a render secret of its own.
+         */
         htmlRender: {
           serviceSecret: HTML_RENDER_SECRET,
         },
@@ -127,8 +131,10 @@ export default defineConfig({
       };
     },
     async cleanup() {
-      // Awaited inside ajs's finally: a rejection here would replace the run's
-      // real outcome with a teardown stack.
+      /**
+       * Awaited inside ajs's finally: a rejection here would replace the run's
+       * real outcome with a teardown stack.
+       */
       try {
         if (mongod) await mongod.stop();
       } catch (error) {

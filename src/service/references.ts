@@ -50,6 +50,10 @@ async function listInboundRelations(
   );
 }
 
+/**
+ * A table of another schema has no instance of this one: it is read in its
+ * default instance.
+ */
 async function countReferences({
   relation,
   value,
@@ -57,14 +61,9 @@ async function countReferences({
 }: CountInput): Promise<number> {
   const source = Schema.get(relation.fromSchema);
   if (!source) return 0;
-  // A table of another schema has no instance of this one: it is read in
-  // its default instance.
   const scope =
     relation.fromSchema === relation.toSchema ? instance : undefined;
-  // The table is only known by name at run time, so its row type cannot
-  // come from the schema's definition; the two types do not overlap, which
-  // takes two assertions.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
+  // oxlint-disable-next-line anti-slop/no-chained-type-assertions -- the table is only known by name at run time, so its row type cannot come from the schema's definition, and the two types do not overlap
   const rows = source
     .instance(scope)
     .table(relation.fromTable as never) as unknown as Table<AnyRow>;

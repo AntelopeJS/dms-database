@@ -27,7 +27,7 @@ class ConsoleTag extends Table {
   declare label: string;
 }
 
-// Keeps the decorated class referenced: the decorator registers it.
+/** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [ConsoleTag];
 
 function schema() {
@@ -51,8 +51,10 @@ async function lastRun() {
   return items[0];
 }
 
-// Predicate bodies that are not staged values: decoded as plain objects,
-// the driver would read each as an always-true expression.
+/**
+ * Predicate bodies that are not staged values: decoded as plain objects,
+ * the driver would read each as an always-true expression.
+ */
 const FORGED_BODIES = [
   { label: "kept" },
   { __cls: "NoSuchClass", stages: [] },
@@ -66,7 +68,7 @@ interface WireStage {
   args: { args: unknown[] }[];
 }
 
-// The query's filter predicate swapped for another body.
+/** The query's filter predicate swapped for another body. */
 function withPredicate(
   query: Record<string, unknown>,
   body: unknown,

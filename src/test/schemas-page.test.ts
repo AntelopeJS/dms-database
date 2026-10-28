@@ -15,9 +15,10 @@ import {
   readSchemaFilters,
 } from "../service/schemaFilters";
 
-// The Schemas page: rows counted across instances (S-7), columns holding
-// `null` shown nullable (S-8), and the filter bar's filters on the source.
-
+/**
+ * The Schemas page: rows counted across instances (S-7), columns holding
+ * `null` shown nullable (S-8), and the filter bar's filters on the source.
+ */
 const SCHEMA = "schemas-page-shop";
 const REGIONS = ["eu", "us"];
 const USER = { _id: "schemas-page-user", language: "en" } as User;
@@ -29,7 +30,7 @@ class SchemasPageInvoice extends Table {
   declare coupon_id: string | null;
 }
 
-// Keeps the decorated class referenced: the decorator registers it.
+/** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [SchemasPageInvoice];
 
 function shop() {
@@ -80,7 +81,7 @@ describe("[integration] Schemas page", () => {
   before(seed);
   after(cleanUp);
 
-  // The source as the table view calls it, with the bar's hidden filters.
+  /** The source as the table view calls it, with the bar's hidden filters. */
   function listed(bar: { instance?: string; q?: string; has?: string } = {}) {
     const asFilter = (value?: string) => (value ? `is:${value}` : undefined);
     return new DatabaseTablesController().source(
@@ -206,7 +207,6 @@ describe("Schemas page inspector", () => {
     assert.ok(inspect, "the row menu offers Inspect");
     assert.equal(inspect.isDefault, true);
     assert.equal(inspect.deepLink, true);
-    // The DMS header names the table and its position.
     assert.deepEqual(
       {
         type: inspect.target.type,

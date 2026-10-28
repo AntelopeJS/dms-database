@@ -48,7 +48,10 @@ function instanceLabel(id: unknown): string | undefined {
   return typeof id === "string" ? id : undefined;
 }
 
-/** The schema, instance and table a query chain starts from. */
+/**
+ * The schema, instance and table a query chain starts from. An `instance()`
+ * with no id is the default instance.
+ */
 export function readQueryTarget(root: unknown): QueryTarget {
   const stages = stagesOf(root);
   const find = (name: string) => stages.find((stage) => stage.stage === name);
@@ -57,7 +60,6 @@ export function readQueryTarget(root: unknown): QueryTarget {
   const instanceStage = find("instance");
   return {
     schema: typeof schema === "string" ? schema : undefined,
-    // `instance()` with no id is the default instance.
     instance: instanceStage
       ? (instanceLabel(optionId(instanceStage)) ?? "")
       : undefined,
@@ -80,8 +82,8 @@ function stagedQuery(stages: QueryStage[]): Query<unknown> {
   return query;
 }
 
+/** A single-row selection (`get`) answers the row or nothing. */
 async function countSelected(prefix: QueryStage[]): Promise<number> {
-  // A single-row selection (`get`) answers the row or nothing.
   if (prefix.at(-1)?.stage === "get") {
     const row = await stagedQuery(prefix).run();
     return row === null || row === undefined ? 0 : 1;
@@ -121,8 +123,10 @@ export async function dryRun(root: unknown): Promise<DryRunResult> {
   return { ...target, operation, rows };
 }
 
-// Instances named in an unknown-instance error, so the message stays short
-// on a schema with one instance per tenant.
+/**
+ * Instances named in an unknown-instance error, so the message stays short
+ * on a schema with one instance per tenant.
+ */
 const LISTED_INSTANCES = 10;
 
 /**
@@ -140,7 +144,6 @@ export async function describeUnknownQueryTarget(
   if (target.table && !(target.table in schema.definition)) {
     return `Unknown table "${target.table}" in schema ${target.schema}`;
   }
-  // The default instance ("") and every instance at once ("*") always exist.
   const instance = target.instance;
   if (!instance || instance === "*") return null;
   const named = await listSchemaInstances(schema);

@@ -8,11 +8,13 @@ type WatchEventType = "insert" | "update" | "delete";
 const EVENT_TYPES: readonly WatchEventType[] = ["insert", "update", "delete"];
 
 interface TableWatchConfig {
-  // Registered schema id + table name, the same identifiers the data browser
-  // uses to address a table (see routes/data.ts resolveSelection).
+  /**
+   * Registered schema id + table name, the same identifiers the data browser
+   * uses to address a table (see routes/data.ts resolveSelection).
+   */
   schema: string;
   table: string;
-  // Change types to fire on; omitted means all.
+  /** Change types to fire on; omitted means all. */
   eventTypes?: WatchEventType[];
 }
 
@@ -31,20 +33,24 @@ type ChangeFeed = AsyncGenerator<Changes<ChangeRow>, void, unknown>;
 interface TableWatchHandle {
   stopped: boolean;
   iterator: ChangeFeed;
-  // In-flight first read handed from activate()'s probe to the pump loop.
+  /** In-flight first read handed from activate()'s probe to the pump loop. */
   pending?: Promise<IteratorResult<Changes<ChangeRow>, void>>;
 }
 
-// The first read of a healthy change feed blocks until a change arrives, so
-// activate() cannot await success directly. Instead it waits this long for an
-// early failure (e.g. MongoDB standalone: "$changeStream is only supported on
-// replica sets") before assuming the feed opened.
+/**
+ * The first read of a healthy change feed blocks until a change arrives, so
+ * activate() cannot await success directly. Instead it waits this long for an
+ * early failure (e.g. MongoDB standalone: "$changeStream is only supported on
+ * replica sets") before assuming the feed opened.
+ */
 const ACTIVATION_PROBE_MS = 2_000;
-// Delay before the single reconnect attempt after a feed error.
+/** Delay before the single reconnect attempt after a feed error. */
 const RECONNECT_DELAY_MS = 5_000;
 
-// interface-database change types → trigger event types. Driver passthrough
-// types (e.g. MongoDB "invalidate" / "drop") are ignored.
+/**
+ * interface-database change types → trigger event types. Driver passthrough
+ * types (e.g. MongoDB "invalidate" / "drop") are ignored.
+ */
 const CHANGE_TYPE_TO_EVENT: Record<string, WatchEventType | undefined> = {
   added: "insert",
   modified: "update",
@@ -78,12 +84,13 @@ function resolveEventTypes(raw: unknown): Set<WatchEventType> {
   return events;
 }
 
-// Opens a change feed cursor on the table (default schema instance). Each read
-// pulls one change; closing the cursor (iterator.return) resolves a blocked
-// read with done and closes the server-side change stream.
+/**
+ * Opens a change feed cursor on the table (default schema instance). Each read
+ * pulls one change; closing the cursor (iterator.return) resolves a blocked
+ * read with done and closes the server-side change stream.
+ */
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
   const schema = Schema.get(schemaId);
-  // Re-checked on reconnect; activate() has already rejected unknown names.
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
   const table: Table<ChangeRow> = schema.instance().table(tableName as never);
   return table.changes().cursor();
@@ -107,6 +114,11 @@ function emitChange(
   });
 }
 
+/**
+ * Reads the feed until it stops. No await sits between the stopped check and
+ * `next()`, so `deactivate()` cannot interleave and a read is never started on
+ * a feed it already closed.
+ */
 async function drainFeed(
   handle: TableWatchHandle,
   config: TableWatchConfig,
@@ -114,8 +126,6 @@ async function drainFeed(
   emit: (payload: TableWatchOutput) => void,
 ): Promise<void> {
   while (!handle.stopped) {
-    // No await between the stopped check and next(): deactivate() cannot
-    // interleave, so a read is never started on a feed it already closed.
     const read = handle.pending ?? handle.iterator.next();
     handle.pending = undefined;
     const result = await read;
@@ -128,11 +138,15 @@ async function drainFeed(
   }
 }
 
-// Reads the feed until deactivate() flips `stopped` (its iterator.return()
-// resolves a blocked read with done). Never throws: on a feed error — or the
-// feed ending on its own, which a healthy change feed never does — it attempts
-// ONE reconnect after a short delay, then gives up with an error log until the
-// trigger is re-activated.
+/**
+ * Reads the feed until deactivate() flips `stopped` (its iterator.return()
+ * resolves a blocked read with done). Never throws: on a feed error — or the
+ * feed ending on its own, which a healthy change feed never does — it attempts
+ * ONE reconnect after a short delay, then gives up with an error log until the
+ * trigger is re-activated. The failed iterator is closed before the feed is
+ * reopened: it may still own a server-side change-stream cursor that would
+ * otherwise linger until timeout.
+ */
 async function pumpFeed(
   handle: TableWatchHandle,
   config: TableWatchConfig,
@@ -160,8 +174,6 @@ async function pumpFeed(
       );
       await sleep(RECONNECT_DELAY_MS);
       if (handle.stopped) return;
-      // Close the failed iterator first: it may still own a server-side
-      // change-stream cursor that would otherwise linger until timeout.
       await handle.iterator.return(undefined).catch(() => undefined);
       if (handle.stopped) return;
       try {
@@ -185,8 +197,10 @@ export const tableWatchTrigger: TriggerType<
   name: "Table watch",
   description: "Fires on inserts, updates and deletes in a database table",
   icon: "i-ph-database",
-  // The feed must be consumed exactly once cluster-wide; the automation
-  // module only activates singleton triggers on the elected leader.
+  /**
+   * The feed must be consumed exactly once cluster-wide; the automation
+   * module only activates singleton triggers on the elected leader.
+   */
   cluster: "singleton",
   configSchema: {
     type: "object",
@@ -231,6 +245,11 @@ export const tableWatchTrigger: TriggerType<
       at: { type: "string", format: "date-time" },
     },
   },
+  /**
+   * Opens the feed and probes it: an early open failure surfaces as an
+   * activation error instead of a silent dead trigger. Failures past the probe
+   * window go through the pump loop's reconnect-once path.
+   */
   async activate(config, emit) {
     const schemaId =
       typeof config.schema === "string" ? config.schema.trim() : "";
@@ -252,9 +271,6 @@ export const tableWatchTrigger: TriggerType<
 
     const iterator = openFeed(schemaId, tableName);
     const handle: TableWatchHandle = { stopped: false, iterator };
-    // Probe the feed: surface an early open failure as an activation error
-    // instead of a silent dead trigger. Failures past the probe window go
-    // through the pump loop's reconnect-once path.
     const first = iterator.next();
     handle.pending = first;
     const probe = await Promise.race([
@@ -273,12 +289,14 @@ export const tableWatchTrigger: TriggerType<
     void pumpFeed(handle, scope, events, emit);
     return handle;
   },
+  /**
+   * Resolves a blocked read with done and closes the server-side cursor. If the
+   * pump is in its reconnect sleep, the flag alone stops it.
+   */
   async deactivate(handle) {
     const h = handle as TableWatchHandle | undefined;
     if (!h || h.stopped) return;
     h.stopped = true;
-    // Resolves a blocked read with done and closes the server-side cursor.
-    // If the pump is in its reconnect sleep, the flag alone stops it.
     await h.iterator.return(undefined).catch(() => undefined);
   },
 };

@@ -2,13 +2,14 @@ import type { TableViewOptionsSerialized } from "@antelopejs/interface-dms/base/
 import type { ComponentBuilder } from "@antelopejs/interface-dms/component";
 import { parseFilter } from "../utils/query";
 
-// The Schemas page's filter bar (a frontend component above the table view)
-// keeps its state in the URL: `scope` (a schema), `instance`, `q` (a table
-// or column name) and `has` (relations, modifiers, empty). The table view
-// reads these keys from the URL as hidden filters and sends them to its
-// source route as `filter_<key>=is:<value>`, which reads them back here.
-
-/** The URL keys of the filter bar, each filtering on the field of its name. */
+/**
+ * The URL keys of the filter bar, each filtering on the field of its name. The
+ * Schemas page's filter bar (a frontend component above the table view) keeps
+ * its state in the URL: `scope` (a schema), `instance`, `q` (a table or column
+ * name) and `has` (relations, modifiers, empty). The table view reads these
+ * keys from the URL as hidden filters and sends them to its source route as
+ * `filter_<key>=is:<value>`, which reads them back here.
+ */
 const SCHEMA_FILTER_KEYS = ["scope", "instance", "q", "has"] as const;
 type SchemaFilterKey = (typeof SCHEMA_FILTER_KEYS)[number];
 
@@ -51,7 +52,9 @@ export interface SchemaFilters {
   has: HasFlag[];
 }
 
-// A hidden filter arrives as `<mode>:<value>`; the bar only ever sends `is`.
+/**
+ * A hidden filter arrives as `<mode>:<value>`; the bar only ever sends `is`.
+ */
 function filterValue(raw: unknown): string {
   return parseFilter(raw)?.value.trim() ?? "";
 }

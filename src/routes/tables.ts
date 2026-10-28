@@ -20,7 +20,7 @@ import { asNonEmptyString, clamp, parseInteger } from "../utils/query";
 
 /** One table of the Schemas page, as its source table view lists it. */
 export interface TableSourceRow {
-  // `schema::name`: table names alone collide across schemas.
+  /** `schema::name`: table names alone collide across schemas. */
   id: string;
   schema: string;
   name: string;
@@ -65,8 +65,10 @@ function modifierNames(table: TableSummary, locale: ServerLocale): string[] {
   return [...ids].map((id) => formatModifier(locale, id));
 }
 
-// A search names a table or one of its columns (D-06): "where is the
-// invoice number" finds the table holding it.
+/**
+ * A search names a table or one of its columns (D-06): "where is the
+ * invoice number" finds the table holding it.
+ */
 function matchesSearch(table: TableSummary, needle: string): boolean {
   if (table.name.toLowerCase().includes(needle)) return true;
   return Object.keys(table.fields).some((field) =>
@@ -84,8 +86,10 @@ function needleOf(text: string | undefined): string | undefined {
   return needle || undefined;
 }
 
-// What the bar filters on before any row is counted: a count per table may
-// run across every instance.
+/**
+ * What the bar filters on before any row is counted: a count per table may
+ * run across every instance.
+ */
 function matchesStructure(
   { schemaId, table }: ListedTable,
   filters: SchemaFilters,
