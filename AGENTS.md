@@ -25,6 +25,7 @@
 
 - `pnpm test:layer`: vitest over `frontend-vue/tests`.
 - `pnpm test:frontend`: builds and type-checks the module inside a generated Inertia app.
+- `scripts/check-sources.mts` runs in `pnpm lint`: the components the backend pages name exist, `<i18n-t>` reads the global messages, and every text key a page names resolves in each locale.
 - The playground is linted but not type-checked. Check it with `pnpm --dir playground install --ignore-workspace --frozen-lockfile && pnpm --dir playground build`.
 
 `pnpm knip` checks dependencies only. `pnpm knip:all` also reports unused files and exports; confirm each finding before you remove it.

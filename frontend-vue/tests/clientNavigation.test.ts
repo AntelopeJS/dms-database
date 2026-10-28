@@ -1,13 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { browserMount, type BackendRead } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
-
-// The CodeMirror editor mounts on a real DOM, which this mount has not; it
-// reads nothing and does not decide when the page lands.
-vi.mock('../app/components/QueryBuilderPanel.vue', () => ({
-	default: { name: 'QueryBuilderPanel', render: () => null },
-}))
 
 // A client navigation shows a page once its components' setups settle: the
 // reads that decide a component's size are awaited there, so the page lands
@@ -74,6 +68,7 @@ describe('client navigation: the page lands with what decides its size', () => {
 		backend.release()
 		await page.shown
 		expect(page.text()).toContain('MongoDB')
+		expect(page.errors).toEqual([])
 	})
 
 	it('query console: the first run examples and the library', async () => {
@@ -89,5 +84,8 @@ describe('client navigation: the page lands with what decides its size', () => {
 		// The examples of the first schema's tables are in the empty result.
 		expect(page.text()).toContain('first_description')
 		expect(page.text()).toContain('shop.orders')
+		// The CodeMirror editor mounts on a real DOM, which this mount has not.
+		expect(page.errors).toHaveLength(1)
+		expect(String(page.errors[0])).toContain('document is not defined')
 	})
 })

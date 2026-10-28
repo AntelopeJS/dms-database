@@ -217,6 +217,8 @@ export interface BrowserMount {
 	/** What the component shows now (`''` while the navigation waits). */
 	text: () => string
 	reads: BackendRead[]
+	/** What the mounted components threw outside a test's own calls. */
+	errors: unknown[]
 }
 
 /**
@@ -249,9 +251,13 @@ export function browserMount(
 	app.component('DmsClientOnly', engine.DmsClientOnly)
 	for (const name of UI_COMPONENTS) app.component(name, uiStub(name))
 	app.config.warnHandler = noop
+	const errors: unknown[] = []
+	app.config.errorHandler = (error) => {
+		errors.push(error)
+	}
 	const root = mountNode({ tag: 'root' })
 	app.mount(root)
-	return { shown, text: () => mountText(root), reads }
+	return { shown, text: () => mountText(root), reads, errors }
 }
 
 export interface ServerRender {
