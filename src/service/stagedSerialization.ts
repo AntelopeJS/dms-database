@@ -64,16 +64,17 @@ function isSerializedStaged(value: unknown): value is SerializedStaged {
   );
 }
 
-// An object carrying the keys of a staged value is one, or a forgery: decoded
-// as a plain object, a malformed predicate would reach the driver as an
-// always-true expression, and `filter(...).delete()` would empty the table.
+/**
+ * An object carrying the keys of a staged value is one, or a forgery: decoded
+ * as a plain object, a malformed predicate would reach the driver as an
+ * always-true expression, and `filter(...).delete()` would empty the table.
+ */
 function looksStaged(value: Record<string, unknown>): boolean {
   return Object.hasOwn(value, "__cls") || Object.hasOwn(value, "stages");
 }
 
 export function decodeStaged(value: unknown): unknown {
   if (value === null || value === undefined) return value;
-  // The symbol JSON cannot carry, sent as its sentinel by the console.
   if (value === CROSS_INSTANCE_SENTINEL) return CROSS_INSTANCE;
   if (Array.isArray(value)) return value.map(decodeStaged);
   if (typeof value !== "object") return value;
@@ -96,9 +97,11 @@ export function decodeStaged(value: unknown): unknown {
   return out;
 }
 
-// A function argument (a filter's predicate, a map's projection) travels as
-// `{ stage: "func", args: [argIds, body] }`; its body is what the driver
-// compiles, so it must be a staged value or a constant.
+/**
+ * A function argument (a filter's predicate, a map's projection) travels as
+ * `{ stage: "func", args: [argIds, body] }`; its body is what the driver
+ * compiles, so it must be a staged value or a constant.
+ */
 function decodeStageArg(arg: unknown): unknown {
   if (!isRecord(arg) || arg.stage !== "func") return decodeStaged(arg);
   const [argIds, body] = Array.isArray(arg.args) ? arg.args : [];

@@ -97,8 +97,10 @@ interface CachedFields {
 
 const fieldsCache = new Map<string, CachedFields>();
 
-// An array's element type, from its elements other than `null`: one kind
-// gives `kind[]`, several a union of them, none leaves it untyped (D-20).
+/**
+ * An array's element type, from its elements other than `null`: one kind
+ * gives `kind[]`, several a union of them, none leaves it untyped (D-20).
+ */
 function inferArrayType(items: unknown[]): FieldDescriptor {
   const members: FieldDescriptor[] = [];
   for (const item of items) {
@@ -127,8 +129,10 @@ function arrayOf(descriptor?: FieldDescriptor): ArrayDescriptor | undefined {
   );
 }
 
-// The type of a column seen in several rows: the first one, unless it is an
-// array of elements unknown so far (empty) that a later row tells.
+/**
+ * The type of a column seen in several rows: the first one, unless it is an
+ * array of elements unknown so far (empty) that a later row tells.
+ */
 function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   const untyped = seen?.kind === "array" && !seen.element;
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
@@ -160,10 +164,12 @@ async function sampleRows(
   }
 }
 
-// The rows to infer a table's columns from: the default instance's, or, when
-// it holds none, the first named instance holding some. A schema whose data
-// lives in named instances (one per region, per tenant) otherwise shows only
-// its decorated columns.
+/**
+ * The rows to infer a table's columns from: the default instance's, or, when
+ * it holds none, the first named instance holding some. A schema whose data
+ * lives in named instances (one per region, per tenant) otherwise shows only
+ * its decorated columns.
+ */
 async function sampleAnyInstance(
   schema: Schema,
   tableName: string,
@@ -177,8 +183,10 @@ async function sampleAnyInstance(
   return [];
 }
 
-// The instance a row was read from, which the store adds to rows of named
-// instances: not a column of the table.
+/**
+ * The instance a row was read from, which the store adds to rows of named
+ * instances: not a column of the table.
+ */
 const INSTANCE_TAG_FIELD = "_instance";
 
 interface ObservedField {
@@ -186,7 +194,7 @@ interface ObservedField {
   nullable: boolean;
 }
 
-// Kinds that admit an empty value on their own.
+/** Kinds that admit an empty value on their own. */
 const NULLISH_KINDS = new Set<FieldDescriptor["kind"]>([
   "null",
   "undefined",
@@ -210,8 +218,10 @@ function withNull(descriptor: FieldDescriptor): FieldDescriptor {
   return { kind: "union", members: [descriptor, NULL_DESCRIPTOR] };
 }
 
-// A column holding `null` in some sampled rows is nullable: its type is a
-// union with `null`, and a column holding only `null` is typed `null`.
+/**
+ * A column holding `null` in some sampled rows is nullable: its type is a
+ * union with `null`, and a column holding only `null` is typed `null`.
+ */
 function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
   const observed = new Map<string, ObservedField>();
   for (const row of rows) {
@@ -264,6 +274,12 @@ interface DeclaredFields {
   types: Record<string, FieldDescriptor>;
 }
 
+/**
+ * The decorated names of a table class, in discovery order: the instance's own
+ * class fields (skipped when the constructor throws), the primary key first,
+ * the indexed fields (insertion order preserves the `@Index` source order),
+ * the relation fields, then the modifier fields.
+ */
 function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
   const ordered: string[] = [];
   const seen = new Set<string>();
@@ -273,7 +289,6 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
     ordered.push(name);
   };
 
-  // 1. Class-field emit: names visible on an instance via Object.keys.
   try {
     const instance = new (TableClass as new () => object)();
     for (const name of Object.keys(instance)) push(name);
@@ -281,23 +296,19 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
     // Constructor threw — skip class-field emit discovery.
   }
 
-  // 2. Primary key.
   const datumMeta = getMetadata(TableClass, DatumStaticMetadata, true);
   if (datumMeta.primary && !seen.has(datumMeta.primary)) {
     seen.add(datumMeta.primary);
     ordered.unshift(datumMeta.primary);
   }
 
-  // 3. Indexed fields (flatten groups; insertion order preserves @Index source order).
   for (const fields of Object.values(datumMeta.indexes)) {
     for (const name of fields) push(name);
   }
 
-  // 4. Relation fields.
   const relationMeta = getMetadata(TableClass, RelationStaticMetadata, true);
   for (const name of Object.keys(relationMeta.relations)) push(name);
 
-  // 5. Modifier fields.
   const modifierMeta = getMetadata(TableClass, ModifiersStaticMetadata, true);
   for (const name of Object.keys(modifierMeta.fields ?? {})) push(name);
 
@@ -313,6 +324,11 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
 
 type SchemaTableDefinition = Schema["definition"][string];
 
+/**
+ * A declared type says nothing of `null` (`string | null` reflects as
+ * `Object`) nor of an array's elements (`string[]` reflects as `Array`): the
+ * sampled rows tell both (D-20).
+ */
 async function summarizeTable(
   id: string,
   schema: Schema,
@@ -336,10 +352,6 @@ async function summarizeTable(
     fromDefinition[name] = toFieldDescriptor(value);
   }
 
-  // A declared type says nothing of `null` (`string | null` reflects as
-  // Object): the sampled rows tell whether the column holds some.
-  // Nor of an array's elements (`string[]` reflects as Array): the sampled
-  // rows tell them too (D-20).
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
     const seen = sampled[name];
     const element = arrayOf(seen)?.element;
@@ -400,12 +412,12 @@ export async function listSchemaSummaries(): Promise<SchemaSummary[]> {
 
 const tableCountCache = new Map<string, { value: number; expiresAt: number }>();
 
+/** `String()` also handles the `CROSS_INSTANCE` symbol. */
 function tableCountKey(
   schemaId: string,
   tableName: string,
   instance?: InstanceId,
 ): string {
-  // String() also handles the CROSS_INSTANCE symbol.
   return `${schemaId}::${String(instance ?? "")}::${tableName}`;
 }
 
@@ -532,10 +544,12 @@ export async function listSchemaSummariesWithStats(): Promise<
   return summaries;
 }
 
-// Primary key field name for a registered table, resolved from the decorated
-// table class metadata (e.g. "_id" on MongoDB). Used by the data browser to
-// target a single row for inline edits. Returns undefined when the table has no
-// decorated class or no declared primary key.
+/**
+ * Primary key field name for a registered table, resolved from the decorated
+ * table class metadata (e.g. "_id" on MongoDB). Used by the data browser to
+ * target a single row for inline edits. Returns undefined when the table has no
+ * decorated class or no declared primary key.
+ */
 export function getTablePrimaryKey(
   schemaId: string,
   tableName: string,

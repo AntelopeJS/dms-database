@@ -47,9 +47,9 @@ import { clamp, parseInteger } from "../utils/query";
 import { asNonEmptyString, asString } from "../utils/requestValidation";
 
 const DEFAULT_HISTORY_LIMIT = 25;
-// Rows a run sends back at most; the console says when it cut the rest.
+/** Rows a run sends back at most; the console says when it cut the rest. */
 const MAX_RESULT_ROWS = 1000;
-// Every kept run can be listed: the console pages through them.
+/** Every kept run can be listed: the console pages through them. */
 const MAX_HISTORY_LIMIT = MAX_HISTORY_PER_USER;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
 
@@ -104,8 +104,10 @@ function runFailure(message: string, durationMs: number): HTTPResult {
   return new HTTPResult(400, { message, durationMs });
 }
 
-// A body that does not decode to a runnable query reaches no table: it
-// answers like a failed run, in no time.
+/**
+ * A body that does not decode to a runnable query reaches no table: it
+ * answers like a failed run, in no time.
+ */
 function decodeRunnable(query: Record<string, unknown>): Query<unknown> {
   let root: unknown;
   try {
@@ -132,7 +134,7 @@ interface ParsedSaveBody {
   shared: boolean;
 }
 
-// Shared create/update payload validation, including the runnable check.
+/** Shared create/update payload validation, including the runnable check. */
 function parseSaveBody(body: SaveBody): ParsedSaveBody {
   const query = asRecord(body?.query);
   decodeRunnable(query);
@@ -146,8 +148,10 @@ function parseSaveBody(body: SaveBody): ParsedSaveBody {
   };
 }
 
-// Loads a saved query for a mutating route; non-owners get the same 404 as
-// a missing id so the route does not leak other users' query ids.
+/**
+ * Loads a saved query for a mutating route; non-owners get the same 404 as
+ * a missing id so the route does not leak other users' query ids.
+ */
 async function getOwnedSavedQuery(
   id: unknown,
   userId: string,
@@ -181,7 +185,10 @@ function toSavedWire(row: SavedQueryRow & { _id: string }): SavedQuery {
   };
 }
 
-// The names of the users who shared queries, read once per listing.
+/**
+ * The names of the users who shared queries, read once per listing. A deleted
+ * account leaves its shared queries unnamed.
+ */
 async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
   const users = GetModel(UserModel);
   const names = new Map<string, string>();
@@ -224,7 +231,6 @@ function toHistoryWire(row: QueryHistoryRow & { _id: string }): HistoryEntry {
         : new Date(row.executedAt).toISOString(),
     durationMs: row.durationMs,
     rowCount: row.rowCount,
-    // Rows stored before failed runs were recorded only hold successes.
     status: row.status ?? "ok",
     mutation: row.mutation ?? false,
   };
@@ -359,6 +365,13 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     return toSavedWire(row as SavedQueryRow & { _id: string });
   }
 
+  /**
+   * The updated row is fully determined by the existing row plus the validated
+   * input, so it is not fetched back. It is projected first because spreading
+   * the model instance copies own properties only: anything the model exposes
+   * through its prototype would be dropped, and `toSavedWire` would read
+   * `undefined` for it.
+   */
   @Put("/saved/:id")
   async updateSaved(
     @AuthRawUser() user: User,
@@ -372,11 +385,6 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       ...input,
       updatedAt,
     });
-    // The updated row is fully determined by the existing row plus the
-    // validated input — no need to fetch it back. Projected first because
-    // spreading the model instance copies own properties only: anything the
-    // model exposes through its prototype would be dropped, and toSavedWire
-    // would read `undefined` for it.
     return {
       ...toSavedWire(existing),
       ...input,
@@ -422,13 +430,13 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     return { success: true };
   }
 
+  /** Another user's run answers like a missing one. */
   @Get("/history/:id")
   async getHistoryEntry(
     @AuthRawUser() user: User,
     @Parameter("id", "param") id: unknown,
   ): Promise<HistoryEntry> {
     const row = await GetModel(QueryHistoryModel).get(asNonEmptyString(id));
-    // Another user's run answers like a missing one.
     assert(
       row !== undefined && row.userId === user._id,
       404,

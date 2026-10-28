@@ -200,8 +200,10 @@ export function stringFieldTypeToDescriptor(value: unknown): FieldDescriptor {
   return { kind: "unknown" };
 }
 
-// `InterfaceFieldType | unknown` collapsed to `unknown`, so the union only
-// documented the intent. It says so in words instead.
+/**
+ * `InterfaceFieldType | unknown` collapsed to `unknown`, so the union only
+ * documented the intent. It says so in words instead.
+ */
 export function toFieldDescriptor(value: unknown): FieldDescriptor {
   if (isCodec(value)) return codecToDescriptor(value);
   return stringFieldTypeToDescriptor(value);

@@ -37,11 +37,15 @@ import {
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 200;
-// Rows sampled by `/columns` to union column names and infer coarse types; a
-// small cap bounds schema inference without limiting query results.
+/**
+ * Rows sampled by `/columns` to union column names and infer coarse types; a
+ * small cap bounds schema inference without limiting query results.
+ */
 const COLUMN_SAMPLE_SIZE = 10;
-// Selection filters are handled by resolveSelection; every other `filter_<col>` is
-// treated as a per-column data filter.
+/**
+ * Selection filters are handled by resolveSelection; every other
+ * `filter_<col>` is treated as a per-column data filter.
+ */
 const SELECTION_FILTER_KEYS = new Set([
   "filter_schema",
   "filter_table",
@@ -61,9 +65,9 @@ interface BrowseTableEntry {
 }
 
 interface ColumnFilter {
-  // Column accessor key.
+  /** Column accessor key. */
   field: string;
-  // Raw `<mode>:<value>` token, decoded by parseFilter (modes: is, contains).
+  /** Raw `<mode>:<value>` token, decoded by parseFilter (modes: is, contains). */
   raw: string;
 }
 
@@ -76,8 +80,10 @@ interface BrowseQuery extends BrowseSelection {
   columnFilters: ColumnFilter[];
 }
 
-// Free-text search across every cell of a row (case-insensitive substring),
-// mirroring what the table view's search box implies.
+/**
+ * Free-text search across every cell of a row (case-insensitive substring),
+ * mirroring what the table view's search box implies.
+ */
 function searchRows(
   rows: Record<string, unknown>[],
   search: string,
@@ -90,7 +96,7 @@ function searchRows(
   );
 }
 
-// Read every `filter_<col>` query parameter that is not a selection filter.
+/** Read every `filter_<col>` query parameter that is not a selection filter. */
 function readColumnFilters(ctx: RequestContext): ColumnFilter[] {
   const filters: ColumnFilter[] = [];
   for (const [key, value] of ctx.url.searchParams) {
@@ -125,14 +131,17 @@ function resolveTable(selection: BrowseSelection) {
   return schema.instance(selection.instance).table(selection.table as never);
 }
 
+/**
+ * Streams the full selection to count exactly while retaining only this page.
+ * Arbitrary JSON stringification and Unicode matching must retain JS
+ * semantics.
+ */
 async function refinePage(
   sorted: Stream<Record<string, unknown>>,
   query: BrowseQuery,
 ) {
   const results: Record<string, unknown>[] = [];
   let total = 0;
-  // Arbitrary JSON stringification and Unicode matching must retain JS semantics.
-  // Stream the full selection to count exactly while retaining only this page.
   for await (const row of sorted) {
     let matches = [row];
     for (const filter of query.columnFilters) {
@@ -147,18 +156,20 @@ async function refinePage(
   return { results, total };
 }
 
+/**
+ * Without a search or a column filter the store handles ordering, pagination
+ * and the count. The primary key is surfaced so the data browser knows which
+ * column identifies a row when the user edits it.
+ */
 async function fetchRows(query: BrowseQuery) {
   const table = resolveTable(query);
   const sorted = query.sortKey
     ? table.orderBy(query.sortKey, query.sortDirection)
     : table;
-  // Surfaced so the data browser knows which column identifies a row when the
-  // user edits it.
   const primaryKey = getTablePrimaryKey(query.schema, query.table);
 
   const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
   if (!hasRefine) {
-    // Fast path: the store handles ordering, pagination and the count.
     const sliced = sorted.slice(query.offset, query.limit);
     const [results, total] = await Promise.all([sliced, table.count()]);
     return {
@@ -190,17 +201,19 @@ interface ColumnsMeta {
   types: Record<string, string>;
 }
 
+/**
+ * Samples a handful of rows instead of one: on schemaless stores a null (or
+ * absent) cell in the first row would otherwise hide the column's real type,
+ * giving the data browser the wrong header icon and making it coerce a filled
+ * NULL cell to the wrong type. A Map keeps prototype-named columns
+ * (`constructor`, `toString`, …) from vanishing: on a plain object
+ * `key in types` / `types[key]` would hit Object.prototype and silently skip
+ * them.
+ */
 async function fetchColumns(selection: BrowseSelection): Promise<ColumnsMeta> {
   const table = resolveTable(selection);
-  // Sample a handful of rows instead of one: on schemaless stores a null (or
-  // absent) cell in the first row would otherwise hide the column's real type,
-  // giving the data browser the wrong header icon and making it coerce a filled
-  // NULL cell to the wrong type.
   const sample = (await table.slice(0, COLUMN_SAMPLE_SIZE)) as unknown[];
   const columns: string[] = [];
-  // A Map keeps prototype-named columns (`constructor`, `toString`, …) from
-  // vanishing: on a plain object `key in types` / `types[key]` would hit
-  // Object.prototype and silently skip them.
   const typeByColumn = new Map<string, string>();
   for (const row of sample) {
     if (!row || typeof row !== "object") continue;
@@ -222,10 +235,12 @@ async function fetchColumns(selection: BrowseSelection): Promise<ColumnsMeta> {
   return { columns, types: Object.fromEntries(typeByColumn) };
 }
 
-// Coarse runtime type of a sampled cell. The data browser uses it to pick the
-// column header icon and to keep a NULL cell's column type when the user fills
-// it in (so a number/boolean column is not silently turned into a string);
-// editability itself does not depend on the type.
+/**
+ * Coarse runtime type of a sampled cell. The data browser uses it to pick the
+ * column header icon and to keep a NULL cell's column type when the user fills
+ * it in (so a number/boolean column is not silently turned into a string);
+ * editability itself does not depend on the type.
+ */
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
   if (value instanceof Date) return "date";
@@ -233,33 +248,25 @@ function jsTypeOf(value: unknown): string {
   return typeof value;
 }
 
-// Synthetic columns the browse layer surfaces but does not persist (e.g. the
-// instance tag added to cross-instance reads). They must never be written back.
+/**
+ * Synthetic columns the browse layer surfaces but does not persist (e.g. the
+ * instance tag added to cross-instance reads). They must never be written
+ * back.
+ */
 const SYNTHETIC_FIELDS = new Set(["_instance"]);
-// Always-read-only identity columns. `_id` is the conventional immutable primary
-// key; it is protected here even when the table's primary key cannot be resolved
-// (getTablePrimaryKey returns undefined), so a form can never rewrite a row's id.
+/**
+ * Always-read-only identity columns. `_id` is the conventional immutable
+ * primary key; it is protected here even when the table's primary key cannot
+ * be resolved (getTablePrimaryKey returns undefined), so a form can never
+ * rewrite a row's id.
+ */
 const READONLY_FIELDS = new Set(["_id"]);
 
-// Turn a form-submitted edit body (a map of field → new value) into a sanitised
-// update set. The data browser edits one cell at a time, so the body usually
-// holds a single field. Kept out of the update set:
-//   - untouched fields (undefined) and nulls over a cell already empty,
-//   - the read-only primary key,
-//   - synthetic browse-only fields,
-//   - non-finite numbers, and
-//   - cells whose submitted value still equals the stored one (an unchanged echo).
-//
-// Scalars compare by string form so a numeric cell rendered as text ("42" vs 42)
-// is recognised as unchanged. Structured cells (the JSON editor) are accepted as
-// JSON-serialisable objects/arrays, normalised through a JSON round-trip so
-// dates, class instances and other exotic prototypes cannot sneak into the
-// store; they compare by JSON.stringify.
-// `object` is the contract: this round-trips anything non-primitive through
-// JSON. The call site reaches it with `object` because the null and undefined
-// cases returned earlier -- `typeof value === "object"` alone yields
-// `object | null`. A narrower type here would only push an assertion up.
-// oxlint-disable-next-line anti-slop/no-object-parameters
+/**
+ * `object` is the contract: this round-trips anything non-primitive through
+ * JSON.
+ */
+// oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because the null and undefined cases returned earlier, and `typeof value === "object"` alone yields `object | null`; a narrower type here would only push an assertion up
 function normalizeJsonValue(value: object): unknown {
   try {
     return JSON.parse(JSON.stringify(value));
@@ -276,11 +283,13 @@ function sameJson(a: unknown, b: unknown): boolean {
   }
 }
 
-// Sentinel: the field must not be written (protected, unchanged, or invalid).
+/** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
 
-// Fields a write never touches: the primary key, `_id` and the browse-only
-// synthetic columns.
+/**
+ * Fields a write never touches: the primary key, `_id` and the browse-only
+ * synthetic columns.
+ */
 function isProtectedField(field: string, primaryKey: string | undefined) {
   return (
     field === primaryKey ||
@@ -289,7 +298,7 @@ function isProtectedField(field: string, primaryKey: string | undefined) {
   );
 }
 
-// `null` clears a cell, which is also how an undo restores an empty one.
+/** `null` clears a cell, which is also how an undo restores an empty one. */
 function resolveClearedValue(
   current: Record<string, unknown>,
   field: string,
@@ -302,9 +311,7 @@ function resolveClearedValue(
 function resolveStructuredValue(
   current: Record<string, unknown>,
   field: string,
-  // `object` for the same reason as normalizeJsonValue: a JSON-editor cell
-  // is any non-null object, and that is what the caller narrowed it to.
-  // oxlint-disable-next-line anti-slop/no-object-parameters
+  // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and that is what the caller narrowed it to
   value: object,
 ): unknown {
   const normalized = normalizeJsonValue(value);
@@ -327,8 +334,10 @@ function isWritableScalar(value: unknown): value is string | number | boolean {
   return typeof value === "string" || typeof value === "boolean";
 }
 
-// A date cell takes a date or nothing: a value that is not one is refused
-// (400) rather than dropped, which would answer a save that wrote nothing.
+/**
+ * A date cell takes a date or nothing: a value that is not one is refused
+ * (400) rather than dropped, which would answer a save that wrote nothing.
+ */
 function resolveDateValue(
   field: string,
   before: Date,
@@ -343,8 +352,18 @@ function resolveDateValue(
   return date.getTime() === before.getTime() ? SKIP_FIELD : date;
 }
 
-// Decide the value to persist for a single edited field, or SKIP_FIELD to drop
-// the write.
+/**
+ * Decide the value to persist for a single edited field, or SKIP_FIELD to drop
+ * the write. Dates travel as ISO text: a date cell stays a date. Cells echoed
+ * back unchanged are skipped. The string comparison also covers an object cell
+ * echoed as its string form by a whole-row client ("1,2" for [1, 2]): dropping
+ * that write protects the structured value from an accidental destructive
+ * cast, and deliberate structured edits go through the object branch. It
+ * compares the client's string form of a cell against the stored value's
+ * through cellToText (JSON would defeat it), which also survives a stored cell
+ * whose own `toString` is not callable: the browser is schemaless, so a column
+ * really can be named `toString`.
+ */
 function resolveEditValue(
   current: Record<string, unknown>,
   field: string,
@@ -360,22 +379,10 @@ function resolveEditValue(
   }
   if (!isWritableScalar(value)) return SKIP_FIELD;
   const before = current[field];
-  // Dates travel as ISO text: a date cell stays a date.
   if (before instanceof Date) return resolveDateValue(field, before, value);
-  // Skip cells echoed back unchanged. The string comparison also covers an
-  // object cell echoed as its string form by a whole-row client ("1,2" for
-  // [1, 2]): dropping that write protects the structured value from an
-  // accidental destructive cast — deliberate structured edits go through the
-  // object branch above.
   if (
     before !== null &&
     before !== undefined &&
-    // "[object Object]" is not the point here: this compares the *client's*
-    // string form of a cell ("1,2" for [1, 2]) against the stored value's,
-    // which is what the comment above describes. JSON would defeat it.
-    // Through cellToText, which also survives a stored cell whose own
-    // `toString` is not callable -- the browser is schemaless, so a column
-    // really can be named `toString`.
     cellToText(before) === cellToText(value)
   ) {
     return SKIP_FIELD;
@@ -383,14 +390,31 @@ function resolveEditValue(
   return value;
 }
 
+/**
+ * Turn a form-submitted edit body (a map of field → new value) into a
+ * sanitised update set. The data browser edits one cell at a time, so the body
+ * usually holds a single field. Kept out of the update set:
+ *   - untouched fields (undefined) and nulls over a cell already empty,
+ *   - the read-only primary key,
+ *   - synthetic browse-only fields,
+ *   - non-finite numbers, and
+ *   - cells whose submitted value still equals the stored one (an unchanged
+ *     echo).
+ *
+ * Scalars compare by string form so a numeric cell rendered as text ("42" vs
+ * 42) is recognised as unchanged. Structured cells (the JSON editor) are
+ * accepted as JSON-serialisable objects/arrays, normalised through a JSON
+ * round-trip so dates, class instances and other exotic prototypes cannot
+ * sneak into the store; they compare by JSON.stringify. The update set has a
+ * null prototype so a field literally named `__proto__` (a column shape the
+ * browse layer supports) creates a real own key instead of reparenting the
+ * object, which would silently drop the edit while reporting success.
+ */
 function buildEditUpdates(
   current: Record<string, unknown>,
   body: Record<string, unknown>,
   primaryKey: string | undefined,
 ): Record<string, unknown> {
-  // Null prototype so a field literally named `__proto__` (a column shape the
-  // browse layer supports) creates a real own key instead of reparenting the
-  // object — which would silently drop the edit while reporting success.
   const updates: Record<string, unknown> = Object.create(null);
   for (const [field, value] of Object.entries(body)) {
     const resolved = resolveEditValue(current, field, value, primaryKey);
@@ -404,10 +428,7 @@ export class DatabaseBrowseController extends Controller(
   "/api/database/browse",
 ) {
   @Get("/list")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
+  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
   async list(
     @AuthRawUser() _user: User,
     @Context() ctx: RequestContext,
@@ -451,6 +472,14 @@ export class DatabaseBrowseController extends Controller(
     return { total: await fetchTotal(selection) };
   }
 
+  /**
+   * `types` are coarse per-column runtime types. DataGrid, the only consumer
+   * of this endpoint, which fetches `/columns` and `/list` itself in parallel,
+   * uses them for header icons and to preserve a NULL cell's column type on
+   * edit; they do not gate which columns are editable. `primaryKey` is
+   * surfaced so DataGrid can resolve each row's id (falling back to `_id`) and
+   * keep the primary-key column read-only.
+   */
   @Get("/columns")
   async columns(
     @AuthRawUser() _user: User,
@@ -466,13 +495,7 @@ export class DatabaseBrowseController extends Controller(
     const meta = await fetchColumns(selection);
     return {
       columns: meta.columns,
-      // Coarse per-column runtime types. DataGrid — the only consumer of this
-      // endpoint, which fetches `/columns` and `/list` itself in parallel —
-      // uses them for header icons and to preserve a NULL cell's column type
-      // on edit; they do not gate which columns are editable.
       types: meta.types,
-      // Surfaced so DataGrid can resolve each row's id (falling back to `_id`)
-      // and keep the primary-key column read-only.
       primaryKey: getTablePrimaryKey(selection.schema, selection.table) ?? null,
     };
   }
@@ -509,10 +532,7 @@ export class DatabaseBrowseController extends Controller(
 
   /** Rows of other tables pointing at one row, per relation column. */
   @Get("/references")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
+  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
   async references(
     @AuthRawUser() _user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
@@ -564,11 +584,17 @@ export class DatabaseBrowseController extends Controller(
     return row;
   }
 
+  /**
+   * Writes are scoped to a single instance: the cross-instance view is a
+   * read-only union, so there is no unambiguous row to mutate. The adapter
+   * counts modified rows, not matches: zero can mean either a concurrent
+   * deletion or an unchanged value, and only a read distinguishes them, so a
+   * successful save of a row that no longer exists is never echoed. Otherwise
+   * the values are validated and type-stable, so the merged row is echoed
+   * rather than paying a second read.
+   */
   @Put("/edit")
-  // Each parameter is bound to a request input by its decorator, so
-  // the framework hands them in positionally: an options object is not
-  // expressible here.
-  // oxlint-disable-next-line eslint/max-params
+  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
   async edit(
     @AuthRawUser() _user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
@@ -582,8 +608,6 @@ export class DatabaseBrowseController extends Controller(
       instanceFilter,
       tableFilter,
     );
-    // Writes are scoped to a single instance: the cross-instance view is a
-    // read-only union, so there is no unambiguous row to mutate.
     assert(
       selection.instance !== CROSS_INSTANCE,
       400,
@@ -607,9 +631,6 @@ export class DatabaseBrowseController extends Controller(
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates as never).run();
       if (changed === 0) {
-        // The adapter counts modified rows, not matches. Zero can mean either
-        // a concurrent deletion or an unchanged value; only a read distinguishes
-        // them. Never echo a successful save of a row that no longer exists.
         const persisted = await target;
         assert(
           persisted && typeof persisted === "object",
@@ -619,8 +640,6 @@ export class DatabaseBrowseController extends Controller(
         return persisted;
       }
     }
-    // The values are validated and type-stable, so echo the merged row rather
-    // than paying a second read.
     return { ...current, ...updates };
   }
 }

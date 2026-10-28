@@ -7,9 +7,10 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { listSchemaSummaries } from "../service/introspect";
 
-// The Diagram page types an array column by its elements, not as `any[]`
-// (D-20): from the elements other than `null`, across the sampled rows.
-
+/**
+ * The Diagram page types an array column by its elements, not as `any[]`
+ * (D-20): from the elements other than `null`, across the sampled rows.
+ */
 const SCHEMA = "diagram-arrays";
 
 @RegisterTable("products", SCHEMA)
@@ -18,7 +19,7 @@ class DiagramArraysProduct extends Table {
   declare tags: string[];
 }
 
-// Keeps the decorated class referenced: the decorator registers it.
+/** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [DiagramArraysProduct];
 
 function store() {

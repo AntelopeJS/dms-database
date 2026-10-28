@@ -6,10 +6,11 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 
-// A storefront with one instance per region, so the data browser, the
-// diagram and the query console have relations, nulls, objects and several
-// instances to show.
-
+/**
+ * A storefront with one instance per region, so the data browser, the
+ * diagram and the query console have relations, nulls, objects and several
+ * instances to show.
+ */
 export const SHOP_SCHEMA = "shop";
 const REGIONS = ["eu", "us"] as const;
 const CUSTOMERS_PER_REGION = 24;
@@ -109,8 +110,10 @@ function orders(region: string, now: number) {
   }));
 }
 
-// Every instance of a table shares one collection on MongoDB: ids are
-// prefixed with the region so they never collide.
+/**
+ * Every instance of a table shares one collection on MongoDB: ids are
+ * prefixed with the region so they never collide.
+ */
 function productId(region: string | undefined, sku: string): string {
   return region ? `${region}_${sku}` : sku;
 }

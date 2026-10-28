@@ -1,6 +1,7 @@
-// Shared response and value shapes used across the API controllers and models,
-// so their exported signatures do not repeat anonymous inline object types.
-
+/**
+ * Shared response and value shapes used across the API controllers and models,
+ * so their exported signatures do not repeat anonymous inline object types.
+ */
 export interface Position {
   x: number;
   y: number;

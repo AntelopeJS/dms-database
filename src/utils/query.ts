@@ -44,9 +44,11 @@ export function unwrapIsFilter(raw: unknown): string | undefined {
   return parsed.value;
 }
 
-// Decode an `is:`-mode instance selection filter the way every browse-style
-// endpoint understands it: absent/empty → default instance, the cross-instance
-// sentinel → CROSS_INSTANCE, anything else → the named instance id.
+/**
+ * Decode an `is:`-mode instance selection filter the way every browse-style
+ * endpoint understands it: absent/empty → default instance, the cross-instance
+ * sentinel → CROSS_INSTANCE, anything else → the named instance id.
+ */
 export function decodeInstanceFilter(raw: unknown): InstanceId | undefined {
   const value = unwrapIsFilter(raw);
   if (value === undefined || value === null || value === "") return undefined;
@@ -77,8 +79,15 @@ export function applyFilterToList<T>(
   );
 }
 
-// Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
-// which sorts every object cell as equal; the JSON form keeps the content.
+/**
+ * Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
+ * which sorts every object cell as equal; the JSON form keeps the content. A
+ * cycle or a BigInt falls through to `String()`: this runs per cell on a
+ * browse request, which has no catch of its own, and `String()` never threw,
+ * so a search is not answered with a 500. A stored cell can carry a
+ * non-callable `toString` (the browser is schemaless), which makes even that
+ * throw: the cell then reads as empty.
+ */
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (typeof value === "string") return value;
@@ -94,11 +103,9 @@ export function cellToText(value: unknown): string {
     // rather than answering a search with a 500.
   }
   try {
-    // oxlint-disable-next-line typescript/no-base-to-string
+    // oxlint-disable-next-line typescript/no-base-to-string -- the cell is arbitrary JSON from a schemaless store, and the catch below handles a toString that throws
     return String(value);
   } catch {
-    // A stored cell can carry a non-callable `toString` -- the browser is
-    // schemaless and says so -- which makes even this throw.
     return "";
   }
 }
