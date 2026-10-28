@@ -10,7 +10,7 @@ const EVENT_TYPES: readonly WatchEventType[] = ["insert", "update", "delete"];
 interface TableWatchConfig {
   /**
    * Registered schema id + table name, the same identifiers the data browser
-   * uses to address a table (see routes/data.ts resolveSelection).
+   * uses to address a table (see service/browse.ts resolveSelection).
    */
   schema: string;
   table: string;
