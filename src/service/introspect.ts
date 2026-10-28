@@ -292,9 +292,7 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
   try {
     const instance = new (TableClass as new () => object)();
     for (const name of Object.keys(instance)) push(name);
-  } catch {
-    // Constructor threw — skip class-field emit discovery.
-  }
+  } catch {}
 
   const datumMeta = getMetadata(TableClass, DatumStaticMetadata, true);
   if (datumMeta.primary && !seen.has(datumMeta.primary)) {
