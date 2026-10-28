@@ -12,7 +12,6 @@
     "frontend-vue/app/components/DataGrid.vue": 27761,
     "frontend-vue/app/components/QueryConsole.vue": 21783,
     "frontend-vue/app/components/SchemaDiagram.vue": 36411,
-    "frontend-vue/app/components/TableInspector.vue": 22634,
-    "src/routes/data.ts": 21670
+    "frontend-vue/app/components/TableInspector.vue": 22634
   }
 }
