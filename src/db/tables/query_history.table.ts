@@ -7,6 +7,7 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { SCHEMA_NAME } from "../../types/constants";
+import type { JsonObject } from "../../types/json";
 
 export const queryHistoryTableName = "query_history";
 
@@ -22,7 +23,7 @@ export class QueryHistoryRow extends Table {
   declare executedAt: Date;
 
   @Field("any")
-  declare query: Record<string, unknown>;
+  declare query: JsonObject;
 
   @Field("string")
   declare source: string;

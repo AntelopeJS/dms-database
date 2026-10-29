@@ -7,9 +7,10 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { listSchemaSummaries } from "../service/introspect";
 
-// The Diagram page types an array column by its elements, not as `any[]`
-// (D-20): from the elements other than `null`, across the sampled rows.
-
+/**
+ * The Diagram page types an array column by its elements, not as `any[]`
+ * (D-20): from the elements other than `null`, across the sampled rows.
+ */
 const SCHEMA = "diagram-arrays";
 
 @RegisterTable("products", SCHEMA)
@@ -18,11 +19,18 @@ class DiagramArraysProduct extends Table {
   declare tags: string[];
 }
 
-// Keeps the decorated class referenced: the decorator registers it.
+/** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [DiagramArraysProduct];
 
+interface ProductRow {
+  _id: string;
+  tags: (string | null)[];
+  scores?: number[];
+  mixed?: (string | number | null)[];
+}
+
 function store() {
-  const schema = Schema.get(SCHEMA);
+  const schema = Schema.get<{ products: ProductRow }>(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }
@@ -33,20 +41,16 @@ describe("[integration] Diagram array columns", () => {
     await RegisterSchema(SCHEMA);
     await store()
       .instance()
-      .table("products" as never)
+      .table("products")
       .insert([
         { _id: "p-1", tags: [], scores: [], mixed: [1, "a", null] },
         { _id: "p-2", tags: ["office", null, "sale"], scores: [1, 2] },
-      ] as never)
+      ])
       .run();
   });
 
   after(async () => {
-    await store()
-      .instance()
-      .table("products" as never)
-      .delete()
-      .run();
+    await store().instance().table("products").delete().run();
   });
 
   it("types an array by its elements other than null", async () => {

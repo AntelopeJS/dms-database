@@ -9,6 +9,7 @@ on:
   # secret scanner ran.
   pull_request:
 
+  workflow_dispatch: null
 permissions:
   contents: read
 
@@ -22,13 +23,16 @@ concurrency:
 # generated Inertia app. `ubuntu` gathers them under the name the branch
 # protection knows.
 jobs:
-  checks:
+  ci:
     uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v1
     with:
       docs-files: |
         README.md
         docs
       docs-typescript-project: docs/tsconfig.json
+    permissions:
+      contents: write
+      actions: write
 
   frontend:
     runs-on: ubuntu-latest
@@ -59,7 +63,7 @@ jobs:
   # job above passed.
   ubuntu:
     if: always()
-    needs: [checks, frontend]
+    needs: [ci, frontend]
     runs-on: ubuntu-latest
     steps:
       - run: |

@@ -53,8 +53,10 @@ interface StorageAggregate {
   storage: StorageEntry[];
 }
 
-// Lightweight connection probe: time listing instances of the first registered
-// schema. No schema registered -> "ok" with unknown latency.
+/**
+ * Lightweight connection probe: time listing instances of the first registered
+ * schema. No schema registered -> "ok" with unknown latency.
+ */
 async function probeConnection(): Promise<ConnectionProbe> {
   const registry = getRegistry();
   const schemaIds = Array.from(registry.keys());
@@ -73,8 +75,10 @@ async function probeConnection(): Promise<ConnectionProbe> {
   }
 }
 
-// Roll up table/index/row totals and the per-table storage proxy (row counts,
-// sorted descending) from the introspected schema summaries.
+/**
+ * Roll up table/index/row totals and the per-table storage proxy (row counts,
+ * sorted descending) from the introspected schema summaries.
+ */
 async function aggregateStorage(
   summaries: Awaited<ReturnType<typeof listSchemaSummaries>>,
 ): Promise<StorageAggregate> {

@@ -10,18 +10,18 @@ import {
   Table,
   ValueProxy,
 } from "@antelopejs/interface-database";
-
+import type {
+  QueryStage,
+  StagedObject,
+} from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import {
+  isJsonObjectValue,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
 
-export interface QueryStage {
-  stage: string;
-  options?: unknown;
-  args: unknown[];
-}
-
-type StagedCtor = new (...args: never[]) => unknown;
-
-const STAGED_CLASSES: Record<string, StagedCtor> = {
+const STAGED_CLASSES = {
   Schema,
   SchemaInstance,
   Table,
@@ -31,87 +31,128 @@ const STAGED_CLASSES: Record<string, StagedCtor> = {
   Datum,
   Query,
   ValueProxy,
-};
+} satisfies Record<string, new (...args: never[]) => StagedObject>;
 
-interface SerializedStaged {
-  __cls: string;
-  stages: unknown[];
+type StagedClassName = keyof typeof STAGED_CLASSES;
+
+/** What a query body decodes to: its JSON, with staged values rebuilt. */
+export type Decoded =
+  | string
+  | number
+  | boolean
+  | null
+  | undefined
+  | typeof CROSS_INSTANCE
+  | StagedObject
+  | Decoded[]
+  | { [key: string]: Decoded };
+
+interface SerializedStage extends JsonObject {
+  stage: string;
+  args: JsonValue[];
+}
+
+interface SerializedStaged extends JsonObject {
+  __cls: StagedClassName;
+  stages: SerializedStage[];
 }
 
 /** A query body the server refuses to decode: the route answers 400. */
 export class StagedDecodeError extends Error {}
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isSerializedStage(stage: unknown): boolean {
+function isSerializedStage(
+  stage: JsonValue | undefined,
+): stage is SerializedStage {
   return (
-    isRecord(stage) &&
+    stage !== undefined &&
+    isJsonObjectValue(stage) &&
     typeof stage.stage === "string" &&
     stage.stage !== "" &&
     Array.isArray(stage.args)
   );
 }
 
-function isSerializedStaged(value: unknown): value is SerializedStaged {
+function isStagedClassName(
+  name: JsonValue | undefined,
+): name is StagedClassName {
+  return typeof name === "string" && Object.hasOwn(STAGED_CLASSES, name);
+}
+
+function isSerializedStaged(
+  value: JsonValue | undefined,
+): value is SerializedStaged {
   return (
-    isRecord(value) &&
-    typeof value.__cls === "string" &&
-    Object.hasOwn(STAGED_CLASSES, value.__cls) &&
+    value !== undefined &&
+    isJsonObjectValue(value) &&
+    isStagedClassName(value.__cls) &&
     Array.isArray(value.stages) &&
     value.stages.every(isSerializedStage)
   );
 }
 
-// An object carrying the keys of a staged value is one, or a forgery: decoded
-// as a plain object, a malformed predicate would reach the driver as an
-// always-true expression, and `filter(...).delete()` would empty the table.
-function looksStaged(value: Record<string, unknown>): boolean {
+/**
+ * An object carrying the keys of a staged value is one, or a forgery: decoded
+ * as a plain object, a malformed predicate would reach the driver as an
+ * always-true expression, and `filter(...).delete()` would empty the table.
+ */
+function looksStaged(value: JsonObject): boolean {
   return Object.hasOwn(value, "__cls") || Object.hasOwn(value, "stages");
 }
 
-export function decodeStaged(value: unknown): unknown {
+export function decodeStaged(value: JsonValue | undefined): Decoded {
   if (value === null || value === undefined) return value;
-  // The symbol JSON cannot carry, sent as its sentinel by the console.
   if (value === CROSS_INSTANCE_SENTINEL) return CROSS_INSTANCE;
   if (Array.isArray(value)) return value.map(decodeStaged);
-  if (typeof value !== "object") return value;
+  if (!isJsonObjectValue(value)) return value;
 
   if (isSerializedStaged(value)) {
     const ctor = STAGED_CLASSES[value.__cls];
-    const instance = Object.create(ctor.prototype) as { stages: unknown[] };
-    instance.stages = value.stages.map(decodeStage);
-    return instance;
+    const instance = Object.create(ctor.prototype) as StagedObject;
+    return Object.assign(instance, { stages: value.stages.map(decodeStage) });
   }
-  const record = value as Record<string, unknown>;
-  if (looksStaged(record)) {
+  if (looksStaged(value)) {
     throw new StagedDecodeError("Malformed query: invalid staged value");
   }
 
-  const out: Record<string, unknown> = {};
-  for (const [key, v] of Object.entries(record)) {
+  const out: { [key: string]: Decoded } = {};
+  for (const [key, v] of Object.entries(value)) {
     out[key] = decodeStaged(v);
   }
   return out;
 }
 
-// A function argument (a filter's predicate, a map's projection) travels as
-// `{ stage: "func", args: [argIds, body] }`; its body is what the driver
-// compiles, so it must be a staged value or a constant.
-function decodeStageArg(arg: unknown): unknown {
-  if (!isRecord(arg) || arg.stage !== "func") return decodeStaged(arg);
+/** Whether a function body is a constant: anything but an object or an array. */
+function isConstantBody(body: JsonValue | undefined): boolean {
+  return (
+    body === undefined ||
+    body === null ||
+    !(Array.isArray(body) || isJsonObjectValue(body))
+  );
+}
+
+/**
+ * A function argument (a filter's predicate, a map's projection) travels as
+ * `{ stage: "func", args: [argIds, body] }`; its body is what the driver
+ * compiles, so it must be a staged value or a constant.
+ */
+function decodeStageArg(arg: JsonValue): Decoded {
+  if (!isJsonObjectValue(arg) || arg.stage !== "func") return decodeStaged(arg);
   const [argIds, body] = Array.isArray(arg.args) ? arg.args : [];
-  const constant = body === null || typeof body !== "object";
-  if (!Array.isArray(argIds) || !(constant || isSerializedStaged(body))) {
+  if (
+    !Array.isArray(argIds) ||
+    !(isConstantBody(body) || isSerializedStaged(body))
+  ) {
     throw new StagedDecodeError("Malformed query: invalid function body");
   }
   return { stage: "func", args: [argIds, decodeStaged(body)] };
 }
 
-function decodeStage(stage: unknown): QueryStage {
-  const { stage: name, options, args } = stage as QueryStage;
-  const decoded: QueryStage = { stage: name, args: args.map(decodeStageArg) };
-  if (options !== undefined) decoded.options = decodeStaged(options);
+function decodeStage(stage: SerializedStage): QueryStage {
+  const decoded: QueryStage = {
+    stage: stage.stage,
+    args: stage.args.map(decodeStageArg),
+  };
+  if (stage.options !== undefined)
+    decoded.options = decodeStaged(stage.options);
   return decoded;
 }

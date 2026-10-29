@@ -46,7 +46,7 @@
     "dev": "ajs project run -w -p playground",
     "generate": "ajs module exports generate",
     "lint:fix": "oxlint --fix && oxfmt . && pnpm --dir frontend-vue lint:fix",
-    "lint": "oxlint && pnpm --dir frontend-vue lint && antelopejs-check-interface-ranges",
+    "lint": "oxlint && pnpm --dir frontend-vue lint && node scripts/check-sources.mts && antelopejs-check-interface-ranges",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt . && pnpm --dir frontend-vue format",
     "frontend:dev": "cd playground && pnpm frontend:dev",
@@ -64,7 +64,9 @@
     "sync": "antelopejs-sync",
     "ratchet:update": "antelopejs-ratchet --update",
     "sync:check": "antelopejs-sync --check",
-    "format:check": "oxfmt --check ."
+    "format:check": "oxfmt --check .",
+    "suppressions": "antelopejs-suppressions",
+    "suppressions:update": "antelopejs-suppressions --update"
   },
   "dependencies": {
     "@antelopejs/interface-api": ">=0.0.15 <1.0.0",
@@ -78,7 +80,7 @@
     "@antelopejs/core": ">=1.17.1 <2",
     "@antelopejs/dms": ">=0.11.0 <1.0.0",
     "@antelopejs/dms-frontend": ">=0.9.1 <0.10.0",
-    "@antelopejs/tooling-configs": "^0.2.0",
+    "@antelopejs/tooling-configs": "^0.2.11",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",
     "@types/node": "^24.0.0",

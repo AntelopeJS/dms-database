@@ -1,9 +1,4 @@
-import {
-  type InstanceId,
-  Schema,
-  type Table,
-  type ValueProxy,
-} from "@antelopejs/interface-database";
+import { type InstanceId, Schema } from "@antelopejs/interface-database";
 import { listSchemaSummaries } from "./introspect";
 import type { RelationDeclaration } from "./types";
 
@@ -20,8 +15,6 @@ interface InboundRelation extends RelationDeclaration {
   fromSchema: string;
   fromTable: string;
 }
-
-type AnyRow = Record<string, unknown>;
 
 interface CountInput {
   relation: InboundRelation;
@@ -50,6 +43,10 @@ async function listInboundRelations(
   );
 }
 
+/**
+ * A table of another schema has no instance of this one: it is read in its
+ * default instance.
+ */
 async function countReferences({
   relation,
   value,
@@ -57,24 +54,14 @@ async function countReferences({
 }: CountInput): Promise<number> {
   const source = Schema.get(relation.fromSchema);
   if (!source) return 0;
-  // A table of another schema has no instance of this one: it is read in
-  // its default instance.
   const scope =
     relation.fromSchema === relation.toSchema ? instance : undefined;
-  // The table is only known by name at run time, so its row type cannot
-  // come from the schema's definition; the two types do not overlap, which
-  // takes two assertions.
-  // oxlint-disable-next-line anti-slop/no-chained-type-assertions
-  const rows = source
-    .instance(scope)
-    .table(relation.fromTable as never) as unknown as Table<AnyRow>;
+  const rows = source.instance(scope).table(relation.fromTable);
   try {
     return await rows
       .filter((row) => {
         const field = row.key(relation.fromField);
-        return relation.many
-          ? (field as ValueProxy<unknown[]>).includes(value)
-          : field.eq(value);
+        return relation.many ? field.includes(value) : field.eq(value);
       })
       .count();
   } catch {
