@@ -24,8 +24,24 @@ const list = (dir: string, extension: string): string[] =>
 const read = (file: string): string => readFileSync(file, "utf8");
 const shown = (file: string): string => relative(ROOT, file);
 
-function parseMessages(text: string): Messages {
-  const messages: Messages = JSON.parse(text);
+function isMessageTree(value: unknown): value is Messages {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    !Array.isArray(value) &&
+    Object.values(value).every(isMessageNode)
+  );
+}
+
+function isMessageNode(value: unknown): value is string | Messages {
+  return typeof value === "string" || isMessageTree(value);
+}
+
+function parseMessages(file: string): Messages {
+  const messages: unknown = JSON.parse(read(file));
+  if (!isMessageTree(messages)) {
+    throw new Error(`${shown(file)}: not a tree of string messages`);
+  }
   return messages;
 }
 
@@ -35,7 +51,7 @@ const pages = list(PAGES_DIR, ".ts").map((file) => ({
 }));
 const locales = list(LOCALES_DIR, ".json").map((file) => ({
   file,
-  messages: parseMessages(read(file)),
+  messages: parseMessages(file),
 }));
 
 function isMessages(value: string | Messages): value is Messages {
