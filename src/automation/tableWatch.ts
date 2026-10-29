@@ -2,6 +2,7 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { Schema, type Table } from "@antelopejs/interface-database";
 import type { Changes } from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
+import { isObject, isString } from "../utils/guards";
 
 type WatchEventType = "insert" | "update" | "delete";
 
@@ -37,6 +38,10 @@ interface TableWatchHandle {
   pending?: Promise<IteratorResult<Changes<ChangeRow>, void>>;
 }
 
+function isTableWatchHandle(handle: unknown): handle is TableWatchHandle {
+  return isObject(handle) && "stopped" in handle && "iterator" in handle;
+}
+
 /**
  * The first read of a healthy change feed blocks until a change arrives, so
  * activate() cannot await success directly. Instead it waits this long for an
@@ -51,11 +56,11 @@ const RECONNECT_DELAY_MS = 5_000;
  * interface-database change types → trigger event types. Driver passthrough
  * types (e.g. MongoDB "invalidate" / "drop") are ignored.
  */
-const CHANGE_TYPE_TO_EVENT: Record<string, WatchEventType | undefined> = {
+const CHANGE_TYPE_TO_EVENT = {
   added: "insert",
   modified: "update",
   removed: "delete",
-};
+} satisfies Record<Changes<ChangeRow>["changeType"], WatchEventType>;
 
 function sleep(ms: number): Promise<undefined> {
   return new Promise((resolve) => setTimeout(() => resolve(undefined), ms));
@@ -65,7 +70,9 @@ function watchLabel(config: TableWatchConfig): string {
   return `table-watch ${config.schema}.${config.table}`;
 }
 
-function resolveEventTypes(raw: unknown): Set<WatchEventType> {
+function resolveEventTypes(
+  raw: WatchEventType[] | undefined,
+): Set<WatchEventType> {
   if (raw === undefined) return new Set(EVENT_TYPES);
   if (!Array.isArray(raw) || raw.length === 0) {
     throw new Error(
@@ -74,12 +81,12 @@ function resolveEventTypes(raw: unknown): Set<WatchEventType> {
   }
   const events = new Set<WatchEventType>();
   for (const entry of raw) {
-    if (!EVENT_TYPES.includes(entry as WatchEventType)) {
+    if (!EVENT_TYPES.includes(entry)) {
       throw new Error(
         `table-watch: unknown event type ${JSON.stringify(entry)} (expected insert|update|delete)`,
       );
     }
-    events.add(entry as WatchEventType);
+    events.add(entry);
   }
   return events;
 }
@@ -92,7 +99,7 @@ function resolveEventTypes(raw: unknown): Set<WatchEventType> {
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
   const schema = Schema.get(schemaId);
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
-  const table: Table<ChangeRow> = schema.instance().table(tableName as never);
+  const table: Table<ChangeRow> = schema.instance().table(tableName);
   return table.changes().cursor();
 }
 
@@ -251,10 +258,8 @@ export const tableWatchTrigger: TriggerType<
    * window go through the pump loop's reconnect-once path.
    */
   async activate(config, emit) {
-    const schemaId =
-      typeof config.schema === "string" ? config.schema.trim() : "";
-    const tableName =
-      typeof config.table === "string" ? config.table.trim() : "";
+    const schemaId = isString(config.schema) ? config.schema.trim() : "";
+    const tableName = isString(config.table) ? config.table.trim() : "";
     if (!schemaId) throw new Error("table-watch: 'schema' is required");
     if (!tableName) throw new Error("table-watch: 'table' is required");
     const schema = Schema.get(schemaId);
@@ -294,9 +299,8 @@ export const tableWatchTrigger: TriggerType<
    * pump is in its reconnect sleep, the flag alone stops it.
    */
   async deactivate(handle) {
-    const h = handle as TableWatchHandle | undefined;
-    if (!h || h.stopped) return;
-    h.stopped = true;
-    await h.iterator.return(undefined).catch(() => undefined);
+    if (!isTableWatchHandle(handle) || handle.stopped) return;
+    handle.stopped = true;
+    await handle.iterator.return(undefined).catch(() => undefined);
   },
 };

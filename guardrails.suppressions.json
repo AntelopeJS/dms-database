@@ -1,8 +1,8 @@
 {
   "rules": {
-    "anti-slop/no-chained-type-assertions": 2,
+    "anti-slop/no-chained-type-assertions": 1,
     "anti-slop/no-object-parameters": 2,
-    "eslint/max-params": 3,
+    "eslint/max-params": 2,
     "typescript/no-base-to-string": 1,
     "typescript/unbound-method": 1
   },

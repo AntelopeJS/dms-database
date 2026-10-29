@@ -1,9 +1,19 @@
 import { CROSS_INSTANCE, Query, Schema } from "@antelopejs/interface-database";
+import {
+  type QueryStage,
+  StagedObject,
+} from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import { isFiniteNumber, isNumber, isString } from "../utils/guards";
 import { listSchemaInstances } from "./introspect";
-import type { QueryStage } from "./stagedSerialization";
 
-const MUTATING_STAGES = new Set(["insert", "update", "replace", "delete"]);
+const MUTATING_STAGES = ["insert", "update", "replace", "delete"] as const;
+
+function isMutatingStage(
+  name: string,
+): name is (typeof MUTATING_STAGES)[number] {
+  return MUTATING_STAGES.some((mutating) => mutating === name);
+}
 
 export type QueryOperation =
   | "read"
@@ -30,56 +40,59 @@ export interface DryRunResult extends QueryTarget {
   rows: number | null;
 }
 
-interface StagedLike {
-  stages?: unknown;
+function optionId(
+  stage: QueryStage | undefined,
+): string | typeof CROSS_INSTANCE | undefined {
+  const id: unknown = stage?.options?.id;
+  if (isString(id)) return id;
+  return id === CROSS_INSTANCE ? CROSS_INSTANCE : undefined;
 }
 
-function stagesOf(value: unknown): QueryStage[] {
-  const stages = (value as StagedLike | null)?.stages;
-  return Array.isArray(stages) ? (stages as QueryStage[]) : [];
-}
-
-function optionId(stage: QueryStage | undefined): unknown {
-  return (stage?.options as { id?: unknown } | undefined)?.id;
-}
-
-function instanceLabel(id: unknown): string | undefined {
-  if (id === CROSS_INSTANCE || id === CROSS_INSTANCE_SENTINEL) return "*";
-  return typeof id === "string" ? id : undefined;
+function instanceLabel(
+  id: string | typeof CROSS_INSTANCE | undefined,
+): string | undefined {
+  return id === CROSS_INSTANCE || id === CROSS_INSTANCE_SENTINEL ? "*" : id;
 }
 
 /**
  * The schema, instance and table a query chain starts from. An `instance()`
  * with no id is the default instance.
  */
-export function readQueryTarget(root: unknown): QueryTarget {
-  const stages = stagesOf(root);
+export function readQueryTarget(root: StagedObject): QueryTarget {
+  const stages = root.build();
   const find = (name: string) => stages.find((stage) => stage.stage === name);
   const schema = optionId(find("schema"));
   const table = optionId(find("table"));
   const instanceStage = find("instance");
   return {
-    schema: typeof schema === "string" ? schema : undefined,
+    schema: isString(schema) ? schema : undefined,
     instance: instanceStage
       ? (instanceLabel(optionId(instanceStage)) ?? "")
       : undefined,
-    table: typeof table === "string" ? table : undefined,
+    table: isString(table) ? table : undefined,
   };
 }
 
 /** Whether any stage of the chain, or of a query it embeds, writes. */
-export function containsMutation(root: unknown): boolean {
-  return stagesOf(root).some(
-    (stage) =>
-      MUTATING_STAGES.has(stage.stage) ||
-      (Array.isArray(stage.args) && stage.args.some(containsMutation)),
-  );
+export function containsMutation(root: StagedObject): boolean {
+  return root
+    .build()
+    .some(
+      (stage) =>
+        isMutatingStage(stage.stage) ||
+        stage.args.some(
+          (arg) => arg instanceof StagedObject && containsMutation(arg),
+        ),
+    );
 }
 
+/** The query a non-empty chain of stages describes. */
 function stagedQuery(stages: QueryStage[]): Query<unknown> {
-  const query = Object.create(Query.prototype) as Query<unknown> & StagedLike;
-  query.stages = stages;
-  return query;
+  const [first, ...rest] = stages;
+  return rest.reduce(
+    (previous, stage) => new Query(stage, previous),
+    new Query<unknown>(first),
+  );
 }
 
 /** A single-row selection (`get`) answers the row or nothing. */
@@ -88,11 +101,11 @@ async function countSelected(prefix: QueryStage[]): Promise<number> {
     const row = await stagedQuery(prefix).run();
     return row === null || row === undefined ? 0 : 1;
   }
-  const count = await stagedQuery([
+  const count: unknown = await stagedQuery([
     ...prefix,
     { stage: "count", options: { field: undefined }, args: [] },
   ]).run();
-  return typeof count === "number" ? count : 0;
+  return isNumber(count) ? count : 0;
 }
 
 function insertedDocuments(stage: QueryStage): number {
@@ -104,18 +117,18 @@ function insertedDocuments(stage: QueryStage): number {
  * Measures what a query would write without writing: the operation of its
  * first mutating stage and the rows that stage would touch.
  */
-export async function dryRun(root: unknown): Promise<DryRunResult> {
-  const stages = stagesOf(root);
+export async function dryRun(root: StagedObject): Promise<DryRunResult> {
+  const stages = root.build();
   const target = readQueryTarget(root);
-  const index = stages.findIndex((stage) => MUTATING_STAGES.has(stage.stage));
-  if (index < 0) {
+  const index = stages.findIndex((stage) => isMutatingStage(stage.stage));
+  const stage = stages[index];
+  if (index < 0 || !isMutatingStage(stage.stage)) {
     const nested = containsMutation(root);
     return nested
       ? { ...target, operation: "update", rows: null }
       : { ...target, operation: "read", rows: 0 };
   }
-  const stage = stages[index];
-  const operation = stage.stage as QueryOperation;
+  const operation = stage.stage;
   const rows =
     operation === "insert"
       ? insertedDocuments(stage)
@@ -165,7 +178,5 @@ export function affectedRows(
   rows: number,
   mutation: boolean,
 ): number {
-  return mutation && typeof raw === "number" && Number.isFinite(raw)
-    ? raw
-    : rows;
+  return mutation && isFiniteNumber(raw) ? raw : rows;
 }

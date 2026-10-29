@@ -5,7 +5,7 @@ import {
   RegisterTable,
   Table,
 } from "@antelopejs/interface-database-decorators";
-import type { User } from "@antelopejs/interface-dms/auth/db";
+import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseSchemasPage } from "../pages/schemas";
 import { DatabaseTablesController } from "../routes/tables";
 import { listSchemaSummaries } from "../service/introspect";
@@ -21,7 +21,10 @@ import {
  */
 const SCHEMA = "schemas-page-shop";
 const REGIONS = ["eu", "us"];
-const USER = { _id: "schemas-page-user", language: "en" } as User;
+const USER = Object.assign(new User(), {
+  _id: "schemas-page-user",
+  language: "en",
+});
 
 @RegisterTable("invoices", SCHEMA)
 class SchemasPageInvoice extends Table {
@@ -34,7 +37,7 @@ class SchemasPageInvoice extends Table {
 const TABLES = [SchemasPageInvoice];
 
 function shop() {
-  const schema = Schema.get(SCHEMA);
+  const schema = Schema.get<{ invoices: SchemasPageInvoice }>(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }
@@ -44,11 +47,11 @@ async function seed(): Promise<void> {
   await RegisterSchema(SCHEMA);
   await shop()
     .instance()
-    .table("invoices" as never)
+    .table("invoices")
     .insert([
       { _id: "inv-1", number: "F-1", coupon_id: "cpn_SPRING5" },
       { _id: "inv-2", number: "F-2", coupon_id: null },
-    ] as never)
+    ])
     .run();
   for (const region of REGIONS) {
     await shop()
@@ -60,21 +63,13 @@ async function seed(): Promise<void> {
       number: `F-${region}-${index}`,
       coupon_id: index === 1 ? "cpn_AUTUMN10" : null,
     }));
-    await shop()
-      .instance(region)
-      .table("invoices" as never)
-      .insert(rows as never)
-      .run();
+    await shop().instance(region).table("invoices").insert(rows).run();
   }
 }
 
 async function cleanUp(): Promise<void> {
   for (const region of REGIONS) await shop().destroyInstance(region).run();
-  await shop()
-    .instance()
-    .table("invoices" as never)
-    .delete()
-    .run();
+  await shop().instance().table("invoices").delete().run();
 }
 
 describe("[integration] Schemas page", () => {

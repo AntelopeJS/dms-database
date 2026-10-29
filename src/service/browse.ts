@@ -6,6 +6,7 @@ import {
   type Stream,
 } from "@antelopejs/interface-database";
 import { getTablePrimaryKey } from "./introspect";
+import { isObject } from "../utils/guards";
 import {
   applyFilterToList,
   cellToText,
@@ -79,9 +80,9 @@ export function readColumnFilters(ctx: RequestContext): ColumnFilter[] {
 }
 
 export function resolveSelection(
-  schemaFilter: unknown,
-  instanceFilter: unknown,
-  tableFilter: unknown,
+  schemaFilter: string | undefined,
+  instanceFilter: string | undefined,
+  tableFilter: string | undefined,
 ): BrowseSelection {
   const schema = unwrapIsFilter(schemaFilter);
   const table = unwrapIsFilter(tableFilter);
@@ -99,7 +100,7 @@ export function resolveTable(selection: BrowseSelection) {
   assert(schema, 404, `Unknown schema: ${selection.schema}`);
   const definition = schema.definition[selection.table];
   assert(definition, 404, `Unknown table: ${selection.table}`);
-  return schema.instance(selection.instance).table(selection.table as never);
+  return schema.instance(selection.instance).table(selection.table);
 }
 
 /**
@@ -185,12 +186,12 @@ export async function fetchColumns(
   selection: BrowseSelection,
 ): Promise<ColumnsMeta> {
   const table = resolveTable(selection);
-  const sample = (await table.slice(0, COLUMN_SAMPLE_SIZE)) as unknown[];
+  const sample: unknown[] = await table.slice(0, COLUMN_SAMPLE_SIZE);
   const columns: string[] = [];
   const typeByColumn = new Map<string, string>();
   for (const row of sample) {
-    if (!row || typeof row !== "object") continue;
-    for (const [key, cell] of Object.entries(row as Record<string, unknown>)) {
+    if (!isObject(row)) continue;
+    for (const [key, cell] of Object.entries(row)) {
       const type = jsTypeOf(cell);
       const known = typeByColumn.get(key);
       if (known === undefined) {

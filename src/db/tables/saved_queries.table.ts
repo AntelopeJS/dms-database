@@ -7,6 +7,7 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { SCHEMA_NAME } from "../../types/constants";
+import type { JsonObject } from "../../types/json";
 
 export const savedQueriesTableName = "saved_queries";
 
@@ -28,7 +29,7 @@ export class SavedQueryRow extends Table {
   declare description: string;
 
   @Field("any")
-  declare query: Record<string, unknown>;
+  declare query: JsonObject;
 
   @Field("string")
   declare source: string;

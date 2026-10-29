@@ -1,11 +1,11 @@
 {
   "rules": {
-    "anti-slop/no-known-value-widening": 11,
-    "anti-slop/no-runtime-typeof": 46,
-    "anti-slop/no-unknown-parameters": 96,
-    "anti-slop/no-unknown-returns": 10,
-    "anti-slop/no-unsafe-dictionary-type": 57,
-    "anti-slop/require-safety-comment-for-type-assertion": 127
+    "anti-slop/no-known-value-widening": 3,
+    "anti-slop/no-runtime-typeof": 6,
+    "anti-slop/no-unknown-parameters": 60,
+    "anti-slop/no-unknown-returns": 1,
+    "anti-slop/no-unsafe-dictionary-type": 28,
+    "anti-slop/require-safety-comment-for-type-assertion": 15
   },
   "oversizeFiles": {
     "frontend-vue/app/build/diagram/graph.ts": 22393,

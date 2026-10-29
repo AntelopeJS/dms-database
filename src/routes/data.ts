@@ -27,8 +27,8 @@ import {
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
 import type { ListResult } from "../types/responses";
+import { isNonEmptyString, isObject, isString } from "../utils/guards";
 import {
-  asNonEmptyString,
   clamp,
   decodeInstanceFilter,
   normalizeSortDirection,
@@ -64,17 +64,26 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("search", "query") searchRaw: unknown,
   ) {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
     return fetchRows({
       ...selection,
-      offset: Math.max(0, parseInteger(offsetRaw, 0)),
-      limit: clamp(parseInteger(limitRaw, DEFAULT_LIMIT), 1, MAX_LIMIT),
-      sortKey: asNonEmptyString(sortKey),
-      sortDirection: normalizeSortDirection(sortDirection),
-      search: asNonEmptyString(searchRaw),
+      offset: Math.max(
+        0,
+        parseInteger(isString(offsetRaw) ? offsetRaw : undefined, 0),
+      ),
+      limit: clamp(
+        parseInteger(isString(limitRaw) ? limitRaw : undefined, DEFAULT_LIMIT),
+        1,
+        MAX_LIMIT,
+      ),
+      sortKey: isNonEmptyString(sortKey) ? sortKey : undefined,
+      sortDirection: normalizeSortDirection(
+        isString(sortDirection) ? sortDirection : undefined,
+      ),
+      search: isNonEmptyString(searchRaw) ? searchRaw : undefined,
       columnFilters: readColumnFilters(ctx),
     });
   }
@@ -87,9 +96,9 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_table", "query") tableFilter: unknown,
   ) {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
     return { total: await fetchTotal(selection) };
   }
@@ -110,9 +119,9 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_table", "query") tableFilter: unknown,
   ) {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
     const meta = await fetchColumns(selection);
     return {
@@ -132,9 +141,13 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
   ): Promise<ListResult<BrowseTableEntry>> {
-    const schemaId = unwrapIsFilter(schemaFilter);
+    const schemaId = unwrapIsFilter(
+      isString(schemaFilter) ? schemaFilter : undefined,
+    );
     assert(schemaId, 400, "Missing 'schema' filter");
-    const instance = decodeInstanceFilter(instanceFilter);
+    const instance = decodeInstanceFilter(
+      isString(instanceFilter) ? instanceFilter : undefined,
+    );
     const summary = (await listSchemaSummaries()).find(
       (candidate) => candidate.id === schemaId,
     );
@@ -154,7 +167,6 @@ export class DatabaseBrowseController extends Controller(
 
   /** Rows of other tables pointing at one row, per relation column. */
   @Get("/references")
-  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
   async references(
     @AuthRawUser() _user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
@@ -163,23 +175,23 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("id", "query") idRaw: unknown,
   ): Promise<ListResult<RowReference>> {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
     assert(
       selection.instance !== CROSS_INSTANCE,
       400,
       "Pick one instance to read a row's references",
     );
-    const id = asNonEmptyString(idRaw);
-    assert(id, 400, "Missing 'id'");
-    const row = await resolveTable(selection).get(id as never);
-    assert(row && typeof row === "object", 404, "Row not found");
+    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    const id = idRaw;
+    const row = await resolveTable(selection).get(id);
+    assert(isObject(row), 404, "Row not found");
     const items = await listRowReferences(
       selection.schema,
       selection.table,
-      row as Record<string, unknown>,
+      row,
       selection.instance,
     );
     return { items };
@@ -194,15 +206,15 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("id", "query") idRaw: unknown,
   ) {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
-    const id = asNonEmptyString(idRaw);
-    assert(id, 400, "Missing 'id'");
+    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    const id = idRaw;
     const table = resolveTable(selection);
-    const row = await table.get(id as never);
-    assert(row && typeof row === "object", 404, "Row not found");
+    const row = await table.get(id);
+    assert(isObject(row), 404, "Row not found");
     return row;
   }
 
@@ -226,42 +238,33 @@ export class DatabaseBrowseController extends Controller(
     @JSONBody() body: Record<string, unknown>,
   ) {
     const selection = resolveSelection(
-      schemaFilter,
-      instanceFilter,
-      tableFilter,
+      isString(schemaFilter) ? schemaFilter : undefined,
+      isString(instanceFilter) ? instanceFilter : undefined,
+      isString(tableFilter) ? tableFilter : undefined,
     );
     assert(
       selection.instance !== CROSS_INSTANCE,
       400,
       "Editing is disabled when browsing across all instances",
     );
-    const id = asNonEmptyString(idRaw);
-    assert(id, 400, "Missing 'id'");
-    assert(
-      body && typeof body === "object" && !Array.isArray(body),
-      400,
-      "Invalid request body",
-    );
+    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    const id = idRaw;
+    assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
 
     const table = resolveTable(selection);
-    const target = table.get(id as never);
+    const target = table.get(id);
     const existing = await target;
-    assert(existing && typeof existing === "object", 404, "Row not found");
-    const current = existing as Record<string, unknown>;
+    assert(isObject(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
-    const updates = buildEditUpdates(current, body, primaryKey);
+    const updates = buildEditUpdates(existing, body, primaryKey);
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates as never).run();
       if (changed === 0) {
         const persisted = await target;
-        assert(
-          persisted && typeof persisted === "object",
-          404,
-          "Row not found",
-        );
+        assert(isObject(persisted), 404, "Row not found");
         return persisted;
       }
     }
-    return { ...current, ...updates };
+    return { ...existing, ...updates };
   }
 }

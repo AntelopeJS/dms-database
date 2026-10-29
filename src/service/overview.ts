@@ -150,7 +150,5 @@ export async function listRecentQueries(
     OVERVIEW_FEED_LIMIT,
     0,
   );
-  return items.map((row) =>
-    recentQueryItem(row as QueryHistoryRow & { _id: string }),
-  );
+  return items.map((row) => recentQueryItem(row));
 }
