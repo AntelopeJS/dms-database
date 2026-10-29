@@ -1,6 +1,7 @@
 import { resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import { defineConfig } from 'vitest/config'
+import { backendBoundary } from './build/backend-boundary.ts'
 
 // The renderer and the DMS core layer the server-render tests run on: the
 // ones the repository installs at its root (`@antelopejs/dms-frontend`,
@@ -8,7 +9,7 @@ import { defineConfig } from 'vitest/config'
 const root = resolve(__dirname, '..', 'node_modules', '@antelopejs')
 
 export default defineConfig({
-	plugins: [vue()],
+	plugins: [vue(), backendBoundary()],
 	resolve: {
 		alias: {
 			'#dms/frontend-module': resolve(
