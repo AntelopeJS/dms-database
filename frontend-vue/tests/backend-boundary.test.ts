@@ -51,6 +51,27 @@ it('fails on an import of the backend source and names both files', async () => 
 	await expect(failing).rejects.toThrow(join(root, 'backend/src/api.ts'))
 })
 
+it('fails on an import nested below the backend source', async () => {
+	mkdirSync(join(root, 'backend/src/x/y'), { recursive: true })
+	writeFileSync(
+		join(root, 'backend/src/x/y/deep.ts'),
+		'export const deep = 1\n',
+	)
+	const failing = bundle(
+		'import { deep } from "../backend/src/x/y/deep"\nexport default deep\n',
+	)
+	await expect(failing).rejects.toThrow(BOUNDARY)
+	await expect(failing).rejects.toThrow(join(root, 'backend/src/x/y/deep.ts'))
+})
+
+it('accepts a backend directory that only starts with src', async () => {
+	mkdirSync(join(root, 'backend/srcx'), { recursive: true })
+	writeFileSync(join(root, 'backend/srcx/api.ts'), 'export const api = 4\n')
+	await expect(
+		bundle('import { api } from "../backend/srcx/api"\nexport default api\n'),
+	).resolves.toBeDefined()
+})
+
 it('accepts another file of the backend package', async () => {
 	await expect(
 		bundle('import { api } from "../backend/dist/api"\nexport default api\n'),
