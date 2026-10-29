@@ -3,8 +3,8 @@
     "anti-slop/no-known-value-widening": 3,
     "anti-slop/no-runtime-typeof": 1,
     "anti-slop/no-unknown-parameters": 56,
-    "anti-slop/no-unsafe-dictionary-type": 22,
-    "anti-slop/require-safety-comment-for-type-assertion": 8
+    "anti-slop/no-unsafe-dictionary-type": 20,
+    "anti-slop/require-safety-comment-for-type-assertion": 7
   },
   "oversizeFiles": {}
 }

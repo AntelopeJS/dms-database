@@ -183,17 +183,17 @@ async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
   return names;
 }
 
+function isRow(value: unknown): value is ExecuteResult["rows"][number] {
+  return isObject(value) && !Array.isArray(value);
+}
+
 function normaliseRows(raw: unknown): ExecuteResult["rows"] {
   if (Array.isArray(raw)) {
-    return raw.map((entry) =>
-      isObject(entry) && !Array.isArray(entry)
-        ? (entry as Record<string, unknown>)
-        : { value: entry },
-    );
+    return raw.map((entry) => (isRow(entry) ? entry : { value: entry }));
   }
   if (raw === undefined) return [];
-  if (isObject(raw)) {
-    return [raw as Record<string, unknown>];
+  if (isRow(raw)) {
+    return [raw];
   }
   return [{ value: raw }];
 }

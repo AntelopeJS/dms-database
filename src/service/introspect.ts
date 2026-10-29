@@ -62,7 +62,7 @@ function resolveRelations(
     } catch (err) {
       warnOnce(
         warnKey,
-        `relation ${warnKey} target thunk threw: ${err instanceof Error ? err.message : String(err)}`,
+        `relation ${warnKey} target thunk threw: ${(err as Error).message}`,
       );
       continue;
     }
