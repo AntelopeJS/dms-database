@@ -5,7 +5,7 @@
 ## Layout
 
 - `src`: the backend module. `src/pages` declares the pages as DMS blocks; `src/routes` serves the module's API.
-- `frontend-vue`: the Vue layer, registered through `dms.frontend.ts` under the `DmsDatabase` prefix. ESLint and Prettier own it, not oxlint and oxfmt. `app/build` is private to the layer and imported by path.
+- `frontend-vue`: the Vue layer, registered through `dms.frontend.ts` under the `DmsDatabase` prefix. ESLint and Prettier own it, not oxlint and oxfmt. `app/build` is private to the layer and imported by path. `build/backend-boundary.ts` is a Vite plugin, registered by `dms.frontend.build.ts` and by the vitest config, that fails a build, the dev server or a test when the frontend resolves a module under the backend `src`.
 - `playground`: a project with a `demo` and a `shop` schema. It has its own lockfile and is not a workspace package.
 - `skills` ships in the package, declared under `antelopeJs.skills`. `docs` is not packed; it is the source of the module's pages on the documentation site.
 
