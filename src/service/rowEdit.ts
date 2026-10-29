@@ -21,7 +21,7 @@ const READONLY_FIELDS = new Set(["_id"]);
  * `object` is the contract: this round-trips anything non-primitive through
  * JSON.
  */
-// oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because the null and undefined cases returned earlier, and `typeof value === "object"` alone yields `object | null`; a narrower type here would only push an assertion up
+// oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because `isObject(value)` narrows the unknown edit value to `object`; a narrower type here would only push an assertion up
 function normalizeJsonValue(value: object): JsonValue | undefined {
   try {
     return JSON.parse(JSON.stringify(value));
@@ -68,7 +68,7 @@ function resolveClearedValue(
 function resolveStructuredValue(
   current: Record<string, unknown>,
   field: string,
-  // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and that is what the caller narrowed it to
+  // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and `isObject(value)` narrows the caller's unknown value to exactly that
   value: object,
 ): JsonValue | typeof SKIP_FIELD {
   const normalized = normalizeJsonValue(value);
