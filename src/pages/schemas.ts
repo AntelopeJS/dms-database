@@ -10,22 +10,26 @@ import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { addSchemaFilters } from "../service/schemaFilters";
 
-// The row placeholders the table view fills in a page target.
+/** The row placeholders the table view fills in a page target. */
 const TABLE_QUERY = "schema={{row.schema}}&table={{row.name}}";
 
 const tables = TableView.fromSource({
   caption: "$dms_database.schemas.caption",
   fetchUrl: "/api/database/tables/source",
-  // A deep link, or a relation the inspector follows, to a table the
-  // filter bar leaves out.
+  /**
+   * A deep link, or a relation the inspector follows, to a table the
+   * filter bar leaves out.
+   */
   fetchRowUrl: "/api/database/tables/source/row?id={{row.id}}",
   rowIdKey: "id",
   labelKey: "name",
   capabilities: { search: false, filter: true },
   defaultSort: { field: "elementCount", desc: true },
   pageSize: 50,
-  // A single click opens a row's inspector, as in every DMS list read row
-  // after row in a drawer; a double-click is the DMS default.
+  /**
+   * A single click opens a row's inspector, as in every DMS list read row
+   * after row in a drawer; a double-click is the DMS default.
+   */
   rowClick: "single",
   columns: {
     name: {
@@ -33,7 +37,7 @@ const tables = TableView.fromSource({
       type: new DefaultDataTypes.StringType(),
       display: new DefaultDisplays.MonoDisplay({ copy: true }),
       sortable: true,
-      // The widest column: table names run long (order_items_archive_2025).
+      /** The widest column: table names run long (order_items_archive_2025). */
       size: 280,
       order: 1,
     },
@@ -76,14 +80,18 @@ const tables = TableView.fromSource({
   rowActions: {
     custom: [
       {
-        // A click on a row opens it (`rowClick: "single"` above); the URL
-        // keeps the open table. The row menu offers it too.
+        /**
+         * A click on a row opens it (`rowClick: "single"` above); the URL
+         * keeps the open table. The row menu offers it too.
+         */
         label: "$dms_database.schemas.actions.inspect",
         icon: "i-ph-sidebar-simple",
         isDefault: true,
         deepLink: true,
-        // The DMS draws its row header over the inspector: the table's
-        // name, "Table 3 of 87" over the whole list, previous / next, J / K.
+        /**
+         * The DMS draws its row header over the inspector: the table's
+         * name, "Table 3 of 87" over the whole list, previous / next, J / K.
+         */
         target: {
           type: "drawer",
           direction: "right",
@@ -124,8 +132,10 @@ const tables = TableView.fromSource({
       description: "$dms_database.schemas.empty.first_description",
       icon: "i-ph-stack",
     },
-    // The filter bar's filters match nothing. They are hidden filters, which
-    // the table cannot clear itself: the bare page has none.
+    /**
+     * The filter bar's filters match nothing. They are hidden filters, which
+     * the table cannot clear itself: the bare page has none.
+     */
     filtered: {
       title: "$dms_database.schemas.empty.no_result_title",
       description: "$dms_database.schemas.empty.no_result_description",

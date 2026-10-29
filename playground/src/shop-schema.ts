@@ -1,4 +1,5 @@
 import { Schema } from "@antelopejs/interface-database";
+import type { DeepPartial } from "@antelopejs/interface-database/common";
 import {
   Index,
   RegisterTable,
@@ -6,10 +7,11 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 
-// A storefront with one instance per region, so the data browser, the
-// diagram and the query console have relations, nulls, objects and several
-// instances to show.
-
+/**
+ * A storefront with one instance per region, so the data browser, the
+ * diagram and the query console have relations, nulls, objects and several
+ * instances to show.
+ */
 export const SHOP_SCHEMA = "shop";
 const REGIONS = ["eu", "us"] as const;
 const CUSTOMERS_PER_REGION = 24;
@@ -78,7 +80,7 @@ export class OrderItem extends Table {
 }
 
 function pick<T>(values: readonly T[], index: number): T {
-  return values[index % values.length] as T;
+  return values[index % values.length];
 }
 
 function customers(region: string) {
@@ -109,8 +111,10 @@ function orders(region: string, now: number) {
   }));
 }
 
-// Every instance of a table shares one collection on MongoDB: ids are
-// prefixed with the region so they never collide.
+/**
+ * Every instance of a table shares one collection on MongoDB: ids are
+ * prefixed with the region so they never collide.
+ */
 function productId(region: string | undefined, sku: string): string {
   return region ? `${region}_${sku}` : sku;
 }
@@ -137,20 +141,27 @@ function products(region?: string) {
   }));
 }
 
-async function seedTable(
-  schema: Schema,
+interface ShopTables {
+  customers: Customer;
+  products: Product;
+  orders: Order;
+  order_items: OrderItem;
+}
+
+async function seedTable<Name extends keyof ShopTables>(
+  schema: Schema<ShopTables>,
   region: string | undefined,
-  table: string,
-  rows: Record<string, unknown>[],
+  table: Name,
+  rows: DeepPartial<ShopTables[Name]>[],
 ) {
-  const target = schema.instance(region).table(table as never);
+  const target = schema.instance(region).table(table);
   if ((await target.count()) > 0) return;
-  await target.insert(rows as never).run();
+  await target.insert(rows).run();
 }
 
 /** Fills each region of the shop once, on a database that has none of it. */
 export async function seedShop(): Promise<void> {
-  const schema = Schema.get(SHOP_SCHEMA);
+  const schema = Schema.get<ShopTables>(SHOP_SCHEMA);
   if (!schema) return;
   const now = Date.now();
   for (const region of REGIONS) {

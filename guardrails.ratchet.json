@@ -1,20 +1,10 @@
 {
   "rules": {
-    "antelopejs/no-comments": 289,
-    "anti-slop/no-known-value-widening": 11,
-    "anti-slop/no-runtime-typeof": 54,
-    "anti-slop/no-unknown-parameters": 96,
-    "anti-slop/no-unknown-returns": 10,
-    "anti-slop/no-unsafe-dictionary-type": 57,
-    "anti-slop/require-safety-comment-for-type-assertion": 127
+    "anti-slop/no-known-value-widening": 3,
+    "anti-slop/no-runtime-typeof": 1,
+    "anti-slop/no-unknown-parameters": 56,
+    "anti-slop/no-unsafe-dictionary-type": 20,
+    "anti-slop/require-safety-comment-for-type-assertion": 7
   },
-  "oversizeFiles": {
-    "frontend-vue/app/components/DataGrid.vue": 27761,
-    "frontend-vue/app/components/QueryConsole.vue": 21783,
-    "frontend-vue/app/components/SchemaDiagram.vue": 36411,
-    "frontend-vue/app/components/TableInspector.vue": 22634,
-    "frontend-vue/i18n/locales/database-en-GB.json": 20638,
-    "frontend-vue/i18n/locales/database-fr-FR.json": 23826,
-    "src/routes/data.ts": 21671
-  }
+  "oversizeFiles": {}
 }

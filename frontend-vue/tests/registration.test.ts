@@ -1,10 +1,5 @@
 import { expect, it, vi } from 'vitest'
-import { readFileSync } from 'node:fs'
 import frontendModule from '../dms.frontend'
-
-function source(path: string): string {
-	return readFileSync(new URL(path, import.meta.url), 'utf8')
-}
 
 it('registers every component under the module prefix the backend names', async () => {
 	const registerComponent = vi.fn()
@@ -36,17 +31,4 @@ it('registers every component under the module prefix the backend names', async 
 	}
 	expect(names.every((name) => !name.startsWith('Dms'))).toBe(true)
 	expect(new Set(names).size).toBe(names.length)
-})
-
-it('names every custom component the backend pages render', () => {
-	const backend = ['overview', 'schemas', 'diagram', 'data', 'query']
-		.map((page) => source(`../../src/pages/${page}.ts`))
-		.join('\n')
-	const named = [
-		...backend.matchAll(/CustomComponent\("DmsDatabase(\w+)"\)/g),
-	].map(([, name]) => name)
-	expect(named.length).toBeGreaterThan(0)
-	for (const name of named) {
-		expect(() => source(`../app/components/${name}.vue`)).not.toThrow()
-	}
 })

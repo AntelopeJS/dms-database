@@ -4,6 +4,7 @@ import { Query, Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { SessionModel, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { DEFAULT_TENANT_ID } from "@antelopejs/interface-dms/constants";
+import type { JsonValue } from "../types/json";
 
 const SCHEMA = "edit-race-regression";
 const schema = new Schema<{ items: { _id: string; name: string } }>(SCHEMA, {
@@ -36,8 +37,7 @@ describe("[integration] public PUT edit", () => {
       createdAt: now,
       lastActiveAt: now,
     });
-    // A signed access token for the real owner/session seeded above.
-    const encode = (value: unknown) =>
+    const encode = (value: JsonValue) =>
       Buffer.from(JSON.stringify(value)).toString("base64url");
     const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({
       id: userId,
@@ -49,12 +49,9 @@ describe("[integration] public PUT edit", () => {
     const token = `${unsigned}.${createHmac("sha256", "1:edit-race-key:test-jwt-secret").update(unsigned).digest("base64url")}`;
     const table = schema.instance("race").table("items");
     await table.insert({ _id: "victim", name: "before" }).run();
-    // Saved unbound deliberately: restored below and invoked with the query receiver.
-    // oxlint-disable-next-line typescript/unbound-method
+    // oxlint-disable-next-line typescript/unbound-method -- saved unbound deliberately: restored below and invoked with the query receiver
     const originalRun = Query.prototype.run;
     let deleted = false;
-    // Intercept only this table's write, not the route or the database result.
-    // The preceding validation read and the zero-row update both use MongoDB.
     Query.prototype.run = async function () {
       if (
         !deleted &&

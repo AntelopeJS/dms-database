@@ -1,14 +1,15 @@
 import {
   RegisterTriggerType,
-  type TriggerType,
   UnregisterTriggerType,
 } from "@antelopejs/interface-dms-automation";
 import { tableWatchTrigger } from "./tableWatch";
 
-// Registrations are inert no-ops when no module implements the automation
-// interface (it sits in optionalDependencies), so this is always safe to call.
+/**
+ * Registrations are inert no-ops when no module implements the automation
+ * interface (it sits in optionalDependencies), so this is always safe to call.
+ */
 export function registerAutomationNodes(): void {
-  RegisterTriggerType(tableWatchTrigger as TriggerType);
+  RegisterTriggerType(tableWatchTrigger);
 }
 
 export function unregisterAutomationNodes(): void {

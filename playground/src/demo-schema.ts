@@ -13,10 +13,10 @@ const TAGS_TABLE = "tags";
 
 const DEMO_TAGS = [{ name: "intro" }, { name: "follow-up" }, { name: "rant" }];
 
-const DEMO_POSTS = [
-  { title: "First post", author: "alice", views: 12, tag_ids: [] as string[] },
-  { title: "Second post", author: "bob", views: 47, tag_ids: [] as string[] },
-  { title: "Third post", author: "alice", views: 3, tag_ids: [] as string[] },
+const DEMO_POSTS: Omit<Post, "_id">[] = [
+  { title: "First post", author: "alice", views: 12, tag_ids: [] },
+  { title: "Second post", author: "bob", views: 47, tag_ids: [] },
+  { title: "Third post", author: "alice", views: 3, tag_ids: [] },
 ];
 
 const DEMO_COMMENTS = [

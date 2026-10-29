@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useQueryStore } from '../build/composables/useQueryStore'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
+import { useElsewhereInstances } from '../build/composables/useElsewhereInstances'
 import { useSessionStorage } from '@vueuse/core'
 import { h } from 'vue'
 import { replaceName, type UnknownKind } from '../build/query/runs'
@@ -24,17 +25,13 @@ import type {
 import { schemaAccess } from '../build/utils/databaseLinks'
 import QueryBuilderPanel from './QueryBuilderPanel.vue'
 import QueryLibrary from './QueryLibrary.vue'
-import QueryResultPanel, {
-	type InstanceRows,
-	type QueryFailure,
-} from './QueryResultPanel.vue'
+import QueryResultPanel, { type QueryFailure } from './QueryResultPanel.vue'
 
 // The query console: the library rail, the editor and the result. A query
 // that changes data runs only after a dry run told what it touches (D-03):
 // deletes and multi-row writes ask for the table name; a single-row update
 // can be let through without asking until the browser tab is closed.
 
-const BROWSE_COUNT = '/api/database/browse/count'
 // The query being written, kept for the browser tab: a reload, or a row link
 // followed by Back, brings it back (Q-9). A link that names a query wins.
 const DRAFT_KEY = 'dms-database:query:draft'
@@ -63,9 +60,7 @@ const failure = ref<QueryFailure | null>(null)
 const target = ref<QueryTarget>({})
 const loadedSaved = ref<SavedQuery | null>(null)
 const activeHistoryId = ref<string | null>(null)
-// Named instances holding rows of a table the last read found empty in the
-// default instance.
-const elsewhere = ref<InstanceRows[]>([])
+const { elsewhere, findElsewhere } = useElsewhereInstances(schemas)
 const editor = useTemplateRef<InstanceType<typeof QueryBuilderPanel>>('editor')
 
 const edited = computed(
@@ -166,80 +161,6 @@ function fetchDuration(error: unknown): number | null {
 	const data = (error as { data?: unknown } | null)?.data
 	const duration = (data as { durationMs?: unknown } | null)?.durationMs
 	return typeof duration === 'number' ? duration : null
-}
-
-type CountRows = (query: Record<string, string>) => Promise<{ total: number }>
-
-/**
- * The named instances of a table that hold rows, each with its count: asked
- * only when a read found the table empty in the default instance (decision
- * 11). An instance whose count fails is left out.
- */
-async function instancesWithRows(
-	target: QueryTarget,
-	count: CountRows,
-): Promise<InstanceRows[]> {
-	const instances =
-		schemas.value.find((schema) => schema.id === target.schema)?.instances ?? []
-	const counts = await Promise.all(
-		instances.map((id) =>
-			count({
-				filter_schema: `is:${target.schema}`,
-				filter_table: `is:${target.table}`,
-				filter_instance: `is:${id}`,
-			}).then(
-				(res) => ({ id, count: res.total }),
-				() => ({ id, count: 0 }),
-			),
-		),
-	)
-	return counts.filter((entry) => entry.count > 0)
-}
-
-// The table the last read found empty, whose instances are counted: in the
-// browser, after a run.
-const emptyTarget = shallowRef<QueryTarget | null>(null)
-const elsewhereRead = useApiData<InstanceRows[]>(
-	() =>
-		emptyTarget.value
-			? `dms-database:elsewhere:${JSON.stringify([
-					emptyTarget.value.schema,
-					emptyTarget.value.table,
-				])}`
-			: null,
-	({ $authFetch, signal }) =>
-		instancesWithRows(emptyTarget.value as QueryTarget, (query) =>
-			$authFetch<{ total: number }>(BROWSE_COUNT, { query, signal }),
-		),
-	{
-		immediate: false,
-		server: false,
-		watch: false,
-		refreshOnPageRefresh: false,
-	},
-)
-
-// Each run drops the instances found for the previous one; a slow answer
-// for an older run is ignored.
-let runId = 0
-
-async function findElsewhere(
-	answer: Awaited<ReturnType<typeof store.executeQuery>>,
-	next: QueryTarget,
-) {
-	const id = ++runId
-	elsewhere.value = []
-	if (
-		answer.mutation ||
-		answer.rows.length > 0 ||
-		next.instance !== '' ||
-		!next.schema ||
-		!next.table
-	)
-		return
-	emptyTarget.value = next
-	await elsewhereRead.execute()
-	if (id === runId) elsewhere.value = elsewhereRead.data.value ?? []
 }
 
 // The result keeps naming the previous run's target until the new one lands.

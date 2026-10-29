@@ -1,3 +1,4 @@
+import type { Class } from "@antelopejs/interface-core/decorators";
 import { Logging } from "@antelopejs/interface-core/logging";
 import {
   CROSS_INSTANCE,
@@ -13,6 +14,14 @@ import {
   type Table,
 } from "@antelopejs/interface-database-decorators";
 import { getModuleConfig } from "../config";
+import {
+  isBoolean,
+  isFiniteNumber,
+  isFunction,
+  isNumber,
+  isObject,
+  isString,
+} from "../utils/guards";
 import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
 import { resolveSchemaLabel } from "./schemaLabels";
 import { getRegistry } from "./schemaRegistry";
@@ -41,7 +50,7 @@ function warnOnce(key: string, message: string): void {
 function resolveRelations(
   schemaId: string,
   tableName: string,
-  TableClass: typeof Table,
+  TableClass: Class<Table>,
 ): RelationDeclaration[] {
   const meta = getMetadata(TableClass, RelationStaticMetadata, true);
   const out: RelationDeclaration[] = [];
@@ -57,7 +66,7 @@ function resolveRelations(
       );
       continue;
     }
-    if (typeof TargetClass !== "function") {
+    if (!isFunction(TargetClass)) {
       warnOnce(warnKey, `relation ${warnKey} target is not a class`);
       continue;
     }
@@ -78,8 +87,8 @@ function resolveRelations(
 }
 
 function resolveModifiers(
-  TableClass: typeof Table | undefined,
-): Record<string, string[]> {
+  TableClass: Class<Table> | undefined,
+): TableSummary["modifiers"] {
   if (!TableClass) return {};
   const meta = getMetadata(TableClass, ModifiersStaticMetadata, true);
   const out: Record<string, string[]> = {};
@@ -97,8 +106,10 @@ interface CachedFields {
 
 const fieldsCache = new Map<string, CachedFields>();
 
-// An array's element type, from its elements other than `null`: one kind
-// gives `kind[]`, several a union of them, none leaves it untyped (D-20).
+/**
+ * An array's element type, from its elements other than `null`: one kind
+ * gives `kind[]`, several a union of them, none leaves it untyped (D-20).
+ */
 function inferArrayType(items: unknown[]): FieldDescriptor {
   const members: FieldDescriptor[] = [];
   for (const item of items) {
@@ -127,8 +138,10 @@ function arrayOf(descriptor?: FieldDescriptor): ArrayDescriptor | undefined {
   );
 }
 
-// The type of a column seen in several rows: the first one, unless it is an
-// array of elements unknown so far (empty) that a later row tells.
+/**
+ * The type of a column seen in several rows: the first one, unless it is an
+ * array of elements unknown so far (empty) that a later row tells.
+ */
 function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   const untyped = seen?.kind === "array" && !seen.element;
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
@@ -138,10 +151,10 @@ function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
   if (Array.isArray(value)) return inferArrayType(value);
-  if (typeof value === "object") return { kind: "object", fields: {} };
-  if (typeof value === "string") return { kind: "string" };
-  if (typeof value === "number") return { kind: "number" };
-  if (typeof value === "boolean") return { kind: "boolean" };
+  if (isObject(value)) return { kind: "object", fields: {} };
+  if (isString(value)) return { kind: "string" };
+  if (isNumber(value)) return { kind: "number" };
+  if (isBoolean(value)) return { kind: "boolean" };
   return undefined;
 }
 
@@ -151,19 +164,22 @@ async function sampleRows(
   instance?: string,
 ): Promise<unknown[]> {
   try {
-    return (await schema
+    const rows: unknown[] = await schema
       .instance(instance)
-      .table(tableName as never)
-      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)) as unknown[];
+      .table(tableName)
+      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE);
+    return rows;
   } catch {
     return [];
   }
 }
 
-// The rows to infer a table's columns from: the default instance's, or, when
-// it holds none, the first named instance holding some. A schema whose data
-// lives in named instances (one per region, per tenant) otherwise shows only
-// its decorated columns.
+/**
+ * The rows to infer a table's columns from: the default instance's, or, when
+ * it holds none, the first named instance holding some. A schema whose data
+ * lives in named instances (one per region, per tenant) otherwise shows only
+ * its decorated columns.
+ */
 async function sampleAnyInstance(
   schema: Schema,
   tableName: string,
@@ -177,8 +193,10 @@ async function sampleAnyInstance(
   return [];
 }
 
-// The instance a row was read from, which the store adds to rows of named
-// instances: not a column of the table.
+/**
+ * The instance a row was read from, which the store adds to rows of named
+ * instances: not a column of the table.
+ */
 const INSTANCE_TAG_FIELD = "_instance";
 
 interface ObservedField {
@@ -186,7 +204,7 @@ interface ObservedField {
   nullable: boolean;
 }
 
-// Kinds that admit an empty value on their own.
+/** Kinds that admit an empty value on their own. */
 const NULLISH_KINDS = new Set<FieldDescriptor["kind"]>([
   "null",
   "undefined",
@@ -210,13 +228,15 @@ function withNull(descriptor: FieldDescriptor): FieldDescriptor {
   return { kind: "union", members: [descriptor, NULL_DESCRIPTOR] };
 }
 
-// A column holding `null` in some sampled rows is nullable: its type is a
-// union with `null`, and a column holding only `null` is typed `null`.
-function inferFromRows(rows: unknown[]): Record<string, FieldDescriptor> {
+/**
+ * A column holding `null` in some sampled rows is nullable: its type is a
+ * union with `null`, and a column holding only `null` is typed `null`.
+ */
+function inferFromRows(rows: unknown[]): TableSummary["fields"] {
   const observed = new Map<string, ObservedField>();
   for (const row of rows) {
-    if (!row || typeof row !== "object") continue;
-    for (const [key, value] of Object.entries(row as Record<string, unknown>)) {
+    if (!isObject(row)) continue;
+    for (const [key, value] of Object.entries(row)) {
       if (key === INSTANCE_TAG_FIELD) continue;
       const field = observed.get(key) ?? { nullable: false };
       if (value === null) field.nullable = true;
@@ -250,7 +270,9 @@ async function inferTableFields(
   return inferred;
 }
 
-function mapDesignType(ctor: unknown): FieldDescriptor | undefined {
+function mapDesignType(
+  ctor: (new (...args: never[]) => object) | undefined,
+): FieldDescriptor | undefined {
   if (ctor === String) return { kind: "string" };
   if (ctor === Number) return { kind: "number" };
   if (ctor === Boolean) return { kind: "boolean" };
@@ -264,7 +286,13 @@ interface DeclaredFields {
   types: Record<string, FieldDescriptor>;
 }
 
-function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
+/**
+ * The decorated names of a table class, in discovery order: the instance's own
+ * class fields (skipped when the constructor throws), the primary key first,
+ * the indexed fields (insertion order preserves the `@Index` source order),
+ * the relation fields, then the modifier fields.
+ */
+function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
   const ordered: string[] = [];
   const seen = new Set<string>();
   const push = (name: string) => {
@@ -273,31 +301,24 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
     ordered.push(name);
   };
 
-  // 1. Class-field emit: names visible on an instance via Object.keys.
   try {
-    const instance = new (TableClass as new () => object)();
+    const instance = new TableClass();
     for (const name of Object.keys(instance)) push(name);
-  } catch {
-    // Constructor threw — skip class-field emit discovery.
-  }
+  } catch {}
 
-  // 2. Primary key.
   const datumMeta = getMetadata(TableClass, DatumStaticMetadata, true);
   if (datumMeta.primary && !seen.has(datumMeta.primary)) {
     seen.add(datumMeta.primary);
     ordered.unshift(datumMeta.primary);
   }
 
-  // 3. Indexed fields (flatten groups; insertion order preserves @Index source order).
   for (const fields of Object.values(datumMeta.indexes)) {
     for (const name of fields) push(name);
   }
 
-  // 4. Relation fields.
   const relationMeta = getMetadata(TableClass, RelationStaticMetadata, true);
   for (const name of Object.keys(relationMeta.relations)) push(name);
 
-  // 5. Modifier fields.
   const modifierMeta = getMetadata(TableClass, ModifiersStaticMetadata, true);
   for (const name of Object.keys(modifierMeta.fields ?? {})) push(name);
 
@@ -313,6 +334,11 @@ function collectDecoratedFields(TableClass: typeof Table): DeclaredFields {
 
 type SchemaTableDefinition = Schema["definition"][string];
 
+/**
+ * A declared type says nothing of `null` (`string | null` reflects as
+ * `Object`) nor of an array's elements (`string[]` reflects as `Array`): the
+ * sampled rows tell both (D-20).
+ */
 async function summarizeTable(
   id: string,
   schema: Schema,
@@ -320,7 +346,7 @@ async function summarizeTable(
   def: SchemaTableDefinition,
   tableClasses: ReturnType<typeof getTablesForSchema>,
 ): Promise<TableSummary> {
-  const TableClass = tableClasses?.[tableName] as typeof Table | undefined;
+  const TableClass = tableClasses?.[tableName];
   const relations = TableClass
     ? resolveRelations(id, tableName, TableClass)
     : [];
@@ -330,16 +356,12 @@ async function summarizeTable(
   const sampled = await inferTableFields(id, schema, tableName);
   const modifiers = resolveModifiers(TableClass);
 
-  const definitionFields = (def.fields ?? {}) as Record<string, unknown>;
+  const definitionFields = def.fields ?? {};
   const fromDefinition: Record<string, FieldDescriptor> = {};
   for (const [name, value] of Object.entries(definitionFields)) {
     fromDefinition[name] = toFieldDescriptor(value);
   }
 
-  // A declared type says nothing of `null` (`string | null` reflects as
-  // Object): the sampled rows tell whether the column holds some.
-  // Nor of an array's elements (`string[]` reflects as Array): the sampled
-  // rows tell them too (D-20).
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
     const seen = sampled[name];
     const element = arrayOf(seen)?.element;
@@ -400,12 +422,12 @@ export async function listSchemaSummaries(): Promise<SchemaSummary[]> {
 
 const tableCountCache = new Map<string, { value: number; expiresAt: number }>();
 
+/** `String()` also handles the `CROSS_INSTANCE` symbol. */
 function tableCountKey(
   schemaId: string,
   tableName: string,
   instance?: InstanceId,
 ): string {
-  // String() also handles the CROSS_INSTANCE symbol.
   return `${schemaId}::${String(instance ?? "")}::${tableName}`;
 }
 
@@ -414,9 +436,9 @@ async function countTableRows(
   tableName: string,
   instance?: InstanceId,
 ): Promise<number> {
-  const table = schema.instance(instance).table(tableName as never);
+  const table = schema.instance(instance).table(tableName);
   const total = await table.count();
-  return typeof total === "number" && Number.isFinite(total) ? total : 0;
+  return isFiniteNumber(total) ? total : 0;
 }
 
 async function cachedCount(
@@ -532,16 +554,18 @@ export async function listSchemaSummariesWithStats(): Promise<
   return summaries;
 }
 
-// Primary key field name for a registered table, resolved from the decorated
-// table class metadata (e.g. "_id" on MongoDB). Used by the data browser to
-// target a single row for inline edits. Returns undefined when the table has no
-// decorated class or no declared primary key.
+/**
+ * Primary key field name for a registered table, resolved from the decorated
+ * table class metadata (e.g. "_id" on MongoDB). Used by the data browser to
+ * target a single row for inline edits. Returns undefined when the table has no
+ * decorated class or no declared primary key.
+ */
 export function getTablePrimaryKey(
   schemaId: string,
   tableName: string,
 ): string | undefined {
   const tableClasses = getTablesForSchema(schemaId);
-  const TableClass = tableClasses?.[tableName] as typeof Table | undefined;
+  const TableClass = tableClasses?.[tableName];
   if (!TableClass) return undefined;
   const meta = getMetadata(TableClass, DatumStaticMetadata, true);
   return meta.primary || undefined;
