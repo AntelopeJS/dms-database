@@ -197,8 +197,8 @@ export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
 }
 
 /**
- * `InterfaceFieldType | unknown` collapsed to `unknown`, so the union only
- * documented the intent. It says so in words instead.
+ * Describes a schema field for the console: an io-ts codec through its `_tag`,
+ * anything else as a string field type.
  */
 export function toFieldDescriptor(value: FieldType): FieldDescriptor {
   if (isCodec(value)) return codecToDescriptor(value);
