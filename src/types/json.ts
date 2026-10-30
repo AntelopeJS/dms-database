@@ -24,20 +24,38 @@ export function isJsonObjectValue(value: JsonValue): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** Whether `value` is made of JSON values only, however deep. */
+/**
+ * Whether `value` is made of JSON values only, however deep. It walks with an
+ * explicit stack, so a deeply nested value cannot overflow the call stack, and
+ * reads a container shared by several members once.
+ */
 export function isJsonValue(value: unknown): value is JsonValue {
-  if (value === null) return true;
-  if (Array.isArray(value)) return value.every(isJsonValue);
-  switch (typeof value) {
-    case "string":
-    case "number":
-    case "boolean":
-      return true;
-    case "object":
-      return Object.values(value).every(isJsonValue);
-    default:
-      return false;
+  const pending: unknown[] = [value];
+  const visited = new Set<unknown>();
+  while (pending.length > 0) {
+    const member = pending.pop();
+    if (member === null) continue;
+    switch (typeof member) {
+      case "string":
+      case "number":
+      case "boolean":
+        break;
+      case "object":
+        if (visited.has(member)) break;
+        visited.add(member);
+        if (Array.isArray(member)) {
+          member.forEach((element) => {
+            pending.push(element);
+          });
+        } else {
+          for (const entry of Object.values(member)) pending.push(entry);
+        }
+        break;
+      default:
+        return false;
+    }
   }
+  return true;
 }
 
 /** Whether `value` is an object made of JSON values only, however deep. */
