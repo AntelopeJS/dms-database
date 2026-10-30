@@ -1,5 +1,10 @@
 import { assert } from "@antelopejs/interface-api-util";
-import { isJsonContainer, type JsonValue } from "../types/json";
+import {
+  isJsonContainer,
+  isJsonValue,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
 import { isBoolean, isObject } from "../utils/guards";
 import { cellToText } from "../utils/query";
 
@@ -24,7 +29,8 @@ const READONLY_FIELDS = new Set(["_id"]);
 // oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because `isObject(value)` narrows the unknown edit value to `object`; a narrower type here would only push an assertion up
 function normalizeJsonValue(value: object): JsonValue | undefined {
   try {
-    return JSON.parse(JSON.stringify(value));
+    const parsed: unknown = JSON.parse(JSON.stringify(value));
+    return isJsonValue(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -76,7 +82,9 @@ function resolveStructuredValue(
   return normalized;
 }
 
-function isWritableScalar(value: unknown): value is string | number | boolean {
+function isWritableScalar(
+  value: JsonValue,
+): value is string | number | boolean {
   if (typeof value === "number") return Number.isFinite(value);
   return typeof value === "string" || typeof value === "boolean";
 }
@@ -114,12 +122,10 @@ function resolveDateValue(
 function resolveEditValue(
   current: Record<string, unknown>,
   field: string,
-  value: unknown,
+  value: JsonValue,
   primaryKey: string | undefined,
 ): EditValue {
-  if (value === undefined || isProtectedField(field, primaryKey)) {
-    return SKIP_FIELD;
-  }
+  if (isProtectedField(field, primaryKey)) return SKIP_FIELD;
   if (value === null) return resolveClearedValue(current, field);
   if (isObject(value)) return resolveStructuredValue(current, field, value);
   if (!isWritableScalar(value)) return SKIP_FIELD;
@@ -139,7 +145,7 @@ function resolveEditValue(
  * Turn a form-submitted edit body (a map of field → new value) into a
  * sanitised update set. The data browser edits one cell at a time, so the body
  * usually holds a single field. Kept out of the update set:
- *   - untouched fields (undefined) and nulls over a cell already empty,
+ *   - nulls over a cell already empty,
  *   - the read-only primary key,
  *   - synthetic browse-only fields,
  *   - non-finite numbers, and
@@ -157,7 +163,7 @@ function resolveEditValue(
  */
 export function buildEditUpdates(
   current: Record<string, unknown>,
-  body: Record<string, unknown>,
+  body: JsonObject,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
   const updates: Record<string, JsonValue | Date> = Object.create(null);

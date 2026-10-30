@@ -26,8 +26,14 @@ import {
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
+import { isJsonObject } from "../types/json";
 import type { ListResult } from "../types/responses";
-import { isNonEmptyString, isObject, isString } from "../utils/guards";
+import {
+  isNonEmptyString,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 import {
   clamp,
   decodeInstanceFilter,
@@ -186,8 +192,8 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const row = await resolveTable(selection).get(id);
-    assert(isObject(row), 404, "Row not found");
+    const row: unknown = await resolveTable(selection).get(id);
+    assert(isRecord(row), 404, "Row not found");
     const items = await listRowReferences(
       selection.schema,
       selection.table,
@@ -249,7 +255,7 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
+    assert(isJsonObject(body), 400, "Invalid request body");
 
     const table = resolveTable(selection);
     const target = table.get(id);
