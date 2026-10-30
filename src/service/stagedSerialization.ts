@@ -10,8 +10,8 @@ import {
   Table,
   ValueProxy,
 } from "@antelopejs/interface-database";
-import type {
-  QueryStage,
+import {
+  type QueryStage,
   StagedObject,
 } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
@@ -107,7 +107,11 @@ export function decodeStaged(value: JsonValue | undefined): Decoded {
 
   if (isSerializedStaged(value)) {
     const ctor = STAGED_CLASSES[value.__cls];
-    const instance = Object.create(ctor.prototype) as StagedObject;
+    const instance = Reflect.construct(
+      StagedObject,
+      [{ stage: "", options: undefined, args: [] }],
+      ctor,
+    );
     return Object.assign(instance, { stages: value.stages.map(decodeStage) });
   }
   if (looksStaged(value)) {
