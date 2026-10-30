@@ -51,7 +51,7 @@ function isTableWatchHandle(handle: unknown): handle is TableWatchHandle {
     isFunction(handle.iterator.return) &&
     (!("pending" in handle) ||
       handle.pending === undefined ||
-      handle.pending instanceof Promise)
+      isObject(handle.pending))
   );
 }
 
