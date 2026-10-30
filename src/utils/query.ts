@@ -56,16 +56,14 @@ export function decodeInstanceFilter(
   return value;
 }
 
-const FILTER_PREDICATES = new Map<
+const FILTER_PREDICATES: Record<
   string,
   (cell: string, value: string) => boolean
->([
-  [FILTER_MODE_IS, (cell, value) => cell === value],
-  [
-    FILTER_MODE_CONTAINS,
-    (cell, value) => cell.toLowerCase().includes(value.toLowerCase()),
-  ],
-]);
+> = {
+  [FILTER_MODE_IS]: (cell, value) => cell === value,
+  [FILTER_MODE_CONTAINS]: (cell, value) =>
+    cell.toLowerCase().includes(value.toLowerCase()),
+};
 
 export function applyFilterToList<T>(
   rows: T[],
@@ -74,7 +72,7 @@ export function applyFilterToList<T>(
 ): T[] {
   const parsed = parseFilter(rawFilter);
   if (!parsed) return rows;
-  const predicate = FILTER_PREDICATES.get(parsed.mode);
+  const predicate = FILTER_PREDICATES[parsed.mode];
   if (!predicate) return rows;
   return rows.filter((row) =>
     predicate(String(row[field] ?? ""), parsed.value),
