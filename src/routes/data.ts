@@ -259,8 +259,8 @@ export class DatabaseBrowseController extends Controller(
 
     const table = resolveTable(selection);
     const target = table.get(id);
-    const existing = await target;
-    assert(isObject(existing), 404, "Row not found");
+    const existing: unknown = await target;
+    assert(isRecord(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
     const updates = buildEditUpdates(existing, body, primaryKey);
     if (Object.keys(updates).length > 0) {
