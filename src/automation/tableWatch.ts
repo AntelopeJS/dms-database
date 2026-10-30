@@ -21,14 +21,14 @@ interface TableWatchConfig {
 
 interface TableWatchOutput {
   type: WatchEventType;
-  old: Record<string, unknown> | null;
-  new: Record<string, unknown> | null;
+  old: ChangeRow | null;
+  new: ChangeRow | null;
   schema: string;
   table: string;
   at: string;
 }
 
-type ChangeRow = Record<string, unknown>;
+type ChangeRow = object;
 type ChangeFeed = AsyncGenerator<Changes<ChangeRow>, void, unknown>;
 
 interface TableWatchHandle {
@@ -281,7 +281,7 @@ export const tableWatchTrigger: TriggerType<
     const probe = await Promise.race([
       first.then(
         () => undefined,
-        (err) => (err instanceof Error ? err : new Error(String(err))),
+        (err: unknown) => (err instanceof Error ? err : new Error(String(err))),
       ),
       sleep(ACTIVATION_PROBE_MS),
     ]);
