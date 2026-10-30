@@ -28,7 +28,7 @@ export function resolveSchemaLabel(
   overrides?: SchemaLabelOverrides,
 ): SchemaLabel | undefined {
   if (overrides) {
-    const exact = overrides[id];
+    const exact = Object.hasOwn(overrides, id) ? overrides[id] : undefined;
     if (exact) return { text: exact.label, color: exact.color };
 
     for (const [pattern, override] of Object.entries(overrides)) {

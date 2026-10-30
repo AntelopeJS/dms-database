@@ -2,7 +2,7 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { Schema, type Table } from "@antelopejs/interface-database";
 import type { Changes } from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
-import { isObject, isString } from "../utils/guards";
+import { isBoolean, isFunction, isObject, isString } from "../utils/guards";
 
 type WatchEventType = "insert" | "update" | "delete";
 
@@ -39,7 +39,20 @@ interface TableWatchHandle {
 }
 
 function isTableWatchHandle(handle: unknown): handle is TableWatchHandle {
-  return isObject(handle) && "stopped" in handle && "iterator" in handle;
+  return (
+    isObject(handle) &&
+    "stopped" in handle &&
+    isBoolean(handle.stopped) &&
+    "iterator" in handle &&
+    isObject(handle.iterator) &&
+    "next" in handle.iterator &&
+    isFunction(handle.iterator.next) &&
+    "return" in handle.iterator &&
+    isFunction(handle.iterator.return) &&
+    (!("pending" in handle) ||
+      handle.pending === undefined ||
+      handle.pending instanceof Promise)
+  );
 }
 
 /**

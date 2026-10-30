@@ -88,7 +88,9 @@ export async function listRowReferences(
       many: relation.many,
       count: await countReferences({
         relation,
-        value: row[relation.toField],
+        value: Object.hasOwn(row, relation.toField)
+          ? row[relation.toField]
+          : undefined,
         instance,
       }),
     })),
