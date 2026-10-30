@@ -60,11 +60,9 @@ function resolveRelations(
     try {
       TargetClass = options.to();
     } catch (err) {
-      const message =
-        isObject(err) && "message" in err ? err.message : undefined;
       warnOnce(
         warnKey,
-        `relation ${warnKey} target thunk threw: ${String(message)}`,
+        `relation ${warnKey} target thunk threw: ${(err as Error).message}`,
       );
       continue;
     }
