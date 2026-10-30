@@ -270,16 +270,13 @@ async function inferTableFields(
   return inferred;
 }
 
-function mapDesignType(
-  ctor: (new (...args: never[]) => object) | undefined,
-): FieldDescriptor | undefined {
-  if (ctor === String) return { kind: "string" };
-  if (ctor === Number) return { kind: "number" };
-  if (ctor === Boolean) return { kind: "boolean" };
-  if (ctor === Date) return { kind: "date" };
-  if (ctor === Array) return { kind: "array" };
-  return undefined;
-}
+const DESIGN_TYPE_DESCRIPTORS = new Map<unknown, () => FieldDescriptor>([
+  [String, () => ({ kind: "string" })],
+  [Number, () => ({ kind: "number" })],
+  [Boolean, () => ({ kind: "boolean" })],
+  [Date, () => ({ kind: "date" })],
+  [Array, () => ({ kind: "array" })],
+]);
 
 interface DeclaredFields {
   ordered: string[];
@@ -324,9 +321,10 @@ function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
 
   const types: Record<string, FieldDescriptor> = {};
   for (const name of ordered) {
-    const ctor = Reflect.getMetadata("design:type", TableClass.prototype, name);
-    const mapped = mapDesignType(ctor);
-    if (mapped !== undefined) types[name] = mapped;
+    const describe = DESIGN_TYPE_DESCRIPTORS.get(
+      Reflect.getMetadata("design:type", TableClass.prototype, name),
+    );
+    if (describe) types[name] = describe();
   }
 
   return { ordered, types };
@@ -357,9 +355,9 @@ async function summarizeTable(
   const modifiers = resolveModifiers(TableClass);
 
   const definitionFields = def.fields ?? {};
-  const fromDefinition: Record<string, FieldDescriptor> = {};
+  const fromDefinition = new Map<string, FieldDescriptor>();
   for (const [name, value] of Object.entries(definitionFields)) {
-    fromDefinition[name] = toFieldDescriptor(value);
+    fromDefinition.set(name, toFieldDescriptor(value));
   }
 
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
@@ -375,20 +373,21 @@ async function summarizeTable(
   for (const name of declared.ordered) {
     fields[name] = withSampled(
       name,
-      fromDefinition[name] ??
+      fromDefinition.get(name) ??
         declared.types[name] ??
         sampled[name] ??
         UNKNOWN_DESCRIPTOR,
     );
   }
-  for (const [name, descriptor] of Object.entries(fromDefinition)) {
-    if (!(name in fields)) fields[name] = withSampled(name, descriptor);
+  for (const [name, descriptor] of fromDefinition) {
+    if (!Object.hasOwn(fields, name))
+      fields[name] = withSampled(name, descriptor);
   }
-  for (const [name, descriptor] of Object.entries(sampled)) {
-    if (!(name in fields)) fields[name] = descriptor;
+  for (const [column, descriptor] of Object.entries(sampled)) {
+    if (!(column in fields)) fields[column] = descriptor;
   }
   for (const name of Object.keys(modifiers)) {
-    if (!(name in fields)) fields[name] = UNKNOWN_DESCRIPTOR;
+    if (!Object.hasOwn(fields, name)) fields[name] = UNKNOWN_DESCRIPTOR;
   }
 
   return {

@@ -1,7 +1,7 @@
 import { CROSS_INSTANCE } from "@antelopejs/interface-database";
 import { StagedObject } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
-import { isJsonObject, type JsonObject, type JsonValue } from "../types/json";
+import { isJsonObject, type JsonObject } from "../types/json";
 import { isObject } from "../utils/guards";
 
 const STAGED_CLASS_NAMES = new Set([
@@ -64,7 +64,7 @@ function encodeNode(node: Node): Wire {
  * whole travels as JSON.
  */
 export function encode(staged: StagedObject): JsonObject {
-  const wire: JsonValue = JSON.parse(JSON.stringify(encodeNode(staged)));
+  const wire: unknown = JSON.parse(JSON.stringify(encodeNode(staged)));
   if (!isJsonObject(wire))
     throw new Error("a staged query encodes to an object");
   return wire;

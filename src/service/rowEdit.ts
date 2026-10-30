@@ -160,10 +160,12 @@ export function buildEditUpdates(
   body: Record<string, unknown>,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
-  const updates: Record<string, JsonValue | Date> = Object.create(null);
-  for (const [field, value] of Object.entries(body)) {
-    const resolved = resolveEditValue(current, field, value, primaryKey);
-    if (resolved !== SKIP_FIELD) updates[field] = resolved;
-  }
+  const updates = Object.fromEntries(
+    Object.entries(body).flatMap(([field, value]) => {
+      const resolved = resolveEditValue(current, field, value, primaryKey);
+      return resolved === SKIP_FIELD ? [] : [[field, resolved]];
+    }),
+  );
+  Reflect.setPrototypeOf(updates, null);
   return updates;
 }

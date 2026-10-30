@@ -69,15 +69,18 @@ export function formatMessage(
   key: MessageKey,
   params: Record<string, string> = {},
 ): string {
-  return MESSAGES[locale][key].replace(
-    /\{(\w+)\}/g,
-    (match, name: string) => params[name] ?? match,
+  return MESSAGES[locale][key].replace(/\{(\w+)\}/g, (match, name: string) =>
+    Object.hasOwn(params, name) ? params[name] : match,
   );
+}
+
+function isMessageKey(locale: ServerLocale, id: string): id is MessageKey {
+  return Object.hasOwn(MESSAGES[locale], id);
 }
 
 /** The name of a column modifier, or its id when it has none. */
 export function formatModifier(locale: ServerLocale, id: string): string {
-  return id in MESSAGES[locale] ? MESSAGES[locale][id as MessageKey] : id;
+  return isMessageKey(locale, id) ? MESSAGES[locale][id] : id;
 }
 
 /** "1 table" or "9 tables", the number in the reader's short form. */

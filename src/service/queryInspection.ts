@@ -109,7 +109,7 @@ async function countSelected(prefix: QueryStage[]): Promise<number> {
 }
 
 function insertedDocuments(stage: QueryStage): number {
-  const [documents] = stage.args ?? [];
+  const documents: unknown = stage.args?.[0];
   return Array.isArray(documents) ? documents.length : 1;
 }
 

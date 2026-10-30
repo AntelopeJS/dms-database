@@ -27,7 +27,12 @@ import {
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
 import type { ListResult } from "../types/responses";
-import { isNonEmptyString, isObject, isString } from "../utils/guards";
+import {
+  isNonEmptyString,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 import {
   clamp,
   decodeInstanceFilter,
@@ -186,8 +191,8 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const row = await resolveTable(selection).get(id);
-    assert(isObject(row), 404, "Row not found");
+    const row: unknown = await resolveTable(selection).get(id);
+    assert(isRecord(row), 404, "Row not found");
     const items = await listRowReferences(
       selection.schema,
       selection.table,
@@ -253,8 +258,8 @@ export class DatabaseBrowseController extends Controller(
 
     const table = resolveTable(selection);
     const target = table.get(id);
-    const existing = await target;
-    assert(isObject(existing), 404, "Row not found");
+    const existing: unknown = await target;
+    assert(isRecord(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
     const updates = buildEditUpdates(existing, body, primaryKey);
     if (Object.keys(updates).length > 0) {

@@ -189,7 +189,8 @@ function isRow(value: unknown): value is ExecuteResult["rows"][number] {
 
 function normaliseRows(raw: unknown): ExecuteResult["rows"] {
   if (Array.isArray(raw)) {
-    return raw.map((entry) => (isRow(entry) ? entry : { value: entry }));
+    const entries: unknown[] = raw;
+    return entries.map((entry) => (isRow(entry) ? entry : { value: entry }));
   }
   if (raw === undefined) return [];
   if (isRow(raw)) {
@@ -235,10 +236,7 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   return { query, source, language, root: decodeRunnable(query) };
 }
 
-function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message || "Query execution failed";
-}
+const QUERY_FAILED = "Query execution failed";
 
 @AuthOwnerOnly()
 export class DatabaseQueryController extends Controller("/api/database/query") {
@@ -260,7 +258,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       if (unknownTarget) throw new Error(unknownTarget);
       raw = await root.run();
     } catch (error) {
-      const message = errorMessage(error);
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        QUERY_FAILED;
       const durationMs = Date.now() - startedAt;
       await historyModel.addAndPrune({
         userId: user._id,
@@ -321,7 +321,12 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     try {
       return await dryRun(root);
     } catch (error) {
-      assert(false, 400, errorMessage(error));
+      assert(
+        false,
+        400,
+        (error instanceof Error ? error.message : String(error)) ||
+          QUERY_FAILED,
+      );
     }
   }
 

@@ -5,7 +5,7 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel, SavedQueryModel } from "../db";
 import { DatabaseQueryController } from "../routes/query";
-import { refusal } from "./refusal";
+import { bodyText, refusal } from "./refusal";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "saved-queries-qa";
@@ -142,7 +142,7 @@ describe("[integration] refused saves", () => {
       }),
       (error: HTTPResult) => {
         assert.equal(error.getStatus(), 400);
-        assert.match(error.getBody(), /^\{"message":"Malformed query/);
+        assert.match(bodyText(error), /^\{"message":"Malformed query/);
         return true;
       },
     );
@@ -150,7 +150,7 @@ describe("[integration] refused saves", () => {
       controller.createSaved(OWNER, { ...SAVE, query: { value: 1 } }),
       (error: HTTPResult) => {
         assert.equal(error.getStatus(), 400);
-        assert.match(error.getBody(), /Query must resolve to a runnable/);
+        assert.match(bodyText(error), /Query must resolve to a runnable/);
         return true;
       },
     );

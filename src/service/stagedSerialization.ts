@@ -21,19 +21,17 @@ import {
   type JsonValue,
 } from "../types/json";
 
-const STAGED_CLASSES = {
-  Schema,
-  SchemaInstance,
-  Table,
-  Selection,
-  SingleSelection,
-  Stream,
-  Datum,
-  Query,
-  ValueProxy,
-} satisfies Record<string, new (...args: never[]) => StagedObject>;
-
-type StagedClassName = keyof typeof STAGED_CLASSES;
+const STAGED_CLASSES = new Map<string, new (...args: never[]) => StagedObject>([
+  ["Schema", Schema],
+  ["SchemaInstance", SchemaInstance],
+  ["Table", Table],
+  ["Selection", Selection],
+  ["SingleSelection", SingleSelection],
+  ["Stream", Stream],
+  ["Datum", Datum],
+  ["Query", Query],
+  ["ValueProxy", ValueProxy],
+]);
 
 /** What a query body decodes to: its JSON, with staged values rebuilt. */
 export type Decoded =
@@ -53,7 +51,7 @@ interface SerializedStage extends JsonObject {
 }
 
 interface SerializedStaged extends JsonObject {
-  __cls: StagedClassName;
+  __cls: string;
   stages: SerializedStage[];
 }
 
@@ -72,19 +70,14 @@ function isSerializedStage(
   );
 }
 
-function isStagedClassName(
-  name: JsonValue | undefined,
-): name is StagedClassName {
-  return typeof name === "string" && Object.hasOwn(STAGED_CLASSES, name);
-}
-
 function isSerializedStaged(
   value: JsonValue | undefined,
 ): value is SerializedStaged {
   return (
     value !== undefined &&
     isJsonObjectValue(value) &&
-    isStagedClassName(value.__cls) &&
+    typeof value.__cls === "string" &&
+    STAGED_CLASSES.has(value.__cls) &&
     Array.isArray(value.stages) &&
     value.stages.every(isSerializedStage)
   );
@@ -106,11 +99,10 @@ export function decodeStaged(value: JsonValue | undefined): Decoded {
   if (!isJsonObjectValue(value)) return value;
 
   if (isSerializedStaged(value)) {
-    const ctor = STAGED_CLASSES[value.__cls];
     const instance = Reflect.construct(
       StagedObject,
       [{ stage: "", options: undefined, args: [] }],
-      ctor,
+      STAGED_CLASSES.get(value.__cls),
     );
     return Object.assign(instance, { stages: value.stages.map(decodeStage) });
   }
