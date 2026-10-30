@@ -67,7 +67,7 @@ describe("[integration] refined browse pagination", () => {
     );
     assert.equal(result.total, ROWS - MATCH_START);
     assert.deepEqual(
-      result.results.map((row) => row._id),
+      result.results.map((row: { _id: string }) => row._id),
       ["1001", "1002"],
     );
   });

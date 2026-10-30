@@ -133,7 +133,7 @@ describe("[integration] browse routes: rows", () => {
 
   it("reads one row by its id and refuses a missing or unknown one", async () => {
     const controller = new DatabaseBrowseController();
-    const row = await controller.get(
+    const row: unknown = await controller.get(
       USER,
       IS_SCHEMA,
       "is:alpha",
@@ -323,7 +323,7 @@ describe("[integration] table routes", () => {
       undefined,
     );
     assert.deepEqual(
-      page.results.map((row) => row._id),
+      page.results.map((row: { _id: string }) => row._id),
       ["i2"],
     );
     assert.equal(page.total, 1);

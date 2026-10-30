@@ -21,7 +21,6 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import { listRowReferences } from "../service/references";
-import type { JsonValue } from "../types/json";
 import { requestContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
@@ -44,11 +43,6 @@ class RedesignOrder extends Table {
   @Relation({ to: () => RedesignCustomer }) declare customer_id: string;
   declare status: string;
   declare created_at: Date;
-}
-
-/** The date of an order as it travels on the wire. */
-interface WireOrder {
-  created_at: string;
 }
 
 /** Keeps the decorated classes referenced: the decorators register them. */
@@ -239,7 +233,8 @@ describe("[integration] v2 redesign: edits", () => {
   it("answers an edit with the row as the listing then serves it", async () => {
     const controller = new DatabaseBrowseController();
     const table = [`is:${SCHEMA}`, `is:${INSTANCE}`, "is:orders"] as const;
-    const listed = async (id: string) => {
+    const orders = shop().instance(INSTANCE).table("orders");
+    const listed = async (id: string): Promise<string> => {
       const page = await controller.list(
         USER,
         requestContext("https://example.test/"),
@@ -250,34 +245,41 @@ describe("[integration] v2 redesign: edits", () => {
         undefined,
         undefined,
       );
-      return page.results.find((row) => row._id === id);
+      return JSON.stringify(
+        page.results.find((row: { _id: string }) => row._id === id),
+      );
     };
-    const wire = (value: JsonValue): WireOrder =>
-      JSON.parse(JSON.stringify(value));
-    const before = await listed("o2");
+    const before = await orders.get("o2");
     try {
-      const answer = await controller.edit(USER, ...table, "o2", {
+      const answer: unknown = await controller.edit(USER, ...table, "o2", {
         status: "shipped",
         created_at: "2026-10-06T09:00:00.000Z",
         notes: { gift: true, tags: ["red"] },
       });
-      assert.deepEqual(wire(answer), wire(await listed("o2")));
-      assert.equal(wire(answer).created_at, "2026-10-06T09:00:00.000Z");
-      const unchanged = await controller.edit(USER, ...table, "o2", {
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(answer)),
+        JSON.parse(await listed("o2")),
+      );
+      assert.equal(
+        JSON.parse(JSON.stringify(answer)).created_at,
+        "2026-10-06T09:00:00.000Z",
+      );
+      const unchanged: unknown = await controller.edit(USER, ...table, "o2", {
         status: "shipped",
       });
-      assert.deepEqual(wire(unchanged), wire(await listed("o2")));
-      const cleared = await controller.edit(USER, ...table, "o2", {
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(unchanged)),
+        JSON.parse(await listed("o2")),
+      );
+      const cleared: unknown = await controller.edit(USER, ...table, "o2", {
         notes: null,
       });
-      assert.deepEqual(wire(cleared), wire(await listed("o2")));
+      assert.deepEqual(
+        JSON.parse(JSON.stringify(cleared)),
+        JSON.parse(await listed("o2")),
+      );
     } finally {
-      await shop()
-        .instance(INSTANCE)
-        .table("orders")
-        .get("o2")
-        .replace(before)
-        .run();
+      await orders.get("o2").replace(before).run();
     }
   });
 });

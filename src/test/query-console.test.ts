@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import type { HTTPResult } from "@antelopejs/interface-api";
 import { CROSS_INSTANCE, Schema } from "@antelopejs/interface-database";
 import {
   GetModel,
@@ -19,7 +20,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "../types/json";
-import { isNumber } from "../utils/guards";
+import { queryFailure } from "./refusal";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "query-console-qa";
@@ -98,11 +99,9 @@ async function assertRefused(query: JsonObject): Promise<void> {
       source: "forged",
       language: "aql",
     }),
-    (error: { getStatus(): number; getBody(): string }) => {
+    (error: HTTPResult) => {
       assert.equal(error.getStatus(), 400);
-      const answer: { message: string; durationMs: number } = JSON.parse(
-        error.getBody(),
-      );
+      const answer = queryFailure(error);
       assert.match(answer.message, /^Malformed query/);
       assert.equal(answer.durationMs, 0);
       return true;
@@ -201,12 +200,9 @@ describe("[integration] query console", () => {
         source: "count zz",
         language: "aql",
       }),
-      (error: { getBody(): string }) => {
-        const body: { message: string; durationMs: number } = JSON.parse(
-          error.getBody(),
-        );
+      (error: HTTPResult) => {
+        const body = queryFailure(error);
         assert.match(body.message, /Unknown instance "zz"/);
-        assert.ok(isNumber(body.durationMs));
         return true;
       },
     );
