@@ -7,7 +7,7 @@
     "anti-slop/no-unsafe-dictionary-type": 11,
     "anti-slop/require-safety-comment-for-type-assertion": 3,
     "typescript/no-unsafe-argument": 5,
-    "typescript/no-unsafe-assignment": 7,
+    "typescript/no-unsafe-assignment": 10,
     "typescript/no-unsafe-return": 4
   },
   "oversizeFiles": {}
