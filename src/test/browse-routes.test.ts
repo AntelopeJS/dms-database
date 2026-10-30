@@ -323,7 +323,7 @@ describe("[integration] table routes", () => {
       undefined,
     );
     assert.deepEqual(
-      page.results.map((row: { _id: string }) => row._id),
+      page.results.map<unknown>((row) => row._id),
       ["i2"],
     );
     assert.equal(page.total, 1);

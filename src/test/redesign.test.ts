@@ -245,9 +245,7 @@ describe("[integration] v2 redesign: edits", () => {
         undefined,
         undefined,
       );
-      return JSON.stringify(
-        page.results.find((row: { _id: string }) => row._id === id),
-      );
+      return JSON.stringify(page.results.find((row) => row._id === id));
     };
     const before = await orders.get("o2");
     try {
