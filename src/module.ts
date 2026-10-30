@@ -2,12 +2,9 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { Category, RegisterModule } from "@antelopejs/interface-dms/page";
 import { readCatalogReadout } from "./service/catalog";
+import { isObject, isString } from "./utils/guards";
 
 export const DATABASE_MODULE_ID = "database";
-
-interface PackageManifest {
-  version?: string;
-}
 
 /** The release shown on the catalog tile, read from the published manifest. */
 function readVersion(): string | undefined {
@@ -16,7 +13,10 @@ function readVersion(): string | undefined {
       path.join(__dirname, "../package.json"),
       "utf8",
     );
-    return (JSON.parse(manifest) as PackageManifest).version;
+    const parsed: unknown = JSON.parse(manifest);
+    return isObject(parsed) && "version" in parsed && isString(parsed.version)
+      ? parsed.version
+      : undefined;
   } catch {
     return undefined;
   }

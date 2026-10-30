@@ -30,14 +30,6 @@ function normalizeJsonValue(value: object): JsonValue | undefined {
   }
 }
 
-function sameJson(a: unknown, b: unknown): boolean {
-  try {
-    return JSON.stringify(a) === JSON.stringify(b);
-  } catch {
-    return false;
-  }
-}
-
 /** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
 
@@ -74,7 +66,13 @@ function resolveStructuredValue(
   const normalized = normalizeJsonValue(value);
   if (!isJsonContainer(normalized)) return SKIP_FIELD;
   const before = current[field];
-  if (isObject(before) && sameJson(before, normalized)) return SKIP_FIELD;
+  try {
+    if (
+      isObject(before) &&
+      JSON.stringify(before) === JSON.stringify(normalized)
+    )
+      return SKIP_FIELD;
+  } catch {}
   return normalized;
 }
 
@@ -161,8 +159,8 @@ export function buildEditUpdates(
   current: Record<string, unknown>,
   body: Record<string, unknown>,
   primaryKey: string | undefined,
-): Record<string, unknown> {
-  const updates: Record<string, unknown> = Object.create(null);
+): Record<string, JsonValue | Date> {
+  const updates: Record<string, JsonValue | Date> = Object.create(null);
   for (const [field, value] of Object.entries(body)) {
     const resolved = resolveEditValue(current, field, value, primaryKey);
     if (resolved !== SKIP_FIELD) updates[field] = resolved;

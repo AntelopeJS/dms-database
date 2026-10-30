@@ -56,10 +56,7 @@ export interface BrowseQuery extends BrowseSelection {
  * Free-text search across every cell of a row (case-insensitive substring),
  * mirroring what the table view's search box implies.
  */
-function searchRows(
-  rows: Record<string, unknown>[],
-  search: string,
-): Record<string, unknown>[] {
+function searchRows<Row extends object>(rows: Row[], search: string): Row[] {
   const needle = search.toLowerCase();
   return rows.filter((row) =>
     Object.values(row).some((value) =>
