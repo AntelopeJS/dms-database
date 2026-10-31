@@ -241,7 +241,7 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
     @Parameter("id", "query") idRaw: unknown,
-    @JSONBody() body: JsonValue,
+    @JSONBody() body: JsonValue | undefined,
   ) {
     const selection = resolveSelection(
       isString(schemaFilter) ? schemaFilter : undefined,

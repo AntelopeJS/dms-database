@@ -209,6 +209,12 @@ describe("[integration] browse routes: edits", () => {
       ),
       { status: 400, message: "Invalid request body" },
     );
+    assert.deepEqual(
+      await refusal(
+        controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1", undefined),
+      ),
+      { status: 400, message: "Invalid request body" },
+    );
     assert.deepEqual(await edit("is:alpha", "nothing", { name: "x" }), {
       status: 404,
       message: "Row not found",
