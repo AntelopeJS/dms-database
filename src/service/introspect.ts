@@ -388,7 +388,7 @@ async function summarizeTable(
       fields[name] = withSampled(name, descriptor);
   }
   for (const [column, descriptor] of Object.entries(sampled)) {
-    if (!(column in fields)) fields[column] = descriptor;
+    if (!Object.hasOwn(fields, column)) fields[column] = descriptor;
   }
   for (const name of Object.keys(modifiers)) {
     if (!Object.hasOwn(fields, name)) fields[name] = UNKNOWN_DESCRIPTOR;
