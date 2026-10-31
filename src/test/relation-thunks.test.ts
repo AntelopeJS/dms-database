@@ -60,6 +60,38 @@ class Throwers extends Table {
 
   @Relation({
     to: () => {
+      throw { message: null };
+    },
+  })
+  declare nullMessage: string;
+
+  @Relation({
+    to: () => {
+      throw { message: 5n };
+    },
+  })
+  declare bigMessage: string;
+
+  @Relation({
+    to: () => {
+      throw { message: [1, 2] };
+    },
+  })
+  declare listMessage: string;
+
+  @Relation({
+    to: () => {
+      throw {
+        message: function namedMessage() {
+          return 1;
+        },
+      };
+    },
+  })
+  declare functionMessage: string;
+
+  @Relation({
+    to: () => {
       throw new Error("boom-error");
     },
   })
@@ -102,6 +134,13 @@ describe("a relation whose target thunk throws", () => {
     assert.equal(
       warningFor(logs, "structured"),
       "an object whose message is not a text",
+    );
+    assert.equal(warningFor(logs, "nullMessage"), "null");
+    assert.equal(warningFor(logs, "bigMessage"), "5");
+    assert.equal(warningFor(logs, "listMessage"), "1,2");
+    assert.match(
+      warningFor(logs, "functionMessage") ?? "",
+      /^function namedMessage/,
     );
     assert.equal(warningFor(logs, "error"), "boom-error");
   });
