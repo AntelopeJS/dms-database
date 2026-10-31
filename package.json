@@ -103,13 +103,6 @@
     "@antelopejs/interface-dms-automation": ">=0.2.1 <1.0.0"
   },
   "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "@antelopejs/interface-database": "file:.campaign/tgz/antelopejs-interface-database-6bef278.tgz",
-      "@antelopejs/mongodb": "file:.campaign/tgz/antelopejs-mongodb-07203a7.tgz",
-      "@antelopejs/mongodb>@antelopejs/interface-core": "0.2.4"
-    }
-  },
   "antelopeJs": {
     "baseUrl": "dist",
     "implements": [],

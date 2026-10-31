@@ -4,6 +4,9 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@antelopejs/mongodb>@antelopejs/interface-database': file:.campaign/tgz/antelopejs-interface-database-6bef278.tgz
+
 importers:
 
   .:
