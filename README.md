@@ -61,7 +61,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-api`                 | `>=0.0.15 <1.0.0`                                              | `0.0.15`                                                       |
 | `@antelopejs/interface-api-util`            | `>=0.1.3 <1.0.0`                                               | `0.1.3`                                                        |
 | `@antelopejs/interface-core`                | `>=0.2.4 <1.0.0`                                               | `0.2.4`                                                        |
-| `@antelopejs/interface-database`            | `file:.campaign/tgz/antelopejs-interface-database-4939b45.tgz` | `file:.campaign/tgz/antelopejs-interface-database-4939b45.tgz` |
+| `@antelopejs/interface-database`            | `file:.campaign/tgz/antelopejs-interface-database-6bef278.tgz` | `file:.campaign/tgz/antelopejs-interface-database-6bef278.tgz` |
 | `@antelopejs/interface-database-decorators` | `>=0.1.10 <1.0.0`                                              | `0.1.10`                                                       |
 | `@antelopejs/interface-dms`                 | `>=0.9.0 <1.0.0`                                               | `0.9.0`                                                        |
 | `@antelopejs/interface-dms-automation`      | `>=0.2.1 <1.0.0`                                               | `0.2.1`                                                        |
