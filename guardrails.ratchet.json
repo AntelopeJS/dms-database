@@ -4,9 +4,8 @@
     "anti-slop/no-runtime-typeof": 1,
     "anti-slop/no-unknown-parameters": 5,
     "anti-slop/no-unsafe-dictionary-type": 7,
-    "anti-slop/require-safety-comment-for-type-assertion": 3,
     "typescript/no-unsafe-argument": 4,
-    "typescript/no-unsafe-assignment": 4,
+    "typescript/no-unsafe-assignment": 3,
     "typescript/no-unsafe-return": 3
   },
   "oversizeFiles": {}
