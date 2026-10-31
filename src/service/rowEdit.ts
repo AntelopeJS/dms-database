@@ -23,8 +23,7 @@ const SYNTHETIC_FIELDS = new Set(["_instance"]);
 const READONLY_FIELDS = new Set(["_id"]);
 
 /**
- * `object` is the contract: this round-trips anything non-primitive through
- * JSON.
+ * A JSON object or list is the contract: this round-trips it through JSON.
  */
 function normalizeJsonValue(
   value: JsonObject | JsonValue[],
