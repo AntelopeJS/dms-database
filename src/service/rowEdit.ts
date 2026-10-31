@@ -33,6 +33,9 @@ function normalizeJsonValue(value: object): JsonValue | undefined {
 /** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
 
+/** The stored row as a table of its own columns: a column may be named like an `Object.prototype` member. */
+type StoredRow = ReadonlyMap<string, unknown>;
+
 type EditValue = JsonValue | Date | typeof SKIP_FIELD;
 
 /**
@@ -49,23 +52,22 @@ function isProtectedField(field: string, primaryKey: string | undefined) {
 
 /** `null` clears a cell, which is also how an undo restores an empty one. */
 function resolveClearedValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
 ): null | typeof SKIP_FIELD {
-  return current[field] === null || current[field] === undefined
-    ? SKIP_FIELD
-    : null;
+  const before = current.get(field);
+  return before === null || before === undefined ? SKIP_FIELD : null;
 }
 
 function resolveStructuredValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
   // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and `isObject(value)` narrows the caller's unknown value to exactly that
   value: object,
 ): JsonValue | typeof SKIP_FIELD {
   const normalized = normalizeJsonValue(value);
   if (!isJsonContainer(normalized)) return SKIP_FIELD;
-  const before = current[field];
+  const before = current.get(field);
   try {
     if (
       isObject(before) &&
@@ -112,7 +114,7 @@ function resolveDateValue(
  * really can be named `toString`.
  */
 function resolveEditValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
   value: unknown,
   primaryKey: string | undefined,
@@ -123,7 +125,7 @@ function resolveEditValue(
   if (value === null) return resolveClearedValue(current, field);
   if (isObject(value)) return resolveStructuredValue(current, field, value);
   if (!isWritableScalar(value)) return SKIP_FIELD;
-  const before = current[field];
+  const before = current.get(field);
   if (before instanceof Date) return resolveDateValue(field, before, value);
   if (
     before !== null &&
@@ -160,9 +162,10 @@ export function buildEditUpdates(
   body: Record<string, unknown>,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
+  const stored = new Map(Object.entries(current));
   const updates = Object.fromEntries(
     Object.entries(body).flatMap(([field, value]) => {
-      const resolved = resolveEditValue(current, field, value, primaryKey);
+      const resolved = resolveEditValue(stored, field, value, primaryKey);
       return resolved === SKIP_FIELD ? [] : [[field, resolved]];
     }),
   );
