@@ -26,6 +26,7 @@ import {
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
+import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
 import {
   isNonEmptyString,
@@ -240,7 +241,7 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
     @Parameter("id", "query") idRaw: unknown,
-    @JSONBody() body: Record<string, unknown>,
+    @JSONBody() body: JsonValue,
   ) {
     const selection = resolveSelection(
       isString(schemaFilter) ? schemaFilter : undefined,
