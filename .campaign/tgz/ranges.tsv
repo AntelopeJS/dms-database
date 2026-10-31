@@ -29,3 +29,4 @@
 @antelopejs/interface-dms	playground/package.json	pnpm.overrides	
 @antelopejs/dms	playground/package.json	pnpm.overrides	
 @antelopejs/interface-database	frontend-vue/package.json	pnpm.overrides	
+@antelopejs/interface-database	frontend-vue/package.json	dependencies	>=0.1.11 <1.0.0
