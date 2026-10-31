@@ -62,11 +62,13 @@ function resolveRelations(
       TargetClass = options.to();
     } catch (thrown) {
       let reason: string;
-      if (isRecord(thrown))
-        reason = isString(thrown.message)
-          ? thrown.message
-          : "an object without a message";
-      else reason = String(thrown);
+      if (!isRecord(thrown)) reason = String(thrown);
+      else if (thrown.message === undefined)
+        reason = "an object without a message";
+      else if (isString(thrown.message)) reason = thrown.message;
+      else if (isNumber(thrown.message) || isBoolean(thrown.message))
+        reason = String(thrown.message);
+      else reason = "an object whose message is not a text";
       warnOnce(warnKey, `relation ${warnKey} target thunk threw: ${reason}`);
       continue;
     }

@@ -53,6 +53,13 @@ class Throwers extends Table {
 
   @Relation({
     to: () => {
+      throw { message: { detail: 1 } };
+    },
+  })
+  declare structured: string;
+
+  @Relation({
+    to: () => {
       throw new Error("boom-error");
     },
   })
@@ -92,6 +99,10 @@ describe("a relation whose target thunk throws", () => {
     assert.equal(warningFor(logs, "record"), "plain-object");
     assert.equal(warningFor(logs, "numbered"), "42");
     assert.equal(warningFor(logs, "bare"), "an object without a message");
+    assert.equal(
+      warningFor(logs, "structured"),
+      "an object whose message is not a text",
+    );
     assert.equal(warningFor(logs, "error"), "boom-error");
   });
 });
