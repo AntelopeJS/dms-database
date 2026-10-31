@@ -30,4 +30,27 @@ describe("row edit updates", () => {
     );
     assert.deepEqual(updates.cell, { big: 1 });
   });
+  it("writes an object cell nested a thousand levels deep", () => {
+    interface Nest {
+      c?: Nest;
+    }
+    const cell: Nest = {};
+    let level = cell;
+    for (let depth = 0; depth < 1000; depth++) {
+      const next: Nest = {};
+      level.c = next;
+      level = next;
+    }
+    const updates = buildEditUpdates(stored, { cell }, "_id");
+    assert.equal(JSON.stringify(updates.cell), JSON.stringify(cell));
+  });
+
+  it("skips a cell that is not a JSON value", () => {
+    const updates = buildEditUpdates(
+      stored,
+      { first: () => 1, second: 1n, third: Symbol("s") },
+      "_id",
+    );
+    assert.deepEqual(Object.keys(updates), []);
+  });
 });
