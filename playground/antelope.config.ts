@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { defineConfig } from "@antelopejs/interface-core/config";
 
 const dmsClientUrl = process.env.DMS_CLIENT_BASE_URL;
