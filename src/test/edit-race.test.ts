@@ -63,7 +63,8 @@ describe("[integration] public PUT edit", () => {
         deleted = true;
         await table.get("victim").delete().run();
       }
-      return originalRun.call(this);
+      const answer: unknown = await originalRun.call(this);
+      return answer;
     };
     try {
       const query = new URLSearchParams({
