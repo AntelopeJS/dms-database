@@ -40,8 +40,8 @@ importers:
         specifier: '>=0.9.1 <0.10.0'
         version: 0.9.1(@antelopejs/core@1.17.1)
       '@antelopejs/mongodb':
-        specifier: file:.campaign/tgz/antelopejs-mongodb-5df5db5.tgz
-        version: file:.campaign/tgz/antelopejs-mongodb-5df5db5.tgz(socks@2.8.8)
+        specifier: file:.campaign/tgz/antelopejs-mongodb-995e66f.tgz
+        version: file:.campaign/tgz/antelopejs-mongodb-995e66f.tgz(socks@2.8.8)
       '@antelopejs/tooling-configs':
         specifier: ^0.2.17
         version: 0.2.17(knip@6.34.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))
@@ -212,8 +212,8 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/mongodb@file:.campaign/tgz/antelopejs-mongodb-5df5db5.tgz':
-    resolution: {integrity: sha512-HNjBPWEWLBozokgsYGpwQmI16SiqXT+Jm1zYvyIEWmdBW1Zv6grJiMFljuo6Tl97A0W5FRF0iGLruEsbLbojGA==, tarball: file:.campaign/tgz/antelopejs-mongodb-5df5db5.tgz}
+  '@antelopejs/mongodb@file:.campaign/tgz/antelopejs-mongodb-995e66f.tgz':
+    resolution: {integrity: sha512-UKwXk6oiqn7x5ep5dVsQpql3loSdrzCzE6Ow0onWAPSDfveUtZQV9/64MD4isZU4VEwOau7Q54hruWNihrrqqw==, tarball: file:.campaign/tgz/antelopejs-mongodb-995e66f.tgz}
     version: 1.6.0
 
   '@antelopejs/tooling-configs@0.2.17':
@@ -3125,7 +3125,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/mongodb@file:.campaign/tgz/antelopejs-mongodb-5df5db5.tgz(socks@2.8.8)':
+  '@antelopejs/mongodb@file:.campaign/tgz/antelopejs-mongodb-995e66f.tgz(socks@2.8.8)':
     dependencies:
       '@antelopejs/interface-core': 0.2.6
       '@antelopejs/interface-database': file:.campaign/tgz/antelopejs-interface-database-4939b45.tgz(@antelopejs/interface-core@0.2.6)
