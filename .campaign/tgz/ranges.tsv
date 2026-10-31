@@ -1,2 +1,4 @@
 @antelopejs/interface-database	frontend-vue/package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/interface-database	package.json	dependencies	>=0.1.11 <1.0.0
+@antelopejs/mongodb	package.json	devDependencies	(none)
+@antelopejs/mongodb>@antelopejs/interface-database	pnpm-workspace.yaml	overrides	

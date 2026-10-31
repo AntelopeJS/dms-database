@@ -59,11 +59,7 @@ export default defineConfig({
       },
     },
     mongodb: {
-      source: {
-        type: "package",
-        package: "@antelopejs/mongodb",
-        version: "1.5.0",
-      },
+      source: { type: "local", path: "node_modules/@antelopejs/mongodb" },
     },
     "auth-jwt": {
       source: {
