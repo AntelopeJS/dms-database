@@ -218,7 +218,7 @@ export class DatabaseBrowseController extends Controller(
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
     const table = resolveTable(selection);
-    const row = await table.get(id);
+    const row: unknown = await table.get(id);
     assert(isObject(row), 404, "Row not found");
     return row;
   }
@@ -265,7 +265,7 @@ export class DatabaseBrowseController extends Controller(
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates).run();
       if (changed === 0) {
-        const persisted = await target;
+        const persisted: unknown = await target;
         assert(isObject(persisted), 404, "Row not found");
         return persisted;
       }
