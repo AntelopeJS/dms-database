@@ -20,6 +20,7 @@ import {
   isFunction,
   isNumber,
   isObject,
+  isRecord,
   isString,
 } from "../utils/guards";
 import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
@@ -59,11 +60,15 @@ function resolveRelations(
     let TargetClass: typeof Table;
     try {
       TargetClass = options.to();
-    } catch (err) {
-      warnOnce(
-        warnKey,
-        `relation ${warnKey} target thunk threw: ${(err as Error).message}`,
-      );
+    } catch (thrown) {
+      const message: unknown = isRecord(thrown) ? thrown.message : thrown;
+      let reason: string;
+      if (isRecord(thrown) && message === undefined)
+        reason = "an object without a message";
+      else if (isRecord(thrown) && isRecord(message) && !Array.isArray(message))
+        reason = "an object whose message is not a text";
+      else reason = String(message);
+      warnOnce(warnKey, `relation ${warnKey} target thunk threw: ${reason}`);
       continue;
     }
     if (!isFunction(TargetClass)) {
