@@ -37,7 +37,7 @@ ajs project modules add @antelopejs/dms-database
 
 The module works without configuration. To show the database name on the Overview and label your schemas, add a `config` block:
 
-```ts
+```ts fragment
 // antelope.config.ts
 "dms-database": {
   source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.2.0 <1.0.0" },
@@ -68,14 +68,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 
 <!-- antelopejs-docs-compat:end -->
 
-| Package | Version |
-| --- | --- |
-| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
-| `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
-| `@antelopejs/dms-frontend` (renderer) | `>=0.9.1 <0.10.0` |
-| Database | an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb` |
-
-On DMS 0.10 or earlier, use `@antelopejs/dms-database` 0.3.
+The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range above, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range, and an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb`.
 
 ## Documentation
 
