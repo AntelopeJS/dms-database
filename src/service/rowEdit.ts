@@ -1,5 +1,5 @@
 import { assert } from "@antelopejs/interface-api-util";
-import { isJsonContainer, type JsonValue } from "../types/json";
+import { isJsonContainer, isJsonValue, type JsonValue } from "../types/json";
 import { isBoolean, isObject } from "../utils/guards";
 import { cellToText } from "../utils/query";
 
@@ -24,7 +24,8 @@ const READONLY_FIELDS = new Set(["_id"]);
 // oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because `isObject(value)` narrows the unknown edit value to `object`; a narrower type here would only push an assertion up
 function normalizeJsonValue(value: object): JsonValue | undefined {
   try {
-    return JSON.parse(JSON.stringify(value));
+    const parsed: unknown = JSON.parse(JSON.stringify(value));
+    return isJsonValue(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -78,7 +79,9 @@ function resolveStructuredValue(
   return normalized;
 }
 
-function isWritableScalar(value: unknown): value is string | number | boolean {
+function isWritableScalar(
+  value: JsonValue,
+): value is string | number | boolean {
   if (typeof value === "number") return Number.isFinite(value);
   return typeof value === "string" || typeof value === "boolean";
 }
@@ -116,7 +119,7 @@ function resolveDateValue(
 function resolveEditValue(
   current: StoredRow,
   field: string,
-  value: unknown,
+  value: JsonValue | undefined,
   primaryKey: string | undefined,
 ): EditValue {
   if (value === undefined || isProtectedField(field, primaryKey)) {
@@ -165,7 +168,12 @@ export function buildEditUpdates(
   const stored = new Map(Object.entries(current));
   const updates = Object.fromEntries(
     Object.entries(body).flatMap(([field, value]) => {
-      const resolved = resolveEditValue(stored, field, value, primaryKey);
+      const resolved = resolveEditValue(
+        stored,
+        field,
+        isJsonValue(value) ? value : undefined,
+        primaryKey,
+      );
       return resolved === SKIP_FIELD ? [] : [[field, resolved]];
     }),
   );
