@@ -1,4 +1,5 @@
 import type { Tone } from "@antelopejs/interface-dms/base/types/tone";
+import type { JsonObject } from "../types/json";
 import type { FieldDescriptor } from "./fieldDescriptor";
 
 export type { FieldDescriptor };
@@ -61,7 +62,7 @@ export interface SavedQuery {
   userId: string;
   name: string;
   description: string;
-  query: Record<string, unknown>;
+  query: JsonObject;
   source: string;
   language: QueryLanguage;
   shared: boolean;
@@ -77,7 +78,7 @@ export type QueryRunStatus = "ok" | "error";
 export interface HistoryEntry {
   id: string;
   userId: string;
-  query: Record<string, unknown>;
+  query: JsonObject;
   source: string;
   language: QueryLanguage;
   executedAt: string;

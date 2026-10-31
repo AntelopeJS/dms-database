@@ -5,7 +5,7 @@
     "anti-slop/no-known-value-widening": 1,
     "anti-slop/no-runtime-typeof": 1,
     "anti-slop/no-unknown-parameters": 6,
-    "anti-slop/no-unsafe-dictionary-type": 12,
+    "anti-slop/no-unsafe-dictionary-type": 10,
     "anti-slop/require-safety-comment-for-type-assertion": 4,
     "typescript/no-unsafe-argument": 4,
     "typescript/no-unsafe-assignment": 8,
