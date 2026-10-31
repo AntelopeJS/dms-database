@@ -26,6 +26,7 @@ import {
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
+import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
 import {
   isNonEmptyString,
@@ -218,7 +219,7 @@ export class DatabaseBrowseController extends Controller(
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
     const table = resolveTable(selection);
-    const row = await table.get(id);
+    const row: unknown = await table.get(id);
     assert(isObject(row), 404, "Row not found");
     return row;
   }
@@ -240,7 +241,7 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
     @Parameter("id", "query") idRaw: unknown,
-    @JSONBody() body: Record<string, unknown>,
+    @JSONBody() body: JsonValue | undefined,
   ) {
     const selection = resolveSelection(
       isString(schemaFilter) ? schemaFilter : undefined,
@@ -265,7 +266,7 @@ export class DatabaseBrowseController extends Controller(
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates).run();
       if (changed === 0) {
-        const persisted = await target;
+        const persisted: unknown = await target;
         assert(isObject(persisted), 404, "Row not found");
         return persisted;
       }
