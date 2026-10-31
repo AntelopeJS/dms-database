@@ -10,10 +10,7 @@ import {
   Table,
   ValueProxy,
 } from "@antelopejs/interface-database";
-import {
-  type QueryStage,
-  StagedObject,
-} from "@antelopejs/interface-database/common";
+import { StagedObject } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 import {
   isJsonObjectValue,
@@ -99,11 +96,14 @@ export function decodeStaged(value: JsonValue | undefined): Decoded {
   if (!isJsonObjectValue(value)) return value;
 
   if (isSerializedStaged(value)) {
-    const instance = Reflect.construct(
+    const instance: unknown = Reflect.construct(
       StagedObject,
       [{ stage: "", options: undefined, args: [] }],
       STAGED_CLASSES.get(value.__cls),
     );
+    if (!(instance instanceof StagedObject)) {
+      throw new StagedDecodeError("Malformed query: invalid staged value");
+    }
     return Object.assign(instance, { stages: value.stages.map(decodeStage) });
   }
   if (looksStaged(value)) {
@@ -143,8 +143,15 @@ function decodeStageArg(arg: JsonValue): Decoded {
   return { stage: "func", args: [argIds, decodeStaged(body)] };
 }
 
-function decodeStage(stage: SerializedStage): QueryStage {
-  const decoded: QueryStage = {
+/** A stage as the console sent it, decoded; the driver checks its name, options and arguments. */
+interface DecodedStage {
+  stage: string;
+  options?: Decoded;
+  args: Decoded[];
+}
+
+function decodeStage(stage: SerializedStage): DecodedStage {
+  const decoded: DecodedStage = {
     stage: stage.stage,
     args: stage.args.map(decodeStageArg),
   };

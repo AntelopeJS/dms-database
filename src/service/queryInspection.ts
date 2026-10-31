@@ -4,7 +4,7 @@ import {
   StagedObject,
 } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
-import { isFiniteNumber, isNumber, isString } from "../utils/guards";
+import { isFiniteNumber, isNumber, isObject, isString } from "../utils/guards";
 import { listSchemaInstances } from "./introspect";
 
 const MUTATING_STAGES = ["insert", "update", "replace", "delete"] as const;
@@ -43,7 +43,9 @@ export interface DryRunResult extends QueryTarget {
 function optionId(
   stage: QueryStage | undefined,
 ): string | typeof CROSS_INSTANCE | undefined {
-  const id: unknown = stage?.options?.id;
+  const options = stage?.options;
+  const id: unknown =
+    isObject(options) && "id" in options ? options.id : undefined;
   if (isString(id)) return id;
   return id === CROSS_INSTANCE ? CROSS_INSTANCE : undefined;
 }

@@ -1,5 +1,8 @@
 import { CROSS_INSTANCE } from "@antelopejs/interface-database";
-import { StagedObject } from "@antelopejs/interface-database/common";
+import {
+  type QueryStage,
+  StagedObject,
+} from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 import { isJsonObject, type JsonObject } from "../types/json";
 import { isObject } from "../utils/guards";
@@ -36,6 +39,33 @@ type Wire =
   | Wire[]
   | { [key: string]: Wire };
 
+/** Tells whether a value nested in a stage is one the wire form encodes. */
+function isNode(value: unknown): value is Node {
+  if (
+    value === null ||
+    value === undefined ||
+    value === CROSS_INSTANCE ||
+    value instanceof StagedObject
+  ) {
+    return true;
+  }
+  if (Array.isArray(value)) return value.every(isNode);
+  if (isObject(value)) return Object.values(value).every(isNode);
+  return (
+    typeof value === "string" ||
+    typeof value === "number" ||
+    typeof value === "boolean"
+  );
+}
+
+function encodeStage({ stage, options, args }: QueryStage): Wire {
+  const values: unknown[] = [...args];
+  if (!isNode(options) || !values.every(isNode)) {
+    throw new Error(`stage ${stage} holds a value the wire form cannot encode`);
+  }
+  return encodeNode({ stage, options, args: values });
+}
+
 function encodeNode(node: Node): Wire {
   if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL;
   if (Array.isArray(node)) return node.map(encodeNode);
@@ -45,11 +75,7 @@ function encodeNode(node: Node): Wire {
     if (STAGED_CLASS_NAMES.has(cls)) {
       return {
         __cls: cls,
-        stages: node
-          .build()
-          .map(({ stage, options, args }) =>
-            encodeNode({ stage, options, args }),
-          ),
+        stages: node.build().map(encodeStage),
       };
     }
   }
