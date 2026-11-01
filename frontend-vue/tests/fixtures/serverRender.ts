@@ -57,6 +57,12 @@ vi.stubGlobal('useDmsRoute', engine.useDmsRoute)
 vi.stubGlobal('useDmsRouter', engine.useDmsRouter)
 const { useApiData } = await import('#dms-core/app/composables/auth/useApiData')
 vi.stubGlobal('useApiData', useApiData)
+const { useApiErrorPresenter } =
+	await import('#dms-core/app/composables/useApiErrorPresenter')
+vi.stubGlobal('useApiErrorPresenter', useApiErrorPresenter)
+vi.stubGlobal('getPluginI18n', () => ({
+	i18n: { tm: (key: string) => key, rt: (text: string) => text },
+}))
 // `useFetchAuth`: the former name of `useApiData`.
 vi.stubGlobal('useAuthFetch', () => ({ $authFetch, useFetchAuth: useApiData }))
 vi.stubGlobal('useI18n', () => ({
