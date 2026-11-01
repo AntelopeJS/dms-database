@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antelopejs/interface-database': file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz
+  '@antelopejs/interface-database': file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz
 
 importers:
 
@@ -15,8 +15,8 @@ importers:
         specifier: '>=0.2.4 <1.0.0'
         version: 0.2.4
       '@antelopejs/interface-database':
-        specifier: file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz
-        version: file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz(@antelopejs/interface-core@0.2.4)
+        specifier: file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz
+        version: file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz(@antelopejs/interface-core@0.2.4)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.3
@@ -94,8 +94,8 @@ packages:
   '@antelopejs/interface-core@0.2.4':
     resolution: {integrity: sha512-2qF6/KwahCQvvNuC/piUvPWD4wq2Npmco941HMg2/bMBoJKbhMH16WcXXRvPYznNSkU0U+6vqK6KE+2N5NojSA==}
 
-  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz':
-    resolution: {integrity: sha512-qacJWfgVlDlmRgkAZ9iQJtu1ZD0eZXxisQ8bIvp/ZTayiJUjNMEoyt9tH3o5n2fa4j2xOPnok6ZnhNGlaho6Uw==, tarball: file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz}
+  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz':
+    resolution: {integrity: sha512-rn+0+nTMBje0Wo4Ysg5/HGm/gqreLSyMkuXrsKF+2kAxrNx+5WEzmJHqy3CwJ1SOZr65lb3Yhb/M3CrmXCVYqQ==, tarball: file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz}
     version: 0.3.0
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
@@ -3123,7 +3123,7 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz(@antelopejs/interface-core@0.2.4)':
+  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz(@antelopejs/interface-core@0.2.4)':
     dependencies:
       '@antelopejs/interface-core': 0.2.4
 

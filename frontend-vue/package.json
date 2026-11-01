@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@antelopejs/interface-core": ">=0.2.4 <1.0.0",
-    "@antelopejs/interface-database": ">=0.1.11 <1.0.0",
+    "@antelopejs/interface-database": "file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz",
     "@codemirror/autocomplete": "^6.18.6",
     "@codemirror/commands": "^6.8.1",
     "@codemirror/lang-javascript": "^6.2.4",
@@ -47,7 +47,7 @@
   },
   "pnpm": {
     "overrides": {
-      "@antelopejs/interface-database": "file:../.campaign/tgz/antelopejs-interface-database-8261536.tgz"
+      "@antelopejs/interface-database": "file:../.campaign/tgz/antelopejs-interface-database-02e0360.tgz"
     }
   }
 }
