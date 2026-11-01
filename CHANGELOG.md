@@ -1,5 +1,48 @@
 # Changelog
 
+## v0.4.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.3.1...v0.4.0)
+
+### 🚀 Enhancements
+
+- **frontend:** Enforce the backend boundary in production builds ([#72](https://github.com/AntelopeJS/dms-database/pull/72))
+
+### 🩹 Fixes
+
+- **amp:** Start the dev frontend in the playground, and ignore its build ([#61](https://github.com/AntelopeJS/dms-database/pull/61))
+- **frontend:** Present API errors through the core contract ([#100](https://github.com/AntelopeJS/dms-database/pull/100))
+
+### 💅 Refactors
+
+- Clean up the tests, comments, types and oversize files ([#71](https://github.com/AntelopeJS/dms-database/pull/71))
+- **amp:** Narrow the forwarded location header with a JSDoc type guard ([#74](https://github.com/AntelopeJS/dms-database/pull/74))
+- Clear the residual ratchet findings ([#76](https://github.com/AntelopeJS/dms-database/pull/76))
+
+### 📖 Documentation
+
+- **changelog:** Upgrade notes of dms-database 0.3.1 ([#60](https://github.com/AntelopeJS/dms-database/pull/60))
+- **readme:** Link the DMS in the opening line ([#92](https://github.com/AntelopeJS/dms-database/pull/92))
+- **readme:** Use one Discord invite ([#90](https://github.com/AntelopeJS/dms-database/pull/90))
+
+### 📦 Build
+
+- Adopt the AntelopeJS guardrail pack ([#62](https://github.com/AntelopeJS/dms-database/pull/62))
+- **deps:** Bump @antelopejs/tooling-configs to 0.2.17 ([#75](https://github.com/AntelopeJS/dms-database/pull/75))
+
+### 🏡 Chore
+
+- Configure Renovate with the shared preset ([#63](https://github.com/AntelopeJS/dms-database/pull/63))
+
+### ✅ Tests
+
+- **skills:** Add eval cases for dms-database skills ([#64](https://github.com/AntelopeJS/dms-database/pull/64))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+- Alessandro Aloisio ([@alessaloisio](http://github.com/alessaloisio))
+
 ## v0.3.1
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.3.0...v0.3.1)
