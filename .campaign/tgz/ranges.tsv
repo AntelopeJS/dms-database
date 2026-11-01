@@ -32,3 +32,8 @@
 @antelopejs/interface-database	frontend-vue/package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/interface-dms-automation	package.json	optionalDependencies	>=0.2.1 <1.0.0
 @antelopejs/interface-dms-automation	package.json	pnpm.overrides	
+@antelopejs/dms-frontend	package.json	devDependencies	>=0.9.1 <0.10.0
+@antelopejs/dms-frontend	playground/package.json	devDependencies	>=0.9.1 <0.10.0
+@antelopejs/dms-frontend	playground/package.json	pnpm.overrides	
+@antelopejs/dms-frontend	package.json	pnpm.overrides	
+@antelopejs/dms>@antelopejs/interface-core	playground/package.json	pnpm.overrides	
