@@ -70,12 +70,10 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 
 | Package | Version |
 | --- | --- |
-| `@antelopejs/dms` | `>=0.11.0 <1.0.0` |
+| `@antelopejs/dms` | `>=0.13.1 <1.0.0` |
 | `@antelopejs/interface-dms` | `>=0.9.0 <1.0.0` |
 | `@antelopejs/dms-frontend` (renderer) | `>=0.9.1 <0.10.0` |
 | Database | an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb` |
-
-On DMS 0.10 or earlier, use `@antelopejs/dms-database` 0.3.
 
 ## Documentation
 

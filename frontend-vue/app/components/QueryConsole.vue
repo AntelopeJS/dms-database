@@ -5,6 +5,7 @@ import { useElsewhereInstances } from '../build/composables/useElsewhereInstance
 import { useSessionStorage } from '@vueuse/core'
 import { h } from 'vue'
 import { replaceName, type UnknownKind } from '../build/query/runs'
+import { sqlFailure } from '../build/query/failures'
 import {
 	describeTarget,
 	instanceArgument,
@@ -49,6 +50,7 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const { confirm } = useConfirm()
 const toast = useToast()
+const { presentError } = useApiErrorPresenter()
 const { user } = useDmsUserSession()
 const store = useQueryStore()
 const { schemas, ready: schemasRead } = useDatabaseSchemas()
@@ -127,7 +129,12 @@ async function deleteSaved(query: SavedQuery) {
 		icon: 'i-ph-trash',
 	})
 	if (!confirmed) return
-	await store.deleteSaved(query.id).catch(() => undefined)
+	try {
+		await store.deleteSaved(query.id)
+	} catch (error) {
+		presentError(error, { fallbackKey: 'dms.action_error.generic' })
+		return
+	}
 	if (loadedSaved.value?.id === query.id) loadedSaved.value = null
 	await store.refreshSaved()
 }
@@ -139,28 +146,10 @@ async function clearHistory() {
 		confirmLabel: t('dms_database.query.clear.confirm'),
 		color: 'warning',
 	})
-	if (confirmed) await store.clearHistory().catch(() => undefined)
-}
-
-// --- running ---
-function fetchMessage(error: unknown): string {
-	const { data, message } = (error ?? {}) as {
-		data?: unknown
-		message?: unknown
-	}
-	const inner = (data as { message?: unknown } | null)?.message
-	if (typeof inner === 'string' && inner) return inner
-	if (typeof data === 'string' && data) return data
-	return typeof message === 'string' && message
-		? message
-		: t('dms_database.query.result.failed_title')
-}
-
-/** How long the server ran a failed query, as its error says. */
-function fetchDuration(error: unknown): number | null {
-	const data = (error as { data?: unknown } | null)?.data
-	const duration = (data as { durationMs?: unknown } | null)?.durationMs
-	return typeof duration === 'number' ? duration : null
+	if (confirmed)
+		await store.clearHistory().catch((error: unknown) => {
+			presentError(error, { fallbackKey: 'dms.action_error.generic' })
+		})
 }
 
 // The result keeps naming the previous run's target until the new one lands.
@@ -174,10 +163,11 @@ async function execute(query: Record<string, unknown>, text: string) {
 		void findElsewhere(answer, next)
 	} catch (error) {
 		result.value = null
-		failure.value = {
-			message: fetchMessage(error),
-			durationMs: fetchDuration(error),
-		}
+		failure.value = sqlFailure(error)
+		if (!failure.value)
+			presentError(error, {
+				fallbackKey: 'dms_database.query.result.failed_title',
+			})
 	} finally {
 		target.value = next
 		executing.value = false
@@ -265,10 +255,12 @@ async function guard(query: Record<string, unknown>, text: string) {
 	try {
 		dry = await store.dryRun(query)
 	} catch (error) {
-		return failBeforeRun(text, {
-			message: fetchMessage(error),
-			durationMs: null,
+		const diagnostic = sqlFailure(error)
+		if (diagnostic) return failBeforeRun(text, diagnostic)
+		presentError(error, {
+			fallbackKey: 'dms_database.query.result.failed_title',
 		})
+		return
 	}
 	if (dry.operation === 'read') return execute(query, text)
 	if (isSingleRowUpdate(dry) && skipsSingleUpdates())
@@ -449,10 +441,8 @@ async function confirmSave() {
 		})
 		await store.refreshSaved()
 	} catch (error) {
-		saveError.value =
-			error instanceof Error && !('data' in error)
-				? error.message
-				: fetchMessage(error)
+		if (error instanceof QueryInputError) saveError.value = error.message
+		else presentError(error, { fallbackKey: 'dms_database.query.save.failed' })
 	} finally {
 		saving.value = false
 	}
