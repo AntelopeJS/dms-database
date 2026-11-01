@@ -49,6 +49,7 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const { confirm } = useConfirm()
 const toast = useToast()
+const consumeRefusal = useReadOnlyRefusal()
 const { user } = useDmsUserSession()
 const store = useQueryStore()
 const { schemas, ready: schemasRead } = useDatabaseSchemas()
@@ -174,6 +175,7 @@ async function execute(query: Record<string, unknown>, text: string) {
 		void findElsewhere(answer, next)
 	} catch (error) {
 		result.value = null
+		if (consumeRefusal(error)) return
 		failure.value = {
 			message: fetchMessage(error),
 			durationMs: fetchDuration(error),
@@ -265,6 +267,7 @@ async function guard(query: Record<string, unknown>, text: string) {
 	try {
 		dry = await store.dryRun(query)
 	} catch (error) {
+		if (consumeRefusal(error)) return
 		return failBeforeRun(text, {
 			message: fetchMessage(error),
 			durationMs: null,
@@ -449,6 +452,7 @@ async function confirmSave() {
 		})
 		await store.refreshSaved()
 	} catch (error) {
+		if (consumeRefusal(error)) return
 		saveError.value =
 			error instanceof Error && !('data' in error)
 				? error.message

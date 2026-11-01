@@ -61,6 +61,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 	const { $authFetch } = useAuthFetch()
 	const { confirm } = useConfirm()
 	const toast = useToast()
+	const consumeRefusal = useReadOnlyRefusal()
 	const staged = useStagedEdits()
 	const saving = ref(false)
 	const notice = ref<SaveNotice | null>(null)
@@ -152,7 +153,10 @@ export function useStagedSave(options: StagedSaveOptions) {
 	}
 
 	/** Shows a row written as the server answered it. */
-	function showWritten(tab: BrowserTab, row: Record<string, unknown> | undefined) {
+	function showWritten(
+		tab: BrowserTab,
+		row: Record<string, unknown> | undefined,
+	) {
 		if (row) options.onWritten(tab, row)
 	}
 
@@ -185,6 +189,8 @@ export function useStagedSave(options: StagedSaveOptions) {
 		const nothingSettled =
 			outcome.written.length === 0 && outcome.gone.length === 0
 		if (outcome.error !== null && nothingSettled) throw outcome.error
+		if (outcome.error !== null && consumeRefusal(outcome.error))
+			return undefined
 		if (outcome.error === null && outcome.gone.length === 0) return undefined
 		const details: string[] = []
 		if (outcome.gone.length > 0)
@@ -237,15 +243,16 @@ export function useStagedSave(options: StagedSaveOptions) {
 			// The rows the failure left keep their undo, for a retry.
 			if (here)
 				show({ ...current, state: 'saved', changes: left }, UNDO_WINDOW_MS)
-			toast.add({
-				title: t(
-					'dms_database.data.save.undo_partial',
-					{ count: n(left.length + gone.length) },
-					left.length + gone.length,
-				),
-				description: messageOf(outcome.error),
-				color: 'error',
-			})
+			if (!consumeRefusal(outcome.error))
+				toast.add({
+					title: t(
+						'dms_database.data.save.undo_partial',
+						{ count: n(left.length + gone.length) },
+						left.length + gone.length,
+					),
+					description: messageOf(outcome.error),
+					color: 'error',
+				})
 		} else if (here) {
 			show(
 				restored.length > 0

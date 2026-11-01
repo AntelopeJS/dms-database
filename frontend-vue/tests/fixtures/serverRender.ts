@@ -73,6 +73,7 @@ vi.stubGlobal('useRegionalFormat', () => ({
 vi.stubGlobal('regionalDayKey', regional.regionalDayKey)
 vi.stubGlobal('regionalDayNumber', regional.regionalDayNumber)
 vi.stubGlobal('useToast', () => ({ add: noop }))
+vi.stubGlobal('useReadOnlyRefusal', () => () => false)
 vi.stubGlobal('useConfirm', () => ({ confirm: async () => false }))
 vi.stubGlobal('useDrawer', () => ({ open: noop }))
 vi.stubGlobal('resolveDmsComponent', engine.resolveDmsComponent)

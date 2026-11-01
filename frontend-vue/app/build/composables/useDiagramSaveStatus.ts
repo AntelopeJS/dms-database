@@ -11,13 +11,18 @@ const MINUTE_MS = 60_000
 export function useDiagramSaveStatus(shown: () => DiagramSync | null) {
 	const { t } = useI18n()
 	const toast = useToast()
+	const consumeRefusal = useReadOnlyRefusal()
 	const now = useNow({ interval: MINUTE_MS / 2 })
 	const saveState = ref<SaveStatus>('idle')
 	const savedAt = ref<Date | null>(null)
 
 	/** Shows the save status of the schema shown; a schema left reports a failure. */
 	function statusReporter(owner: DiagramSync) {
-		return (status: SaveStatus) => {
+		return (status: SaveStatus, error?: unknown) => {
+			if (status === 'error' && consumeRefusal(error)) {
+				if (owner === shown()) saveState.value = 'idle'
+				return
+			}
 			if (owner === shown()) {
 				saveState.value = status
 				if (status === 'saved') savedAt.value = new Date()
