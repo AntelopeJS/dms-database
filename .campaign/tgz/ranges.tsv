@@ -18,7 +18,6 @@
 @antelopejs/dms	package.json	devDependencies	>=0.11.0 <1.0.0
 @antelopejs/dms	playground/package.json	dependencies	>=0.11.0 <1.0.0
 @antelopejs/dms	package.json	pnpm.overrides	
-@antelopejs/dms>@antelopejs/interface-core	package.json	pnpm.overrides	
 @antelopejs/interface-api-util	playground/package.json	dependencies	>=0.1.3 <1.0.0
 @antelopejs/interface-data-api	playground/package.json	dependencies	>=0.5.0 <1.0.0
 @antelopejs/interface-api	playground/package.json	pnpm.overrides	
@@ -36,4 +35,12 @@
 @antelopejs/dms-frontend	playground/package.json	devDependencies	>=0.9.1 <0.10.0
 @antelopejs/dms-frontend	playground/package.json	pnpm.overrides	
 @antelopejs/dms-frontend	package.json	pnpm.overrides	
-@antelopejs/dms>@antelopejs/interface-core	playground/package.json	pnpm.overrides	
+@antelopejs/interface-core	package.json	dependencies	>=0.2.4 <1.0.0
+@antelopejs/interface-core	playground/package.json	dependencies	>=0.2.4 <1.0.0
+@antelopejs/interface-core	frontend-vue/package.json	pnpm.overrides	
+@antelopejs/interface-core	playground/package.json	pnpm.overrides	
+@antelopejs/interface-core	package.json	pnpm.overrides	
+@antelopejs/core	package.json	devDependencies	>=1.17.1 <2
+@antelopejs/core	playground/package.json	devDependencies	1.17.1
+@antelopejs/core	playground/package.json	pnpm.overrides	
+@antelopejs/core	package.json	pnpm.overrides	
