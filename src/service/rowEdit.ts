@@ -166,7 +166,7 @@ function resolveEditValue(
  */
 export function buildEditUpdates(
   current: Record<string, unknown>,
-  body: Record<string, unknown>,
+  body: JsonObject,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
   const stored = new Map(Object.entries(current));
