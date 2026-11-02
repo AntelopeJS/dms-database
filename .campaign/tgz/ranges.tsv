@@ -1,6 +1,5 @@
 @antelopejs/interface-database	package.json	dependencies	>=0.1.11 <1.0.0
 @antelopejs/mongodb	package.json	devDependencies	(none)
-@antelopejs/mongodb>@antelopejs/interface-database	pnpm-workspace.yaml	overrides	
 @antelopejs/interface-api	package.json	dependencies	>=0.0.15 <1.0.0
 @antelopejs/interface-api	playground/package.json	dependencies	>=0.0.15 <1.0.0
 @antelopejs/interface-api	package.json	pnpm.overrides	
