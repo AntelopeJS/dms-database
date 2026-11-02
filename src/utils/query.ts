@@ -88,6 +88,7 @@ export function applyFilterToList<T>(
  * non-callable `toString` (the browser is schemaless), which makes even that
  * throw: the cell then reads as empty.
  */
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;

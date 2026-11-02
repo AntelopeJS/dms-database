@@ -2,8 +2,12 @@
   "rules": {
     "anti-slop/no-chained-type-assertions": 0,
     "anti-slop/no-object-parameters": 0,
+    "anti-slop/no-runtime-typeof": 1,
+    "anti-slop/no-unknown-parameters": 4,
+    "anti-slop/no-unsafe-dictionary-type": 5,
     "eslint/max-params": 2,
     "typescript/no-base-to-string": 1,
+    "typescript/no-unsafe-assignment": 1,
     "typescript/unbound-method": 1
   },
   "tsExpectError": 1,

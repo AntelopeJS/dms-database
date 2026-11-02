@@ -140,6 +140,7 @@ function resolveEventTypes(
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
   const schema = Schema.get(schemaId);
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- Schema.get returns a Schema of any, so table() answers Table<any>, and a table-watch trigger names any schema; Schema.get with a record type trades this for dictionary findings and dropping the local only moves the any into the returned feed
   const table: Table<ChangeRow> = schema.instance().table(tableName);
   return table.changes().cursor();
 }

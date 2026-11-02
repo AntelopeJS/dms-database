@@ -106,9 +106,11 @@ export function resolveTable(selection: BrowseSelection) {
  * semantics.
  */
 async function refinePage(
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the rows of a schemaless table carry columns no schema names, so their values are unknown
   sorted: Stream<Record<string, unknown>>,
   query: BrowseQuery,
 ) {
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the rows of a schemaless table carry columns no schema names, so their values are unknown
   const results: Record<string, unknown>[] = [];
   let total = 0;
   for await (const row of sorted) {
@@ -212,9 +214,11 @@ export async function fetchColumns(
  * it in (so a number/boolean column is not silently turned into a string);
  * editability itself does not depend on the type.
  */
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what reports its type
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
   if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the answer is the typeof of the cell, and bigint, symbol and function have no guard that reports them
   return typeof value;
 }

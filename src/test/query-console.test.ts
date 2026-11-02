@@ -138,7 +138,7 @@ describe("[integration] query console", () => {
   it("counts the rows a mutation changed, not the rows it answered", async () => {
     assert.equal(affectedRows(3, 1, true), 3);
     assert.equal(affectedRows(0, 1, true), 0);
-    assert.equal(affectedRows(["a", "b"], 2, true), 2);
+    assert.equal(affectedRows(undefined, 2, true), 2);
     assert.equal(affectedRows(7, 1, false), 1);
 
     const controller = new DatabaseQueryController();

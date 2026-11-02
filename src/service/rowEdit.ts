@@ -165,6 +165,7 @@ function resolveEditValue(
  * object, which would silently drop the edit while reporting success.
  */
 export function buildEditUpdates(
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the current row is read from a schemaless table, so its column values are unknown
   current: Record<string, unknown>,
   body: JsonObject,
   primaryKey: string | undefined,

@@ -45,7 +45,7 @@ import type {
 } from "../types/responses";
 import { MAX_HISTORY_PER_USER } from "../types/constants";
 import { isJsonObject, type JsonObject } from "../types/json";
-import { isObject, isString } from "../utils/guards";
+import { isFiniteNumber, isObject, isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
@@ -187,6 +187,7 @@ function isRow(value: unknown): value is ExecuteResult["rows"][number] {
   return isObject(value) && !Array.isArray(value);
 }
 
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- raw is the unparsed answer of a query the user typed, whose shape no schema describes, and this function is what classifies it into rows
 function normaliseRows(raw: unknown): ExecuteResult["rows"] {
   if (Array.isArray(raw)) {
     const entries: unknown[] = raw;
@@ -278,7 +279,11 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     }
     const durationMs = Date.now() - startedAt;
     const rows = normaliseRows(raw);
-    const rowCount = affectedRows(raw, rows.length, mutation);
+    const rowCount = affectedRows(
+      isFiniteNumber(raw) ? raw : undefined,
+      rows.length,
+      mutation,
+    );
 
     await historyModel.addAndPrune({
       userId: user._id,

@@ -76,6 +76,7 @@ async function countReferences({
 export async function listRowReferences(
   schema: string,
   table: string,
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the row is read from a schemaless table, so its column values are unknown
   row: Record<string, unknown>,
   instance: InstanceId | undefined,
 ): Promise<RowReference[]> {
