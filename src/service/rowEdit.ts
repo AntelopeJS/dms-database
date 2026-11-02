@@ -165,15 +165,14 @@ function resolveEditValue(
  * object, which would silently drop the edit while reporting success.
  */
 export function buildEditUpdates(
-  current: Record<string, unknown>,
+  current: StoredRow,
   body: JsonObject,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
-  const stored = new Map(Object.entries(current));
   const updates = Object.fromEntries(
     Object.entries(body).flatMap(([field, value]) => {
       const resolved = resolveEditValue(
-        stored,
+        current,
         field,
         isJsonValue(value) ? value : undefined,
         primaryKey,

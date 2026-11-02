@@ -92,6 +92,7 @@ export interface HistoryEntry {
 }
 
 export interface ExecuteResult {
+  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the rows a user query answers have columns no schema names, so their values are unknown
   rows: Record<string, unknown>[];
   /** Rows the query answered; above `rows.length` when they were cut. */
   rowCount: number;

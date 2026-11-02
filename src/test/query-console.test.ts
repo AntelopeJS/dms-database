@@ -138,7 +138,7 @@ describe("[integration] query console", () => {
   it("counts the rows a mutation changed, not the rows it answered", async () => {
     assert.equal(affectedRows(3, 1, true), 3);
     assert.equal(affectedRows(0, 1, true), 0);
-    assert.equal(affectedRows(["a", "b"], 2, true), 2);
+    assert.equal(affectedRows(undefined, 2, true), 2);
     assert.equal(affectedRows(7, 1, false), 1);
 
     const controller = new DatabaseQueryController();
@@ -170,6 +170,28 @@ describe("[integration] query console", () => {
     });
     assert.equal(removal.rowCount, 3);
     assert.equal(await tags(INSTANCE).count(), 1);
+  });
+
+  it("counts the rows a mutation answered when it answers no number", async () => {
+    const controller = new DatabaseQueryController();
+    const insert = await controller.execute(USER, {
+      query: encode(
+        tags(INSTANCE).insert([
+          { _id: "t5", label: "extra" },
+          { _id: "t6", label: "extra" },
+        ]),
+      ),
+      source: "insert",
+      language: "aql",
+    });
+    assert.equal(insert.mutation, true);
+    assert.equal(insert.rowCount, 2);
+    assert.equal(insert.rows.length, 2);
+    assert.equal((await lastRun())?.rowCount, 2);
+    await tags(INSTANCE)
+      .filter((row) => row.key("label").eq("extra"))
+      .delete()
+      .run();
   });
 
   it("names an unknown instance instead of answering no row", async () => {

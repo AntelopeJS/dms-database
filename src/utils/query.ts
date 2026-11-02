@@ -65,9 +65,9 @@ const FILTER_PREDICATES = new Map([
   ],
 ]);
 
-export function applyFilterToList<T>(
+export function applyFilterToList<T extends object>(
   rows: T[],
-  field: keyof T,
+  field: string,
   rawFilter: string,
 ): T[] {
   const parsed = parseFilter(rawFilter);
@@ -75,7 +75,10 @@ export function applyFilterToList<T>(
   const predicate = FILTER_PREDICATES.get(parsed.mode);
   if (!predicate) return rows;
   return rows.filter((row) =>
-    predicate(String(row[field] ?? ""), parsed.value),
+    predicate(
+      String(Object.getOwnPropertyDescriptor(row, field)?.value ?? ""),
+      parsed.value,
+    ),
   );
 }
 
@@ -88,6 +91,7 @@ export function applyFilterToList<T>(
  * non-callable `toString` (the browser is schemaless), which makes even that
  * throw: the cell then reads as empty.
  */
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;

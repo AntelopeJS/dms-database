@@ -197,7 +197,7 @@ export class DatabaseBrowseController extends Controller(
     const items = await listRowReferences(
       selection.schema,
       selection.table,
-      row,
+      new Map(Object.entries(row)),
       selection.instance,
     );
     return { items };
@@ -262,7 +262,11 @@ export class DatabaseBrowseController extends Controller(
     const existing: unknown = await target;
     assert(isRecord(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
-    const updates = buildEditUpdates(existing, body, primaryKey);
+    const updates = buildEditUpdates(
+      new Map(Object.entries(existing)),
+      body,
+      primaryKey,
+    );
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates).run();
       if (changed === 0) {

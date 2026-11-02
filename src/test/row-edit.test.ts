@@ -3,7 +3,9 @@ import { buildEditUpdates } from "../service/rowEdit";
 import type { JsonObject } from "../types/json";
 
 describe("row edit updates", () => {
-  const stored = { _id: "r1", cell: { name: "a", tags: ["x"] } };
+  const stored = new Map(
+    Object.entries({ _id: "r1", cell: { name: "a", tags: ["x"] } }),
+  );
 
   it("skips an object cell echoed back unchanged", () => {
     const updates = buildEditUpdates(
@@ -25,7 +27,7 @@ describe("row edit updates", () => {
 
   it("writes an object cell when the stored one cannot be serialised", () => {
     const updates = buildEditUpdates(
-      { _id: "r1", cell: { big: 1n } },
+      new Map(Object.entries({ _id: "r1", cell: { big: 1n } })),
       { cell: { big: 1 } },
       "_id",
     );

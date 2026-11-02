@@ -152,6 +152,7 @@ function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
 }
 
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what types it
 function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };

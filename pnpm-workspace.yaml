@@ -1,4 +1,2 @@
 packages:
   - frontend-vue
-overrides:
-  "@antelopejs/mongodb>@antelopejs/interface-database": "file:.campaign/tgz/antelopejs-interface-database-02e0360.tgz"

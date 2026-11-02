@@ -76,7 +76,7 @@ async function countReferences({
 export async function listRowReferences(
   schema: string,
   table: string,
-  row: Record<string, unknown>,
+  row: ReadonlyMap<string, unknown>,
   instance: InstanceId | undefined,
 ): Promise<RowReference[]> {
   const relations = await listInboundRelations(schema, table);
@@ -88,9 +88,7 @@ export async function listRowReferences(
       many: relation.many,
       count: await countReferences({
         relation,
-        value: Object.hasOwn(row, relation.toField)
-          ? row[relation.toField]
-          : undefined,
+        value: row.get(relation.toField),
         instance,
       }),
     })),

@@ -153,7 +153,7 @@ describe("[integration] v2 redesign: browsing", () => {
     const [orders] = await listRowReferences(
       SCHEMA,
       "customers",
-      { _id: "c1" },
+      new Map(Object.entries({ _id: "c1" })),
       INSTANCE,
     );
     assert.deepEqual(orders, {

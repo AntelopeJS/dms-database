@@ -1,5 +1,14 @@
-import type { FieldType } from "@antelopejs/interface-database/schema";
-import { isBoolean, isNumber, isObject, isString } from "../utils/guards";
+import type {
+  FieldType,
+  StringFieldType,
+} from "@antelopejs/interface-database/schema";
+import {
+  isBoolean,
+  isNumber,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 
 export type FieldDescriptor =
   | { kind: "string" }
@@ -176,6 +185,13 @@ const STRING_FIELD_DESCRIPTORS = new Map<string, () => FieldDescriptor>([
   ["unknown", () => ({ kind: "unknown" })],
 ]);
 
+/** Whether `value` is a string field type: a string, or an array or record of them. */
+function isStringFieldType(value: unknown): value is StringFieldType {
+  if (isString(value)) return true;
+  if (Array.isArray(value)) return value.every(isStringFieldType);
+  return isRecord(value) && Object.values(value).every(isStringFieldType);
+}
+
 export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
   if (isString(value)) {
     const build = STRING_FIELD_DESCRIPTORS.get(value);
@@ -190,7 +206,9 @@ export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
   if (isObject(value)) {
     const fields: Record<string, FieldDescriptor> = {};
     for (const [name, sub] of Object.entries(value)) {
-      fields[name] = stringFieldTypeToDescriptor(sub);
+      fields[name] = isStringFieldType(sub)
+        ? stringFieldTypeToDescriptor(sub)
+        : { kind: "unknown" };
     }
     return { kind: "object", fields };
   }

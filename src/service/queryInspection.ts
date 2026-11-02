@@ -4,7 +4,7 @@ import {
   StagedObject,
 } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
-import { isFiniteNumber, isNumber, isObject, isString } from "../utils/guards";
+import { isNumber, isObject, isString } from "../utils/guards";
 import { listSchemaInstances } from "./introspect";
 
 const MUTATING_STAGES = ["insert", "update", "replace", "delete"] as const;
@@ -176,9 +176,9 @@ export async function describeUnknownQueryTarget(
  * number of rows they touched, not rows.
  */
 export function affectedRows(
-  raw: unknown,
+  answered: number | undefined,
   rows: number,
   mutation: boolean,
 ): number {
-  return mutation && isFiniteNumber(raw) ? raw : rows;
+  return mutation && answered !== undefined ? answered : rows;
 }
