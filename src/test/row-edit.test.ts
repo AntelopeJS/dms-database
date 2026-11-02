@@ -1,5 +1,6 @@
 import { strict as assert } from "node:assert";
 import { buildEditUpdates } from "../service/rowEdit";
+import type { JsonObject } from "../types/json";
 
 describe("row edit updates", () => {
   const stored = { _id: "r1", cell: { name: "a", tags: ["x"] } };
@@ -31,14 +32,11 @@ describe("row edit updates", () => {
     assert.deepEqual(updates.cell, { big: 1 });
   });
   it("writes an object cell nested a thousand levels deep", () => {
-    interface Nest {
-      c?: Nest;
-    }
-    const cell: Nest = {};
+    const cell: JsonObject = {};
     let level = cell;
     for (let depth = 0; depth < 1000; depth++) {
-      const next: Nest = {};
-      level.c = next;
+      const next: JsonObject = {};
+      level["c"] = next;
       level = next;
     }
     const updates = buildEditUpdates(stored, { cell }, "_id");
@@ -48,6 +46,7 @@ describe("row edit updates", () => {
   it("skips a cell that is not a JSON value", () => {
     const updates = buildEditUpdates(
       stored,
+      // @ts-expect-error off-contract cells (a function, a bigint, a symbol) are not JSON values, and the update set must skip them
       { first: () => 1, second: 1n, third: Symbol("s") },
       "_id",
     );

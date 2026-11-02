@@ -80,7 +80,14 @@ function encodeNode(node: Node): Wire {
     }
   }
   return Object.fromEntries(
-    Object.entries(node).map(([key, value]) => [key, encodeNode(value)]),
+    Object.entries(node).map(([key, value]: [string, unknown]) => {
+      if (!isNode(value)) {
+        throw new Error(
+          `member ${key} holds a value the wire form cannot encode`,
+        );
+      }
+      return [key, encodeNode(value)];
+    }),
   );
 }
 
