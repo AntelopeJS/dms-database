@@ -33,8 +33,26 @@ describe("filter modes named like Object.prototype members", () => {
   }
 });
 
+describe("filter columns named like Object.prototype members", () => {
+  const rows = [{ a: "foo" }, { a: "bar" }];
+
+  for (const name of PROTOTYPE_NAMES) {
+    it(`reads the absent column '${name}' as empty`, () => {
+      assert.deepEqual(applyFilterToList(rows, name, "contains:function"), []);
+      assert.deepEqual(applyFilterToList(rows, name, "is:"), rows);
+    });
+  }
+
+  it("reads an own column named like a prototype member", () => {
+    const own = [{ constructor: "kept" }, { constructor: "other" }];
+    assert.deepEqual(applyFilterToList(own, "constructor", "is:kept"), [
+      own[0],
+    ]);
+  });
+});
+
 describe("edits of fields named like Object.prototype members", () => {
-  const row = { _id: "r1", name: "a" };
+  const row = new Map(Object.entries({ _id: "r1", name: "a" }));
 
   for (const name of PROTOTYPE_NAMES) {
     it(`skips a null over the absent cell '${name}'`, () => {

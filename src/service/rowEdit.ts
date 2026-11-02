@@ -165,16 +165,14 @@ function resolveEditValue(
  * object, which would silently drop the edit while reporting success.
  */
 export function buildEditUpdates(
-  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the current row is read from a schemaless table, so its column values are unknown
-  current: Record<string, unknown>,
+  current: StoredRow,
   body: JsonObject,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
-  const stored = new Map(Object.entries(current));
   const updates = Object.fromEntries(
     Object.entries(body).flatMap(([field, value]) => {
       const resolved = resolveEditValue(
-        stored,
+        current,
         field,
         isJsonValue(value) ? value : undefined,
         primaryKey,

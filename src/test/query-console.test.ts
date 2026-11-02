@@ -172,6 +172,28 @@ describe("[integration] query console", () => {
     assert.equal(await tags(INSTANCE).count(), 1);
   });
 
+  it("counts the rows a mutation answered when it answers no number", async () => {
+    const controller = new DatabaseQueryController();
+    const insert = await controller.execute(USER, {
+      query: encode(
+        tags(INSTANCE).insert([
+          { _id: "t5", label: "extra" },
+          { _id: "t6", label: "extra" },
+        ]),
+      ),
+      source: "insert",
+      language: "aql",
+    });
+    assert.equal(insert.mutation, true);
+    assert.equal(insert.rowCount, 2);
+    assert.equal(insert.rows.length, 2);
+    assert.equal((await lastRun())?.rowCount, 2);
+    await tags(INSTANCE)
+      .filter((row) => row.key("label").eq("extra"))
+      .delete()
+      .run();
+  });
+
   it("names an unknown instance instead of answering no row", async () => {
     assert.equal(
       await describeUnknownQueryTarget(readQueryTarget(tags(INSTANCE))),

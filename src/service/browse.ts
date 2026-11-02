@@ -105,13 +105,11 @@ export function resolveTable(selection: BrowseSelection) {
  * Arbitrary JSON stringification and Unicode matching must retain JS
  * semantics.
  */
-async function refinePage(
-  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the rows of a schemaless table carry columns no schema names, so their values are unknown
-  sorted: Stream<Record<string, unknown>>,
+async function refinePage<Row extends object>(
+  sorted: Stream<Row>,
   query: BrowseQuery,
 ) {
-  // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- the rows of a schemaless table carry columns no schema names, so their values are unknown
-  const results: Record<string, unknown>[] = [];
+  const results: Row[] = [];
   let total = 0;
   for await (const row of sorted) {
     let matches = [row];
@@ -219,6 +217,6 @@ function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
   if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
-  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the answer is the typeof of the cell, and bigint, symbol and function have no guard that reports them
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the grid labels are the typeof vocabulary itself, and Antony decided on 2026-10-30 to keep typeof here rather than rebuild it from one guard per label
   return typeof value;
 }
