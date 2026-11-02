@@ -1,15 +1,14 @@
 import { strict as assert } from "node:assert";
-import type { FieldType } from "@antelopejs/interface-database/schema";
 import { toFieldDescriptor } from "../service/fieldDescriptor";
 
-const untaggedCodec: FieldType = {
+const untaggedCodec = {
   _A: undefined,
   _O: undefined,
   _I: undefined,
   name: "Untagged",
   is: () => true,
   encode: () => undefined,
-  decode: () => ({ _tag: "Right" }),
+  decode: () => ({ _tag: "Right" as const }),
 };
 
 describe("the field descriptors of a schema", () => {
@@ -36,6 +35,23 @@ describe("the field descriptors of a schema", () => {
     });
     assert.deepEqual(descriptor.kind === "object" && descriptor.fields._A, {
       kind: "unknown",
+    });
+  });
+
+  it("describes a property of an untagged codec that holds a non-string leaf as unknown", () => {
+    const codec = {
+      ...untaggedCodec,
+      mixed: ["string", () => 1],
+      plain: ["string", "date"],
+    };
+    const descriptor = toFieldDescriptor(codec);
+    assert.equal(descriptor.kind, "object");
+    assert.deepEqual(descriptor.kind === "object" && descriptor.fields.mixed, {
+      kind: "unknown",
+    });
+    assert.deepEqual(descriptor.kind === "object" && descriptor.fields.plain, {
+      kind: "array",
+      element: { kind: "string" },
     });
   });
 });
