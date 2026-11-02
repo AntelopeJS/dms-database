@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  '@antelopejs/interface-database': file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz
+  '@antelopejs/interface-database': file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz
   '@antelopejs/interface-core': file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
 
 importers:
@@ -16,8 +16,8 @@ importers:
         specifier: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
         version: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
       '@antelopejs/interface-database':
-        specifier: file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz
-        version: file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)
+        specifier: file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz
+        version: file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.3
@@ -96,8 +96,8 @@ packages:
     resolution: {integrity: sha512-ur2KLvtD8h4SCZ0VSoQDc1pg+E9Bk/py3EW3qHHdoo3i6RvKWrrDKsX2khVdqQESuF2QMc1sJ6B+7ISjx5TvpQ==, tarball: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz}
     version: 0.4.0
 
-  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz':
-    resolution: {integrity: sha512-LQfswS9Ps3MPg+4UoMxL27N5k4qamfioeeAvnMF9f56SRY4WbKiNGKhxFwuzqSQirNK39akvFSxiFdj64n2Ilg==, tarball: file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz}
+  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz':
+    resolution: {integrity: sha512-LQfswS9Ps3MPg+4UoMxL27N5k4qamfioeeAvnMF9f56SRY4WbKiNGKhxFwuzqSQirNK39akvFSxiFdj64n2Ilg==, tarball: file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz}
     version: 0.3.0
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
@@ -3125,7 +3125,7 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)':
+  '@antelopejs/interface-database@file:../.campaign/tgz/antelopejs-interface-database-e533a2f.tgz(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)':
     dependencies:
       '@antelopejs/interface-core': file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
 

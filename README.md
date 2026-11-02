@@ -61,7 +61,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-api`                 | `file:.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz`                 | `file:.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz`                 |
 | `@antelopejs/interface-api-util`            | `file:.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz`            | `file:.campaign/tgz/antelopejs-interface-api-util-639f38b.tgz`            |
 | `@antelopejs/interface-core`                | `file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                | `file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                |
-| `@antelopejs/interface-database`            | `file:.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz`            | `file:.campaign/tgz/antelopejs-interface-database-85eaeeb.tgz`            |
+| `@antelopejs/interface-database`            | `file:.campaign/tgz/antelopejs-interface-database-e533a2f.tgz`            | `file:.campaign/tgz/antelopejs-interface-database-e533a2f.tgz`            |
 | `@antelopejs/interface-database-decorators` | `file:.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` | `file:.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` |
 | `@antelopejs/interface-dms`                 | `file:.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz`                 | `file:.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz`                 |
 | `@antelopejs/interface-dms-automation`      | `file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz`      | `file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz`      |
