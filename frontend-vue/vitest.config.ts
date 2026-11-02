@@ -32,6 +32,8 @@ export default defineConfig({
 		// Still Node, but the components compiled for a browser (a client
 		// `render`, not the server's `ssrRender`): what a client navigation
 		// mounts.
-		testTransformMode: { web: ['**/clientNavigation.test.ts'] },
+		testTransformMode: {
+			web: ['**/clientNavigation.test.ts', '**/apiErrorPresentation.test.ts'],
+		},
 	},
 })
