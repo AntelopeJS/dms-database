@@ -325,9 +325,11 @@ function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
   for (const name of Object.keys(modifierMeta.fields ?? {})) push(name);
 
   const types: Record<string, FieldDescriptor> = {};
+  const prototype: unknown = TableClass.prototype;
   for (const name of ordered) {
+    if (!isObject(prototype)) break;
     const describe = DESIGN_TYPE_DESCRIPTORS.get(
-      Reflect.getMetadata("design:type", TableClass.prototype, name),
+      Reflect.getMetadata("design:type", prototype, name),
     );
     if (describe) types[name] = describe();
   }
