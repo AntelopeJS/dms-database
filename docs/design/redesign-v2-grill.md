@@ -1,6 +1,12 @@
-# dms-database v2 redesign: self-answered grill session
+---
+title: DMS Database v2 redesign decisions
+description: The dated decision log of the self-answered grill session behind the v2 redesign of the DMS Database console.
+mode: explanation
+---
 
-This is the decision log behind the pull request that ports dms-database to
+This log records the decisions as they were taken at the time. The module docs describe current behaviour.
+
+This is the decision log behind the pull request that ports `dms-database` to
 `dms` 0.6 / `interface-dms` 0.4 /
 `dms-frontend` 0.5 and to the v2 design mockup
 (`modules/database/*` and its UX review, findings D-01 to D-17).
@@ -26,7 +32,7 @@ from 0.1.1, and in the playground `mongodb` in the 1.4 line from 1.4.2 (required
 DMS 0.6 for `$`-prefixed strings) and `api` in the 1.3 line from 1.3.3. The other
 interfaces are already on their latest release.
 
-**Q2. Which breaking changes of interface-dms 0.4 touch this module?**
+**Q2. Which breaking changes of `interface-dms` 0.4 touch this module?**
 Read against the migration guide, only a handful do. The module has no
 `TableView` over a data controller, no `Form`, no settings page and no
 notification, so the table-view, form, settings and notification sections do
@@ -39,7 +45,7 @@ not apply. What applies:
   `DmsKpiCard`, `DmsStatusSummary`, `DmsActivityItem`, `DmsSegmented`,
   `DmsFlowCanvas` and `DmsChart`, which all stay public.
 
-**Q3. And the breaking changes of dms-frontend 0.4 / 0.5?**
+**Q3. And the breaking changes of `dms-frontend` 0.4 / 0.5?**
 Both apply and both break the layer today (`ajs dms verify-source` reports 60
 type errors on `main` once the DMS is bumped):
 - 0.4 auto-imports nothing from a module without `dms.frontend.build.ts`. The
@@ -82,7 +88,7 @@ ids may become grantable. Writing them now costs nothing and keeps every
 position named in both locales. The routes keep `@AuthOwnerOnly()`: modules are
 owner-only administration spaces by convention.
 
-## 3. Overview (D-01, D-08)
+## 3. Overview (`D-01`, `D-08`)
 
 **Q8. Which blocks build the overview?**
 Top to bottom, following `modules/database/index.html`:
@@ -94,7 +100,7 @@ Top to bottom, following `modules/database/index.html`:
 3. A custom `DmsDatabaseConnectionStatus` around the public `DmsStatusSummary`:
    connection, probe latency, tables in N schemas, rows, indexes, with the
    driver label and "checked N s ago". There is no status block in
-   interface-dms, so this is the one custom piece. The dead "Pool" metric and
+   `interface-dms`, so this is the one custom piece. The dead "Pool" metric and
    the duplicated KPI row are dropped (D-08).
 4. A `Section` "Schemas" (bare) holding a `NavCardGrid` fed by
    `GET /api/database/overview/schemas`: one card per schema with its label,
@@ -118,7 +124,7 @@ success was. The health route already probes; it now also returns the probe
 error message. The data pages are not paused: each one shows its own load
 error with a retry.
 
-## 4. Schemas (D-06, D-07)
+## 4. Schemas (`D-06`, `D-07`)
 
 **Q11. Is the schema list still a custom table?**
 No. It is a `TableView.fromSource` over a new
@@ -159,10 +165,10 @@ Diagram) are custom row actions with page targets interpolating `{schema}` and
 From the introspected relations of every schema, reversed. The inspector gets
 them from `GET /api/database/schemas` like the rest of its data.
 
-## 5. Diagram (D-09, D-10)
+## 5. Diagram (`D-09`, `D-10`)
 
 **Q15. Does the diagram stay on DmsFlowCanvas?**
-Yes, it is the DMS's flow wrapper and dms-database is already its documented
+Yes, it is the DMS's flow wrapper and `dms-database` is already its documented
 consumer. The page is a custom `DmsDatabaseSchemaDiagram` with a schema picker
 in its toolbar (deep link `?schema=`).
 
@@ -182,7 +188,7 @@ Per schema, shared by the team, as today (the mockup says "your layout is saved
 for the whole team"). The review's backend note about per-user layouts is not
 taken: nothing asks for it.
 
-## 6. Data browser (D-02, D-04, D-05, D-14, D-15)
+## 6. Data browser (`D-02`, `D-04`, `D-05`, `D-14`, `D-15`)
 
 **Q18. Can the data browser become a TableView?**
 No. Its rows come from any registered table with columns discovered at run
@@ -224,7 +230,7 @@ First visit: "Pick a table to browse" with the recently opened tables. No
 match: Clear filters / Search all instances. Load error: Try again, with the
 error text. All drawn with the public `DmsEmptyState`.
 
-## 7. Query console (D-03, D-11, D-12, D-13)
+## 7. Query console (`D-03`, `D-11`, `D-12`, `D-13`)
 
 **Q25. What does the mutation guard become (D-03)?**
 It runs a dry run first. A new `POST /api/database/query/dry-run` decodes the
