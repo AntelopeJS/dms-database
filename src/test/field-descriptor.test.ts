@@ -54,4 +54,27 @@ describe("the field descriptors of a schema", () => {
       element: { kind: "string" },
     });
   });
+
+  it("describes a record property of an untagged codec by its leaves", () => {
+    const codec = {
+      ...untaggedCodec,
+      badRecord: { a: "string", b: () => 1 },
+      goodRecord: { a: "string", b: "date" },
+    };
+    const descriptor = toFieldDescriptor(codec);
+    assert.equal(descriptor.kind, "object");
+    assert.deepEqual(
+      descriptor.kind === "object" && descriptor.fields.badRecord,
+      {
+        kind: "unknown",
+      },
+    );
+    assert.deepEqual(
+      descriptor.kind === "object" && descriptor.fields.goodRecord,
+      {
+        kind: "object",
+        fields: { a: { kind: "string" }, b: { kind: "date" } },
+      },
+    );
+  });
 });
