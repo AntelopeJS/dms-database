@@ -76,7 +76,7 @@
   },
   "devDependencies": {
     "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz",
-    "@antelopejs/dms": ">=0.13.1 <1.0.0",
+    "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-4358eef.tgz",
     "@antelopejs/dms-frontend": "file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz",
     "@antelopejs/interface-data-api": "file:.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz",
     "@antelopejs/mongodb": "file:.campaign/tgz/antelopejs-mongodb-db4b449.tgz",
@@ -113,7 +113,8 @@
       "@antelopejs/interface-dms-automation": "file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz",
       "@antelopejs/dms-frontend": "file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz",
       "@antelopejs/interface-core": "file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz",
-      "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz"
+      "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz",
+      "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-4358eef.tgz"
     }
   },
   "antelopeJs": {

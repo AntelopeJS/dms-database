@@ -15,6 +15,7 @@ overrides:
   '@antelopejs/dms-frontend': file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz
   '@antelopejs/interface-core': file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz
   '@antelopejs/core': file:.campaign/tgz/antelopejs-core-184eb90.tgz
+  '@antelopejs/dms': file:.campaign/tgz/antelopejs-dms-4358eef.tgz
 
 importers:
 
@@ -43,8 +44,8 @@ importers:
         specifier: file:.campaign/tgz/antelopejs-core-184eb90.tgz
         version: file:.campaign/tgz/antelopejs-core-184eb90.tgz
       '@antelopejs/dms':
-        specifier: '>=0.13.1 <1.0.0'
-        version: 0.14.0(@antelopejs/core@file:.campaign/tgz/antelopejs-core-184eb90.tgz)
+        specifier: file:.campaign/tgz/antelopejs-dms-4358eef.tgz
+        version: file:.campaign/tgz/antelopejs-dms-4358eef.tgz(@antelopejs/core@file:.campaign/tgz/antelopejs-core-184eb90.tgz)
       '@antelopejs/dms-frontend':
         specifier: file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz
         version: file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz(@antelopejs/core@file:.campaign/tgz/antelopejs-core-184eb90.tgz)
@@ -129,9 +130,9 @@ packages:
     peerDependencies:
       '@antelopejs/core': '>=1.16.0 <2'
 
-  '@antelopejs/dms@0.14.0':
-    resolution: {integrity: sha512-XbJHl3hqRjRR56yKO28Sxf/Htl2Qb6fDShyD+P9TBRM8dSK3BGzWznOH+7oIEzO0V6fwOw081rgQZsh3eQEBQA==}
-    version: 0.14.0
+  '@antelopejs/dms@file:.campaign/tgz/antelopejs-dms-4358eef.tgz':
+    resolution: {integrity: sha512-+F7pmg8jRc0v2KteDXyc0OFxkWkGQwPA0cL5xUGLZ3WCP/j08426GGdXCG8hIoRojpM+logtsfmDbAel1NB2xw==, tarball: file:.campaign/tgz/antelopejs-dms-4358eef.tgz}
+    version: 0.15.0
     hasBin: true
     peerDependencies:
       '@antelopejs/core': '>=1.17.0 <2'
@@ -2962,7 +2963,7 @@ snapshots:
       '@oxc-parser/binding-linux-x64-gnu': 0.95.0
       '@oxc-parser/binding-win32-x64-msvc': 0.95.0
 
-  '@antelopejs/dms@0.14.0(@antelopejs/core@file:.campaign/tgz/antelopejs-core-184eb90.tgz)':
+  '@antelopejs/dms@file:.campaign/tgz/antelopejs-dms-4358eef.tgz(@antelopejs/core@file:.campaign/tgz/antelopejs-core-184eb90.tgz)':
     dependencies:
       2fa: 0.1.2
       '@antelopejs/interface-api': file:.campaign/tgz/antelopejs-interface-api-f2a99b5.tgz(@antelopejs/interface-core@file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz)
