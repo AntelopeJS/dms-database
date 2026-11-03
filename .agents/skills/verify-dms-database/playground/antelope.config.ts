@@ -79,11 +79,7 @@ export default defineConfig({
       },
     },
     mongodb: {
-      source: {
-        type: "package",
-        package: "@antelopejs/mongodb",
-        version: "^1.5.0",
-      },
+      source: { type: "local", path: "../../../../node_modules/@antelopejs/mongodb" },
       config: {
         url: process.env.MONGO_URL ?? "mongodb://localhost:27017",
         database: process.env.MONGO_DATABASE ?? "verify_dms_database",
