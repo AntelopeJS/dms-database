@@ -82,6 +82,66 @@ export async function nodes(tab) {
 }
 
 /**
+ * The notes the canvas draws.
+ *
+ * @param {Tab} tab The tab
+ * @returns {Promise<{ id: string, x: number, y: number, width: number, height: number, text: string, editing: boolean }[]>} The notes
+ */
+export async function notesOnCanvas(tab) {
+  return tab.page.evaluate(() =>
+    [...document.querySelectorAll(".vue-flow__node-noteNode")].map((element) => {
+      const match = /translate\(\s*(-?[\d.]+)px\s*,\s*(-?[\d.]+)px\s*\)/.exec(element instanceof HTMLElement ? element.style.transform : "");
+      const field = element.querySelector("textarea");
+      const body = element.querySelector("div.cursor-text");
+      return {
+        id: element.getAttribute("data-id") ?? "",
+        x: Number(match?.[1] ?? 0),
+        y: Number(match?.[2] ?? 0),
+        width: element instanceof HTMLElement ? element.offsetWidth : 0,
+        height: element instanceof HTMLElement ? element.offsetHeight : 0,
+        text: field ? field.value : (body?.classList.contains("text-dimmed") ? "" : (body?.textContent ?? "").trim()),
+        editing: field !== null,
+      };
+    }),
+  );
+}
+
+/**
+ * Polls the canvas notes until `done` holds, and returns the last reading.
+ *
+ * @param {Tab} tab The tab
+ * @param {(notes: Awaited<ReturnType<typeof notesOnCanvas>>) => boolean} done Whether the notes are the awaited ones
+ * @returns {Promise<Awaited<ReturnType<typeof notesOnCanvas>>>} The notes read last
+ */
+export async function notesUntil(tab, done) {
+  const deadline = Date.now() + WAIT_MS;
+  let notes = await notesOnCanvas(tab);
+  while (!done(notes) && Date.now() < deadline) {
+    await tab.page.waitForTimeout(POLL_MS);
+    notes = await notesOnCanvas(tab);
+  }
+  return notes;
+}
+
+/**
+ * Polls the notes API until `done` holds for the schema's notes.
+ *
+ * @param {Ctx} ctx The journey
+ * @param {string} schema The schema
+ * @param {(notes: import("../../database.mjs").Row[]) => boolean} done Whether they are the awaited ones
+ * @returns {Promise<import("../../database.mjs").Row[]>} The notes read last
+ */
+export async function savedNotesUntil(ctx, schema, done) {
+  const deadline = Date.now() + WAIT_MS;
+  let notes = await savedNotes(ctx, schema, `poll the notes of ${schema}`);
+  while (!done(notes) && Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    notes = await savedNotes(ctx, schema, `poll the notes of ${schema}`);
+  }
+  return notes;
+}
+
+/**
  * @param {Tab} tab The tab
  * @returns {Promise<Node[]>} The table nodes only
  */
