@@ -3,7 +3,8 @@ import { check, db, isRow, list, pick, text } from "../../database.mjs";
 /**
  * @typedef {import("../../database.mjs").Ctx} Ctx
  * @typedef {import("../../database.mjs").Tab} Tab
- * @typedef {{ id: string, name: string, kind: string, x: number, y: number, width: number, height: number, lines: string[], selected: boolean }} Node
+ * @typedef {{ name: string, type: string, icons: string[], title: string }} Row
+ * @typedef {{ id: string, name: string, kind: string, x: number, y: number, width: number, height: number, lines: string[], selected: boolean, rows: Row[], toggle: string, expanded: string }} Node
  * @typedef {{ x: number, y: number }} Point
  */
 
@@ -61,6 +62,19 @@ export async function nodes(tab) {
         height: element instanceof HTMLElement ? element.offsetHeight : 0,
         lines: element instanceof HTMLElement ? element.innerText.split("\n").map((line) => line.trim()).filter(Boolean) : [],
         selected: element.querySelector(".ring-primary\\/30") !== null,
+        rows: [...element.querySelectorAll("li")]
+          .filter((item) => item.querySelector("button") === null)
+          .map((item) => {
+            const spans = [...item.querySelectorAll(":scope > span")];
+            return {
+              name: spans[0]?.textContent?.trim() ?? "",
+              type: spans.at(-1)?.textContent?.trim() ?? "",
+              icons: [...item.querySelectorAll("svg use")].map((icon) => icon.getAttribute("href") ?? ""),
+              title: [...item.querySelectorAll("[title]")].map((icon) => icon.getAttribute("title") ?? "").join(","),
+            };
+          }),
+        toggle: element.querySelector("li button")?.textContent?.replace(/\s+/g, " ").trim() ?? "",
+        expanded: element.querySelector("li button")?.getAttribute("aria-expanded") ?? "",
       };
     }),
   );
