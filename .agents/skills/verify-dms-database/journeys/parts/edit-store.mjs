@@ -1,8 +1,7 @@
 import { guarded } from "../../guard.mjs";
-import { check, db, pick, show, text } from "../../database.mjs";
+import { check, db, pick, show } from "../../database.mjs";
 import { browse, openTable, rowsOf, settle } from "./browse.mjs";
 import { cellOf, cellState, saveStaged, savedNotice, storedRow, typeInto } from "./edit.mjs";
-import { queryInsert } from "./query-wire.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
 /** @typedef {import("../../database.mjs").Tab} Tab */
@@ -22,16 +21,19 @@ async function tabOn(ctx, schema, table, instance) {
 }
 
 /**
- * The stored `company` of the twin customer in each instance.
+ * The stored name or company of the rows of one table in the three instances.
  *
  * @param {Ctx} ctx The journey
- * @returns {Promise<string[]>} The default, eu and us companies
+ * @param {string} table The table
+ * @param {string} field The field
+ * @param {[string | undefined, string][]} rows The instance and id of each row
+ * @returns {Promise<string[]>} The stored values, in order
  */
-async function twins(ctx) {
+async function stored(ctx, table, field, rows) {
   const reads = [];
-  for (const instance of [undefined, "eu", "us"]) {
-    const answer = await browse(ctx, `twin in ${instance ?? "default"}`, "get", "shop.customers", instance ? { filter_instance: `is:${instance}`, id: "twin" } : { id: "twin" });
-    reads.push(text(answer.body, "company") || String(answer.status));
+  for (const [instance, id] of rows) {
+    const row = await storedRow(ctx, table, id, instance);
+    reads.push(String(row[field]));
   }
   return reads;
 }
@@ -39,37 +41,41 @@ async function twins(ctx) {
 /** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
 const instances = {
   id: "an-edit-and-its-undo-land-in-the-instance-of-the-tab-only",
-  title: "a row with the same id in the default, eu and us instances is changed only in the instance the tab browses, by the save and by its Undo, and the review names that instance",
+  title: "a save and its Undo change the row of the instance the tab browses and no row of the other instances, whose ids differ per instance on a shared collection, and the review names the instance",
   entryPoint: "PUT /api/database/browse/edit with filter_instance",
   async run(/** @type {Ctx} */ ctx) {
-    for (const instance of [undefined, "eu", "us"]) await queryInsert(ctx, "shop", "customers", [{ _id: "twin", email: "twin@verify.test", company: "Twin", credit_limit: 1, vip: false }], instance);
-    const initial = await twins(ctx);
+    /** @type {[string | undefined, string][]} */
+    const customers = [["eu", "eu_cus_005"], ["us", "us_cus_005"]];
+    /** @type {[string | undefined, string][]} */
+    const lamps = [[undefined, "sku_lamp"], ["eu", "eu_sku_lamp"], ["us", "us_sku_lamp"]];
+    const initial = await stored(ctx, "customers", "company", customers);
     const tab = await tabOn(ctx, "shop", "customers", "eu");
-    await typeInto(tab, "twin", "company", "EU Twin");
+    await typeInto(tab, "eu_cus_005", "company", "EU Co");
     await tab.press("Control+s");
     await tab.visible({ role: "dialog", name: /^Save/ });
     const review = (await tab.page.getByRole("dialog").innerText()).replace(/\s+/g, " ");
     await tab.click({ role: "button", name: /^Save \d+ changes?$/ });
     await settle(() => savedNotice(tab), (content) => /saved/.test(content));
-    const afterEu = await twins(ctx);
+    const afterEu = await stored(ctx, "customers", "company", customers);
     const us = await tabOn(ctx, "shop", "customers", "us");
-    await typeInto(us, "twin", "company", "US Twin");
-    await saveStaged(us);
-    const afterUs = await twins(ctx);
+    await typeInto(us, "us_cus_005", "company", "US Co");
+    const usReview = await saveStaged(us);
+    const afterUs = await stored(ctx, "customers", "company", customers);
     await us.click({ role: "button", name: "Undo" });
     await settle(() => savedNotice(us), (content) => /undone/.test(content));
-    const afterUndo = await twins(ctx);
-    const base = await tabOn(ctx, "shop", "customers");
-    await typeInto(base, "twin", "company", "Default Twin");
-    await saveStaged(base);
-    const afterDefault = await twins(ctx);
+    const afterUndo = await stored(ctx, "customers", "company", customers);
+    const base = await tabOn(ctx, "shop", "products");
+    await typeInto(base, "sku_lamp", "name", "Default lamp");
+    const baseReview = await saveStaged(base);
+    const afterDefault = await stored(ctx, "products", "name", lamps);
     await ctx.verify("one instance at a time", [
-      check("the twin exists in the three instances", show(initial) === '["Twin","Twin","Twin"]', initial),
-      check("the review names shop.customers @eu", /They are written to shop\.customers @eu\./.test(review), review),
-      check("saving in eu changes eu only", show(afterEu) === '["Twin","EU Twin","Twin"]', afterEu),
-      check("saving in us changes us only", show(afterUs) === '["Twin","EU Twin","US Twin"]', afterUs),
-      check("Undo in us restores us and leaves eu as saved", show(afterUndo) === '["Twin","EU Twin","Twin"]', afterUndo),
-      check("saving in the default instance changes the default only", show(afterDefault) === '["Default Twin","EU Twin","Twin"]', afterDefault),
+      check("the two customers start with their own companies, neither of the new ones", initial[0] === "Umbrella" && initial[1] === "Umbrella", initial),
+      check("the review names shop.customers @eu", /It is written to shop\.customers @eu\./.test(review), review),
+      check("saving in eu changes the eu row only", afterEu[0] === "EU Co" && afterEu[1] === initial[1], afterEu),
+      check("the review of the us tab names @us", /shop\.customers @us/.test(usReview), usReview),
+      check("saving in us changes the us row only", afterUs[0] === "EU Co" && afterUs[1] === "US Co", afterUs),
+      check("Undo in us restores the us row and leaves the eu row as saved", afterUndo[0] === "EU Co" && afterUndo[1] === initial[1], afterUndo),
+      check("saving in the default instance changes its lamp only and names @default", afterDefault[0] === "Default lamp" && afterDefault[1] === "Desk lamp" && afterDefault[2] === "Desk lamp" && /shop\.products @default/.test(baseReview), [afterDefault, baseReview]),
     ]);
   },
 };

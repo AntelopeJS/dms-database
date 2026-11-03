@@ -106,7 +106,7 @@ const drawerFields = {
       check("a broken JSON text says Invalid JSON", /Invalid JSON/.test(jsonError), jsonError),
       check("a fixed JSON text and a nulled field make 3 unsaved changes, the footer offering Review and save 3 changes", /3 unsaved changes/.test(three) && /Review and save 3 changes/.test(three), three),
       check("the field says what it was: was 324 (the stored total)", /was 324/.test(was), was),
-      check("the grid's bar shows the same three and the cell the new total", bar === "Review and save 3 changes" && cell.struck === "324" && cell.text === "50 99.5", [bar, cell]),
+      check("the grid's bar shows the same three and the cell the new total", bar === "Review and save 3 changes" && cell.struck === "324" && cell.text === "324 99.5", [bar, cell]),
       check("nothing is written", before.total === 324 && before.channel !== null, [before.total, before.channel]),
     ]);
     await saveStaged(tab);

@@ -1,0 +1,13 @@
+diff --git a/frontend-vue/app/build/data/useStagedSave.ts b/frontend-vue/app/build/data/useStagedSave.ts
+index ac4a1fc..96948ee 100644
+--- a/frontend-vue/app/build/data/useStagedSave.ts
++++ b/frontend-vue/app/build/data/useStagedSave.ts
+@@ -18,7 +18,7 @@ import { changesOf, type RowWriteOutcome, writeRows } from './stagedWrites'
+ // save with the rows left still staged.
+ 
+ const EDIT_ENDPOINT = '/api/database/browse/edit'
+-const UNDO_WINDOW_MS = 10_000
++const UNDO_WINDOW_MS = 30_000
+ const UNDONE_NOTICE_MS = 3_000
+ 
+ /** What the save bar says once a save is written, then once it is undone. */
