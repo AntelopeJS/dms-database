@@ -86,7 +86,7 @@ export async function reviewLabel(tab) {
  * @returns {Promise<string>} Such as `Unsaved changes · name`
  */
 export async function barStatus(tab) {
-  return (await tab.page.getByRole("status").first().innerText().catch(() => "")).replace(/\s+/g, " ").replace(/ Undo$/, "").trim();
+  return (await tab.page.getByRole("status").first().innerText({ timeout: 300 }).catch(() => "")).replace(/\s+/g, " ").replace(/ Undo$/, "").trim();
 }
 
 /**
