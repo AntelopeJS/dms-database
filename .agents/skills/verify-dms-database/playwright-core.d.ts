@@ -46,6 +46,7 @@ declare module "playwright-core" {
 
   interface Download {
     path(): Promise<string | null>;
+    suggestedFilename(): string;
   }
 
   interface FileChooser {
