@@ -1,5 +1,5 @@
 import { check } from "../../database.mjs";
-import { byName, nodes, openDiagram, tables } from "./diagram-page.mjs";
+import { byName, nodes, openDiagram, tables, tablesUntil } from "./diagram-page.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
 /** @typedef {import("../../database.mjs").Tab} Tab */
@@ -21,15 +21,30 @@ async function selectionBar(tab) {
   return (await tab.page.locator(".diagram-float").filter({ hasText: /Inspect|Show all tables/ }).first().innerText().catch(() => "")).replace(/\s+/g, " ").trim();
 }
 
+/**
+ * Presses a dashed chip with its own click handler: in focus mode the selection bar lies over the chip.
+ *
+ * @param {Tab} tab The tab
+ * @param {string} label The chip's text
+ * @returns {Promise<boolean>} Whether the chip was found
+ */
+async function pressChip(tab, label) {
+  return tab.page.evaluate((wanted) => {
+    const chip = [...document.querySelectorAll("button.diagram-stub-node")].find((entry) => entry.textContent?.trim() === wanted);
+    if (chip instanceof HTMLElement) chip.click();
+    return chip !== undefined;
+  }, label);
+}
+
 /** @type {JourneyDef} */
 export const stubs = {
   id: "a-relation-to-a-table-not-drawn-ends-on-a-dashed-chip-that-opens-that-table",
-  title: "focusing a table leaves the others out and a relation to one of them ends on a dashed chip that opens it, and a relation to another schema ends on a chip that opens that schema's diagram on the table",
-  entryPoint: "/modules/database/diagram?schema=shop and ?schema=links",
+  title: "focusing a table leaves the others out and a relation to one of them ends on a dashed chip that opens it",
+  entryPoint: "/modules/database/diagram?schema=shop focus",
   async run(ctx) {
     const tab = await openDiagram(ctx, "?schema=shop");
     const before = await chips(tab);
-    await tab.page.locator('.vue-flow__node[data-id="shop::orders"] .cursor-grab, .vue-flow__node[data-id="shop::orders"]').first().click({ position: { x: 90, y: 18 } });
+    await tab.page.locator('.vue-flow__node[data-id="shop::orders"]').first().click({ position: { x: 90, y: 18 } });
     await tab.page.waitForTimeout(600);
     const bar = await selectionBar(tab);
     await tab.click({ role: "button", name: "Focus" });
@@ -44,7 +59,7 @@ export const stubs = {
       check("the table order_items points to, left out, is a chip", focusChips.join() === "shop.products", focusChips),
       check("the bar offers to show all tables", /Show all tables/.test(focusBar), focusBar),
     ]);
-    await tab.page.getByRole("button", { name: "shop.products" }).click();
+    await pressChip(tab, "shop.products");
     await tab.page.waitForTimeout(1500);
     const afterChip = await tables(tab);
     const nowChips = await chips(tab);
@@ -53,13 +68,22 @@ export const stubs = {
       check("products is the selected table", byName(afterChip, "products")?.selected === true && (await selectionBar(tab)).startsWith("products"), await selectionBar(tab)),
     ]);
 
-    const links = await openDiagram(ctx, "?schema=links", tab);
+  },
+};
+
+/** @type {JourneyDef} */
+export const crossSchema = {
+  id: "a-relation-to-another-schema-ends-on-a-chip-that-opens-that-table",
+  title: "a relation to a table of another schema ends on a dashed chip naming schema.table, and the chip opens that schema's diagram with that table selected",
+  entryPoint: "/modules/database/diagram?schema=links",
+  async run(ctx) {
+    const tab = await openDiagram(ctx, "?schema=links");
+    const links = tab;
     const cross = await chips(links);
     await ctx.verify("a relation to another schema", [check("customer_refs ends on a chip naming shop.customers", cross.join() === "shop.customers", cross)]);
-    await links.page.getByRole("button", { name: "shop.customers" }).click();
-    await links.page.waitForTimeout(2500);
+    await pressChip(links, "shop.customers");
+    const shop = await tablesUntil(links, (drawn) => byName(drawn, "customers")?.selected === true);
     const url = new URL(links.page.url());
-    const shop = await tables(links);
     await ctx.verify("the chip opens the other schema's diagram on that table", [
       check("the URL names shop and customers", url.searchParams.get("schema") === "shop" && url.searchParams.get("table") === "customers", links.page.url()),
       check("the shop tables are drawn with customers selected", shop.map((node) => node.name).sort().join() === "customers,order_items,orders,products" && byName(shop, "customers")?.selected === true, shop.map((node) => node.name)),

@@ -90,6 +90,23 @@ export async function tables(tab) {
 }
 
 /**
+ * Polls the drawn tables until `done` holds for them, and returns the last reading.
+ *
+ * @param {Tab} tab The tab
+ * @param {(drawn: Node[]) => boolean} done Whether the canvas is the awaited one
+ * @returns {Promise<Node[]>} The tables read last
+ */
+export async function tablesUntil(tab, done) {
+  const deadline = Date.now() + WAIT_MS;
+  let drawn = await tables(tab);
+  while (!done(drawn) && Date.now() < deadline) {
+    await tab.page.waitForTimeout(POLL_MS);
+    drawn = await tables(tab);
+  }
+  return drawn;
+}
+
+/**
  * @param {Node[]} all Nodes
  * @param {string} name A table name
  * @returns {Node | undefined} Its node

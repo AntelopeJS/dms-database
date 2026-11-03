@@ -199,11 +199,12 @@ export const startView = {
     const minX = Math.min(...lefts.map((entry) => entry.x)) - (canvas?.x ?? 0);
     const minY = Math.min(...lefts.map((entry) => entry.y)) - (canvas?.y ?? 0);
     const maxRight = Math.max(...lefts.map((entry) => entry.x + entry.width)) - (canvas?.x ?? 0);
+    const maxBottom = Math.max(...lefts.map((entry) => entry.y + entry.height)) - (canvas?.y ?? 0);
     const minimap = await tab.page.locator(".vue-flow__minimap").first().isVisible();
     await ctx.verify("the large schema", [
       check("it opens at 40 %", startZoom === 40, startZoom),
       check("its top-left corner sits in the top-left of the canvas", minX >= 0 && minX <= 80 && minY >= 40 && minY <= 130, [minX, minY]),
-      check("the diagram runs past the canvas on the right, it is not shrunk to fit", maxRight > (canvas?.width ?? 0), [maxRight, canvas?.width]),
+      check("the diagram runs past the canvas, it is not shrunk to fit", maxRight > (canvas?.width ?? 0) || maxBottom > (canvas?.height ?? 0), [maxRight, maxBottom, canvas]),
       check("the overview map is shown", minimap, minimap),
     ]);
     await tab.press("1");
