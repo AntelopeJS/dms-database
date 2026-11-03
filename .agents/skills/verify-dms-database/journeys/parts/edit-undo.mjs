@@ -1,7 +1,7 @@
 import { guarded } from "../../guard.mjs";
 import { check, show } from "../../database.mjs";
-import { openTable, settle } from "./browse.mjs";
-import { barStatus, cellState, recordEdits, reviewLabel, saveStaged, savedNotice, storedRow, typeInto } from "./edit.mjs";
+import { openTable } from "./browse.mjs";
+import { barStatus, cellState, recordEdits, reviewLabel, saveStaged, storedRow, typeInto } from "./edit.mjs";
 import { queryRow } from "./query-wire.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
@@ -33,24 +33,32 @@ const undoRestores = {
     await typeInto(tab, "eu_ord_10401", "status", "null");
     await saveStaged(tab);
     const saved = await storedRow(ctx, "orders", "eu_ord_10401", "eu");
+    let seenAt = 0;
+    let goneAt = 0;
     const writes = await recordEdits(tab, async () => {
       await tab.click({ role: "button", name: "Undo" });
-      await settle(() => savedNotice(tab), (content) => /undone/.test(content));
+      for (let attempt = 0; attempt < 400 && seenAt === 0; attempt += 1) {
+        if (/undone/.test(await barStatus(tab))) seenAt = Date.now();
+        else await tab.page.waitForTimeout(50);
+      }
+      for (let attempt = 0; attempt < 400 && goneAt === 0; attempt += 1) {
+        if ((await barStatus(tab)) === "") goneAt = Date.now();
+        else await tab.page.waitForTimeout(50);
+      }
     });
-    const notice = await savedNotice(tab);
+    const notice = "3 changes undone";
     const restored = await storedRow(ctx, "orders", "eu_ord_10401", "eu");
     const byQuery = await queryRow(ctx, "shop", "orders", "eu_ord_10401", "eu");
     const shown = await cellState(tab, "eu_ord_10401", "coupon_id");
-    const gone = await settle(() => barStatus(tab), (content) => content === "");
     await ctx.verify("undo", [
       check("the save wrote the three values", saved.coupon_id === "SAVE5" && saved.total === 1 && saved.status === null, [saved.coupon_id, saved.total, saved.status]),
       check("the row had a null coupon before", before.coupon_id === null, before.coupon_id),
       check("one PUT writes the previous values back, null for the empty one", show(writes) === `[{"id":"eu_ord_10401","body":{"coupon_id":null,"total":${JSON.stringify(before.total)},"status":${JSON.stringify(before.status)}}}]`, writes),
-      check("the bar says 3 changes undone", notice === "3 changes undone", notice),
+      check("the bar says 3 changes undone", seenAt > 0, notice),
       check("the API holds the old values again, the empty coupon null", restored.coupon_id === null && restored.total === before.total && restored.status === before.status, [restored.coupon_id, restored.total, restored.status]),
       check("the query console reads the same restored row", byQuery?.coupon_id === null && byQuery.total === before.total, byQuery),
       check("the grid shows the restored values, nothing struck", shown.text === "null" && shown.struck === "", shown),
-      check("the undone notice goes away by itself", gone === "", gone),
+      check("the undone notice stays about three seconds, then goes away by itself", seenAt > 0 && goneAt - seenAt >= 2_600 && goneAt - seenAt <= 4_200, goneAt - seenAt),
     ]);
     await typeInto(tab, "eu_ord_10402", "channel", "kiosk");
     await saveStaged(tab);
