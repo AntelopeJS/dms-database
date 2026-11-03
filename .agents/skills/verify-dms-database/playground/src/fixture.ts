@@ -22,6 +22,7 @@ function withAncestors(permissions: string[]): string[] {
 interface MemberRequest {
   name: string;
   permissions: string[];
+  owner?: boolean;
 }
 
 /**
@@ -43,7 +44,7 @@ export class VerifyFixtureController extends Controller("/verify-database") {
       roles_ids: roleId === undefined ? [] : [roleId],
       language: "en",
       token,
-      asTenantOwner: false,
+      asTenantOwner: body.owner === true,
       expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
     });
     return { email, token, roleId };

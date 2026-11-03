@@ -121,10 +121,11 @@ export function fixture(ctx, label, method, path, body) {
  * @param {Ctx} ctx The journey
  * @param {string} name The account name
  * @param {string[]} permissions The role's permission ids
+ * @param {boolean} [owner] Whether the invite makes a second owner
  * @returns {Promise<{ roleId: string, userId: string }>} The role and the user
  */
-export async function member(ctx, name, permissions) {
-  const invite = await fixture(ctx, `invite ${name}`, "POST", "/member", { name, permissions });
+export async function member(ctx, name, permissions, owner = false) {
+  const invite = await fixture(ctx, `invite ${name}`, "POST", "/member", { name, permissions, owner });
   const email = text(invite.body, "email");
   const password = ctx.password();
   const signup = await ctx.api(`${name} signs up`, {
