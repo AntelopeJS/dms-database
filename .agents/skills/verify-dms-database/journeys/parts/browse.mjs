@@ -150,6 +150,26 @@ export function ids(rows) {
 }
 
 /**
+ * Opens a sidebar picker until its menu shows an option: a click before the page hydrates opens nothing, so the
+ * button is clicked again.
+ *
+ * @param {Tab} tab The tab on the data browser
+ * @param {"Schema" | "Instance"} picker The picker's name
+ * @param {string | RegExp} option The option that must show
+ * @param {boolean} exact Whether the option's name must match exactly
+ * @returns {Promise<void>}
+ */
+async function openPicker(tab, picker, option, exact) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    await tab.page.getByRole("button", { name: picker, exact: true }).click();
+    const shown = await tab.page.getByRole("option", { name: option, exact }).first().waitFor({ state: "visible", timeout: 2_500 }).then(() => true, () => false);
+    if (shown) return;
+    await tab.page.keyboard.press("Escape");
+    await tab.page.waitForTimeout(1_000);
+  }
+}
+
+/**
  * Picks a schema in the sidebar's Schema picker.
  *
  * @param {Tab} tab The tab on the data browser
@@ -157,7 +177,7 @@ export function ids(rows) {
  * @returns {Promise<void>}
  */
 export async function pickSchema(tab, schema) {
-  await tab.click({ role: "button", name: "Schema", exact: true });
+  await openPicker(tab, "Schema", schema, true);
   await tab.click({ role: "option", name: schema, exact: true });
 }
 
@@ -169,8 +189,8 @@ export async function pickSchema(tab, schema) {
  * @returns {Promise<void>}
  */
 export async function pickInstance(tab, instance) {
-  await tab.click({ role: "button", name: "Instance", exact: true });
   const name = instance === "all" ? /^All instances/ : instance;
+  await openPicker(tab, "Instance", name, instance !== "all");
   await tab.click({ role: "option", name, exact: instance !== "all" });
 }
 
