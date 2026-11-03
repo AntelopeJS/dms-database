@@ -1,0 +1,13 @@
+diff --git a/frontend-vue/app/build/diagram/graphModel.ts b/frontend-vue/app/build/diagram/graphModel.ts
+index 779f1d3..c9ef11c 100644
+--- a/frontend-vue/app/build/diagram/graphModel.ts
++++ b/frontend-vue/app/build/diagram/graphModel.ts
+@@ -13,7 +13,7 @@ export const STUB_NODE_WIDTH = 180
+ export const STUB_NODE_HEIGHT = 28
+ export const LAYOUT = { rankdir: 'LR', nodesep: 48, ranksep: 120 } as const
+ /** Columns a folded table shows, besides the ones an arrow ends on. */
+-export const FOLDED_COLUMNS = 12
++export const FOLDED_COLUMNS = 13
+ const HYSTERESIS_PX = 15
+ // Notes sit above the tables, so a new one is never hidden under a table.
+ export const NOTE_Z_INDEX = 10
