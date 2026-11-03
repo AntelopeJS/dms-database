@@ -46,10 +46,10 @@ export const journeys = guarded([
       const compact = new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(total);
       await ctx.verify("the card shows the same figures", [
         check("Healthy", /Healthy/.test(body), body.slice(0, 300)),
-        check("a probe latency in ms", /Probe latency\s+\d+\s*ms/.test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
-        check("Tables and its schema count", new RegExp(`Tables\\s+${tables.length}\\s+in ${rows.length} schemas`).test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
-        check("Rows in compact form", new RegExp(`Rows\\s+${compact}\\s+in the default instances`).test(body.replace(/\n+/g, " ")), [compact, body.slice(0, 400)]),
-        check("Indexes", new RegExp(`Indexes\\s+${indexes}\\s+declared in code`).test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
+        check("a probe latency in ms", /Probe latency\s+\d+\s*ms/i.test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
+        check("Tables and its schema count", new RegExp(`Tables\\s+${tables.length}\\s+in ${rows.length} schemas`, "i").test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
+        check("Rows in compact form", new RegExp(`Rows\\s+${compact}\\s+in the default instances`, "i").test(body.replace(/\n+/g, " ")), [compact, body.slice(0, 400)]),
+        check("Indexes", new RegExp(`Indexes\\s+${indexes}\\s+declared in code`, "i").test(body.replace(/\n+/g, " ")), body.slice(0, 400)),
       ]);
     },
   },
