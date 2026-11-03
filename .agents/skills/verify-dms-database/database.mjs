@@ -171,3 +171,37 @@ export function parseJson(source) {
     return undefined;
   }
 }
+
+/**
+ * A staged query on one table, in the wire format the console sends.
+ *
+ * @param {string} schema The schema
+ * @param {string} table The table
+ * @param {Record<string, unknown>[]} [more] Stages after the table
+ * @param {string} [instance] A named instance
+ * @returns {Record<string, unknown>} The query
+ */
+export function tableQuery(schema, table, more = [], instance) {
+  return {
+    __cls: "Table",
+    stages: [
+      { stage: "schema", args: [], options: { id: schema } },
+      instance ? { stage: "instance", args: [], options: { id: instance } } : { stage: "instance", args: [] },
+      { stage: "table", args: [], options: { id: table } },
+      ...more,
+    ],
+  };
+}
+
+/**
+ * Runs a staged query as an account through the console's execute route.
+ *
+ * @param {Ctx} ctx The journey
+ * @param {string} source The AQL text recorded in the history
+ * @param {Record<string, unknown>} query The staged query
+ * @param {string} [as] The account
+ * @returns {Promise<Answer>} The answer
+ */
+export function runQuery(ctx, source, query, as) {
+  return db(ctx, `run ${source}`, "POST", "/query/execute", { body: { query, source, language: "aql" }, as });
+}
