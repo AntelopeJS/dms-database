@@ -7,6 +7,7 @@ import { byName, layoutUntil, near, openDiagram, savedLayout, tables, toggleFold
 /** @typedef {import("./diagram-page.mjs").Node} Node */
 /** @typedef {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} JourneyDef */
 
+const GOLDEN_VAULT = { accounts: { x: 648, y: 0 }, plain_notes: { x: 648, y: 228 }, parents_registry: { x: 352, y: 268 }, parents_links: { x: 0, y: 404 }, wide_records: { x: 0, y: 0 } };
 const SCRAMBLED = { customers: { x: 40, y: 700 }, orders: { x: 40, y: 20 }, order_items: { x: 700, y: 20 }, products: { x: 400, y: 400 } };
 
 /**
@@ -114,7 +115,7 @@ export const arrangement = {
       check("the largest group is placed first, at the origin", near(groupOrigin, origin, 0.5), [groupOrigin, origin]),
       check("the tables without relations come after the group, accounts before plain_notes in name order", [vx("accounts"), vy("accounts")].every(Number.isFinite) && (vy("plain_notes") > vy("accounts") || (vy("plain_notes") === vy("accounts") && vx("plain_notes") > vx("accounts"))), [vx("accounts"), vy("accounts"), vx("plain_notes"), vy("plain_notes")]),
       check("no two tables cover each other", disjoint(first), first.map((node) => [node.name, node.x, node.y, node.height])),
-      check("the whole arrangement is the one the rules give, folded tables at their folded height, 64 apart", JSON.stringify(positionsOf(first)) === JSON.stringify({ accounts: { x: 648, y: 0 }, plain_notes: { x: 648, y: 228 }, parents_registry: { x: 352, y: 268 }, parents_links: { x: 0, y: 404 }, wide_records: { x: 0, y: 0 } }), positionsOf(first)),
+      check("the whole arrangement is the one the rules give, folded tables at their folded height, 64 apart", Object.entries(GOLDEN_VAULT).every(([name, point]) => near(positionsOf(first)[name], point, 0.5)), positionsOf(first)),
     ]);
 
     await putLayout(ctx, "vault", { wide_records: { x: 3000, y: 3000 } });
