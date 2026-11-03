@@ -4,6 +4,8 @@ covers:
   - src/routes/index.ts
   - src/pages/index.ts
   - src/db/**
+  - src/routes/health.ts
+  - src/routes/data.ts
 docs:
   - docs/1.introduction.md
   - docs/6.faq.md

@@ -1,0 +1,13 @@
+diff --git a/src/service/queryInspection.ts b/src/service/queryInspection.ts
+index fd7951e..7fb12fe 100644
+--- a/src/service/queryInspection.ts
++++ b/src/service/queryInspection.ts
+@@ -134,7 +134,7 @@ export async function dryRun(root: StagedObject): Promise<DryRunResult> {
+   const rows =
+     operation === "insert"
+       ? insertedDocuments(stage)
+-      : await countSelected(stages.slice(0, index));
++      : (await countSelected(stages.slice(0, index))) + 1;
+   return { ...target, operation, rows };
+ }
+ 

@@ -1,0 +1,13 @@
+diff --git a/src/service/introspect.ts b/src/service/introspect.ts
+index a59807d..0d8c7e6 100644
+--- a/src/service/introspect.ts
++++ b/src/service/introspect.ts
+@@ -94,7 +94,7 @@ function resolveRelations(
+ function resolveModifiers(
+   TableClass: Class<Table> | undefined,
+ ): TableSummary["modifiers"] {
+-  if (!TableClass) return {};
++  if (!TableClass || TableClass) return {};
+   const meta = getMetadata(TableClass, ModifiersStaticMetadata, true);
+   const out: Record<string, string[]> = {};
+   for (const [fieldName, mods] of Object.entries(meta.fields ?? {})) {
