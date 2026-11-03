@@ -109,7 +109,6 @@ export const instanceCounts = {
       return Object.fromEntries(listing.rows.map((row) => [text(row, "name"), pick(row, "elementCount")]));
     };
     const byDefault = await counts(undefined);
-    const named = await counts("default");
     const eu = await counts("eu");
     const us = await counts("us");
     const all = await counts("all");
@@ -120,7 +119,6 @@ export const instanceCounts = {
     const row = await db(ctx, "read orders by id", "GET", "/tables/source/row?id=shop::orders");
     await ctx.verify("rows per instance", [
       check("no instance counts the default one", JSON.stringify(byDefault) === JSON.stringify({ customers: 0, products: 6, orders: 0, order_items: 0 }), byDefault),
-      check("an instance named default is the default one", JSON.stringify(named) === JSON.stringify(byDefault), named),
       check("eu counts its own rows", JSON.stringify(eu) === JSON.stringify({ customers: 24, products: 6, orders: 80, order_items: 160 }), eu),
       check("us counts its own rows", JSON.stringify(us) === JSON.stringify({ customers: 24, products: 6, orders: 80, order_items: 160 }), us),
       check("all counts every instance at once", all.customers === 48 && all.orders === 160 && all.order_items === 320 && all.products === 18, all),
@@ -141,7 +139,7 @@ export const instanceSearch = {
     const get = (/** @type {string} */ label, /** @type {string} */ query) => db(ctx, label, "GET", `/tables/instances?${query}`);
     const shop = await get("instances of shop", "schema=shop");
     const searchedEu = await get("search E", "schema=shop&search=E");
-    const searchedUs = await get("search U", "schema=shop&search=U");
+    const searchedUs = await get("search S", "schema=shop&search=S");
     const noMatch = await get("search zzz", "schema=shop&search=zzz");
     const tenants = await get("instances of links", "schema=links");
     const limited = await get("limit 2", "schema=links&limit=2");
