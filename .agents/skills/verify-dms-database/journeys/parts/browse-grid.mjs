@@ -112,7 +112,7 @@ const searchFilterSort = {
     const byValue = await settle(() => columnValues(tab, "value"), (values) => values.length === 50 && values[0] === "0");
     const apiByValue = await browse(ctx, "value ascending, page 2", "list", "metrics.readings", { sortKey: "value", offset: 50, limit: 50 });
     await tab.page.getByRole("button", { name: "Next page" }).click();
-    const pageTwo = await settle(() => columnValues(tab, "value"), (values) => values.length === 50 && values.join() !== byValue.join());
+    const pageTwo = await settle(() => columnValues(tab, "value"), (values) => values.join() === rowsOf(apiByValue).map((row) => String(row.value)).join());
     await tab.click({ role: "button", name: "band", exact: true });
     const backToFirst = await settle(() => pagingFooter(tab), (state) => state.range.startsWith("1–"));
     await ctx.verify("sorting by a header", [

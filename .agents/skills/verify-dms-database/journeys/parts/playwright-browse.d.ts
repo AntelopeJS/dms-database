@@ -40,7 +40,14 @@ declare module "playwright-core" {
     fulfill(options: { status: number; contentType?: string; body?: string }): Promise<void>;
   }
 
+  interface Mouse {
+    move(x: number, y: number): Promise<void>;
+    down(): Promise<void>;
+    up(): Promise<void>;
+  }
+
   interface Page {
+    mouse: Mouse;
     reload(): Promise<object | null>;
     on(event: "request", listener: (request: Request) => void): Page;
     unroute(url: string): Promise<void>;
