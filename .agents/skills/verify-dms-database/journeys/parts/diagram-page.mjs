@@ -139,6 +139,21 @@ export async function box(tab, nodeId) {
 }
 
 /**
+ * Presses the fold row of a table with its own click handler, so a table drawn off screen can be toggled.
+ *
+ * @param {Tab} tab The tab
+ * @param {string} nodeId The table's node id
+ * @returns {Promise<boolean>} Whether the table has a fold row
+ */
+export async function toggleFold(tab, nodeId) {
+  return tab.page.evaluate((id) => {
+    const button = document.querySelector(`.vue-flow__node[data-id="${id}"] li button`);
+    if (button instanceof HTMLElement) button.click();
+    return button !== null;
+  }, nodeId);
+}
+
+/**
  * Drags a node by its header.
  *
  * @param {Tab} tab The tab
