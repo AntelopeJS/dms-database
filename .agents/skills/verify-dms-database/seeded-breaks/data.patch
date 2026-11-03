@@ -1,0 +1,13 @@
+diff --git a/src/routes/data.ts b/src/routes/data.ts
+index 5b3c555..4a33c2c 100644
+--- a/src/routes/data.ts
++++ b/src/routes/data.ts
+@@ -43,7 +43,7 @@ import {
+ } from "../utils/query";
+ 
+ const DEFAULT_LIMIT = 25;
+-const MAX_LIMIT = 200;
++const MAX_LIMIT = 500;
+ 
+ /** One table of the data browser's list, counted in the browsed instance. */
+ interface BrowseTableEntry {

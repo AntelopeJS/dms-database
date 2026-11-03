@@ -3,6 +3,7 @@ covers:
   - package.json
   - skills/**
   - frontend-vue/package.json
+  - frontend-vue/tsconfig.json
   - frontend-vue/dms.frontend.ts
   - frontend-vue/dms.frontend.build.ts
   - frontend-vue/build/**

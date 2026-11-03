@@ -1,6 +1,7 @@
 import { RegisterSchema } from "@antelopejs/interface-database-decorators";
 import "./demo-schema";
 import { startBridgeSchemas } from "./bridge-schema";
+import { seedBrowseFixtures } from "./browse-fixtures";
 import "./fixture";
 import { LABEL_SCHEMAS } from "./labels-schema";
 import { METRICS_SCHEMA, seedMetrics } from "./metrics-schema";
@@ -17,4 +18,5 @@ export async function start(): Promise<void> {
   await seedShop();
   await seedVault();
   await seedMetrics();
+  await seedBrowseFixtures();
 }

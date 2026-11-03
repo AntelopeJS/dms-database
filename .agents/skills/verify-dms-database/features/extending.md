@@ -1,6 +1,7 @@
 ---
 covers:
   - src/automation/**
+  - frontend-vue/app/config/shortcuts-registry.ts
   - src/utils/guards.ts
   - src/types/**
   - src/service/introspect.ts
