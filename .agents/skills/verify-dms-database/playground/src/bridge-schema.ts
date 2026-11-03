@@ -2,7 +2,7 @@ import { Schema } from "@antelopejs/interface-database";
 import { Field, RegisterSchema, RegisterTable, Relation, Table } from "@antelopejs/interface-database-decorators";
 import { Customer } from "./shop-schema";
 
-/** Schemas the verification adds to the shop and vault: a cross-schema relation, tables of exactly 12 and 13 columns, named instances created out of order, a column named like an object member, and a schema without a table. */
+/** Schemas the verification adds to the shop and vault: a cross-schema relation, tables of exactly 12 and 13 columns, a relation ending on the 14th column of its target, named instances created out of order, a column named like an object member, and a schema without a table. */
 export const LINKS_SCHEMA = "links";
 export const QUIRKS_SCHEMA = "quirks";
 export const HOLLOW_SCHEMA = "hollow";
@@ -44,6 +44,30 @@ export class ThirteenColumns extends Table {
   @Field("string") declare c10: string;
   @Field("string") declare c11: string;
   @Field("string") declare c12: string;
+}
+
+@RegisterTable("anchor_target", LINKS_SCHEMA)
+export class AnchorTarget extends Table {
+  @Field("string") declare _id: string;
+  @Field("string") declare c01: string;
+  @Field("string") declare c02: string;
+  @Field("string") declare c03: string;
+  @Field("string") declare c04: string;
+  @Field("string") declare c05: string;
+  @Field("string") declare c06: string;
+  @Field("string") declare c07: string;
+  @Field("string") declare c08: string;
+  @Field("string") declare c09: string;
+  @Field("string") declare c10: string;
+  @Field("string") declare c11: string;
+  @Field("string") declare c12: string;
+  @Field("string") declare c13: string;
+}
+
+@RegisterTable("anchor_source", LINKS_SCHEMA)
+export class AnchorSource extends Table {
+  @Field("string") declare _id: string;
+  @Relation({ to: () => AnchorTarget, toField: "c13" }) declare target_ref: string;
 }
 
 @RegisterTable("members", QUIRKS_SCHEMA)
