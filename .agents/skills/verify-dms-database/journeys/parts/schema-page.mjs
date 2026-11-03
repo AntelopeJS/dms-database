@@ -31,8 +31,7 @@ export async function openSchemas(ctx, query = "") {
  * @returns {Promise<void>}
  */
 export async function settled(tab) {
-  const chip = tab.page.getByRole("button", { name: "Empty", exact: true });
-  await chip.waitFor({ state: "visible", timeout: WAIT_MS });
+  await tab.page.locator("[data-dms-database-schemas-filter-bar]").waitFor({ state: "visible", timeout: WAIT_MS });
   await tab.page.locator("table tbody tr, [data-empty-state], h2").first().waitFor({ state: "visible", timeout: WAIT_MS });
   await tab.page.waitForTimeout(1500);
 }
