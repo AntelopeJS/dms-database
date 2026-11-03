@@ -63,7 +63,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-core`                | `file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                | `file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz`                |
 | `@antelopejs/interface-database`            | `file:.campaign/tgz/antelopejs-interface-database-e533a2f.tgz`            | `file:.campaign/tgz/antelopejs-interface-database-e533a2f.tgz`            |
 | `@antelopejs/interface-database-decorators` | `file:.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` | `file:.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz` |
-| `@antelopejs/interface-dms`                 | `file:.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz`                 | `file:.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz`                 |
+| `@antelopejs/interface-dms`                 | `file:.campaign/tgz/antelopejs-interface-dms-14e671d.tgz`                 | `file:.campaign/tgz/antelopejs-interface-dms-14e671d.tgz`                 |
 | `@antelopejs/interface-dms-automation`      | `file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz`      | `file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz`      |
 
 <!-- antelopejs-docs-compat:end -->
