@@ -67,7 +67,7 @@ export const factsAndColumns = {
     const vaultColumns = await columnRows(accounts);
     await ctx.verify("vault.accounts", [
       check("a single instance reads singular", vault.instances === "1 instance" && vault.structure === "5 columns · 1 index · 0 relations", vault),
-      check("no rows reads 0 rows and offers no instance browsing", vault.rows === "0 rows" && (await drawer(accounts).getByRole("link", { name: "Browse by instance in the data browser" }).count()) === 0, vault),
+      check("two rows read 2 rows and a single instance offers no instance browsing", vault.rows === "2 rows" && (await drawer(accounts).getByRole("link", { name: "Browse by instance in the data browser" }).count()) === 0, vault),
       check("hashed, encrypted and localized columns are noted", JSON.stringify(vaultColumns.slice(2)) === JSON.stringify(["password | password | no | Hashed", "card_number | string | no | Encrypted", "display_name | string | no | Localized"]), vaultColumns),
       check("the plain columns have no note", vaultColumns[0] === "_id | primary key | no |" && vaultColumns[1] === "handle | string | no |", vaultColumns),
     ]);

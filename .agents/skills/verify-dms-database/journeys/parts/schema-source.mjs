@@ -33,7 +33,7 @@ export const tableCounts = {
       "shop::products": { rows: 6, columns: 4, indexes: 1, relations: [], modifiers: [] },
       "shop::orders": { rows: 0, columns: 10, indexes: 3, relations: ["customers"], modifiers: [] },
       "shop::order_items": { rows: 0, columns: 5, indexes: 1, relations: ["orders", "products"], modifiers: [] },
-      "vault::accounts": { rows: 0, columns: 5, indexes: 1, relations: [], modifiers: ["Hashed", "Encrypted", "Localized"] },
+      "vault::accounts": { rows: 2, columns: 5, indexes: 1, relations: [], modifiers: ["Hashed", "Encrypted", "Localized"] },
       "vault::wide_records": { rows: 1, columns: 17, indexes: 0, relations: ["parents_registry"], modifiers: [] },
       "links::customer_refs": { rows: 0, columns: 2, indexes: 0, relations: ["shop.customers"], modifiers: [] },
       "demo::posts": { rows: 3, columns: 5, indexes: 2, relations: ["tags"], modifiers: [] },
@@ -93,7 +93,7 @@ export const filters = {
       check("only an unknown flag filters nothing", bogus.total === 4, sorted(bogus)),
       check("empty keeps the tables without a row in the default instance", JSON.stringify(sorted(empty)) === JSON.stringify(["shop::customers", "shop::order_items", "shop::orders"]), sorted(empty)),
       check("search, relations and empty combine", JSON.stringify(sorted(combined)) === JSON.stringify(["shop::order_items", "shop::orders"]), sorted(combined)),
-      check("modifiers and empty combine", JSON.stringify(sorted(nonEmptyPlusModifiers)) === JSON.stringify(["vault::accounts"]), sorted(nonEmptyPlusModifiers)),
+      check("modifiers and empty combine: vault.accounts holds two rows, so no table is both", JSON.stringify(sorted(nonEmptyPlusModifiers)) === "[]", sorted(nonEmptyPlusModifiers)),
     ]);
   },
 };

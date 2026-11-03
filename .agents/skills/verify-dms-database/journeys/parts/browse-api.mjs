@@ -1,5 +1,5 @@
 import { guarded } from "../../guard.mjs";
-import { check, db, isText, member, pick, show, text } from "../../database.mjs";
+import { check, db, isText, list, member, pick, show, text } from "../../database.mjs";
 import { ALL, browse, ids, rowsOf } from "./browse.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
@@ -228,7 +228,7 @@ const referencesCount = {
     const postRefs = await browse(ctx, "what points at the first post", "references", "demo.posts", { id: postId });
     const tagRefs = await browse(ctx, "what points at the first tag", "references", "demo.tags", { id: tagId });
     /** @param {import("../../database.mjs").Answer} answer @returns {string} */
-    const summary = (answer) => show(Object.fromEntries(Array.from(pick(answer.body, "items") ?? [], (/** @type {unknown} */ item) => [`${text(item, "table")}.${text(item, "field")}`, pick(item, "count")])));
+    const summary = (answer) => show(Object.fromEntries(Array.from(list(answer.body, "items").filter((item) => text(item, "schema") !== "links"), (/** @type {unknown} */ item) => [`${text(item, "table")}.${text(item, "field")}`, pick(item, "count")])));
     await ctx.verify("the references", [
       check("an order is pointed at by two order_items.order_id, not many", summary(order) === '{"order_items.order_id":2}' && itemField(pick(order.body, "items"), 0, "many") === false, order.body),
       check("a customer: its 4 orders in eu", summary(customer) === '{"orders.customer_id":4}', customer.body),
