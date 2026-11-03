@@ -1,6 +1,6 @@
 import { guarded } from "../../guard.mjs";
 import { check } from "../../database.mjs";
-import { DATA_PAGE, openTable, openTabs, settle } from "./browse.mjs";
+import { DATA_PAGE, openTable, openTabs, pickInstance, pickSchema, settle } from "./browse.mjs";
 import { cellState, reviewLabel, storedRow, typeInto } from "./edit.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
@@ -24,10 +24,8 @@ const discardAndClose = {
     await tab.signIn("admin");
     await tab.goto(DATA_PAGE);
     await tab.visible({ role: "textbox", name: "Find a table" }, { timeoutMs: 60_000 });
-    await tab.click({ role: "button", name: "Schema", exact: true });
-    await tab.click({ role: "option", name: "shop", exact: true });
-    await tab.click({ role: "button", name: "Instance", exact: true });
-    await tab.click({ role: "option", name: "eu", exact: true });
+    await pickSchema(tab, "shop");
+    await pickInstance(tab, "eu");
     await tab.page.locator("aside nav button").filter({ hasText: /^products/ }).click();
     await settle(() => openTabs(tab), (tabs) => tabs.length === 1 && tabs[0]?.preview === true);
     await typeInto(tab, "eu_sku_lamp", "name", "Reading lamp");

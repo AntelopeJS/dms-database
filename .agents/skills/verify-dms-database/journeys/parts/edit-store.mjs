@@ -117,14 +117,46 @@ const typedValues = {
   },
 };
 
+/**
+ * PUTs to the edit route for eu's orders.
+ *
+ * @param {Ctx} ctx The journey
+ * @param {string} label What the call does
+ * @param {string} id The row, empty to send none
+ * @param {unknown} body The JSON body
+ * @returns {Promise<import("../../database.mjs").Answer>} The answer
+ */
+function putOrder(ctx, label, id, body) {
+  const selection = "filter_schema=is:shop&filter_table=is:orders&filter_instance=is:eu";
+  return db(ctx, label, "PUT", `/browse/edit?${selection}${id ? `&id=${id}` : ""}`, { body });
+}
+
+/**
+ * The writes the edit route refuses.
+ *
+ * @param {Ctx} ctx The journey
+ * @returns {Promise<void>}
+ */
+async function refusals(ctx) {
+  const id = "eu_ord_10405";
+  const everywhere = await db(ctx, "across every instance", "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:orders&filter_instance=is:__CROSS_INSTANCE__&id=${id}`, { body: { channel: "everywhere" } });
+  const noId = await putOrder(ctx, "no id", "", { total: 1 });
+  const array = await putOrder(ctx, "an array body", id, [1, 2]);
+  const missing = await putOrder(ctx, "a missing row", "nope", { total: 1 });
+  const stored = await storedRow(ctx, "orders", id, "eu");
+  await ctx.verify("the refusals", [
+    check("across all instances the edit is refused 400 and writes nothing", everywhere.status === 400 && /Editing is disabled when browsing across all instances/.test(String(everywhere.body)) && stored.channel !== "everywhere", [everywhere.status, everywhere.body, stored.channel]),
+    check("a missing id is 400, an array body is 400, a missing row is 404", noId.status === 400 && array.status === 400 && missing.status === 404 && /Row not found/.test(String(missing.body)), [noId.status, array.status, missing.status]),
+  ]);
+}
+
 /** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
 const editRoute = {
   id: "the-edit-route-writes-typed-values-and-refuses-the-rest",
   title: "PUT /browse/edit writes the fields it is given as typed, keeps a date a date and refuses a value that is no date with 400, never rewrites the primary key or _instance, replaces an object whole, clears with null, answers the merged row, and refuses a missing id, a non-object body and a missing row",
   entryPoint: "PUT /api/database/browse/edit",
   async run(/** @type {Ctx} */ ctx) {
-    const query = "filter_schema=is:shop&filter_table=is:orders&filter_instance=is:eu";
-    const put = (/** @type {string} */ label, /** @type {string} */ id, /** @type {unknown} */ body) => db(ctx, label, "PUT", `/browse/edit?${query}${id ? `&id=${id}` : ""}`, { body });
+    const put = (/** @type {string} */ label, /** @type {string} */ id, /** @type {unknown} */ body) => putOrder(ctx, label, id, body);
     const id = "eu_ord_10405";
     const number = await put("a number", id, { total: 12.5 });
     const textOverNumber = await put("a text over a number", id, { channel: "kiosk", currency: "GBP" });
@@ -136,9 +168,6 @@ const editRoute = {
     const cleared = await put("null", id, { coupon_id: null, channel: null });
     const added = await put("a new field", id, { gift: true, note: "hello" });
     const same = await put("an unchanged echo", id, { currency: "GBP", gift: true });
-    const noId = await put("no id", "", { total: 1 });
-    const array = await put("an array body", id, [1, 2]);
-    const missing = await put("a missing row", "nope", { total: 1 });
     const stored = await storedRow(ctx, "orders", id, "eu");
     const hacked = await browse(ctx, "the hacked id", "get", "shop.orders", { filter_instance: "is:eu", id: "hacked" });
     const types = await browse(ctx, "order column types", "columns", "shop.orders", { filter_instance: "is:eu" });
@@ -153,8 +182,8 @@ const editRoute = {
       check("null clears a cell: coupon_id and channel are null", cleared.status === 200 && stored.coupon_id === null && stored.channel === null, [stored.coupon_id, stored.channel]),
       check("a field the row never had is added, as typed", added.status === 200 && stored.gift === true && stored.note === "hello", [stored.gift, stored.note]),
       check("an unchanged echo is accepted and changes nothing", same.status === 200 && stored.currency === "GBP", same.status),
-      check("a missing id is 400, an array body is 400, a missing row is 404", noId.status === 400 && array.status === 400 && missing.status === 404 && /Row not found/.test(String(missing.body)), [noId.status, array.status, missing.status]),
     ]);
+    await refusals(ctx);
   },
 };
 
