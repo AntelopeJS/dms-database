@@ -123,7 +123,6 @@ const jsonEditor = {
     const wideEditor = await dialog.locator(".cm-editor").boundingBox();
     await ctx.verify("the drawer", [
       check("it opens on the column with the cell's JSON, indented", /Edit tags/.test(opened) && /"office"/.test(opened) && /Ln 1/.test(opened), opened),
-      check("the editor fills the drawer's height, down to its footer", before !== null && editor !== null && editor.height > before.height * 0.5, [before, editor]),
       check("dragging the drawer's edge widens it, and the editor with it", before !== null && after !== null && wideEditor !== null && editor !== null && after.width > before.width + 100 && wideEditor.width > editor.width + 100, [before, after, editor, wideEditor]),
     ]);
     await fillJson(tab, '{"a":');
@@ -182,4 +181,23 @@ const jsonEditor = {
   },
 };
 
-export const valueJourneys = guarded([nullAndEscape, jsonEditor]);
+/** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
+const jsonHeight = {
+  id: "the-json-editor-is-as-tall-as-the-drawer",
+  title: "the JSON editor of a cell fills the height of the drawer, down to the drawer's footer, whatever the height of the window",
+  entryPoint: "/modules/database/data JSON editor drawer",
+  async run(/** @type {Ctx} */ ctx) {
+    const tab = await shopTab(ctx, "products", "eu");
+    await openEditor(tab, "eu_sku_lamp", "tags");
+    await tab.visible({ role: "dialog", name: "Edit tags" });
+    const dialog = tab.page.getByRole("dialog", { name: "Edit tags" });
+    const drawer = await dialog.boundingBox();
+    const editor = await dialog.locator(".cm-editor").boundingBox();
+    const cancel = await tab.page.getByRole("button", { name: "Cancel" }).boundingBox();
+    await ctx.verify("the editor's height", [
+      check("the editor takes most of the drawer's height, down to the footer", drawer !== null && editor !== null && cancel !== null && editor.height > drawer.height * 0.5 && cancel.y - (editor.y + editor.height) < 120, [drawer, editor, cancel]),
+    ]);
+  },
+};
+
+export const valueJourneys = guarded([nullAndEscape, jsonEditor, jsonHeight]);

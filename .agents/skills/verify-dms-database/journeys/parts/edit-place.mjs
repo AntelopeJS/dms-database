@@ -97,23 +97,29 @@ const refined = {
     ]);
     await tab.click({ role: "button", name: "Clear all" });
     await settle(() => columnValues(tab, "name"), (values) => values.length === 6);
-    await tab.fill({ role: "textbox", name: "Search rows" }, "chair");
+    await tab.fill({ role: "textbox", name: "Search rows" }, "task");
     await settle(() => columnValues(tab, "name"), (values) => values.length === 1);
-    await elsewhere(ctx, "eu_sku_monitor", { price: 5 });
     await typeInto(tab, "eu_sku_chair", "price", "321");
     await saveStaged(tab);
     await settle(() => savedNotice(tab), (content) => /saved/.test(content));
     const afterSearch = await columnValues(tab, "price");
+    await tab.fill({ role: "textbox", name: "Search rows" }, "o");
+    const several = await settle(() => columnValues(tab, "name"), (values) => values.length > 1);
+    await elsewhere(ctx, "eu_sku_monitor", { price: 5 });
+    await typeInto(tab, "eu_sku_chair", "price", "322");
+    await saveStaged(tab);
+    await settle(() => savedNotice(tab), (content) => /saved/.test(content));
+    const witness = await settle(() => columnValues(tab, "price"), (values) => values.includes("5"));
     await tab.fill({ role: "textbox", name: "Search rows" }, "");
-    const all = await settle(() => columnValues(tab, "price"), (values) => values.length === 6);
+    await settle(() => columnValues(tab, "price"), (values) => values.length === 6);
     await typeInto(tab, "eu_sku_chair", "name", "Stool");
-    await tab.fill({ role: "textbox", name: "Search rows" }, "chair");
+    await tab.fill({ role: "textbox", name: "Search rows" }, "task");
     await settle(() => columnValues(tab, "name"), (values) => values.length === 1);
     await saveStaged(tab);
     const vanished = await settle(() => columnValues(tab, "name"), (values) => values.length === 0);
     await ctx.verify("a search", [
-      check("with a search active a save of any field reads the page again", afterSearch.join() === "321", afterSearch),
-      check("the full page afterwards holds the monitor's price 5 written by the other writer", all.includes("5"), all),
+      check("a search narrowed to the chair shows its new price", afterSearch.join() === "321", afterSearch),
+      check("with a search active even a save of the price reads the page again: the monitor's price written by another writer shows", several.length > 1 && witness.includes("5"), [several, witness]),
       check("a renamed row no longer matching the search leaves the page", vanished.length === 0, vanished),
     ]);
   },

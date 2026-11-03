@@ -66,11 +66,14 @@ const sidebarCounts = {
     await pickSchema(tab, "metrics");
     const metrics = await settle(() => sidebarTables(tab), (tables) => tables.readings === "1,250");
     const footerMetrics = await countsFor(tab, "default");
-    await pickInstance(tab, "default").catch(() => undefined);
+    await tab.click({ role: "button", name: "Instance", exact: true });
+    const menu = (await tab.page.getByRole("listbox").innerText()).replace(/\s+/g, " ");
+    await tab.page.keyboard.press("Escape");
     const instanceButton = (await tab.page.getByRole("button", { name: "Instance", exact: true }).innerText()).trim();
     await tab.page.keyboard.press("Escape");
     await ctx.verify("another schema starts on the default instance and groups digits", [
       check("metrics: 1,250 readings and 0 in empty_log", show(metrics) === '{"readings":"1,250","empty_log":"0"}', metrics),
+      check("a schema with no named instance lists default and All instances and says No named instance", /All instances/.test(menu) && /default/.test(menu) && /No named instance/.test(menu), menu),
       check("a schema picked after All instances is back on default", footerMetrics === "Counts for instance default" && /default/.test(instanceButton), [footerMetrics, instanceButton]),
     ]);
     await pickSchema(tab, "shop");
@@ -91,6 +94,18 @@ const sidebarCounts = {
       check("typing items keeps order_items alone and counts one table", show(Object.keys(filtered)) === '["order_items"]' && /Tables · 1/i.test(heading), [filtered, heading]),
       check("Esc clears the search: the four tables are back", show(Object.keys(cleared)) === '["customers","products","orders","order_items"]', cleared),
       check("a T typed in the field is text, and a search with no match says No table matches.", /No table matches\./.test(none) && (await tab.value({ role: "textbox", name: "Find a table" })) === "Tzzz", none),
+    ]);
+    await tab.page.keyboard.press("Escape");
+    await tab.page.route("**/api/database/browse/tables**", async (route) => {
+      await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "down" }) });
+    });
+    await pickSchema(tab, "demo");
+    const failed = await settle(() => footerText(tab), (content) => content === "Row counts couldn't be loaded.");
+    const noCounts = await sidebarTables(tab);
+    await tab.page.unroute("**/api/database/browse/tables**");
+    await ctx.verify("counts that cannot be read", [
+      check("the footer says Row counts couldn't be loaded. instead of naming the instance", failed === "Row counts couldn't be loaded.", failed),
+      check("the tables are listed without a count", Object.keys(noCounts).length === 3 && Object.values(noCounts).every((count) => count === ""), noCounts),
     ]);
   },
 };

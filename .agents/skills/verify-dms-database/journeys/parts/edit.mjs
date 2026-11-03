@@ -17,7 +17,7 @@ import { browse, columnNames, settle } from "./browse.mjs";
  * @returns {Promise<Locator>} The cell
  */
 export async function cellOf(tab, rowId, column) {
-  const names = await columnNames(tab);
+  const names = await settle(() => columnNames(tab), (found) => found.includes(column));
   const row = tab.page.locator(`tbody tr:has(span:text-is("${rowId}"))`).first();
   return row.locator("td").nth(names.indexOf(column) + 1);
 }

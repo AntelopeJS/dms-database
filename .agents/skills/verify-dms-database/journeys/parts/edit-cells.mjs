@@ -207,7 +207,7 @@ async function openVipBoolean(tab) {
     check("a boolean cell offers true and false", /true/.test(options.join()) && /false/.test(options.join()), options),
     check("choosing true over false stages it at once", staged.struck === "false" && staged.text === "false true", staged),
     check("over an emptied boolean cell, maybe is refused", message === "Expected true or false · Esc to cancel", message),
-    check("TRUE is accepted whatever its case, as the boolean true", typed.text.endsWith("true") && typed.struck === "null", typed),
+    check("TRUE is accepted whatever its case, as the boolean true over the cell's stored false", typed.text === "false true" && typed.struck === "false", typed),
   ];
 }
 

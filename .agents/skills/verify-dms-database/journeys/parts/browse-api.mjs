@@ -272,4 +272,32 @@ const ownerOnly = {
   },
 };
 
-export const browseApiJourneys = guarded([listClampsLimitAndOffset, listFiltersAndSearch, selectionDecoding, columnsGetAndTables, referencesCount, ownerOnly]);
+/** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
+const instancesRoute = {
+  id: "the-instance-picker-lists-named-instances-with-a-search-and-a-limit",
+  title: "tables/instances lists a schema's named instances sorted, filtered by a case-insensitive search, cut to the limit with the total of matches, and refuses a missing and an unknown schema",
+  entryPoint: "GET /api/database/tables/instances",
+  async run(/** @type {Ctx} */ ctx) {
+    const all = await db(ctx, "shop instances", "GET", "/tables/instances?schema=shop");
+    const searched = await db(ctx, "search US", "GET", "/tables/instances?schema=shop&search=US");
+    const both = await db(ctx, "search u", "GET", "/tables/instances?schema=shop&search=u");
+    const none = await db(ctx, "search zzz", "GET", "/tables/instances?schema=shop&search=zzz");
+    const limited = await db(ctx, "limit 1", "GET", "/tables/instances?schema=shop&limit=1");
+    const zero = await db(ctx, "limit 0", "GET", "/tables/instances?schema=shop&limit=0");
+    const metrics = await db(ctx, "metrics instances", "GET", "/tables/instances?schema=metrics");
+    const missing = await db(ctx, "no schema", "GET", "/tables/instances");
+    const unknown = await db(ctx, "unknown schema", "GET", "/tables/instances?schema=nowhere");
+    await ctx.verify("named instances", [
+      check("shop has eu and us, sorted, 2 in total", show(pick(all.body, "instances")) === '["eu","us"]' && pick(all.body, "total") === 2, all.body),
+      check("the search ignores case: US finds us only", show(pick(searched.body, "instances")) === '["us"]' && pick(searched.body, "total") === 1, searched.body),
+      check("u matches both", pick(both.body, "total") === 2, both.body),
+      check("no match: an empty list and 0", show(pick(none.body, "instances")) === "[]" && pick(none.body, "total") === 0, none.body),
+      check("limit 1 shows the first instance and still counts 2", show(pick(limited.body, "instances")) === '["eu"]' && pick(limited.body, "total") === 2, limited.body),
+      check("limit 0 is raised to 1", show(pick(zero.body, "instances")) === '["eu"]', zero.body),
+      check("a schema with no named instance answers none", show(pick(metrics.body, "instances")) === "[]" && pick(metrics.body, "total") === 0, metrics.body),
+      check("a missing schema is 400 and an unknown one 404", missing.status === 400 && unknown.status === 404, [missing.status, unknown.status]),
+    ]);
+  },
+};
+
+export const browseApiJourneys = guarded([instancesRoute, listClampsLimitAndOffset, listFiltersAndSearch, selectionDecoding, columnsGetAndTables, referencesCount, ownerOnly]);
