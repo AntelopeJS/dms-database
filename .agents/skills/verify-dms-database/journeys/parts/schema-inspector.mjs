@@ -44,9 +44,9 @@ export async function facts(tab) {
   const position = await dialog.getByText(/^Table \d+ of \d+$/).first().innerText().catch(() => "");
   const title = await dialog.getByRole("heading", { level: 2 }).first().innerText().catch(() => "");
   return {
-    eyebrow: lines.find((line) => line.startsWith("Schema ·")) ?? "",
+    eyebrow: (lines.find((line) => line.toLowerCase().startsWith("schema ·")) ?? "").toLowerCase(),
     instances: lines.find((line) => /^\d+ instances?$/.test(line)) ?? "",
-    rows: (lines.find((line) => /^[\d,]+ rows?/.test(line)) ?? "").replace(/\s*·\s*$/, ""),
+    rows: (lines.find((line) => /^[\d,]+ rows?/.test(line)) ?? "").split(" · ")[0] ?? "",
     structure: lines.find((line) => /columns? ·/.test(line)) ?? "",
     position,
     title,
