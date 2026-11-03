@@ -1,5 +1,5 @@
 import { check, db, pick } from "../../database.mjs";
-import { BAR, countText, listUntil, listed, openSchemas, paramsUntil, params, pickFrom } from "./schema-page.mjs";
+import { BAR, countText, listUntil, listed, openSchemas, paramsUntil, params, pickFrom, settled } from "./schema-page.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
 /** @typedef {import("../../database.mjs").Tab} Tab */
@@ -170,8 +170,8 @@ export const restored = {
       check("the other keys stay", vault.get("q") === "order" && vault.get("has") === "relations", tab.page.url()),
     ]);
 
-    await tab.page.goto(`${new URL(tab.page.url()).origin}/modules/database/schemas?scope=shop&instance=all&q=order`);
-    await tab.page.waitForTimeout(2000);
+    await tab.goto("/modules/database/schemas?scope=shop&instance=all&q=order");
+    await settled(tab);
     await pickFrom(tab, "Schema", "vault");
     const kept = await paramsUntil(tab, (query) => query.get("scope") === "vault");
     await ctx.verify("the all-instances choice survives another schema", [check("instance=all stays", kept.get("instance") === "all", tab.page.url())]);
@@ -206,7 +206,7 @@ export const slash = {
   async run(ctx) {
     const tab = await openSchemas(ctx);
     const focused = () => tab.page.evaluate(() => document.activeElement?.getAttribute("aria-label") ?? document.activeElement?.tagName ?? "");
-    await tab.page.locator("h1").first().click();
+    await tab.click({ role: "heading", name: "Schemas", exact: true });
     await tab.page.keyboard.press("Control+/");
     const withModifier = await focused();
     await tab.page.keyboard.press("/");

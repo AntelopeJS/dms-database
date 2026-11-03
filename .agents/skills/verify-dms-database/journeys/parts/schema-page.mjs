@@ -111,6 +111,8 @@ export async function pickFrom(tab, menu, option) {
   const entry = tab.page.getByRole("option", { name: option, exact: true });
   await entry.first().waitFor({ state: "visible", timeout: WAIT_MS });
   await entry.first().click();
+  const closed = await tab.page.getByRole("listbox").first().waitFor({ state: "hidden", timeout: 3000 }).then(() => true, () => false);
+  if (!closed) await tab.page.keyboard.press("Escape");
 }
 
 /**
