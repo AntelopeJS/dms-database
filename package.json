@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-database",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
   "keywords": [
     "admin",
@@ -46,7 +46,7 @@
     "dev": "ajs project run -w -p playground",
     "generate": "ajs module exports generate",
     "lint:fix": "oxlint --fix && oxfmt . && pnpm --dir frontend-vue lint:fix",
-    "lint": "oxlint && pnpm --dir frontend-vue lint && node scripts/check-sources.mts && antelopejs-check-interface-ranges",
+    "lint": "oxlint && pnpm --dir frontend-vue lint && node scripts/check-sources.mts && antelopejs-check-interface-ranges && node node_modules/@antelopejs/dms/frontend-vue/scripts/check-api-error-presentation.mjs frontend-vue/app",
     "typecheck": "tsc --noEmit",
     "format": "oxfmt . && pnpm --dir frontend-vue format",
     "frontend:dev": "cd playground && pnpm frontend:dev",
@@ -76,7 +76,7 @@
   },
   "devDependencies": {
     "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz",
-    "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-80e4dc1.tgz",
+    "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-4358eef.tgz",
     "@antelopejs/dms-frontend": "file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz",
     "@antelopejs/interface-data-api": "file:.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz",
     "@antelopejs/mongodb": "file:.campaign/tgz/antelopejs-mongodb-db4b449.tgz",
@@ -110,11 +110,11 @@
       "@antelopejs/interface-database-decorators": "file:.campaign/tgz/antelopejs-interface-database-decorators-e79a62b.tgz",
       "@antelopejs/interface-data-api": "file:.campaign/tgz/antelopejs-interface-data-api-d8a868f.tgz",
       "@antelopejs/interface-dms": "file:.campaign/tgz/antelopejs-interface-dms-e0787e6.tgz",
-      "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-80e4dc1.tgz",
       "@antelopejs/interface-dms-automation": "file:.campaign/tgz/antelopejs-interface-dms-automation-b4bc5d2.tgz",
       "@antelopejs/dms-frontend": "file:.campaign/tgz/antelopejs-dms-frontend-ee4e931.tgz",
       "@antelopejs/interface-core": "file:.campaign/tgz/antelopejs-interface-core-f7df541.tgz",
-      "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz"
+      "@antelopejs/core": "file:.campaign/tgz/antelopejs-core-184eb90.tgz",
+      "@antelopejs/dms": "file:.campaign/tgz/antelopejs-dms-4358eef.tgz"
     }
   },
   "antelopeJs": {

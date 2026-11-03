@@ -29,7 +29,7 @@ export class DiagramAutosave {
 		/** The state to write, read when the write is asked for. */
 		private readonly read: () => DiagramState,
 		private readonly delayMs: number,
-		private readonly onStatus: (status: SaveStatus) => void,
+		private readonly onStatus: (status: SaveStatus, error?: unknown) => void,
 	) {}
 
 	/** Saves once edits pause. */
@@ -65,8 +65,8 @@ export class DiagramAutosave {
 		try {
 			await this.writer.save(state)
 			this.onStatus('saved')
-		} catch {
-			this.onStatus('error')
+		} catch (error) {
+			this.onStatus('error', error)
 		}
 	}
 }

@@ -11,6 +11,7 @@ import {
 	QUERY_METHODS,
 } from '../app/build/query/completion'
 import { latestOrderField } from '../app/build/query/examples'
+import { sqlFailure } from '../app/build/query/failures'
 import {
 	closestName,
 	replaceName,
@@ -94,6 +95,25 @@ describe('unknown names', () => {
 })
 
 describe('query runtime errors', () => {
+	it('keeps SQL diagnostics inline but leaves transport failures to the presenter', () => {
+		expect(
+			sqlFailure({
+				statusCode: 400,
+				data: { message: 'Unknown table "oders"', durationMs: 7 },
+			}),
+		).toEqual({ message: 'Unknown table "oders"', durationMs: 7 })
+		expect(
+			sqlFailure({ statusCode: 400, data: 'Cannot measure this mutation' }),
+		).toEqual({ message: 'Cannot measure this mutation', durationMs: null })
+		expect(
+			sqlFailure({
+				statusCode: 403,
+				data: { message: 'error.read_only_demo', severity: 'warning' },
+			}),
+		).toBeNull()
+		expect(sqlFailure(new Error('Network error'))).toBeNull()
+	})
+
 	it('names an unknown schema', () => {
 		let error: unknown
 		try {

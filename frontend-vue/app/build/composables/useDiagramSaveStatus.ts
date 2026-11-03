@@ -10,28 +10,25 @@ const MINUTE_MS = 60_000
  */
 export function useDiagramSaveStatus(shown: () => DiagramSync | null) {
 	const { t } = useI18n()
-	const toast = useToast()
+	const { presentError } = useApiErrorPresenter()
 	const now = useNow({ interval: MINUTE_MS / 2 })
 	const saveState = ref<SaveStatus>('idle')
 	const savedAt = ref<Date | null>(null)
 
 	/** Shows the save status of the schema shown; a schema left reports a failure. */
 	function statusReporter(owner: DiagramSync) {
-		return (status: SaveStatus) => {
+		return (status: SaveStatus, error?: unknown) => {
+			if (status === 'error')
+				presentError(error, {
+					fallbackKey:
+						owner === shown()
+							? 'dms_database.diagram.save.error'
+							: 'dms_database.diagram.save.error_other',
+					params: { schema: owner.schemaId },
+				})
 			if (owner === shown()) {
 				saveState.value = status
 				if (status === 'saved') savedAt.value = new Date()
-				return
-			}
-			// The save of a schema left before it ended.
-			if (status === 'error') {
-				toast.add({
-					title: t('dms_database.diagram.save.error_other', {
-						schema: owner.schemaId,
-					}),
-					color: 'error',
-					icon: 'i-ph-warning-circle',
-				})
 			}
 		}
 	}

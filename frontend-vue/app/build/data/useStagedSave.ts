@@ -43,15 +43,6 @@ interface StagedSaveOptions {
 	onSaved: (saved: SavedChanges) => void
 }
 
-/** The server's reason when it gave one, else the error's own message. */
-function messageOf(error: unknown): string {
-	const data = (error as { data?: unknown } | null)?.data
-	if (typeof data === 'string' && data) return data
-	const message = (data as { message?: unknown } | null)?.message
-	if (typeof message === 'string' && message) return message
-	return error instanceof Error ? error.message : String(error)
-}
-
 function fieldsOf(changes: StagedChange[]): string[] {
 	return [...new Set(changes.map((change) => change.field))]
 }
@@ -61,6 +52,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 	const { $authFetch } = useAuthFetch()
 	const { confirm } = useConfirm()
 	const toast = useToast()
+	const { presentError, resolveError } = useApiErrorPresenter()
 	const staged = useStagedEdits()
 	const saving = ref(false)
 	const notice = ref<SaveNotice | null>(null)
@@ -152,7 +144,10 @@ export function useStagedSave(options: StagedSaveOptions) {
 	}
 
 	/** Shows a row written as the server answered it. */
-	function showWritten(tab: BrowserTab, row: Record<string, unknown> | undefined) {
+	function showWritten(
+		tab: BrowserTab,
+		row: Record<string, unknown> | undefined,
+	) {
 		if (row) options.onWritten(tab, row)
 	}
 
@@ -197,10 +192,13 @@ export function useStagedSave(options: StagedSaveOptions) {
 			)
 		if (outcome.error !== null) {
 			const left = changesOf(changes, outcome.left).length
+			const notice = resolveError(outcome.error, {
+				fallbackKey: 'error.500.description',
+			})
 			details.push(
 				t(
 					'dms_database.data.save.not_written',
-					{ count: n(left), error: messageOf(outcome.error) },
+					{ count: n(left), error: notice?.message ?? '' },
 					left,
 				),
 			)
@@ -237,14 +235,9 @@ export function useStagedSave(options: StagedSaveOptions) {
 			// The rows the failure left keep their undo, for a retry.
 			if (here)
 				show({ ...current, state: 'saved', changes: left }, UNDO_WINDOW_MS)
-			toast.add({
-				title: t(
-					'dms_database.data.save.undo_partial',
-					{ count: n(left.length + gone.length) },
-					left.length + gone.length,
-				),
-				description: messageOf(outcome.error),
-				color: 'error',
+			presentError(outcome.error, {
+				fallbackKey: 'dms_database.data.save.undo_partial',
+				params: { count: left.length + gone.length },
 			})
 		} else if (here) {
 			show(
