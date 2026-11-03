@@ -1,5 +1,5 @@
 import { guarded } from "../guard.mjs";
-import { check } from "../database.mjs";
+import { check, db, list, text } from "../database.mjs";
 import { chooseView, editorText, exportCsv, flat, openConsole, resultText, runSource } from "./parts/console.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
@@ -112,6 +112,7 @@ export const journeys = guarded([
     entryPoint: "/modules/database/query, Ctrl+Space",
     async run(/** @type {Ctx} */ ctx) {
       const tab = await openConsole(ctx);
+      const registered = list((await db(ctx, "schemas", "GET", "/schemas")).body, "schemas").map((schema) => text(schema, "id")).sort();
       const editorBox = tab.page.getByRole("textbox", { name: "Query editor (AQL)" });
       await editorBox.fill("schemas.");
       await editorBox.press("Control+Space");
@@ -122,7 +123,7 @@ export const journeys = guarded([
       await tab.page.waitForTimeout(1000);
       const tables = await tab.page.locator(".cm-tooltip-autocomplete li").allTextContents();
       await ctx.verify("completions", [
-        check("every registered schema, sorted", JSON.stringify(schemas.map((entry) => entry.replace(/schema$/, ""))) === JSON.stringify(["app-site", "billing", "core", "demo", "dms-core", "dms-database", "dms-tenant", "global", "metrics", "production", "reviews", "shop", "staging-eu", "tenant-acme", "vault"]), schemas),
+        check("every registered schema, sorted", JSON.stringify(schemas.map((entry) => entry.replace(/schema$/, ""))) === JSON.stringify(registered), [schemas, registered]),
         check("the tables of shop that match o", JSON.stringify(tables.map((entry) => entry.replace(/table$/, ""))) === JSON.stringify(["order_items", "orders"]), tables),
       ]);
     },
