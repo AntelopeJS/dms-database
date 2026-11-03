@@ -1,0 +1,20 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "../../..",
+    "allowJs": true,
+    "checkJs": false,
+    "maxNodeModuleJsDepth": 5,
+    "types": ["node"],
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "composite": false,
+    "noEmit": true,
+    "incremental": false,
+    "experimentalDecorators": true
+  },
+  "include": ["**/*.mjs", "**/*.ts"],
+  "exclude": ["node_modules", "playground/node_modules", "playground/dist"]
+}
