@@ -34,13 +34,13 @@ export class PlainNote extends Table {
   @Field("string") declare body: string;
 }
 
-@RegisterTable("parents__registry", VAULT_SCHEMA)
+@RegisterTable("parents_registry", VAULT_SCHEMA)
 export class ParentsRegistry extends Table {
   @Field("string") declare _id: string;
   @Field("string") declare label: string;
 }
 
-@RegisterTable("parents__links", VAULT_SCHEMA)
+@RegisterTable("parents_links", VAULT_SCHEMA)
 export class ParentsLinks extends Table {
   @Field("string") declare _id: string;
   @Relation({ to: () => ParentsRegistry }) declare registry_id: string;
@@ -70,8 +70,8 @@ export class WideRecord extends Table {
 interface VaultTables {
   accounts: Account;
   plain_notes: PlainNote;
-  parents__registry: ParentsRegistry;
-  parents__links: ParentsLinks;
+  parents_registry: ParentsRegistry;
+  parents_links: ParentsLinks;
   wide_records: WideRecord;
 }
 
@@ -82,7 +82,7 @@ export async function seedVault(): Promise<void> {
   const notes = schema.instance().table("plain_notes");
   if ((await notes.count()) > 0) return;
   await notes.insert([{ _id: "note_1", body: "first note" }]).run();
-  await schema.instance().table("parents__registry").insert([{ _id: "reg_1", label: "registry one" }]).run();
-  await schema.instance().table("parents__links").insert([{ _id: "lnk_1", registry_id: "reg_1" }]).run();
+  await schema.instance().table("parents_registry").insert([{ _id: "reg_1", label: "registry one" }]).run();
+  await schema.instance().table("parents_links").insert([{ _id: "lnk_1", registry_id: "reg_1" }]).run();
   await schema.instance().table("wide_records").insert([{ _id: "wide_1", registry_id: "reg_1", c01: "a", tail_marker: "tail" }]).run();
 }

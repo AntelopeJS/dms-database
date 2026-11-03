@@ -159,3 +159,15 @@ export async function withConfig(ctx, env, body) {
     await ctx.restartBackend();
   }
 }
+
+/**
+ * @param {string} source A JSON text
+ * @returns {unknown} The parsed value, or undefined when the text is not JSON
+ */
+export function parseJson(source) {
+  try {
+    return JSON.parse(source);
+  } catch {
+    return undefined;
+  }
+}
