@@ -58,7 +58,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 
 | Package                                     | Supported         | Tested with |
 | ------------------------------------------- | ----------------- | ----------- |
-| `@antelopejs/interface-api`                 | `>=0.2.0 <1.0.0`  | `0.2.0`     |
+| `@antelopejs/interface-api`                 | `>=0.3.0 <1.0.0`  | `0.3.0`     |
 | `@antelopejs/interface-api-util`            | `>=0.3.0 <1.0.0`  | `0.3.0`     |
 | `@antelopejs/interface-core`                | `>=0.4.0 <1.0.0`  | `0.4.0`     |
 | `@antelopejs/interface-database`            | `>=0.3.0 <1.0.0`  | `0.3.0`     |
