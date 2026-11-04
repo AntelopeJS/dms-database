@@ -3,13 +3,11 @@
 @antelopejs/interface-database	package.json	pnpm.overrides	
 @antelopejs/interface-database-decorators	package.json	pnpm.overrides	
 @antelopejs/interface-data-api	package.json	pnpm.overrides	
-@antelopejs/interface-data-api	package.json	devDependencies	>=0.5.0 <1.0.0
 @antelopejs/interface-dms	package.json	dependencies	>=0.9.0 <1.0.0
 @antelopejs/interface-dms	package.json	pnpm.overrides	
 @antelopejs/dms	package.json	devDependencies	>=0.11.0 <1.0.0
 @antelopejs/dms	playground/package.json	dependencies	>=0.11.0 <1.0.0
 @antelopejs/dms	package.json	pnpm.overrides	
-@antelopejs/interface-data-api	playground/package.json	dependencies	>=0.5.0 <1.0.0
 @antelopejs/interface-api	playground/package.json	pnpm.overrides	
 @antelopejs/interface-api-util	playground/package.json	pnpm.overrides	
 @antelopejs/interface-database	playground/package.json	pnpm.overrides	
