@@ -6,24 +6,30 @@ import { chooseView, editor, flat, openConsole, resultText, runSource } from "./
 
 export const extraJourneys = guarded([
   {
-    id: "format-tidies-a-query-onto-one-line",
-    title: "Format joins a query written over several lines, with blank lines, into the single chained line, and leaves a tidy query as it is",
+    id: "format-strips-trailing-spaces-and-blank-lines",
+    title: "Format removes the spaces at the end of a line and the blank lines around a query, leaves a tidy query as it is, and the formatted query still runs",
     entryPoint: "/modules/database/query Format",
     async run(/** @type {Ctx} */ ctx) {
       const tab = await openConsole(ctx);
       const box = editor(tab);
-      const format = async (/** @type {string} */ source) => {
+      const tidyQuery = 'schemas.shop.instance().table("orders").count()';
+      const format = async (/** @type {string} */ source, /** @type {number} */ breaks) => {
         await box.fill(source);
+        await box.press("Control+End");
+        for (let index = 0; index < breaks; index += 1) await box.press("Enter");
+        const typed = (await box.textContent()) ?? "";
         await tab.page.getByRole("button", { name: "Format", exact: true }).click();
         await tab.page.waitForTimeout(900);
-        return (await box.textContent()) ?? "";
+        return { typed, formatted: (await box.textContent()) ?? "" };
       };
-      const joined = await format('schemas.shop.instance()\n.table("orders")\n\n\n.count()');
-      const tidy = await format('schemas.shop.instance().table("orders").slice(0, 5)');
-      await runSource(tab, joined);
+      const spaced = await format(`${tidyQuery}      `, 0);
+      const blank = await format(tidyQuery, 3);
+      const tidy = await format(tidyQuery, 0);
+      await runSource(tab, tidy.formatted);
       await ctx.verify("Format", [
-        check("a three-line query becomes one chained line", joined === 'schemas.shop.instance().table("orders").count()', joined),
-        check("a tidy query is left as it is", tidy === 'schemas.shop.instance().table("orders").slice(0, 5)', tidy),
+        check("trailing spaces are removed", spaced.typed !== tidyQuery && spaced.formatted === tidyQuery, spaced),
+        check("blank lines after the query are removed", blank.typed !== tidyQuery && blank.formatted === tidyQuery, blank),
+        check("a tidy query is left as it is", tidy.formatted === tidyQuery, tidy),
         check("the formatted query runs", (await resultText(tab)).includes("1 row"), await resultText(tab)),
       ]);
     },

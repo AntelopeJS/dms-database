@@ -36,7 +36,7 @@ The Query console, run and read side: write AQL, run it, read the result.
 - `ctrl-space-inside-a-filter-completes-the-columns-of-the-table`: the column list inside `row.key("`.
 - `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes`: the Chart view, its default axes and the X picker.
 - `open-in-data-browser-opens-the-target-table-or-the-row`: the result's header link and each row's link.
-- `format-tidies-a-query-onto-one-line`: Format joins a multi-line query.
+- `format-strips-trailing-spaces-and-blank-lines`: Format removes trailing spaces and surrounding blank lines.
 - `copy-as-json-puts-the-returned-rows-on-the-clipboard`: Copy as JSON and its notice.
 
 ## How to get to it (user POV)
@@ -61,7 +61,7 @@ dms-control journey "$RUN" query
 | Query starts from `schemas.<schema>.instance(<id>?)` and chains operations | `a-query-returns-its-rows-in-the-order-it-asks`, `an-instance-and-every-instance-are-targeted` |
 | `Ctrl Space` completes schemas, tables (and columns) | `ctrl-space-completes-schemas-and-tables-from-the-workspace` ; columns: `ctrl-space-inside-a-filter-completes-the-columns-of-the-table` |
 | Insert chips | `the-insert-chips-add-their-operation` |
-| Format tidies the query | `format-tidies-a-query-onto-one-line` |
+| Format tidies the query | `format-strips-trailing-spaces-and-blank-lines` |
 | `Ctrl Enter` runs it | `a-query-returns-its-rows-in-the-order-it-asks` (Ctrl+Enter and the Run button) |
 | An empty console offers two examples | `an-empty-console-offers-examples-built-on-your-own-tables` ("Latest 10 rows" is Not driven: the first schema `demo` has no date field) |
 | The result shows its row count, duration and target | `a-query-returns-its-rows-in-the-order-it-asks` |
