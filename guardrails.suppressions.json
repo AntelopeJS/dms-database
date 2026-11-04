@@ -15,5 +15,6 @@
   "safety": 0,
   "config": {
     "vue/multi-word-component-names for frontend-vue/**/*.vue": 1
-  }
+  },
+  "agentFiles": true
 }
