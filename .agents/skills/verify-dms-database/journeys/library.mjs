@@ -55,6 +55,9 @@ export const journeys = guarded([
     entryPoint: "POST /api/database/query/execute, GET /query/history, /modules/database/query",
     async run(/** @type {Ctx} */ ctx) {
       const total = HISTORY_LIMIT + 3;
+      await member(ctx, "mate", [], true);
+      await runQuery(ctx, `${TAGS_SOURCE}.count()`, tableQuery("demo", "tags", [{ stage: "count", args: [], options: {} }]), "mate");
+      await runQuery(ctx, TAGS_SOURCE, TAGS_QUERY, "mate");
       for (let index = 1; index <= total; index += 1) {
         const run = await runQuery(ctx, `${TAGS_SOURCE}.slice(0, ${index})`, tableQuery("demo", "tags", [SLICE(index)]));
         if (run.status !== 200) throw new Error(`run ${index} answered ${run.status}`);
@@ -71,6 +74,7 @@ export const journeys = guarded([
         check("the three oldest are gone", !sources.some((source) => /slice\(0, [123]\)$/.test(source)), sources.slice(-3)),
         check("limit 1 gives the newest and offset pages on", text(first.items[0], "source") === sources[0] && text(second.items[0], "source") === sources[1] && second.items.length === 2, [first.items.length, second.items.length]),
         check("a limit above 500 is cut to 500", beyond.items.length === HISTORY_LIMIT, beyond.items.length),
+        check("the cap is per user: the teammate's two runs are all still there", (await history(ctx, "mate")).items.length === 2, (await history(ctx, "mate")).items.length),
       ]);
       const tab = await openConsole(ctx);
       const body = flat(await tab.page.locator("body").innerText());
@@ -131,6 +135,35 @@ export const journeys = guarded([
       await tab.page.waitForTimeout(1500);
       const saved = await db(ctx, "saved", "GET", "/query/saved");
       await ctx.verify("Clear history", [check("the history is empty", (await history(ctx)).items.length === 0, "history"), check("the saved query stays", list(saved.body, "items").length === 1 && text(list(saved.body, "items")[0], "name") === "Kept", saved.body), tab.shows(/Queries you run show up here\./)]);
+    },
+  },
+  {
+    id: "clear-history-empties-only-your-own-runs",
+    title: "with two owners who each ran queries, Clear history of one removes only that owner's runs; the other's history, with its runs and its count, is untouched, and the same holds the other way round",
+    entryPoint: "/modules/database/query Clear history, DELETE /api/database/query/history",
+    async run(/** @type {Ctx} */ ctx) {
+      await member(ctx, "mate", [], true);
+      await runQuery(ctx, `${TAGS_SOURCE}.slice(0, 1)`, tableQuery("demo", "tags", [SLICE(1)]), "mate");
+      await runQuery(ctx, `${TAGS_SOURCE}.slice(0, 2)`, tableQuery("demo", "tags", [SLICE(2)]), "mate");
+      await runQuery(ctx, `${TAGS_SOURCE}.slice(0, 3)`, tableQuery("demo", "tags", [SLICE(3)]));
+      const tab = await openConsole(ctx);
+      await tab.page.getByRole("button", { name: "Clear history" }).click();
+      await tab.page.waitForTimeout(500);
+      await tab.page.getByRole("button", { name: "Clear history", exact: true }).last().click();
+      await tab.page.waitForTimeout(1500);
+      const owner = await history(ctx);
+      const mate = await history(ctx, "mate");
+      await ctx.verify("the owner clears", [
+        check("the owner's history is empty", owner.items.length === 0 && owner.total === 0, owner),
+        check("the teammate keeps both runs", mate.items.length === 2 && mate.total === 2 && JSON.stringify(mate.items.map((item) => text(item, "source")).sort()) === JSON.stringify([`${TAGS_SOURCE}.slice(0, 1)`, `${TAGS_SOURCE}.slice(0, 2)`]), mate),
+      ]);
+      await runQuery(ctx, `${TAGS_SOURCE}.slice(0, 1)`, tableQuery("demo", "tags", [SLICE(1)]));
+      const cleared = await db(ctx, "the teammate clears", "DELETE", "/query/history", { as: "mate" });
+      await ctx.verify("the teammate clears", [
+        check("the call succeeds", cleared.status === 200, cleared.status),
+        check("the teammate's history is empty", (await history(ctx, "mate")).items.length === 0, "mate"),
+        check("the owner's new run is untouched", (await history(ctx)).items.length === 1, "owner"),
+      ]);
     },
   },
   {

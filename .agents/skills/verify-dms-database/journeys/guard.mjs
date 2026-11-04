@@ -125,6 +125,52 @@ export const journeys = guarded([
       await runSource(tab, `${RANT}.update({name: "typed"})`);
       const opened = await dialogText(tab);
       await ctx.verify("the confirmation", [check("it asks for the table name", opened.includes("Type tags to confirm"), opened)]);
+      await cancel(tab);
+      const rows = list((await db(ctx, "tags", "GET", "/browse/list?filter_schema=demo&filter_table=tags&limit=200")).body, "results");
+      await runSource(tab, `${TAGS}.get("${text(rows[0], "_id")}").replace({name: "typed"})`);
+      const replacing = await dialogText(tab);
+      await ctx.verify("a single-row replace", [check("it asks for the table name too", replacing.includes("Type tags to confirm"), replacing)]);
+    },
+  },
+  {
+    id: "a-replace-names-its-operation-and-rows-and-waits-for-the-table-name",
+    title: "a replace, on one row picked by id and on every row of a table, opens the confirmation with Operation replace, the target and the rows the dry run found; a wrong name does nothing, the dry run writes nothing, and Confirm replaces the rows",
+    entryPoint: "/modules/database/query, POST /api/database/query/dry-run",
+    async run(/** @type {Ctx} */ ctx) {
+      const before = await tagNames(ctx);
+      const rows = list((await db(ctx, "tags", "GET", "/browse/list?filter_schema=demo&filter_table=tags&limit=200")).body, "results");
+      const first = text(rows[0], "_id");
+      const tab = await openConsole(ctx);
+      await runSource(tab, `${TAGS}.replace({name: "everyone"})`);
+      const many = await dialogText(tab);
+      await ctx.verify("replace on a table", [
+        check("the title counts the three rows", many.startsWith("Replace 3 rows in demo.tags?"), many),
+        check("Operation replace, Target demo.tags, Rows 3", many.includes("Operation replace Target demo.tags Rows 3"), many),
+        check("the button says what will happen and the name is asked", many.includes("Cancel Replace 3 rows") && many.includes("Type tags to confirm"), many),
+      ]);
+      const box = tab.page.getByRole("textbox", { name: "Type tags to confirm" });
+      await box.fill("tag");
+      await tab.page.getByRole("button", { name: "Replace 3 rows" }).click({ timeout: 3000 }).catch(() => undefined);
+      await tab.page.waitForTimeout(1200);
+      await ctx.verify("a wrong name", [check("the confirmation stays open", (await dialogs(tab)) === 1, await dialogText(tab)), check("nothing was replaced", JSON.stringify(await tagNames(ctx)) === JSON.stringify(before), await tagNames(ctx))]);
+      await box.fill("tags");
+      await tab.page.getByRole("button", { name: "Replace 3 rows" }).click();
+      await tab.page.waitForTimeout(2000);
+      const replaced = await tagNames(ctx);
+      const result = await resultText(tab);
+      await ctx.verify("Confirm", [check("the three rows are replaced, read through the API", JSON.stringify(replaced) === JSON.stringify(["everyone", "everyone", "everyone"]), replaced), check("the result says it changed data", result.includes("changed") && !result.includes("read-only"), result.slice(0, 160))]);
+      await runSource(tab, `${TAGS}.get("${first}").replace({name: "solo"})`);
+      const one = await dialogText(tab);
+      await ctx.verify("replace on one row", [
+        check("the title counts one row", one.startsWith("Replace 1 row in demo.tags?"), one),
+        check("Operation replace, Target demo.tags, Rows 1", one.includes("Operation replace Target demo.tags Rows 1"), one),
+        check("nothing was replaced before Confirm", !(await tagNames(ctx)).includes("solo"), await tagNames(ctx)),
+      ]);
+      const name = tab.page.getByRole("textbox", { name: "Type tags to confirm" });
+      if ((await name.count()) > 0) await name.fill("tags");
+      await tab.page.getByRole("button", { name: "Replace 1 row" }).click();
+      await tab.page.waitForTimeout(2000);
+      await ctx.verify("Confirm one", [check("exactly one row holds solo", JSON.stringify((await tagNames(ctx)).sort()) === JSON.stringify(["everyone", "everyone", "solo"]), await tagNames(ctx))]);
     },
   },
   {

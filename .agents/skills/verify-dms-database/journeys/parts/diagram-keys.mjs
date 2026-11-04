@@ -271,4 +271,41 @@ export const escape = {
   },
 };
 
-export const keyJourneys = [escape, inspector, findKey, panTool, fitInside, shortcutsPage, restart];
+/** @type {JourneyDef} */
+export const arrowOrigin = {
+  id: "each-relation-arrow-starts-at-its-own-column",
+  title: "the arrow of a relation starts on the row of the column that holds it, on the side of its table, for customer_id of orders and order_id and product_id of order_items",
+  entryPoint: "/modules/database/diagram relation arrows",
+  async run(ctx) {
+    const tab = await openDiagram(ctx, "?schema=shop");
+    const starts = await tab.page.evaluate(() => {
+      const rowBox = (/** @type {string} */ table, /** @type {string} */ column) => {
+        const node = document.querySelector(`.vue-flow__node[data-id="shop::${table}"]`);
+        const row = [...(node?.querySelectorAll("li") ?? [])].find((item) => item.textContent?.trim().startsWith(column));
+        const rect = row?.getBoundingClientRect();
+        const outer = node?.getBoundingClientRect();
+        return rect && outer ? { top: rect.top, bottom: rect.bottom, left: outer.left, right: outer.right } : null;
+      };
+      const start = (/** @type {string} */ from, /** @type {string} */ to) => {
+        const path = document.querySelector(`.vue-flow__edge[aria-label="Edge from shop::${from} to shop::${to}"] path`);
+        if (!(path instanceof SVGPathElement)) return null;
+        const point = path.getPointAtLength(0);
+        const matrix = path.getScreenCTM();
+        return matrix ? { x: matrix.a * point.x + matrix.c * point.y + matrix.e, y: matrix.b * point.x + matrix.d * point.y + matrix.f } : null;
+      };
+      return [
+        { edge: "orders.customer_id", point: start("orders", "customers"), row: rowBox("orders", "customer_id") },
+        { edge: "order_items.order_id", point: start("order_items", "orders"), row: rowBox("order_items", "order_id") },
+        { edge: "order_items.product_id", point: start("order_items", "products"), row: rowBox("order_items", "product_id") },
+      ];
+    });
+    await ctx.verify("arrow origins", starts.flatMap((entry) => [
+      check(`${entry.edge} starts inside its column's row`, entry.point !== null && entry.row !== null && entry.point.y >= entry.row.top - 1 && entry.point.y <= entry.row.bottom + 1, entry),
+      check(`${entry.edge} starts on a side of its table`, entry.point !== null && entry.row !== null && (Math.abs(entry.point.x - entry.row.left) <= 3 || Math.abs(entry.point.x - entry.row.right) <= 3), entry),
+    ]));
+    const rows = starts.filter((entry) => entry.edge.startsWith("order_items"));
+    await ctx.verify("two columns of one table", [check("order_id and product_id start at different heights", rows[0]?.point !== null && rows[1]?.point !== null && Math.abs((rows[0]?.point?.y ?? 0) - (rows[1]?.point?.y ?? 0)) > 8, rows)]);
+  },
+};
+
+export const keyJourneys = [arrowOrigin, escape, inspector, findKey, panTool, fitInside, shortcutsPage, restart];
