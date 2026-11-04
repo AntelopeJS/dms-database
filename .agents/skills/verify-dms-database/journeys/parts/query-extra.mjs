@@ -6,6 +6,29 @@ import { chooseView, editor, flat, openConsole, resultText, runSource } from "./
 
 export const extraJourneys = guarded([
   {
+    id: "format-tidies-a-query-onto-one-line",
+    title: "Format joins a query written over several lines, with blank lines, into the single chained line, and leaves a tidy query as it is",
+    entryPoint: "/modules/database/query Format",
+    async run(/** @type {Ctx} */ ctx) {
+      const tab = await openConsole(ctx);
+      const box = editor(tab);
+      const format = async (/** @type {string} */ source) => {
+        await box.fill(source);
+        await tab.page.getByRole("button", { name: "Format", exact: true }).click();
+        await tab.page.waitForTimeout(900);
+        return (await box.textContent()) ?? "";
+      };
+      const joined = await format('schemas.shop.instance()\n.table("orders")\n\n\n.count()');
+      const tidy = await format('schemas.shop.instance().table("orders").slice(0, 5)');
+      await runSource(tab, joined);
+      await ctx.verify("Format", [
+        check("a three-line query becomes one chained line", joined === 'schemas.shop.instance().table("orders").count()', joined),
+        check("a tidy query is left as it is", tidy === 'schemas.shop.instance().table("orders").slice(0, 5)', tidy),
+        check("the formatted query runs", (await resultText(tab)).includes("1 row"), await resultText(tab)),
+      ]);
+    },
+  },
+  {
     id: "ctrl-space-inside-a-filter-completes-the-columns-of-the-table",
     title: "Ctrl+Space inside row.key(\" lists every column of the table the query targets and nothing else, with the columns of another table when the table changes",
     entryPoint: "/modules/database/query, Ctrl+Space",
@@ -68,15 +91,12 @@ export const extraJourneys = guarded([
       ]);
       await header.click();
       await tab.visible({ role: "textbox", name: "Search rows" }, { timeoutMs: 60_000 });
-      const whole = flat(await tab.page.locator("body").innerText());
-      await ctx.verify("the table", [check("orders of eu: 80 rows", /orders\s+80 rows/.test(whole), whole.slice(0, 600))]);
+      await ctx.verify("the table", [tab.shows(/orders\s+80 rows/, { timeoutMs: 30_000 })]);
       await tab.page.goBack();
       await tab.visible({ role: "heading", name: "Query console", level: 1 }, { timeoutMs: 30_000 });
       await tab.goto("/modules/database/data?schema=shop&table=orders&instance=eu&match=_id%3Aeu_ord_10401");
       await tab.visible({ role: "textbox", name: "Search rows" }, { timeoutMs: 60_000 });
-      await tab.page.waitForTimeout(2000);
-      const one = flat(await tab.page.locator("body").innerText());
-      await ctx.verify("a row link", [check("one row, eu_ord_10401", /orders\s+1 row\b/.test(one) && one.includes("eu_ord_10401") && !one.includes("eu_ord_10400"), one.slice(0, 700))]);
+      await ctx.verify("a row link", [tab.shows(/orders\s+1 row\b/, { timeoutMs: 30_000 }), tab.shows(/eu_ord_10401/), tab.shows(/eu_ord_10400/, { not: true })]);
     },
   },
   {

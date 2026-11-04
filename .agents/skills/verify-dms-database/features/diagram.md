@@ -46,6 +46,13 @@ The Diagram page draws the tables of one schema and the relations between them, 
 - `a-double-click-edits-a-note-and-the-trash-button-and-delete-remove-it`: edit and delete.
 - `notes-belong-to-their-schema-and-everyone-reads-them`: shared notes.
 - `undo-and-redo-cover-every-move-and-note-and-are-saved`: Ctrl Z, Ctrl Shift Z, Ctrl Y and the buttons.
+- `escape-steps-back-from-a-selected-table`: a click selects a table and Escape clears the selection.
+- `a-double-click-opens-the-inspector-and-a-relation-opens-the-other-table-in-it`: the drawer titled with the table, its four tabs, no position, J and K ignored, and a relation opening the other table in the same drawer.
+- `f-focuses-the-find-field-but-not-while-writing-a-note`: F focuses the find field; an f typed into a note stays in the note.
+- `h-pans-the-canvas-and-v-selects-again`: the hand moves the view and no table; V restores table dragging.
+- `fit-view-keeps-every-table-inside-the-canvas`: `1` and the Fit view button bring all twelve tables of `dms-core` inside the canvas.
+- `the-shortcuts-settings-page-lists-the-diagram-shortcuts`: the nine rows of the diagram group on the Shortcuts page.
+- `the-layout-and-the-notes-survive-a-backend-restart`: a dragged table and a note are kept over a restart.
 
 ## How to get to it (user POV)
 
@@ -77,7 +84,7 @@ dms-control journey "$RUN" diagram
 | Finding a hidden column unfolds the table | 3.diagram.md:18 | finding-a-column... |
 | Folding is not saved with the layout | 3.diagram.md:18 | folding-is-a-setting-of-your-own-view... |
 | Large schema opens at 40 %, top-left, overview map, Fit view `1` | 3.diagram.md:20 | a-large-schema-opens-at-forty-percent... |
-| Double-click opens the inspector drawer titled with the table, relation opens the other table, no position, no `J`/`K` | 3.diagram.md:22 | Not driven: no journey written in this round |
+| Double-click opens the inspector drawer titled with the table, relation opens the other table, no position, no `J`/`K` | 3.diagram.md:22 | `a-double-click-opens-the-inspector-and-a-relation-opens-the-other-table-in-it` |
 | Drag tables, Layout saved, shared by everyone | 3.diagram.md:26 | dragging-a-table-saves-the-layout... (everyone means platform owners, the routes are owner-only) |
 | Auto layout preview with Keep layout / Discard | 3.diagram.md:26 | auto-layout-previews-the-arrangement... |
 | Arrangement rules, folded height, clear of notes, placement of unplaced tables | 3.diagram.md:28 | auto-layout-keeps-groups-together..., a-table-not-placed-yet... |
@@ -86,10 +93,13 @@ dms-control journey "$RUN" diagram
 | Note button and `N`, double-click to write, saved with the schema, shared | 3.diagram.md:32 | n-and-the-note-button..., a-double-click-edits..., notes-belong-to-their-schema... |
 | Shortcut `F`, `N` | 3.diagram.md:38-39 | `N`: n-and-the-note-button...; `F`: finding-a-column... (focus by typing in the field) |
 | Shortcuts `1`, `0` | 3.diagram.md:41 | a-large-schema-opens-at-forty-percent... |
-| Shortcuts `V` / `H` | 3.diagram.md:40 | Not driven: no journey written in this round |
+| Shortcuts `V` / `H` | 3.diagram.md:40 | `h-pans-the-canvas-and-v-selects-again` |
 | Shortcuts Ctrl Z, Ctrl Shift Z, Ctrl Y | 3.diagram.md:42-43 | undo-and-redo-cover-every-move... |
 | Shortcut `Esc` | 3.diagram.md:44 | auto-layout-previews... (discards the preview); focus and selection steps Not driven |
-| The Shortcuts settings page lists them | 3.diagram.md:46 | Not driven: no journey written in this round |
+| The Shortcuts settings page lists them | 3.diagram.md:46 | `the-shortcuts-settings-page-lists-the-diagram-shortcuts` |
 | Schema ... not found, Table ... not found, No tables in X | design, SchemaDiagram.vue | the-url-picks-the-schema..., a-schema-without-a-table... |
 | Layout and notes API | routes/diagram.ts | the API journeys |
-| Layout and notes survive a backend restart | 3.diagram.md:26 | Not driven: no journey written in this round |
+| Layout and notes survive a backend restart | 3.diagram.md:26 | `the-layout-and-the-notes-survive-a-backend-restart` |
+| Shortcut `F` focuses the find field | 3.diagram.md:36 | `f-focuses-the-find-field-but-not-while-writing-a-note` |
+| Fit view (`1`) shows the whole of a large schema | 3.diagram.md:20 | `fit-view-keeps-every-table-inside-the-canvas` |
+| Shortcut `Esc` steps back from the selection | 3.diagram.md:44 | `escape-steps-back-from-a-selected-table` |

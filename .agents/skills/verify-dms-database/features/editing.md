@@ -39,6 +39,7 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 - `the-edit-route-writes-typed-values-and-refuses-the-rest`: the PUT's rules, read from `rowEdit.ts`.
 - `hashed-encrypted-and-localized-columns-are-written-as-typed`: the warning, driven on `vault.accounts`.
 - `the-row-drawer-stages-edits-like-the-cells-do`: the drawer's fields stage with the same messages, and its footer and the bar count the same changes.
+- `discard-drops-the-changes-of-every-staged-row`: Discard with changes on three rows empties the bar, restores every cell and writes nothing.
 
 ## How to get to it (user POV)
 
@@ -95,3 +96,4 @@ dms-control journey "$RUN" editing
 | read-back through a second view (API, query console, reload, fresh tab) | `edits-are-staged-then-reviewed-then-written-one-put-per-row` and the stored-value checks of the other journeys |
 | the Undo of an edit that emptied a cell writes null back | `undo-writes-the-previous-values-back-within-the-window` |
 | failure to undo with a failure of the write itself (`dms_database.data.save.undo_failed`) | Not driven: the undo's write failing leaves the rows for a retry, an injected 500 on the undo PUT was not added |
+| Discard drops the unsaved changes (every staged row) | 4.data-browser.md:36 | `discard-drops-the-changes-of-every-staged-row` |

@@ -61,6 +61,8 @@ The Data browser's read side: the schema and instance pickers with the row count
 - `recently-opened-tables-are-offered-when-no-tab-is-open`: the first-visit text, the five recently opened tables, reload, reopening.
 - `no-match-and-empty-tables-say-so`: No row matches with Clear filters and Search all instances, a table with no rows.
 - `a-refused-read-shows-the-error-and-try-again-reads-it-again`: Couldn't load with its status, Try again, Check connection.
+- `rows-per-page-offers-exactly-25-50-100-and-200`: the footer menu lists exactly the four sizes and each pages that many rows.
+- `a-filter-is-either-contains-or-is-exactly-in-the-dialog-and-in-a-column-funnel`: Add filter and the header funnels offer exactly the two modes.
 
 ## How to get to it (user POV)
 
@@ -115,3 +117,5 @@ dms-control journey "$RUN" data
 | `GET /tables/instances` (the instance picker) | `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`; the sidebar journey picks eu and us from it and reads No named instance for `metrics` |
 | `GET /tables/source` | Not driven here: only the Schemas page reads it |
 | Owner only | `the-browse-api-answers-the-platform-owner-only` |
+| Footer pages through the rows (25, 50, 100 or 200 per page) | 4.data-browser.md:15 | `rows-per-page-offers-exactly-25-50-100-and-200` |
+| Add filter adds a column filter (`contains` or `is exactly`) | 4.data-browser.md:14 | `a-filter-is-either-contains-or-is-exactly-in-the-dialog-and-in-a-column-funnel` |

@@ -10,17 +10,14 @@ import { box, byName, drag, nodes, openDiagram, savedLayout, savedNotes, tables,
 const HYDRATION_MS = 800;
 
 /**
- * Where the canvas sits and how far its content is moved.
+ * Where the view is: the screen position of a table that no journey moves.
  *
  * @param {Tab} tab The tab
- * @returns {Promise<{ x: number, y: number }>} The viewport translation
+ * @returns {Promise<{ x: number, y: number }>} The table's top-left corner on screen
  */
 async function viewport(tab) {
-  return tab.page.evaluate(() => {
-    const element = document.querySelector(".vue-flow__viewport");
-    const matrix = new DOMMatrix(element ? getComputedStyle(element).transform : "none");
-    return { x: matrix.e, y: matrix.f };
-  });
+  const found = await box(tab, "shop::products");
+  return { x: found.x, y: found.y };
 }
 
 /**

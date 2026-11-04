@@ -50,6 +50,8 @@ The Schemas page lists every table the loaded modules register, with the rows co
 - `the-indexes-and-relations-tabs-list-what-the-table-declares-and-a-relation-opens-the-other-table`: compound versus single, out and in, a relation opens the other table, another schema's table, empty tabs.
 - `the-sample-row-tab-shows-one-row-and-another-row-pages-through-the-table`: labels, wrap-around, named and default instance, empty and one-row tables.
 - `browse-query-and-diagram-actions-open-the-other-pages-on-the-same-table`: the three inspector actions, the row menu, the header Diagram button.
+- `with-modifiers-keeps-a-table-with-only-a-hashed-only-a-localized-or-only-an-encrypted-column`: the "or" of the With modifiers filter: three single-modifier tables of the `mods` schema stay in the API and in the list, each flagging only its own modifier.
+- `a-narrow-inspector-scrolls-its-columns-table-and-its-tabs-sideways`: the drawer narrowed to its minimum scrolls the columns table and the tab strip sideways.
 
 ## How to get to it (user POV)
 
@@ -89,6 +91,7 @@ dms-control journey "$RUN" schemas
 | Sample row tab | 2.schemas.md:40 | the-sample-row-tab... |
 | Browse data, Query this table, Show in diagram; same in the row menu | 2.schemas.md:42 | browse-query-and-diagram-actions... |
 | No result and Clear filters | design, schemas.ts | a-filter-that-matches-nothing... |
-| On a narrow drawer the table and tabs scroll sideways | 2.schemas.md:37 | Not driven: no journey written in this round |
+| On a narrow drawer the table and tabs scroll sideways | 2.schemas.md:37 | `a-narrow-inspector-scrolls-its-columns-table-and-its-tabs-sideways` |
 | First-run empty state (No table registered yet) | schemas.ts | Not driven: the playground always registers tables |
 | API routes and own-key lookups | src/routes/tables.ts, introspect.ts | the API journeys; the own-key case is the failing `constructor` journey |
+| With modifiers keeps the tables with hashed, localized or encrypted columns (single-modifier tables) | 2.schemas.md:24 | `with-modifiers-keeps-a-table-with-only-a-hashed-only-a-localized-or-only-an-encrypted-column` |

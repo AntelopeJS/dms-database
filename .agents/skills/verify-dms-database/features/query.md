@@ -33,6 +33,11 @@ The Query console, run and read side: write AQL, run it, read the result.
 - `an-empty-console-offers-examples-built-on-your-own-tables`: the two examples.
 - `results-over-1000-rows-are-cut-at-1000`: the 1,000 boundary, the JSON view and the CSV export.
 - `the-table-view-shows-every-returned-row`: the Table view up to 1,000 rows. Fails today: product finding, draft `dms-database-query-table-view-200-rows`.
+- `ctrl-space-inside-a-filter-completes-the-columns-of-the-table`: the column list inside `row.key("`.
+- `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes`: the Chart view, its default axes and the X picker.
+- `open-in-data-browser-opens-the-target-table-or-the-row`: the result's header link and each row's link.
+- `format-tidies-a-query-onto-one-line`: Format joins a multi-line query.
+- `copy-as-json-puts-the-returned-rows-on-the-clipboard`: Copy as JSON and its notice.
 
 ## How to get to it (user POV)
 
@@ -54,14 +59,15 @@ dms-control journey "$RUN" query
 | Documented behaviour | Journey and check |
 |---|---|
 | Query starts from `schemas.<schema>.instance(<id>?)` and chains operations | `a-query-returns-its-rows-in-the-order-it-asks`, `an-instance-and-every-instance-are-targeted` |
-| `Ctrl Space` completes schemas, tables (and columns) | `ctrl-space-completes-schemas-and-tables-from-the-workspace` (columns: Not driven, the column completion needs a typed `row.key("` position that the probe did not settle) |
+| `Ctrl Space` completes schemas, tables (and columns) | `ctrl-space-completes-schemas-and-tables-from-the-workspace` ; columns: `ctrl-space-inside-a-filter-completes-the-columns-of-the-table` |
 | Insert chips | `the-insert-chips-add-their-operation` |
-| Format tidies the query | Not driven: no journey yet |
+| Format tidies the query | `format-tidies-a-query-onto-one-line` |
 | `Ctrl Enter` runs it | `a-query-returns-its-rows-in-the-order-it-asks` (Ctrl+Enter and the Run button) |
 | An empty console offers two examples | `an-empty-console-offers-examples-built-on-your-own-tables` ("Latest 10 rows" is Not driven: the first schema `demo` has no date field) |
 | The result shows its row count, duration and target | `a-query-returns-its-rows-in-the-order-it-asks` |
 | Table / JSON / Export CSV hold the returned rows up to 1,000 | `results-over-1000-rows-are-cut-at-1000`, `the-table-view-shows-every-returned-row` |
-| Chart: the first numeric column | Not driven: no journey yet |
+| Chart: the first numeric column | `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes` |
 | Server returns at most 1,000 rows; truncated results say so | `results-over-1000-rows-are-cut-at-1000` |
-| Open in data browser opens the target table | Not driven: no journey yet |
+| Open in data browser opens the target table | `open-in-data-browser-opens-the-target-table-or-the-row` |
+| Copy as JSON | `copy-as-json-puts-the-returned-rows-on-the-clipboard` |
 | Failures name the problem (Q29b) | `a-failed-query-says-what-failed-and-offers-the-nearest-name` |
