@@ -1,5 +1,6 @@
 import { guarded } from "../guard.mjs";
 import { check, db, list, text } from "../database.mjs";
+import { extraJourneys } from "./parts/query-extra.mjs";
 import { chooseView, editorText, exportCsv, flat, openConsole, resultText, runSource } from "./parts/console.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
@@ -187,4 +188,5 @@ export const journeys = guarded([
       await ctx.verify("the table", [check("1,000 rows are listed", shown === 1000, shown)]);
     },
   },
+  ...extraJourneys,
 ]);

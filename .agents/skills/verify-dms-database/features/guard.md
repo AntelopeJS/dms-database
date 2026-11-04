@@ -18,7 +18,6 @@ A query that inserts, updates, replaces or deletes never runs straight away: a d
 
 - `a-delete-names-its-operation-target-and-rows-and-waits-for-the-table-name`: the dialog, wrong names that do nothing, Cancel, Confirm and the result.
 - `every-write-names-its-operation-and-counts-the-rows-it-would-touch`: delete, update and insert counts, the confirm label and a named-instance target.
-- `a-single-row-update-can-skip-the-question-until-the-tab-closes`: the skip, its scope and that a delete still asks.
 - `confirming-a-single-row-update-needs-the-table-name-as-the-docs-say`: the docs say every write needs the name. Fails today: product finding, draft `dms-database-guard-single-row-update-no-typing`.
 - `a-confirmed-write-acts-on-the-data-of-that-moment`: the dry run is a preview, not a snapshot.
 - `a-read-query-runs-straight-away`: reads open no dialog.
@@ -48,6 +47,6 @@ dms-control journey "$RUN" guard
 | The dry run is a preview, not a rollback or a locked snapshot | `a-confirmed-write-acts-on-the-data-of-that-moment` |
 | Confirmation executes the write against the database | first journey (read back through the API) |
 | Read queries run straight away (FAQ) | `a-read-query-runs-straight-away` |
-| Single-row updates can be skipped until the tab closes; deletes and multi-row changes always ask (design Q25) | `a-single-row-update-can-skip-the-question-until-the-tab-closes` |
+| The skip checkbox for single-row updates (design Q25) | Not driven on purpose: the user docs and the FAQ say every write is confirmed by typing the table name (dms-database#115), so the skip contradicts the documented behaviour; `confirming-a-single-row-update-needs-the-table-name-as-the-docs-say` fails until #115 is settled |
 | Replace is a measured operation | Not driven: a replace on an existing row needs the row id typed into AQL; the dialog of a 0-row replace is shown by the probe only |
 | A failed write is recorded as failed in the history | `library` feature |

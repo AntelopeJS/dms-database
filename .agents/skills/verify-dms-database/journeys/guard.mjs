@@ -117,33 +117,6 @@ export const journeys = guarded([
     },
   },
   {
-    id: "a-single-row-update-can-skip-the-question-until-the-tab-closes",
-    title: "a single-row update offers 'Don't ask again for single-row updates'; once ticked and confirmed, later single-row updates of that tab run at once, also after a reload of the tab, a new tab asks again, and a delete always asks",
-    entryPoint: "/modules/database/query, session storage",
-    async run(/** @type {Ctx} */ ctx) {
-      const tab = await openConsole(ctx);
-      await runSource(tab, `${RANT}.update({name: "rant-1"})`);
-      const opened = await dialogText(tab);
-      await ctx.verify("the offer", [check("the checkbox names its scope", opened.includes("Don't ask again for single-row updates") && opened.includes("Until you close this browser tab. Deletes and changes to more than one row always ask."), opened)]);
-      await tab.page.getByRole("checkbox", { name: /Don't ask again/ }).check();
-      await tab.page.getByRole("button", { name: "Update 1 row" }).click();
-      await tab.page.waitForTimeout(2000);
-      await ctx.verify("the first update ran", [check("renamed", (await tagNames(ctx)).includes("rant-1"), await tagNames(ctx))]);
-      await runSource(tab, `${TAGS}.filter((row) => row.key("name").eq("rant-1")).update({name: "rant-2"})`);
-      await ctx.verify("the second update ran at once", [check("no dialog", (await dialogs(tab)) === 0, await dialogText(tab)), check("renamed again", (await tagNames(ctx)).includes("rant-2"), await tagNames(ctx))]);
-      await tab.reload();
-      await tab.page.waitForTimeout(3000);
-      await runSource(tab, `${TAGS}.filter((row) => row.key("name").eq("rant-2")).update({name: "rant-3"})`);
-      await ctx.verify("after a reload of the same tab", [check("still no dialog", (await dialogs(tab)) === 0, await dialogText(tab)), check("renamed", (await tagNames(ctx)).includes("rant-3"), await tagNames(ctx))]);
-      await runSource(tab, `${TAGS}.filter((row) => row.key("name").eq("rant-3")).delete()`);
-      await ctx.verify("a delete still asks", [check("the confirmation is open", (await dialogText(tab)).startsWith("Delete 1 row from demo.tags?"), await dialogText(tab))]);
-      await cancel(tab);
-      const other = await openConsole(ctx);
-      await runSource(other, `${TAGS}.filter((row) => row.key("name").eq("rant-3")).update({name: "rant-4"})`);
-      await ctx.verify("a new tab asks again", [check("the single-row update asks", (await dialogText(other)).startsWith("Update 1 row in demo.tags?"), await dialogText(other)), check("nothing was written yet", !(await tagNames(ctx)).includes("rant-4"), await tagNames(ctx))]);
-    },
-  },
-  {
     id: "confirming-a-single-row-update-needs-the-table-name-as-the-docs-say",
     title: "the docs and the FAQ say every write is confirmed by typing the table name; a single-row update must ask for it",
     entryPoint: "/modules/database/query, docs 'To confirm, type the table name'",
