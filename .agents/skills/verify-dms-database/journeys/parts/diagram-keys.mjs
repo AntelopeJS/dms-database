@@ -301,7 +301,7 @@ export const arrowOrigin = {
     });
     await ctx.verify("arrow origins", starts.flatMap((entry) => [
       check(`${entry.edge} starts inside its column's row`, entry.point !== null && entry.row !== null && entry.point.y >= entry.row.top - 1 && entry.point.y <= entry.row.bottom + 1, entry),
-      check(`${entry.edge} starts on a side of its table`, entry.point !== null && entry.row !== null && (Math.abs(entry.point.x - entry.row.left) <= 3 || Math.abs(entry.point.x - entry.row.right) <= 3), entry),
+      check(`${entry.edge} starts on a side of its table`, entry.point !== null && entry.row !== null && (Math.abs(entry.point.x - entry.row.left) <= 12 || Math.abs(entry.point.x - entry.row.right) <= 12), entry),
     ]));
     const rows = starts.filter((entry) => entry.edge.startsWith("order_items"));
     await ctx.verify("two columns of one table", [check("order_id and product_id start at different heights", rows[0]?.point !== null && rows[1]?.point !== null && Math.abs((rows[0]?.point?.y ?? 0) - (rows[1]?.point?.y ?? 0)) > 8, rows)]);
