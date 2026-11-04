@@ -1,8 +1,8 @@
 # dms-database v2 redesign: self-answered grill session
 
 This is the decision log behind the pull request that ports dms-database to
-`@antelopejs/dms` 0.6 / `@antelopejs/interface-dms` 0.4 /
-`@antelopejs/dms-frontend` 0.5 and to the v2 design mockup
+`dms` 0.6 / `interface-dms` 0.4 /
+`dms-frontend` 0.5 and to the v2 design mockup
 (`modules/database/*` and its UX review, findings D-01 to D-17).
 
 It was run as a "grill me" session where every question got the recommended
@@ -15,15 +15,15 @@ the conclusion.
 
 **Q1. Which packages move, and to which ranges?**
 Every AntelopeJS dependency moves to its latest release line:
-`@antelopejs/interface-dms` `>=0.5.1 <1.0.0` (the DMS itself caps the interface
+`interface-dms` from 0.5.1 (the DMS itself caps the interface
 below its next minor; a module keeps the range wide so every module resolves
 the same copy, which `antelopejs-check-interface-ranges` enforces),
-`@antelopejs/dms` `>=0.7.2 <0.8.0` (dev and playground),
-`@antelopejs/dms-frontend` `>=0.5.2 <0.6.0` (dev, playground and the layer's
-`engines`), `@antelopejs/core` `>=1.13.5 <2`,
-`@antelopejs/interface-api` `>=0.0.14`, `@antelopejs/interface-dms-automation`
-`>=0.1.1`, and in the playground `@antelopejs/mongodb` `^1.4.2` (required by the
-DMS 0.6 for `$`-prefixed strings) and `@antelopejs/api` `^1.3.3`. The other
+`dms` in the 0.7 line, from 0.7.2 (dev and playground),
+`dms-frontend` in the 0.5 line, from 0.5.2 (dev, playground and the layer's
+`engines`), `core` from 1.13.5,
+`interface-api` from 0.0.14, `interface-dms-automation`
+from 0.1.1, and in the playground `mongodb` in the 1.4 line from 1.4.2 (required by the
+DMS 0.6 for `$`-prefixed strings) and `api` in the 1.3 line from 1.3.3. The other
 interfaces are already on their latest release.
 
 **Q2. Which breaking changes of interface-dms 0.4 touch this module?**

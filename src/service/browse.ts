@@ -105,11 +105,11 @@ export function resolveTable(selection: BrowseSelection) {
  * Arbitrary JSON stringification and Unicode matching must retain JS
  * semantics.
  */
-async function refinePage(
-  sorted: Stream<Record<string, unknown>>,
+async function refinePage<Row extends object>(
+  sorted: Stream<Row>,
   query: BrowseQuery,
 ) {
-  const results: Record<string, unknown>[] = [];
+  const results: Row[] = [];
   let total = 0;
   for await (const row of sorted) {
     let matches = [row];
@@ -212,9 +212,11 @@ export async function fetchColumns(
  * it in (so a number/boolean column is not silently turned into a string);
  * editability itself does not depend on the type.
  */
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what reports its type
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
   if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
+  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the grid labels are the typeof vocabulary itself, and Antony decided on 2026-10-30 to keep typeof here rather than rebuild it from one guard per label
   return typeof value;
 }

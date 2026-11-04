@@ -133,7 +133,7 @@ describe("[integration] browse routes: rows", () => {
 
   it("reads one row by its id and refuses a missing or unknown one", async () => {
     const controller = new DatabaseBrowseController();
-    const row = await controller.get(
+    const row: unknown = await controller.get(
       USER,
       IS_SCHEMA,
       "is:alpha",
@@ -205,14 +205,13 @@ describe("[integration] browse routes: edits", () => {
     });
     assert.deepEqual(
       await refusal(
-        controller.edit(
-          USER,
-          IS_SCHEMA,
-          "is:alpha",
-          IS_ITEMS,
-          "i1",
-          JSON.parse("[]"),
-        ),
+        controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1", []),
+      ),
+      { status: 400, message: "Invalid request body" },
+    );
+    assert.deepEqual(
+      await refusal(
+        controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1", undefined),
       ),
       { status: 400, message: "Invalid request body" },
     );
@@ -323,7 +322,7 @@ describe("[integration] table routes", () => {
       undefined,
     );
     assert.deepEqual(
-      page.results.map((row) => row._id),
+      page.results.map<unknown>((row) => row._id),
       ["i2"],
     );
     assert.equal(page.total, 1);

@@ -26,8 +26,14 @@ import {
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
 import { buildEditUpdates } from "../service/rowEdit";
+import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
-import { isNonEmptyString, isObject, isString } from "../utils/guards";
+import {
+  isNonEmptyString,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 import {
   clamp,
   decodeInstanceFilter,
@@ -186,12 +192,12 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const row = await resolveTable(selection).get(id);
-    assert(isObject(row), 404, "Row not found");
+    const row: unknown = await resolveTable(selection).get(id);
+    assert(isRecord(row), 404, "Row not found");
     const items = await listRowReferences(
       selection.schema,
       selection.table,
-      row,
+      new Map(Object.entries(row)),
       selection.instance,
     );
     return { items };
@@ -213,7 +219,7 @@ export class DatabaseBrowseController extends Controller(
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
     const table = resolveTable(selection);
-    const row = await table.get(id);
+    const row: unknown = await table.get(id);
     assert(isObject(row), 404, "Row not found");
     return row;
   }
@@ -235,7 +241,7 @@ export class DatabaseBrowseController extends Controller(
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
     @Parameter("id", "query") idRaw: unknown,
-    @JSONBody() body: Record<string, unknown>,
+    @JSONBody() body: JsonValue | undefined,
   ) {
     const selection = resolveSelection(
       isString(schemaFilter) ? schemaFilter : undefined,
@@ -253,14 +259,18 @@ export class DatabaseBrowseController extends Controller(
 
     const table = resolveTable(selection);
     const target = table.get(id);
-    const existing = await target;
-    assert(isObject(existing), 404, "Row not found");
+    const existing: unknown = await target;
+    assert(isRecord(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
-    const updates = buildEditUpdates(existing, body, primaryKey);
+    const updates = buildEditUpdates(
+      new Map(Object.entries(existing)),
+      body,
+      primaryKey,
+    );
     if (Object.keys(updates).length > 0) {
-      const changed = await target.update(updates as never).run();
+      const changed = await target.update(updates).run();
       if (changed === 0) {
-        const persisted = await target;
+        const persisted: unknown = await target;
         assert(isObject(persisted), 404, "Row not found");
         return persisted;
       }

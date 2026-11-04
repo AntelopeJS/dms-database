@@ -1,5 +1,10 @@
 import { assert } from "@antelopejs/interface-api-util";
-import { isJsonContainer, type JsonValue } from "../types/json";
+import {
+  isJsonContainer,
+  isJsonValue,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
 import { isBoolean, isObject } from "../utils/guards";
 import { cellToText } from "../utils/query";
 
@@ -18,13 +23,14 @@ const SYNTHETIC_FIELDS = new Set(["_instance"]);
 const READONLY_FIELDS = new Set(["_id"]);
 
 /**
- * `object` is the contract: this round-trips anything non-primitive through
- * JSON.
+ * A JSON object or list is the contract: this round-trips it through JSON.
  */
-// oxlint-disable-next-line anti-slop/no-object-parameters -- the call site reaches it with `object` because `isObject(value)` narrows the unknown edit value to `object`; a narrower type here would only push an assertion up
-function normalizeJsonValue(value: object): JsonValue | undefined {
+function normalizeJsonValue(
+  value: JsonObject | JsonValue[],
+): JsonValue | undefined {
   try {
-    return JSON.parse(JSON.stringify(value));
+    const parsed: unknown = JSON.parse(JSON.stringify(value));
+    return isJsonValue(parsed) ? parsed : undefined;
   } catch {
     return undefined;
   }
@@ -32,6 +38,9 @@ function normalizeJsonValue(value: object): JsonValue | undefined {
 
 /** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
+
+/** The stored row as a table of its own columns: a column may be named like an `Object.prototype` member. */
+type StoredRow = ReadonlyMap<string, unknown>;
 
 type EditValue = JsonValue | Date | typeof SKIP_FIELD;
 
@@ -49,23 +58,21 @@ function isProtectedField(field: string, primaryKey: string | undefined) {
 
 /** `null` clears a cell, which is also how an undo restores an empty one. */
 function resolveClearedValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
 ): null | typeof SKIP_FIELD {
-  return current[field] === null || current[field] === undefined
-    ? SKIP_FIELD
-    : null;
+  const before = current.get(field);
+  return before === null || before === undefined ? SKIP_FIELD : null;
 }
 
 function resolveStructuredValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
-  // oxlint-disable-next-line anti-slop/no-object-parameters -- `object` for the same reason as normalizeJsonValue: a JSON-editor cell is any non-null object, and `isObject(value)` narrows the caller's unknown value to exactly that
-  value: object,
+  value: JsonObject | JsonValue[],
 ): JsonValue | typeof SKIP_FIELD {
   const normalized = normalizeJsonValue(value);
   if (!isJsonContainer(normalized)) return SKIP_FIELD;
-  const before = current[field];
+  const before = current.get(field);
   try {
     if (
       isObject(before) &&
@@ -76,7 +83,9 @@ function resolveStructuredValue(
   return normalized;
 }
 
-function isWritableScalar(value: unknown): value is string | number | boolean {
+function isWritableScalar(
+  value: JsonValue,
+): value is string | number | boolean {
   if (typeof value === "number") return Number.isFinite(value);
   return typeof value === "string" || typeof value === "boolean";
 }
@@ -112,9 +121,9 @@ function resolveDateValue(
  * really can be named `toString`.
  */
 function resolveEditValue(
-  current: Record<string, unknown>,
+  current: StoredRow,
   field: string,
-  value: unknown,
+  value: JsonValue | undefined,
   primaryKey: string | undefined,
 ): EditValue {
   if (value === undefined || isProtectedField(field, primaryKey)) {
@@ -123,7 +132,7 @@ function resolveEditValue(
   if (value === null) return resolveClearedValue(current, field);
   if (isObject(value)) return resolveStructuredValue(current, field, value);
   if (!isWritableScalar(value)) return SKIP_FIELD;
-  const before = current[field];
+  const before = current.get(field);
   if (before instanceof Date) return resolveDateValue(field, before, value);
   if (
     before !== null &&
@@ -156,14 +165,21 @@ function resolveEditValue(
  * object, which would silently drop the edit while reporting success.
  */
 export function buildEditUpdates(
-  current: Record<string, unknown>,
-  body: Record<string, unknown>,
+  current: StoredRow,
+  body: JsonObject,
   primaryKey: string | undefined,
 ): Record<string, JsonValue | Date> {
-  const updates: Record<string, JsonValue | Date> = Object.create(null);
-  for (const [field, value] of Object.entries(body)) {
-    const resolved = resolveEditValue(current, field, value, primaryKey);
-    if (resolved !== SKIP_FIELD) updates[field] = resolved;
-  }
+  const updates = Object.fromEntries(
+    Object.entries(body).flatMap(([field, value]) => {
+      const resolved = resolveEditValue(
+        current,
+        field,
+        isJsonValue(value) ? value : undefined,
+        primaryKey,
+      );
+      return resolved === SKIP_FIELD ? [] : [[field, resolved]];
+    }),
+  );
+  Reflect.setPrototypeOf(updates, null);
   return updates;
 }

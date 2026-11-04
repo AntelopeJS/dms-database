@@ -62,6 +62,7 @@ function resolves(messages: Messages, key: string): boolean {
   let node: string | Messages | undefined = messages;
   for (const part of key.split(".")) {
     if (node === undefined || !isMessages(node)) return false;
+    if (!Object.hasOwn(node, part)) return false;
     node = node[part];
   }
   return node !== undefined && !isMessages(node);

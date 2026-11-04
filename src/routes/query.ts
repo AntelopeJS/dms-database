@@ -45,7 +45,7 @@ import type {
 } from "../types/responses";
 import { MAX_HISTORY_PER_USER } from "../types/constants";
 import { isJsonObject, type JsonObject } from "../types/json";
-import { isObject, isString } from "../utils/guards";
+import { isFiniteNumber, isObject, isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
@@ -187,9 +187,11 @@ function isRow(value: unknown): value is ExecuteResult["rows"][number] {
   return isObject(value) && !Array.isArray(value);
 }
 
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- raw is the unparsed answer of a query the user typed, whose shape no schema describes, and this function is what classifies it into rows
 function normaliseRows(raw: unknown): ExecuteResult["rows"] {
   if (Array.isArray(raw)) {
-    return raw.map((entry) => (isRow(entry) ? entry : { value: entry }));
+    const entries: unknown[] = raw;
+    return entries.map((entry) => (isRow(entry) ? entry : { value: entry }));
   }
   if (raw === undefined) return [];
   if (isRow(raw)) {
@@ -235,10 +237,7 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   return { query, source, language, root: decodeRunnable(query) };
 }
 
-function errorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : String(error);
-  return message || "Query execution failed";
-}
+const QUERY_FAILED = "Query execution failed";
 
 @AuthOwnerOnly()
 export class DatabaseQueryController extends Controller("/api/database/query") {
@@ -260,7 +259,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       if (unknownTarget) throw new Error(unknownTarget);
       raw = await root.run();
     } catch (error) {
-      const message = errorMessage(error);
+      const message =
+        (error instanceof Error ? error.message : String(error)) ||
+        QUERY_FAILED;
       const durationMs = Date.now() - startedAt;
       await historyModel.addAndPrune({
         userId: user._id,
@@ -278,7 +279,11 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     }
     const durationMs = Date.now() - startedAt;
     const rows = normaliseRows(raw);
-    const rowCount = affectedRows(raw, rows.length, mutation);
+    const rowCount = affectedRows(
+      isFiniteNumber(raw) ? raw : undefined,
+      rows.length,
+      mutation,
+    );
 
     await historyModel.addAndPrune({
       userId: user._id,
@@ -321,7 +326,12 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     try {
       return await dryRun(root);
     } catch (error) {
-      assert(false, 400, errorMessage(error));
+      assert(
+        false,
+        400,
+        (error instanceof Error ? error.message : String(error)) ||
+          QUERY_FAILED,
+      );
     }
   }
 

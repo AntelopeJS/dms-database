@@ -2,7 +2,13 @@ import { Logging } from "@antelopejs/interface-core/logging";
 import { Schema, type Table } from "@antelopejs/interface-database";
 import type { Changes } from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
-import { isObject, isString } from "../utils/guards";
+import {
+  isJsonObject,
+  isJsonObjectValue,
+  type JsonObject,
+  type JsonValue,
+} from "../types/json";
+import { isBoolean, isFunction, isObject, isString } from "../utils/guards";
 
 type WatchEventType = "insert" | "update" | "delete";
 
@@ -19,16 +25,38 @@ interface TableWatchConfig {
   eventTypes?: WatchEventType[];
 }
 
-interface TableWatchOutput {
+type TableWatchOutput = {
   type: WatchEventType;
-  old: ChangeRow | null;
-  new: ChangeRow | null;
+  old: JsonObject | null;
+  new: JsonObject | null;
   schema: string;
   table: string;
   at: string;
-}
+};
 
 type ChangeRow = object;
+
+function rowOf(value: JsonValue | undefined): JsonObject | null {
+  return value !== undefined && isJsonObjectValue(value) ? value : null;
+}
+
+/**
+ * The two rows of a change as JSON: the form the run stores its payload in and
+ * a re-run reads back (a date becomes its ISO string), so a run sees what its
+ * re-run sees. A row the change does not carry is null.
+ */
+export function jsonRows(
+  change: Changes<ChangeRow>,
+): Pick<TableWatchOutput, "old" | "new"> {
+  const json: unknown = JSON.parse(
+    JSON.stringify({
+      old: change.oldValue ?? null,
+      new: change.newValue ?? null,
+    }),
+  );
+  if (!isJsonObject(json)) return { old: null, new: null };
+  return { old: rowOf(json.old), new: rowOf(json.new) };
+}
 type ChangeFeed = AsyncGenerator<Changes<ChangeRow>, void, unknown>;
 
 interface TableWatchHandle {
@@ -39,7 +67,20 @@ interface TableWatchHandle {
 }
 
 function isTableWatchHandle(handle: unknown): handle is TableWatchHandle {
-  return isObject(handle) && "stopped" in handle && "iterator" in handle;
+  return (
+    isObject(handle) &&
+    "stopped" in handle &&
+    isBoolean(handle.stopped) &&
+    "iterator" in handle &&
+    isObject(handle.iterator) &&
+    "next" in handle.iterator &&
+    isFunction(handle.iterator.next) &&
+    "return" in handle.iterator &&
+    isFunction(handle.iterator.return) &&
+    (!("pending" in handle) ||
+      handle.pending === undefined ||
+      isObject(handle.pending))
+  );
 }
 
 /**
@@ -99,6 +140,7 @@ function resolveEventTypes(
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
   const schema = Schema.get(schemaId);
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
+  // oxlint-disable-next-line typescript/no-unsafe-assignment -- Schema.get returns a Schema of any, so table() answers Table<any>, and a table-watch trigger names any schema; Schema.get with a record type trades this for dictionary findings and dropping the local only moves the any into the returned feed
   const table: Table<ChangeRow> = schema.instance().table(tableName);
   return table.changes().cursor();
 }
@@ -113,8 +155,7 @@ function emitChange(
   if (!type || !events.has(type)) return;
   emit({
     type,
-    old: change.oldValue ?? null,
-    new: change.newValue ?? null,
+    ...jsonRows(change),
     schema: config.schema,
     table: config.table,
     at: new Date().toISOString(),

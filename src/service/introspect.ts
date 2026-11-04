@@ -20,6 +20,7 @@ import {
   isFunction,
   isNumber,
   isObject,
+  isRecord,
   isString,
 } from "../utils/guards";
 import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
@@ -59,11 +60,15 @@ function resolveRelations(
     let TargetClass: typeof Table;
     try {
       TargetClass = options.to();
-    } catch (err) {
-      warnOnce(
-        warnKey,
-        `relation ${warnKey} target thunk threw: ${(err as Error).message}`,
-      );
+    } catch (thrown) {
+      const message: unknown = isRecord(thrown) ? thrown.message : thrown;
+      let reason: string;
+      if (isRecord(thrown) && message === undefined)
+        reason = "an object without a message";
+      else if (isRecord(thrown) && isRecord(message) && !Array.isArray(message))
+        reason = "an object whose message is not a text";
+      else reason = String(message);
+      warnOnce(warnKey, `relation ${warnKey} target thunk threw: ${reason}`);
       continue;
     }
     if (!isFunction(TargetClass)) {
@@ -147,6 +152,7 @@ function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
 }
 
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what types it
 function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
@@ -270,16 +276,13 @@ async function inferTableFields(
   return inferred;
 }
 
-function mapDesignType(
-  ctor: (new (...args: never[]) => object) | undefined,
-): FieldDescriptor | undefined {
-  if (ctor === String) return { kind: "string" };
-  if (ctor === Number) return { kind: "number" };
-  if (ctor === Boolean) return { kind: "boolean" };
-  if (ctor === Date) return { kind: "date" };
-  if (ctor === Array) return { kind: "array" };
-  return undefined;
-}
+const DESIGN_TYPE_DESCRIPTORS = new Map<unknown, () => FieldDescriptor>([
+  [String, () => ({ kind: "string" })],
+  [Number, () => ({ kind: "number" })],
+  [Boolean, () => ({ kind: "boolean" })],
+  [Date, () => ({ kind: "date" })],
+  [Array, () => ({ kind: "array" })],
+]);
 
 interface DeclaredFields {
   ordered: string[];
@@ -323,10 +326,13 @@ function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
   for (const name of Object.keys(modifierMeta.fields ?? {})) push(name);
 
   const types: Record<string, FieldDescriptor> = {};
+  const prototype: unknown = TableClass.prototype;
   for (const name of ordered) {
-    const ctor = Reflect.getMetadata("design:type", TableClass.prototype, name);
-    const mapped = mapDesignType(ctor);
-    if (mapped !== undefined) types[name] = mapped;
+    if (!isObject(prototype)) break;
+    const describe = DESIGN_TYPE_DESCRIPTORS.get(
+      Reflect.getMetadata("design:type", prototype, name),
+    );
+    if (describe) types[name] = describe();
   }
 
   return { ordered, types };
@@ -357,9 +363,9 @@ async function summarizeTable(
   const modifiers = resolveModifiers(TableClass);
 
   const definitionFields = def.fields ?? {};
-  const fromDefinition: Record<string, FieldDescriptor> = {};
+  const fromDefinition = new Map<string, FieldDescriptor>();
   for (const [name, value] of Object.entries(definitionFields)) {
-    fromDefinition[name] = toFieldDescriptor(value);
+    fromDefinition.set(name, toFieldDescriptor(value));
   }
 
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
@@ -375,20 +381,21 @@ async function summarizeTable(
   for (const name of declared.ordered) {
     fields[name] = withSampled(
       name,
-      fromDefinition[name] ??
+      fromDefinition.get(name) ??
         declared.types[name] ??
         sampled[name] ??
         UNKNOWN_DESCRIPTOR,
     );
   }
-  for (const [name, descriptor] of Object.entries(fromDefinition)) {
-    if (!(name in fields)) fields[name] = withSampled(name, descriptor);
+  for (const [name, descriptor] of fromDefinition) {
+    if (!Object.hasOwn(fields, name))
+      fields[name] = withSampled(name, descriptor);
   }
-  for (const [name, descriptor] of Object.entries(sampled)) {
-    if (!(name in fields)) fields[name] = descriptor;
+  for (const [column, descriptor] of Object.entries(sampled)) {
+    if (!Object.hasOwn(fields, column)) fields[column] = descriptor;
   }
   for (const name of Object.keys(modifiers)) {
-    if (!(name in fields)) fields[name] = UNKNOWN_DESCRIPTOR;
+    if (!Object.hasOwn(fields, name)) fields[name] = UNKNOWN_DESCRIPTOR;
   }
 
   return {

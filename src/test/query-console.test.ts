@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import type { HTTPResult } from "@antelopejs/interface-api";
 import { CROSS_INSTANCE, Schema } from "@antelopejs/interface-database";
 import {
   GetModel,
@@ -19,7 +20,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "../types/json";
-import { isNumber } from "../utils/guards";
+import { queryFailure } from "./refusal";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "query-console-qa";
@@ -98,11 +99,9 @@ async function assertRefused(query: JsonObject): Promise<void> {
       source: "forged",
       language: "aql",
     }),
-    (error: { getStatus(): number; getBody(): string }) => {
+    (error: HTTPResult) => {
       assert.equal(error.getStatus(), 400);
-      const answer: { message: string; durationMs: number } = JSON.parse(
-        error.getBody(),
-      );
+      const answer = queryFailure(error);
       assert.match(answer.message, /^Malformed query/);
       assert.equal(answer.durationMs, 0);
       return true;
@@ -139,7 +138,7 @@ describe("[integration] query console", () => {
   it("counts the rows a mutation changed, not the rows it answered", async () => {
     assert.equal(affectedRows(3, 1, true), 3);
     assert.equal(affectedRows(0, 1, true), 0);
-    assert.equal(affectedRows(["a", "b"], 2, true), 2);
+    assert.equal(affectedRows(undefined, 2, true), 2);
     assert.equal(affectedRows(7, 1, false), 1);
 
     const controller = new DatabaseQueryController();
@@ -173,6 +172,28 @@ describe("[integration] query console", () => {
     assert.equal(await tags(INSTANCE).count(), 1);
   });
 
+  it("counts the rows a mutation answered when it answers no number", async () => {
+    const controller = new DatabaseQueryController();
+    const insert = await controller.execute(USER, {
+      query: encode(
+        tags(INSTANCE).insert([
+          { _id: "t5", label: "extra" },
+          { _id: "t6", label: "extra" },
+        ]),
+      ),
+      source: "insert",
+      language: "aql",
+    });
+    assert.equal(insert.mutation, true);
+    assert.equal(insert.rowCount, 2);
+    assert.equal(insert.rows.length, 2);
+    assert.equal((await lastRun())?.rowCount, 2);
+    await tags(INSTANCE)
+      .filter((row) => row.key("label").eq("extra"))
+      .delete()
+      .run();
+  });
+
   it("names an unknown instance instead of answering no row", async () => {
     assert.equal(
       await describeUnknownQueryTarget(readQueryTarget(tags(INSTANCE))),
@@ -201,12 +222,9 @@ describe("[integration] query console", () => {
         source: "count zz",
         language: "aql",
       }),
-      (error: { getBody(): string }) => {
-        const body: { message: string; durationMs: number } = JSON.parse(
-          error.getBody(),
-        );
+      (error: HTTPResult) => {
+        const body = queryFailure(error);
         assert.match(body.message, /Unknown instance "zz"/);
-        assert.ok(isNumber(body.durationMs));
         return true;
       },
     );

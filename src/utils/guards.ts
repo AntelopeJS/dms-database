@@ -35,3 +35,8 @@ export function isNonEmptyString(value: unknown): value is string {
 export function isFunction(value: unknown): value is Function {
   return typeof value === "function";
 }
+
+/** Whether `value` is a non-null object, read by its string keys. */
+export function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}

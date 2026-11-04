@@ -1,15 +1,20 @@
 {
   "rules": {
-    "anti-slop/no-chained-type-assertions": 1,
-    "anti-slop/no-object-parameters": 2,
+    "anti-slop/no-chained-type-assertions": 0,
+    "anti-slop/no-object-parameters": 0,
+    "anti-slop/no-runtime-typeof": 1,
+    "anti-slop/no-unknown-parameters": 4,
+    "anti-slop/no-unsafe-dictionary-type": 1,
     "eslint/max-params": 2,
     "typescript/no-base-to-string": 1,
+    "typescript/no-unsafe-assignment": 1,
     "typescript/unbound-method": 1
   },
-  "tsExpectError": 0,
+  "tsExpectError": 1,
   "tsIgnore": 0,
   "safety": 0,
   "config": {
     "vue/multi-word-component-names for frontend-vue/**/*.vue": 1
-  }
+  },
+  "agentFiles": true
 }

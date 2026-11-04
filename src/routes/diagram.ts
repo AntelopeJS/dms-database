@@ -124,8 +124,10 @@ export class DatabaseDiagramController extends Controller(
     const row = await layoutModel.getBySchema(schema);
     if (!row) return { positions: {} };
     try {
-      const parsed: JsonValue = JSON.parse(row.positions);
-      return { positions: asPositions(parsed) };
+      const parsed: unknown = JSON.parse(row.positions);
+      return {
+        positions: asPositions(isJsonValue(parsed) ? parsed : undefined),
+      };
     } catch {
       return { positions: {} };
     }

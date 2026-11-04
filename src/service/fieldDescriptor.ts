@@ -1,5 +1,14 @@
-import type { FieldType } from "@antelopejs/interface-database/schema";
-import { isBoolean, isNumber, isObject, isString } from "../utils/guards";
+import type {
+  FieldType,
+  StringFieldType,
+} from "@antelopejs/interface-database/schema";
+import {
+  isBoolean,
+  isNumber,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 
 export type FieldDescriptor =
   | { kind: "string" }
@@ -42,7 +51,8 @@ function isCodec<T>(value: T): value is T & CodecLike {
     isObject(value) &&
     "decode" in value &&
     typeof value.decode === "function" &&
-    "_tag" in value
+    "_tag" in value &&
+    typeof value._tag === "string"
   );
 }
 
@@ -132,52 +142,59 @@ function recursiveDescriptor(codec: CodecLike): FieldDescriptor {
   return { kind: "recursive", name: codec.name ?? "recursive" };
 }
 
-const CODEC_DESCRIPTORS: Record<string, CodecDescriptorHandler> = {
-  StringType: () => ({ kind: "string" }),
-  NumberType: () => ({ kind: "number" }),
-  BooleanType: () => ({ kind: "boolean" }),
-  NullType: () => ({ kind: "null" }),
-  UndefinedType: () => ({ kind: "undefined" }),
-  VoidType: () => ({ kind: "undefined" }),
-  AnyType: () => ({ kind: "any" }),
-  UnknownType: () => ({ kind: "unknown" }),
-  LiteralType: literalDescriptor,
-  UnionType: unionDescriptor,
-  IntersectionType: intersectionDescriptor,
-  ArrayType: arrayDescriptor,
-  ReadonlyArrayType: arrayDescriptor,
-  AnyArrayType: arrayDescriptor,
-  TupleType: tupleDescriptor,
-  InterfaceType: objectDescriptor,
-  PartialType: objectDescriptor,
-  ExactType: objectDescriptor,
-  ReadonlyType: objectDescriptor,
-  DictionaryType: recordDescriptor,
-  AnyDictionaryType: recordDescriptor,
-  KeyofType: keyofDescriptor,
-  RefinementType: refinementDescriptor,
-  RecursiveType: recursiveDescriptor,
-};
+const CODEC_DESCRIPTORS = new Map<string, CodecDescriptorHandler>([
+  ["StringType", () => ({ kind: "string" })],
+  ["NumberType", () => ({ kind: "number" })],
+  ["BooleanType", () => ({ kind: "boolean" })],
+  ["NullType", () => ({ kind: "null" })],
+  ["UndefinedType", () => ({ kind: "undefined" })],
+  ["VoidType", () => ({ kind: "undefined" })],
+  ["AnyType", () => ({ kind: "any" })],
+  ["UnknownType", () => ({ kind: "unknown" })],
+  ["LiteralType", literalDescriptor],
+  ["UnionType", unionDescriptor],
+  ["IntersectionType", intersectionDescriptor],
+  ["ArrayType", arrayDescriptor],
+  ["ReadonlyArrayType", arrayDescriptor],
+  ["AnyArrayType", arrayDescriptor],
+  ["TupleType", tupleDescriptor],
+  ["InterfaceType", objectDescriptor],
+  ["PartialType", objectDescriptor],
+  ["ExactType", objectDescriptor],
+  ["ReadonlyType", objectDescriptor],
+  ["DictionaryType", recordDescriptor],
+  ["AnyDictionaryType", recordDescriptor],
+  ["KeyofType", keyofDescriptor],
+  ["RefinementType", refinementDescriptor],
+  ["RecursiveType", recursiveDescriptor],
+]);
 
 export function codecToDescriptor(codec: CodecLike): FieldDescriptor {
-  const handler = codec._tag ? CODEC_DESCRIPTORS[codec._tag] : undefined;
+  const handler = codec._tag ? CODEC_DESCRIPTORS.get(codec._tag) : undefined;
   if (handler) return handler(codec);
   if (codec.name === "Date") return { kind: "date" };
   return { kind: "unknown" };
 }
 
-const STRING_FIELD_DESCRIPTORS: Record<string, () => FieldDescriptor> = {
-  string: () => ({ kind: "string" }),
-  number: () => ({ kind: "number" }),
-  boolean: () => ({ kind: "boolean" }),
-  date: () => ({ kind: "date" }),
-  any: () => ({ kind: "any" }),
-  unknown: () => ({ kind: "unknown" }),
-};
+const STRING_FIELD_DESCRIPTORS = new Map<string, () => FieldDescriptor>([
+  ["string", () => ({ kind: "string" })],
+  ["number", () => ({ kind: "number" })],
+  ["boolean", () => ({ kind: "boolean" })],
+  ["date", () => ({ kind: "date" })],
+  ["any", () => ({ kind: "any" })],
+  ["unknown", () => ({ kind: "unknown" })],
+]);
+
+/** Whether `value` is a string field type: a string, or an array or record of them. */
+function isStringFieldType(value: unknown): value is StringFieldType {
+  if (isString(value)) return true;
+  if (Array.isArray(value)) return value.every(isStringFieldType);
+  return isRecord(value) && Object.values(value).every(isStringFieldType);
+}
 
 export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
   if (isString(value)) {
-    const build = STRING_FIELD_DESCRIPTORS[value];
+    const build = STRING_FIELD_DESCRIPTORS.get(value);
     return build ? build() : { kind: "unknown" };
   }
   if (Array.isArray(value)) {
@@ -189,7 +206,9 @@ export function stringFieldTypeToDescriptor(value: FieldType): FieldDescriptor {
   if (isObject(value)) {
     const fields: Record<string, FieldDescriptor> = {};
     for (const [name, sub] of Object.entries(value)) {
-      fields[name] = stringFieldTypeToDescriptor(sub);
+      fields[name] = isStringFieldType(sub)
+        ? stringFieldTypeToDescriptor(sub)
+        : { kind: "unknown" };
     }
     return { kind: "object", fields };
   }

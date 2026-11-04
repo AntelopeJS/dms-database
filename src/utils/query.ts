@@ -56,26 +56,29 @@ export function decodeInstanceFilter(
   return value;
 }
 
-const FILTER_PREDICATES: Record<
-  string,
-  (cell: string, value: string) => boolean
-> = {
-  [FILTER_MODE_IS]: (cell, value) => cell === value,
-  [FILTER_MODE_CONTAINS]: (cell, value) =>
-    cell.toLowerCase().includes(value.toLowerCase()),
-};
+const FILTER_PREDICATES = new Map([
+  [FILTER_MODE_IS, (cell: string, value: string) => cell === value],
+  [
+    FILTER_MODE_CONTAINS,
+    (cell: string, value: string) =>
+      cell.toLowerCase().includes(value.toLowerCase()),
+  ],
+]);
 
-export function applyFilterToList<T>(
+export function applyFilterToList<T extends object>(
   rows: T[],
-  field: keyof T,
+  field: string,
   rawFilter: string,
 ): T[] {
   const parsed = parseFilter(rawFilter);
   if (!parsed) return rows;
-  const predicate = FILTER_PREDICATES[parsed.mode];
+  const predicate = FILTER_PREDICATES.get(parsed.mode);
   if (!predicate) return rows;
   return rows.filter((row) =>
-    predicate(String(row[field] ?? ""), parsed.value),
+    predicate(
+      String(Object.getOwnPropertyDescriptor(row, field)?.value ?? ""),
+      parsed.value,
+    ),
   );
 }
 
@@ -88,6 +91,7 @@ export function applyFilterToList<T>(
  * non-callable `toString` (the browser is schemaless), which makes even that
  * throw: the cell then reads as empty.
  */
+// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;
