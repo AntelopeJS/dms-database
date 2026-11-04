@@ -21,6 +21,7 @@ A query that inserts, updates, replaces or deletes never runs straight away: a d
 - `confirming-a-single-row-update-needs-the-table-name-as-the-docs-say`: the docs say every write needs the name. Fails today: product finding, draft `dms-database-guard-single-row-update-no-typing`.
 - `a-confirmed-write-acts-on-the-data-of-that-moment`: the dry run is a preview, not a snapshot.
 - `a-read-query-runs-straight-away`: reads open no dialog.
+- `a-replace-names-its-operation-and-rows-and-waits-for-the-table-name`: a replace on one row and on every row of a table: dialog, rows, wrong name, Confirm, read back.
 
 ## How to get to it (user POV)
 
@@ -50,3 +51,4 @@ dms-control journey "$RUN" guard
 | The skip checkbox for single-row updates (design Q25) | Not driven on purpose: the user docs and the FAQ say every write is confirmed by typing the table name (dms-database#115), so the skip contradicts the documented behaviour; `confirming-a-single-row-update-needs-the-table-name-as-the-docs-say` fails until #115 is settled |
 | Replace is a measured operation | Not driven: a replace on an existing row needs the row id typed into AQL; the dialog of a 0-row replace is shown by the probe only |
 | A failed write is recorded as failed in the history | `library` feature |
+| A query that replaces never runs straight away (all four write kinds: insert, update, replace, delete) | 5.query-console.md:44 | `a-replace-names-its-operation-and-rows-and-waits-for-the-table-name` |

@@ -53,6 +53,7 @@ The Diagram page draws the tables of one schema and the relations between them, 
 - `fit-view-keeps-every-table-inside-the-canvas`: `1` and the Fit view button bring all twelve tables of `dms-core` inside the canvas.
 - `the-shortcuts-settings-page-lists-the-diagram-shortcuts`: the nine rows of the diagram group on the Shortcuts page.
 - `the-layout-and-the-notes-survive-a-backend-restart`: a dragged table and a note are kept over a restart.
+- `each-relation-arrow-starts-at-its-own-column`: arrow origins for three relations.
 
 ## How to get to it (user POV)
 
@@ -103,3 +104,4 @@ dms-control journey "$RUN" diagram
 | Shortcut `F` focuses the find field | 3.diagram.md:36 | `f-focuses-the-find-field-but-not-while-writing-a-note` |
 | Fit view (`1`) shows the whole of a large schema | 3.diagram.md:20 | `fit-view-keeps-every-table-inside-the-canvas` |
 | Shortcut `Esc` steps back from the selection | 3.diagram.md:44 | `escape-steps-back-from-a-selected-table` |
+| A relation is drawn as an arrow from the column to the table it points to | 3.diagram.md:14 | `each-relation-arrow-starts-at-its-own-column` |

@@ -38,6 +38,8 @@ The Query console, run and read side: write AQL, run it, read the result.
 - `open-in-data-browser-opens-the-target-table-or-the-row`: the result's header link and each row's link.
 - `format-strips-trailing-spaces-and-blank-lines`: Format removes trailing spaces and surrounding blank lines.
 - `copy-as-json-puts-the-returned-rows-on-the-clipboard`: Copy as JSON and its notice.
+- `an-export-of-uneven-rows-keeps-every-key-in-csv-and-json`: first row lacking keys later rows have.
+- `csv-quotes-a-comma-a-quote-and-a-line-break-so-the-cell-reads-back`: CSV quoting round trip.
 
 ## How to get to it (user POV)
 
@@ -71,3 +73,5 @@ dms-control journey "$RUN" query
 | Open in data browser opens the target table | `open-in-data-browser-opens-the-target-table-or-the-row` |
 | Copy as JSON | `copy-as-json-puts-the-returned-rows-on-the-clipboard` |
 | Failures name the problem (Q29b) | `a-failed-query-says-what-failed-and-offers-the-nearest-name` |
+| Export CSV holds the same returned rows, whatever keys they have | 5.query-console.md:34 | `an-export-of-uneven-rows-keeps-every-key-in-csv-and-json` |
+| A CSV cell with a comma, a quote or a line break reads back whole | 5.query-console.md:34 | `csv-quotes-a-comma-a-quote-and-a-line-break-so-the-cell-reads-back` |

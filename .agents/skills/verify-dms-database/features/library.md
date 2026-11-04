@@ -24,6 +24,7 @@ The history, saved and team queries beside the console.
 - `a-shared-query-reaches-the-team-and-only-its-author-changes-it`: Team tab, 404 for a teammate's edit or delete.
 - `history-belongs-to-its-user-and-a-link-restores-a-run`: per-user history and the `?history=` link.
 - `the-library-survives-a-backend-restart`: persistence.
+- `clear-history-empties-only-your-own-runs`: two owners, each clearing leaves the other's runs.
 
 ## How to get to it (user POV)
 
@@ -52,3 +53,5 @@ dms-control journey "$RUN" library
 | FAQ: only you see your saved queries unless you tick Share with team | same journey (the private query is not in Team) |
 | History records failures; old rows without status read as ok (design Q26) | failures: `history-records-failures-and-writes-with-their-status`; old rows: Not driven, the journeys cannot write a legacy row into the module's table |
 | Persistence in the module's own schema | `the-library-survives-a-backend-restart` |
+| Clear history empties it (yours only; per-user, two users) | 5.query-console.md:60 | `clear-history-empties-only-your-own-runs` |
+| The 500 runs are kept per user | 5.query-console.md:60 | `history-keeps-your-last-500-runs-newest-first` (a teammate's runs survive the owner's 503) |
