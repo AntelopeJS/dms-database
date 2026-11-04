@@ -57,7 +57,9 @@ export const inspector = {
     const orders = await box(tab, "shop::orders");
     await tab.page.mouse.dblclick(orders.x + 90, orders.y + 18);
     const drawer = tab.page.getByRole("dialog", { name: "orders", exact: true });
-    await drawer.waitFor({ state: "visible", timeout: 20_000 });
+    const opened = await drawer.waitFor({ state: "visible", timeout: 20_000 }).then(() => true, () => false);
+    await ctx.verify("double-click", [check("a drawer titled orders opens", opened, tab.page.url())]);
+    if (!opened) return;
     await tab.page.waitForTimeout(HYDRATION_MS);
     const header = (await drawer.innerText()).replace(/\s+/g, " ");
     const tabs = (await drawer.getByRole("tab").allInnerTexts()).map((entry) => entry.replace(/\s+/g, " ").trim());
@@ -76,7 +78,9 @@ export const inspector = {
     await drawer.getByRole("tab", { name: /^Relations/ }).click();
     await tab.page.waitForTimeout(500);
     await drawer.getByRole("button", { name: /^orders\.customer_id/ }).click();
-    await tab.page.getByRole("dialog", { name: "customers", exact: true }).waitFor({ state: "visible", timeout: 20_000 });
+    const followed = await tab.page.getByRole("dialog", { name: "customers", exact: true }).waitFor({ state: "visible", timeout: 20_000 }).then(() => true, () => false);
+    await ctx.verify("the relation", [check("a drawer titled customers opens", followed, tab.page.url())]);
+    if (!followed) return;
     await tab.page.waitForTimeout(HYDRATION_MS);
     await ctx.verify("a relation", [
       check("the same drawer now shows customers", (await tab.page.getByRole("dialog").count()) === 1 && (await tab.page.getByRole("dialog").first().innerText()).replace(/\s+/g, " ").startsWith("customers"), (await tab.page.getByRole("dialog").first().innerText()).slice(0, 80)),
@@ -190,7 +194,9 @@ export const shortcutsPage = {
     const tab = await ctx.tab();
     await tab.signIn("admin");
     await tab.goto("/settings/shortcuts");
-    await tab.page.getByText("Database · diagram").first().waitFor({ state: "visible", timeout: 30_000 });
+    const listedGroup = await tab.page.getByText("Database · diagram").first().waitFor({ state: "visible", timeout: 30_000 }).then(() => true, () => false);
+    await ctx.verify("the group", [check("the page has a Database · diagram group", listedGroup, tab.page.url())]);
+    if (!listedGroup) return;
     const body = (await tab.page.locator("body").innerText()).replace(/\s+/g, " ");
     const start = body.indexOf("Database · diagram");
     const rest = body.slice(start + "Database · diagram".length);

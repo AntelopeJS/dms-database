@@ -47,6 +47,7 @@ $C journey "$RUN" smoke
 $C journey "$RUN" <feature> [journey-id...]
 ```
 
+- Run a feature whole: `journey "$RUN" <feature>` with no ids, in one call. A feature takes 3 to 25 minutes (diagram, schemas, data and editing are the longest), so start it in the background and poll its output; a run that stops at the first FAIL leaves journeys not run, and rule 3 below makes that a FAIL.
 - Each feature file in [features/](features/README.md) lists its source globs (`covers:`), its docs pages (`docs:`), its journeys and a coverage table; the journeys are in `journeys/<feature>.mjs` and `journeys/parts/`, with the helpers they share in `database.mjs` (requests, checks, members, configuration switches) and `guard.mjs` (environment loss).
 - A journey starts on an empty database with the administrator onboarded and the backend restarted on it, so configuration switches are gone and the playground has seeded its schemas again. It reads every mutation back through a second view: the API, a reload, another tab, another account, or a backend restart.
 - `withConfig(ctx, { VERIFY_DATABASE_*: … }, body)` restarts the backend with module options set (`DRIVER_LABEL`, `SCHEMA_LABELS`; see `playground/antelope.config.ts`) and restarts it again without them.
