@@ -134,16 +134,16 @@ export const journeys = guarded([
   },
   {
     id: "a-replace-names-its-operation-and-rows-and-waits-for-the-table-name",
-    title: "a replace, on one row picked by id and on every row of a table, opens the confirmation with Operation replace, the target and the rows the dry run found; a wrong name does nothing, the dry run writes nothing, and Confirm replaces the rows",
+    title: "a replace, on one row picked by id and on a selection of every row of a table, opens the confirmation with Operation replace, the target and the rows the dry run found; a wrong name does nothing, the dry run writes nothing, and Confirm replaces the rows",
     entryPoint: "/modules/database/query, POST /api/database/query/dry-run",
     async run(/** @type {Ctx} */ ctx) {
       const before = await tagNames(ctx);
       const rows = list((await db(ctx, "tags", "GET", "/browse/list?filter_schema=demo&filter_table=tags&limit=200")).body, "results");
       const first = text(rows[0], "_id");
       const tab = await openConsole(ctx);
-      await runSource(tab, `${TAGS}.replace({name: "everyone"})`);
+      await runSource(tab, `${TAGS}.filter((row) => row.key("name").ne("zzz")).replace({name: "everyone"})`);
       const many = await dialogText(tab);
-      await ctx.verify("replace on a table", [
+      await ctx.verify("replace on a selection of every row", [
         check("the title counts the three rows", many.startsWith("Replace 3 rows in demo.tags?"), many),
         check("Operation replace, Target demo.tags, Rows 3", many.includes("Operation replace Target demo.tags Rows 3"), many),
         check("the button says what will happen and the name is asked", many.includes("Cancel Replace 3 rows") && many.includes("Type tags to confirm"), many),
