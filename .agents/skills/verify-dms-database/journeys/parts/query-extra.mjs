@@ -63,7 +63,7 @@ export const extraJourneys = guarded([
       const copied = parseJson(await tab.page.evaluate(() => navigator.clipboard.readText()));
       const second = list(copied).find((row) => pick(row, "name") === "u2");
       await ctx.verify("uneven rows", [
-        check("the header holds the union of the keys", ["_id", "name", "extra", "rank"].every((key) => header.includes(key)) && header.length === 4, header),
+        check("the header holds the union of the keys", ["_id", "name", "extra", "rank"].every((key) => header.includes(key)) && header.every((key) => ["_id", "name", "extra", "rank", "_instance"].includes(key)) && new Set(header).size === header.length, header),
         check("five data rows", csv.length === 6, csv.length),
         check("u2 keeps extra and rank under their own columns", byName("u2")?.[header.indexOf("extra")] === "only-here" && byName("u2")?.[header.indexOf("rank")] === "7", byName("u2")),
         check("u1 and the first row leave them empty", byName("u1")?.[header.indexOf("extra")] === "" && byName("follow-up")?.[header.indexOf("extra")] === "" && byName("follow-up")?.[header.indexOf("rank")] === "", [byName("u1"), byName("follow-up")]),
