@@ -6,18 +6,18 @@ settings:
 
 overrides:
   '@antelopejs/interface-database': 0.3.0
-  '@antelopejs/interface-core': file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
+  '@antelopejs/interface-core': 0.4.0
 
 importers:
 
   .:
     dependencies:
       '@antelopejs/interface-core':
-        specifier: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
-        version: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
+        specifier: 0.4.0
+        version: 0.4.0
       '@antelopejs/interface-database':
         specifier: 0.3.0
-        version: 0.3.0(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)
+        version: 0.3.0(@antelopejs/interface-core@0.4.0)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.3
@@ -92,15 +92,13 @@ packages:
     resolution: {integrity: sha512-UrcABB+4bUrFABwbluTIBErXwvbsU/V7TZWfmbgJfbkwiBuziS9gxdODUyuiecfdGQ85jglMW6juS3+z5TsKLw==}
     engines: {node: '>=10'}
 
-  '@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz':
-    resolution: {integrity: sha512-ur2KLvtD8h4SCZ0VSoQDc1pg+E9Bk/py3EW3qHHdoo3i6RvKWrrDKsX2khVdqQESuF2QMc1sJ6B+7ISjx5TvpQ==, tarball: file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz}
-    version: 0.4.0
+  '@antelopejs/interface-core@0.4.0':
+    resolution: {integrity: sha512-IPX6dtt3KHknclN4mLOYeRYL2Odz1Pts+dtaZul62NghsBUX/0OFHD4Qhoaf+Beva4hjInbaF918ajr4Z5HVWQ==}
 
   '@antelopejs/interface-database@0.3.0':
     resolution: {integrity: sha512-sPs/EROiuRgFr8r3SGrvO+9b8ZzBNkuwanN3rZbMfLQyQQ42CnULLkLG2JjE9/tRnbvGjgebJlU/VxhGrHBaoA==}
-    version: 0.3.0
     peerDependencies:
-      '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
+      '@antelopejs/interface-core': 0.4.0
 
   '@antfu/install-pkg@2.0.1':
     resolution: {integrity: sha512-iCKVQcIC0e3oDxEfs3SHQGW+ovhBMZmS1TE+bTk50rVyMCBmCfClv7Qi3HQKlumYwvjb/iIMeWCW2i67q6kFfQ==}
@@ -3121,13 +3119,13 @@ snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
 
-  '@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz':
+  '@antelopejs/interface-core@0.4.0':
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@0.3.0(@antelopejs/interface-core@file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz)':
+  '@antelopejs/interface-database@0.3.0(@antelopejs/interface-core@0.4.0)':
     dependencies:
-      '@antelopejs/interface-core': file:../.campaign/tgz/antelopejs-interface-core-f7df541.tgz
+      '@antelopejs/interface-core': 0.4.0
 
   '@antfu/install-pkg@2.0.1':
     dependencies:
