@@ -17,10 +17,10 @@ export const extraJourneys = guarded([
         await box.fill(source);
         await box.press("Control+End");
         for (let index = 0; index < breaks; index += 1) await box.press("Enter");
-        const typed = (await box.textContent()) ?? "";
+        const typed = await box.innerText();
         await tab.page.getByRole("button", { name: "Format", exact: true }).click();
         await tab.page.waitForTimeout(900);
-        return { typed, formatted: (await box.textContent()) ?? "" };
+        return { typed, formatted: await box.innerText() };
       };
       const spaced = await format(`${tidyQuery}      `, 0);
       const blank = await format(tidyQuery, 3);
@@ -28,7 +28,7 @@ export const extraJourneys = guarded([
       await runSource(tab, tidy.formatted);
       await ctx.verify("Format", [
         check("trailing spaces are removed", spaced.typed !== tidyQuery && spaced.formatted === tidyQuery, spaced),
-        check("blank lines after the query are removed", blank.typed !== tidyQuery && blank.formatted === tidyQuery, blank),
+        check("blank lines after the query are removed", blank.typed !== tidyQuery && blank.typed.startsWith(tidyQuery) && blank.formatted === tidyQuery, blank),
         check("a tidy query is left as it is", tidy.formatted === tidyQuery, tidy),
         check("the formatted query runs", (await resultText(tab)).includes("1 row"), await resultText(tab)),
       ]);
