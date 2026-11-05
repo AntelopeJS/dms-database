@@ -54,6 +54,27 @@ export const journeys = guarded([
     },
   },
   {
+    id: "a-glob-key-matches-the-whole-schema-id",
+    title: "a key with * labels a schema only when the pattern covers its whole id: app-*i, *-ac and pp-* leave app-site and tenant-acme with their own label, while app-*e and *-acme label them",
+    entryPoint: "schemaLabels option, GET /api/database/overview/schemas",
+    async run(/** @type {Ctx} */ ctx) {
+      await withConfig(ctx, { VERIFY_DATABASE_SCHEMA_LABELS: "app-*i:Cut:error;*-ac:Cut:error;pp-*:Cut:error" }, async () => {
+        const found = await badges(ctx);
+        await ctx.verify("a pattern that covers part of the id", [
+          check("app-*i stops before the end of app-site and pp-* starts after its beginning: app-site keeps its built-in label", found.get("app-site") === "Application/info", found.get("app-site")),
+          check("*-ac stops before the end of tenant-acme: it keeps none", found.get("tenant-acme") === "none/primary", found.get("tenant-acme")),
+        ]);
+      });
+      await withConfig(ctx, { VERIFY_DATABASE_SCHEMA_LABELS: "app-*e:Whole:error;*-acme:Whole:warning" }, async () => {
+        const found = await badges(ctx);
+        await ctx.verify("a pattern that covers the whole id", [
+          check("app-*e labels app-site", found.get("app-site") === "Whole/error", found.get("app-site")),
+          check("*-acme labels tenant-acme", found.get("tenant-acme") === "Whole/warning", found.get("tenant-acme")),
+        ]);
+      });
+    },
+  },
+  {
     id: "a-label-takes-each-of-the-seven-tones",
     title: "color takes primary, secondary, success, info, warning, error or neutral and shows as the card's tone; a label without a color shows the primary tone",
     entryPoint: "schemaLabels option, GET /api/database/overview/schemas",
