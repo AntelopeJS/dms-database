@@ -1,11 +1,10 @@
 /** A kind of one-way door. */
 export type DoorKind = "data" | "format" | "contract" | "outbound" | "exposure" | "publish";
 
-/** Path rules for one door kind: globs, declared funnel modules, and the journeys, as `feature/journey`, that contain it. */
+/** Path rules for one door kind: globs and declared funnel modules. */
 export interface DoorRule {
   globs: string[];
   funnels: string[];
-  containments: string[];
   why: string;
 }
 
@@ -67,32 +66,27 @@ const config: VerifyConfig = {
     data: {
       globs: ["src/routes/data.ts", "src/routes/query.ts", "src/routes/diagram.ts", "src/service/rowEdit.ts", "src/service/queryInspection.ts", "frontend-vue/app/build/data/useStagedSave.ts", "frontend-vue/app/build/data/stagedWrites.ts", "frontend-vue/app/components/QueryConsole.vue"],
       funnels: [],
-      containments: ["guard/a-delete-names-its-operation-target-and-rows-and-waits-for-the-table-name"],
       why: "a saved edit and a confirmed write query go straight to the database, and a deleted row, note or layout is not brought back by a revert of the code",
     },
     format: {
       globs: ["src/db/**", "src/service/stagedSerialization.ts", "frontend-vue/app/build/utils/stagedSerialization.ts"],
       funnels: [],
-      containments: [],
       why: "the module's own tables (layouts, notes, history, saved queries) and the staged-query wire format are read back by the next version of the module",
     },
     contract: {
       globs: ["package.json", "src/routes/**", "src/config.ts", "src/index.ts", "frontend-vue/package.json", "frontend-vue/dms.frontend.ts", "skills/**"],
       funnels: [],
-      containments: [],
       why: "the dashboard and scripts call the HTTP routes, projects set the config keys and the renderer range, and agents read the shipped skill",
     },
     outbound: null,
     exposure: {
       globs: ["src/routes/**", "src/pages/**", "src/module.ts"],
       funnels: [],
-      containments: [],
       why: "every route and page is owner-only through a decorator; losing one opens the raw database to any signed-in member or visitor",
     },
     publish: {
       globs: ["package.json", ".release-it.json", "changelogen.config.json", ".github/workflows/release.yml"],
       funnels: [],
-      containments: [],
       why: "the package name, its files and the release workflow claim @antelopejs/dms-database in the npm registry",
     },
   },

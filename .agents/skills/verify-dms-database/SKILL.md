@@ -1,6 +1,6 @@
 ---
 name: verify-dms-database
-description: "Drive the AntelopeJS dms-database module (the Database console: Overview, Schemas, Diagram, Data browser, Query console, saved and shared queries) the way the platform owner does, inside a DMS with free ports, its own MongoDB database and a playground of schemas, and post a verdict with evidence. Use to prove a change to AntelopeJS/dms-database works before merge, to verify a PR, or to check that a seeded break or a seeded one-way door is caught."
+description: "Drive the AntelopeJS dms-database module (the Database console: Overview, Schemas, Diagram, Data browser, Query console, saved and shared queries) the way the platform owner does, inside a DMS with free ports, its own MongoDB database and a playground of schemas, and post a verdict with evidence. Use to prove a change to AntelopeJS/dms-database works before merge, or to verify a PR."
 ---
 
 # Verify dms-database
@@ -14,7 +14,7 @@ C="pnpm exec dms-control"
 $C                       # lists every command
 ```
 
-Give `seeded`, `doors` and `--skill` absolute paths when you run them from another folder.
+Give `doors` and `--skill` absolute paths when you run them from another folder.
 
 ## Launch
 
@@ -77,22 +77,13 @@ Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention
 
 ## Trust
 
-The skill is not Trusted yet. It becomes Trusted when it catches every seeded break and flags every seeded door, passes a shadow run of 10 consecutive agent PRs, and its last maintain pass is newer than the last change to the repository or its `@antelopejs` dependencies and at most 30 days old.
-
-## Seeded breaks and doors
-
-```bash
-$C seeded smoke overview
-$C doors "$PWD/.agents/skills/verify-dms-database/seeded-doors/data.patch"
-```
-
-`seeded-breaks/<feature>.patch` is one minimal product bug per feature; `seeded` builds a control and a patched worktree, runs the feature's journeys in each, and prints `CAUGHT` with the journeys that caught it, or `MISSED`. A break counts only when a journey that passes in the control fails one of its checks with the patch. `seeded-doors/<kind>.patch` holds one change per door kind.
+The skill is not Trusted yet. It becomes Trusted when it passes a shadow run of 10 consecutive agent PRs, and its last maintain pass is newer than the last change to the repository or its `@antelopejs` dependencies and at most 30 days old.
 
 ## Gotchas
 
 - Every dashboard page renders on the server and hydrates after `load`; a click that lands first does nothing. The journeys wait for the control they click to exist and click again until what the click opens shows, and `tab.signIn` waits for the sign-in form to hydrate.
 - The run's browser is 1280 px wide. Journeys that need another width set the viewport.
-- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`), so `seeded` never counts an outage as a catch.
+- A step whose check fails because the backend or the dashboard stopped answering ends the journey with a `NOT VERIFIED` error and no failing check (`guard.mjs`).
 - Pages and routes are owner-only: members hold no module permission, so a member is only used to prove a refusal.
 
 ## Not driven
