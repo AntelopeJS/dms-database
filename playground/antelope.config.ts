@@ -1,7 +1,64 @@
 /// <reference types="node" />
-import { defineConfig } from "@antelopejs/interface-core/config";
+import {
+  type AntelopeModuleConfig,
+  defineConfig,
+} from "@antelopejs/interface-core/config";
 
 const dmsClientUrl = process.env.DMS_CLIENT_BASE_URL;
+const DATABASE_NAME = "playground_dms_database";
+
+interface PlaygroundDatabase {
+  label: string;
+  module: AntelopeModuleConfig;
+}
+
+/** The database module the playground runs on, picked by `PLAYGROUND_DATABASE`. */
+function playgroundDatabase(kind: string): PlaygroundDatabase {
+  switch (kind) {
+    case "mongodb":
+      return {
+        label: "MongoDB 6.0",
+        module: {
+          source: {
+            type: "package",
+            package: "@antelopejs/mongodb",
+            version: "^1.6.2",
+          },
+          config: {
+            url: process.env.MONGO_URL ?? "mongodb://localhost:27017",
+            database: DATABASE_NAME,
+          },
+          importOverrides: [],
+          disabledExports: [],
+        },
+      };
+    case "postgres":
+      return {
+        label: "PostgreSQL",
+        module: {
+          source: {
+            type: "package",
+            package: "@antelopejs/postgres",
+            version: ">=0.2.5 <1.0.0",
+          },
+          config: {
+            url:
+              process.env.POSTGRES_URL ??
+              `postgres://postgres@localhost:5432/${DATABASE_NAME}`,
+          },
+          importOverrides: [],
+          disabledExports: [],
+        },
+      };
+    default:
+      throw new Error(
+        `PLAYGROUND_DATABASE is "${kind}"; use "mongodb" or "postgres"`,
+      );
+  }
+}
+
+const databaseKind = process.env.PLAYGROUND_DATABASE || "mongodb";
+const database = playgroundDatabase(databaseKind);
 
 export default defineConfig({
   name: "playground",
@@ -21,7 +78,7 @@ export default defineConfig({
         installCommand: ["pnpm build"],
       },
       config: {
-        driverLabel: "MongoDB 6.0",
+        driverLabel: database.label,
       },
     },
     dms: {
@@ -39,19 +96,7 @@ export default defineConfig({
       importOverrides: [],
       disabledExports: [],
     },
-    mongodb: {
-      source: {
-        type: "package",
-        package: "@antelopejs/mongodb",
-        version: "^1.6.2",
-      },
-      config: {
-        url: process.env.MONGO_URL ?? "mongodb://localhost:27017",
-        database: "playground_dms_database",
-      },
-      importOverrides: [],
-      disabledExports: [],
-    },
+    [databaseKind]: database.module,
     "auth-jwt": {
       source: {
         type: "package",
