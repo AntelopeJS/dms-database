@@ -174,6 +174,26 @@ export const journeys = guarded([
     },
   },
   {
+    id: "a-replace-on-a-selection-changes-every-row-the-dry-run-announced",
+    title: "the confirmation of a replace on a selection of three rows announces 3 rows, and Confirm must replace all three and report 3 changed; fails today: the driver replaces one document (product finding, draft dms-database-guard-replace-selection-one-row)",
+    entryPoint: "/modules/database/query, POST /api/database/query/dry-run and /execute",
+    async run(/** @type {Ctx} */ ctx) {
+      const tab = await openConsole(ctx);
+      await runSource(tab, `${TAGS}.filter((row) => row.key("name").ne("zzz")).replace({name: "everyone"})`);
+      const opened = await dialogText(tab);
+      await tab.page.getByRole("textbox", { name: "Type tags to confirm" }).fill("tags");
+      await tab.page.getByRole("button", { name: "Replace 3 rows" }).click();
+      await tab.page.waitForTimeout(2000);
+      const names = await tagNames(ctx);
+      const result = await resultText(tab);
+      await ctx.verify("Confirm", [
+        check("the dry run announced three rows", opened.includes("Operation replace Target demo.tags Rows 3"), opened),
+        check("all three rows hold the replacement", JSON.stringify(names) === JSON.stringify(["everyone", "everyone", "everyone"]), names),
+        check("the result counts the three rows it announced", result.includes("3 changed"), result.slice(0, 200)),
+      ]);
+    },
+  },
+  {
     id: "a-confirmed-write-acts-on-the-data-of-that-moment",
     title: "the dry run is a preview, not a locked snapshot: rows added after the dry run are changed by the confirmed write too",
     entryPoint: "/modules/database/query, POST /api/database/query/execute",
