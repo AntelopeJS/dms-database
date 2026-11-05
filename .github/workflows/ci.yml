@@ -59,11 +59,35 @@ jobs:
       # the DMS core layer; it needs neither the module's dist nor a database.
       - run: pnpm test:frontend
 
+  formal-table-watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: |
+            pnpm-lock.yaml
+            frontend-vue/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/antelopejs-formal
+          key: tla2tools-1.7.4
+      - run: node .agents/skills/formal-table-watch/check.mjs
+
   # The job name the branch protection requires; it passes only when every
   # job above passed.
   ubuntu:
     if: always()
-    needs: [ci, frontend]
+    needs: [ci, frontend, formal-table-watch]
     runs-on: ubuntu-latest
     steps:
       - run: |
