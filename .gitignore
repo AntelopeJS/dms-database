@@ -372,6 +372,3 @@ $RECYCLE.BIN/
 
 # pnpm store
 .pnpm-store
-
-/.agents/skills/verify-dms-database/playground/dist
-/.agents/skills/verify-dms-database/node_modules
