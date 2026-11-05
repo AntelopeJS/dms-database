@@ -83,7 +83,7 @@ The canonical guide lives in [`docs/`](./docs), including the [supported extensi
 
 ## Contributing
 
-Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. The playground registers a `demo` schema and a `shop` schema with `eu` and `us` instances, seeded on first start.
+Read [CONTRIBUTING.md](./CONTRIBUTING.md) before opening a pull request. The playground registers a `demo` schema and a `shop` schema with `eu` and `us` instances, seeded on first start. It runs on MongoDB by default; set `PLAYGROUND_DATABASE=postgres` to run it on PostgreSQL through `@antelopejs/postgres`, with `POSTGRES_URL` naming the database (default `postgres://postgres@localhost:5432/playground_dms_database`, which must exist).
 
 One root install includes the backend and shipped Vue module, retaining their separate lockfiles. The playground remains independent: run `pnpm --dir playground install --ignore-workspace --frozen-lockfile` before starting it. Use the root scripts below rather than recursive scripts: frontend `build` and `typecheck` need the playground or a generated Inertia workspace, and root lint already checks the Vue module.
 
