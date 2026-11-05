@@ -9,6 +9,33 @@ export interface DoorRule {
   why: string;
 }
 
+/**
+ * How the formal gate decides that a diff changed the covered behaviour:
+ * `emit` compares the JavaScript statements of the covered files on the
+ * base and on HEAD (types, comments, formatting, imports and export
+ * keywords left out); `probe` runs a command on a checkout of each, the
+ * checkout's path as last argument, and compares what it prints.
+ */
+export type Behaviour = { kind: "emit" } | { kind: "probe"; command: string[] };
+
+/**
+ * A formal check: the source files it covers, the check's own files, the
+ * command that runs it, how its output names a violated and a passing rule,
+ * how the gate decides that a diff changed the covered behaviour, and the
+ * command run on the base when it did or when the check's own files changed
+ * (`command` when absent).
+ */
+export interface FormalCheck {
+  name: string;
+  covers: string[];
+  files: string[];
+  command: string[];
+  baseCommand?: string[];
+  violation: RegExp | null;
+  passing: RegExp | null;
+  behaviour: Behaviour;
+}
+
 /** The repo-owned layer of the verification skill, read by `dms-control`. */
 export interface VerifyConfig {
   playground: string;
@@ -18,7 +45,7 @@ export interface VerifyConfig {
   smoke: string;
   smokeJourney: string;
   doors: Record<DoorKind, DoorRule | null>;
-  formal: never[];
+  formal: FormalCheck[];
 }
 
 const SKILL = ".agents/skills/verify-dms-database";
@@ -69,7 +96,18 @@ const config: VerifyConfig = {
       why: "the package name, its files and the release workflow claim @antelopejs/dms-database in the npm registry",
     },
   },
-  formal: [],
+  formal: [
+    {
+      name: "formal-table-watch",
+      covers: ["src/automation/tableWatch.ts"],
+      files: [".agents/skills/formal-table-watch/**"],
+      command: ["node", ".agents/skills/formal-table-watch/check.mjs", "--full"],
+      baseCommand: ["node", ".agents/skills/formal-table-watch/check.mjs"],
+      violation: /^(?:finding|BROKEN|CHANGED|HOLDS) +(\w+)/gm,
+      passing: /(?<=^holds +(?:\w+, )*)(\w+)(?=,| \()/gm,
+      behaviour: { kind: "emit" },
+    },
+  ],
 };
 
 export default config;

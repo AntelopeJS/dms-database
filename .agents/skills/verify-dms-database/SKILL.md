@@ -69,7 +69,7 @@ $C down "$RUN"
 2. **Unmapped surface fails the verdict.** User-facing code is `src/**`, `frontend-vue/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `map` checks the whole tree.
 3. **Every registered journey of a feature in `run` must have run and passed.** Known findings stay as failing journeys (see the feature files' Gotchas): they fail a verdict only when the diff touches their feature.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
-5. **Formal checks.** None.
+5. **Formal checks.** [`formal-table-watch`](../formal-table-watch/SKILL.md) covers the table-watch trigger (`src/automation/tableWatch.ts`): `$C formal "$RUN"` runs it when the diff touches its files. Its two recorded findings fail a verdict only when the diff changes the covered behaviour.
 6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff.
 7. **Result.** FAIL if any of rules 1 to 6 fail. PASS+NOTES when something is not verified or needs the owner's attention. PASS otherwise.
 

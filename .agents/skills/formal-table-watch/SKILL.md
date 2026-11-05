@@ -38,11 +38,11 @@ A feed failure is a read that rejects or ends on its own, or a reopen that throw
 
 The lines that name a changed rule match `^(?:BROKEN|CHANGED|HOLDS) +(\w+)`. A rule that still holds prints in the lowercase `holds` line.
 
-A finding is judged by the length of its shortest counterexample alone. A change that adds a longer counterexample to a recorded finding exits 0, so a regression of `GiveUpCloses` stays green while F1 stands. `dms-control verify formal` closes that gap for a diff: while a finding stands, it fails a verdict whose diff changes the covered behaviour. Fixing the finding closes the gap for good.
+A finding is judged by the length of its shortest counterexample alone. A change that adds a longer counterexample to a recorded finding exits 0, so a regression of `GiveUpCloses` stays green while F1 stands. `dms-control formal` closes that gap for a diff: while a finding stands, it fails a verdict whose diff changes the covered behaviour. Fixing the finding closes the gap for good.
 
 ## When to run it
 
-Run `--full` when a change touches `src/automation/tableWatch.ts` or this folder. CI runs the CI configuration on every push (job `formal-table-watch`, in the `ubuntu` gate). `dms-control verify formal` runs it when the `formal` list of `.agents/skills/verify-dms-database/verify.config.ts` names `formal-table-watch`.
+Run `--full` when a change touches `src/automation/tableWatch.ts` or this folder. CI runs the CI configuration on every push (job `formal-table-watch`, in the `ubuntu` gate). `dms-control formal` runs it when the `formal` list of `.agents/skills/verify-dms-database/verify.config.ts` names `formal-table-watch`.
 
 ## The rules
 
