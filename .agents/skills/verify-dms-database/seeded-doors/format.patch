@@ -1,0 +1,13 @@
+diff --git a/src/db/tables/saved_queries.table.ts b/src/db/tables/saved_queries.table.ts
+index c23b3b2..0003724 100644
+--- a/src/db/tables/saved_queries.table.ts
++++ b/src/db/tables/saved_queries.table.ts
+@@ -9,7 +9,7 @@ import { User } from "@antelopejs/interface-dms/auth/db";
+ import { SCHEMA_NAME } from "../../types/constants";
+ import type { JsonObject } from "../../types/json";
+ 
+-export const savedQueriesTableName = "saved_queries";
++export const savedQueriesTableName = "saved_queries_next";
+ 
+ @RegisterTable(savedQueriesTableName, SCHEMA_NAME)
+ export class SavedQueryRow extends Table {
