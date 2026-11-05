@@ -19,7 +19,7 @@ Give `seeded`, `doors` and `--skill` absolute paths when you run them from anoth
 ## Launch
 
 ```bash
-RUN=$($C up --prepare --base origin/campaign/integration)   # installs, builds, starts; prints the run folder
+RUN=$($C up --prepare --base origin/main)   # installs, builds, starts; prints the run folder
 ```
 
 `--prepare` runs the `prepare` commands of `verify.config.ts`: the frozen install, the build of the module, `playwright-core` into this folder, the link of the verification playground's `node_modules` to the repository's, and the TypeScript build of the playground's fixture module. Without it `up` uses the builds already there, and `doctor` fails on a stale one. `up` reads the playground from `verify.config.ts` (`playground/` in this folder) and starts an isolated DMS:
@@ -42,7 +42,7 @@ Do not drive a run that fails doctor.
 ## Drive
 
 ```bash
-$C plan --base origin/campaign/integration   # the diff mapped to features; unmapped surfaces
+$C plan --base origin/main   # the diff mapped to features; unmapped surfaces
 $C journey "$RUN" smoke
 $C journey "$RUN" <feature> [journey-id...]
 ```
