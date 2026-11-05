@@ -1,7 +1,7 @@
 import { guarded } from "../guard.mjs";
 import { check, db, list, member, pick, runQuery, tableQuery, text } from "../database.mjs";
 import { flat, openConsole } from "./parts/console.mjs";
-import { HISTORY_LIMIT, SLICE, TAGS_QUERY, TAGS_SOURCE, history } from "./parts/library-kit.mjs";
+import { HISTORY_LIMIT, SLICE, TAGS_QUERY, TAGS_SOURCE, history, save } from "./parts/library-kit.mjs";
 import { savedJourneys } from "./parts/library-saved.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
