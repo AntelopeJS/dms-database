@@ -30,7 +30,11 @@ function shop() {
   return schema;
 }
 
-async function listIds(offset: number, limit: number, search = "") {
+async function listIds(
+  offset: number,
+  limit: number,
+  { search = "", direction = "" } = {},
+) {
   const result = await new DatabaseBrowseController().list(
     USER,
     requestContext("https://example.test/"),
@@ -40,7 +44,7 @@ async function listIds(offset: number, limit: number, search = "") {
     String(offset),
     String(limit),
     "",
-    "",
+    direction,
     search,
   );
   return result.results.map<unknown>((row) => row._id);
@@ -73,7 +77,11 @@ describe("[integration] unsorted browse order", () => {
   });
 
   it("orders an unsorted search by primary key", async () => {
-    assert.deepEqual(await listIds(0, 10, "open"), KEY_ORDER);
+    assert.deepEqual(await listIds(0, 10, { search: "open" }), KEY_ORDER);
+  });
+
+  it("ignores a direction sent without a sort key", async () => {
+    assert.deepEqual(await listIds(0, 10, { direction: "desc" }), KEY_ORDER);
   });
 
   it("keeps an edited row in its place", async () => {

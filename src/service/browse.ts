@@ -127,19 +127,20 @@ async function refinePage<Row extends object>(
 
 /**
  * Without a search or a column filter the store handles ordering, pagination
- * and the count. With no sort picked, rows follow the primary key: a store
- * returns unordered rows in its own order, which an update can change, so
- * offset pages would move an edited row or repeat and skip rows. The primary
- * key is surfaced so the data browser knows which column identifies a row
- * when the user edits it.
+ * and the count. With no sort picked, rows follow the primary key ascending,
+ * whatever the direction: a store returns unordered rows in its own order,
+ * which an update can change, so offset pages would move an edited row or
+ * repeat and skip rows. The primary key is surfaced so the data browser knows
+ * which column identifies a row when the user edits it.
  */
 export async function fetchRows(query: BrowseQuery) {
   const table = resolveTable(query);
   const primaryKey = getTablePrimaryKey(query.schema, query.table);
-  const orderKey = query.sortKey ?? primaryKey;
-  const sorted = orderKey
-    ? table.orderBy(orderKey, query.sortDirection)
-    : table;
+  const sorted = query.sortKey
+    ? table.orderBy(query.sortKey, query.sortDirection)
+    : primaryKey
+      ? table.orderBy(primaryKey)
+      : table;
 
   const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
   if (!hasRefine) {
