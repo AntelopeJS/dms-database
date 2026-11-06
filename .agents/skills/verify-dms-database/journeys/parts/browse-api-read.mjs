@@ -27,7 +27,7 @@ export const columnsGetAndTables = {
     const counts = (answer) => show(Object.fromEntries(rowsOfItems(answer).map((item) => [item.name, item.elementCount])));
     const types = pick(columns.body, "types");
     await ctx.verify("the grid's reads", [
-      check("the orders columns, in the stored order, with the instance tag last", show(pick(columns.body, "columns")) === '["_id","number","customer_id","status","channel","total","currency","coupon_id","shipping","created_at","_instance"]', pick(columns.body, "columns")),
+      check("the orders columns: the declared ones in declaration order, then the sampled ones in stored order, the instance tag last", show(pick(columns.body, "columns")) === '["_id","number","customer_id","status","created_at","channel","total","currency","coupon_id","shipping","_instance"]', pick(columns.body, "columns")),
       check("the primary key is _id", pick(columns.body, "primaryKey") === "_id", pick(columns.body, "primaryKey")),
       check("the types name the runtime type of each column", show(types) !== "undefined" && pick(types, "total") === "number" && pick(types, "status") === "string" && pick(types, "shipping") === "object" && pick(types, "created_at") === "date", types),
       check("a null cell takes the type of a later row: coupon_id is a string", pick(types, "coupon_id") === "string", pick(types, "coupon_id")),

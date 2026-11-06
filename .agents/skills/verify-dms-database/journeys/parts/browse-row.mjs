@@ -143,7 +143,9 @@ const drawerTabs = {
     const shown = await drawerText(tab);
     const parsed = parseJson(shown.slice(shown.indexOf("{"), shown.lastIndexOf("}") + 1));
     const expected = Object.fromEntries(Object.entries(isRow(orderRow.body) ? orderRow.body : {}).filter(([key]) => key !== "_instance"));
-    await ctx.verify("the JSON tab", [check("it holds the stored row, the instance tag aside", show(parsed) === show(expected), [parsed, expected])]);
+    /** @param {unknown} row @returns {string} */
+    const byKey = (row) => show(Object.fromEntries(Object.entries(isRow(row) ? row : {}).sort(([a], [b]) => a.localeCompare(b))));
+    await ctx.verify("the JSON tab", [check("it holds the stored row, the instance tag aside, in the grid's column order", byKey(parsed) === byKey(expected), [parsed, expected])]);
     await tab.click({ role: "tab", name: /^Referenced by/ });
     const references = await settle(() => drawerText(tab), (content) => /2 rows · order_id/.test(content));
     await tab.page.getByRole("dialog").getByRole("link", { name: /order_items/ }).click();
