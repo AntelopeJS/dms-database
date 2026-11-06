@@ -64,7 +64,7 @@
 		},
 		"schemas": {
 			"title": "Schémas",
-			"description": "Toutes les tables déclarées par vos modules, avec leurs lignes comptées dans toutes les instances. Ouvrez-en une pour voir ses colonnes, index et relations.",
+			"description": "Toutes les tables déclarées par vos modules, avec leurs lignes comptées dans l'instance choisie. Ouvrez-en une pour voir ses colonnes, index et relations.",
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
