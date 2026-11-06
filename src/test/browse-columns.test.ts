@@ -23,6 +23,19 @@ class BrowseColumnsOrder extends Table {
 /** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [BrowseColumnsOrder];
 
+interface PlainRow {
+  _id: string;
+  name: string;
+  rank: number;
+}
+
+const plain = new Schema<{ rows: PlainRow }>(`${SCHEMA}-plain`, {
+  rows: {
+    fields: { _id: "string", name: "string", rank: "number" },
+    indexes: {},
+  },
+});
+
 function orders() {
   const schema = Schema.get<{ orders: BrowseColumnsOrder }>(SCHEMA);
   assert.ok(schema, "the test schema is registered");
@@ -43,6 +56,7 @@ describe("[integration] browse columns: declared order", () => {
 
   after(async () => {
     await orders().delete().run();
+    await plain.instance().table("rows").delete().run();
   });
 
   it("lists the declared fields in declaration order, then the sampled extras", async () => {
@@ -59,6 +73,27 @@ describe("[integration] browse columns: declared order", () => {
       "total",
       "_instance",
       "note",
+    ]);
+  });
+
+  it("orders an undecorated table by its schema definition's fields", async () => {
+    await plain
+      .instance()
+      .table("rows")
+      .insert([{ zeta: true, rank: 1, name: "a", _id: "r1" }])
+      .run();
+    const meta = await new DatabaseBrowseController().columns(
+      USER,
+      `is:${SCHEMA}-plain`,
+      undefined,
+      "is:rows",
+    );
+    assert.deepEqual(meta.columns, [
+      "_id",
+      "name",
+      "rank",
+      "zeta",
+      "_instance",
     ]);
   });
 });
