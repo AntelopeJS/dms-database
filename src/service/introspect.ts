@@ -23,7 +23,12 @@ import {
   isRecord,
   isString,
 } from "../utils/guards";
-import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
+import {
+  declaredFieldTypes,
+  decoratedFieldsOf,
+  type SchemaTableDefinition,
+} from "./declaredFields";
+import type { FieldDescriptor } from "./fieldDescriptor";
 import { resolveSchemaLabel } from "./schemaLabels";
 import { getRegistry } from "./schemaRegistry";
 import type {
@@ -276,70 +281,6 @@ async function inferTableFields(
   return inferred;
 }
 
-const DESIGN_TYPE_DESCRIPTORS = new Map<unknown, () => FieldDescriptor>([
-  [String, () => ({ kind: "string" })],
-  [Number, () => ({ kind: "number" })],
-  [Boolean, () => ({ kind: "boolean" })],
-  [Date, () => ({ kind: "date" })],
-  [Array, () => ({ kind: "array" })],
-]);
-
-interface DeclaredFields {
-  ordered: string[];
-  types: Record<string, FieldDescriptor>;
-}
-
-/**
- * The decorated names of a table class, in discovery order: the instance's own
- * class fields (skipped when the constructor throws), the primary key first,
- * the indexed fields (insertion order preserves the `@Index` source order),
- * the relation fields, then the modifier fields.
- */
-function collectDecoratedFields(TableClass: Class<Table>): DeclaredFields {
-  const ordered: string[] = [];
-  const seen = new Set<string>();
-  const push = (name: string) => {
-    if (!name || seen.has(name)) return;
-    seen.add(name);
-    ordered.push(name);
-  };
-
-  try {
-    const instance = new TableClass();
-    for (const name of Object.keys(instance)) push(name);
-  } catch {}
-
-  const datumMeta = getMetadata(TableClass, DatumStaticMetadata, true);
-  if (datumMeta.primary && !seen.has(datumMeta.primary)) {
-    seen.add(datumMeta.primary);
-    ordered.unshift(datumMeta.primary);
-  }
-
-  for (const fields of Object.values(datumMeta.indexes)) {
-    for (const name of fields) push(name);
-  }
-
-  const relationMeta = getMetadata(TableClass, RelationStaticMetadata, true);
-  for (const name of Object.keys(relationMeta.relations)) push(name);
-
-  const modifierMeta = getMetadata(TableClass, ModifiersStaticMetadata, true);
-  for (const name of Object.keys(modifierMeta.fields ?? {})) push(name);
-
-  const types: Record<string, FieldDescriptor> = {};
-  const prototype: unknown = TableClass.prototype;
-  for (const name of ordered) {
-    if (!isObject(prototype)) break;
-    const describe = DESIGN_TYPE_DESCRIPTORS.get(
-      Reflect.getMetadata("design:type", prototype, name),
-    );
-    if (describe) types[name] = describe();
-  }
-
-  return { ordered, types };
-}
-
-type SchemaTableDefinition = Schema["definition"][string];
-
 /**
  * A declared type says nothing of `null` (`string | null` reflects as
  * `Object`) nor of an array's elements (`string[]` reflects as `Array`): the
@@ -356,17 +297,11 @@ async function summarizeTable(
   const relations = TableClass
     ? resolveRelations(id, tableName, TableClass)
     : [];
-  const declared = TableClass
-    ? collectDecoratedFields(TableClass)
-    : { ordered: [], types: {} };
+  const declared = decoratedFieldsOf(TableClass);
   const sampled = await inferTableFields(id, schema, tableName);
   const modifiers = resolveModifiers(TableClass);
 
-  const definitionFields = def.fields ?? {};
-  const fromDefinition = new Map<string, FieldDescriptor>();
-  for (const [name, value] of Object.entries(definitionFields)) {
-    fromDefinition.set(name, toFieldDescriptor(value));
-  }
+  const declaredTypes = declaredFieldTypes(def, declared);
 
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
     const seen = sampled[name];
@@ -381,13 +316,10 @@ async function summarizeTable(
   for (const name of declared.ordered) {
     fields[name] = withSampled(
       name,
-      fromDefinition.get(name) ??
-        declared.types[name] ??
-        sampled[name] ??
-        UNKNOWN_DESCRIPTOR,
+      declaredTypes.get(name) ?? sampled[name] ?? UNKNOWN_DESCRIPTOR,
     );
   }
-  for (const [name, descriptor] of fromDefinition) {
+  for (const [name, descriptor] of declaredTypes) {
     if (!Object.hasOwn(fields, name))
       fields[name] = withSampled(name, descriptor);
   }

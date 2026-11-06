@@ -5,6 +5,8 @@ import {
   Schema,
   type Stream,
 } from "@antelopejs/interface-database";
+import { getDeclaredFieldTypes } from "./declaredFields";
+import type { FieldDescriptor } from "./fieldDescriptor";
 import { getTablePrimaryKey } from "./introspect";
 import { isObject } from "../utils/guards";
 import {
@@ -174,7 +176,9 @@ interface ColumnsMeta {
  * Samples a handful of rows instead of one: on schemaless stores a null (or
  * absent) cell in the first row would otherwise hide the column's real type,
  * giving the data browser the wrong header icon and making it coerce a filled
- * NULL cell to the wrong type. A Map keeps prototype-named columns
+ * NULL cell to the wrong type. A declared field type wins over the sample, since
+ * a store may read a value back in another shape (a `Date` as an ISO string on
+ * PostgreSQL). A Map keeps prototype-named columns
  * (`constructor`, `toString`, …) from vanishing: on a plain object
  * `key in types` / `types[key]` would hit Object.prototype and silently skip
  * them.
@@ -203,7 +207,37 @@ export async function fetchColumns(
       }
     }
   }
+  const declared = getDeclaredFieldTypes(
+    selection.schema,
+    selection.table,
+    columns,
+  );
+  for (const column of columns) {
+    const descriptor = declared.get(column);
+    const type = descriptor && gridTypeOf(descriptor);
+    if (type) typeByColumn.set(column, type);
+  }
   return { columns, types: Object.fromEntries(typeByColumn) };
+}
+
+const GRID_TYPE_BY_KIND = new Map<FieldDescriptor["kind"], string>([
+  ["string", "string"],
+  ["number", "number"],
+  ["boolean", "boolean"],
+  ["date", "date"],
+  ["array", "array"],
+  ["tuple", "array"],
+  ["object", "object"],
+  ["record", "object"],
+]);
+
+/**
+ * The grid label of a declared type, or undefined when the declaration does
+ * not settle one (a union, `any`, `unknown`) and the sample decides.
+ */
+function gridTypeOf(descriptor: FieldDescriptor): string | undefined {
+  if (descriptor.kind === "refinement") return gridTypeOf(descriptor.base);
+  return GRID_TYPE_BY_KIND.get(descriptor.kind);
 }
 
 /**
