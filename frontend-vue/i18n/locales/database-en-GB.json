@@ -64,7 +64,7 @@
 		},
 		"schemas": {
 			"title": "Schemas",
-			"description": "Every table registered by your modules, its rows counted across all instances. Open one to inspect its columns, indexes and relations.",
+			"description": "Every table registered by your modules, its rows counted in the picked instance. Open one to inspect its columns, indexes and relations.",
 			"cols": {
 				"relations": "Relations",
 				"table": "Table",
