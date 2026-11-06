@@ -1,5 +1,43 @@
 # Changelog
 
+## v0.4.2
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.1...v0.4.2)
+
+### 🚀 Enhancements
+
+- **playground:** Run the playground on PostgreSQL ([#125](https://github.com/AntelopeJS/dms-database/pull/125))
+- **skills:** Add the verify-dms-database verification skill ([#111](https://github.com/AntelopeJS/dms-database/pull/111))
+
+### 🩹 Fixes
+
+- **schemas:** Say rows are counted in the picked instance ([#130](https://github.com/AntelopeJS/dms-database/pull/130))
+- **browse:** Order unsorted data browser pages by primary key ([#127](https://github.com/AntelopeJS/dms-database/pull/127))
+- **browse:** Type data browser columns from the declared field type ([#128](https://github.com/AntelopeJS/dms-database/pull/128))
+- **browse:** List declared columns first, in declaration order ([#129](https://github.com/AntelopeJS/dms-database/pull/129))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs packages to the 2026-11-06 releases ([#134](https://github.com/AntelopeJS/dms-database/pull/134))
+
+### 🏡 Chore
+
+- Remove the .amp directory ([#124](https://github.com/AntelopeJS/dms-database/pull/124))
+- **verify:** Remove seeded runs from the verification skill ([#126](https://github.com/AntelopeJS/dms-database/pull/126))
+- **ci:** Remove the weekly mutation caller ([#131](https://github.com/AntelopeJS/dms-database/pull/131))
+
+### ✅ Tests
+
+- **verify:** Map declaredFields.ts to the data and schemas features ([#132](https://github.com/AntelopeJS/dms-database/pull/132))
+
+### 🤖 CI
+
+- Call ci-node.yml@v1 ([#133](https://github.com/AntelopeJS/dms-database/pull/133))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.4.1
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.0...v0.4.1)
