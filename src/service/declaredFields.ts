@@ -138,3 +138,18 @@ export function getDeclaredFieldTypes(
   }
   return types;
 }
+
+/**
+ * Declared field names of a registered table, in the order the Schemas
+ * inspector lists them: the decorated class fields, then the schema
+ * definition's fields.
+ */
+export function getDeclaredFieldOrder(
+  schemaId: string,
+  tableName: string,
+): string[] {
+  const def = getRegistry().get(schemaId)?.definition[tableName];
+  const TableClass = getTablesForSchema(schemaId)?.[tableName];
+  const decorated = decoratedFieldsOf(TableClass).ordered;
+  return [...new Set([...decorated, ...Object.keys(def?.fields ?? {})])];
+}

@@ -5,7 +5,7 @@ import {
   Schema,
   type Stream,
 } from "@antelopejs/interface-database";
-import { getDeclaredFieldTypes } from "./declaredFields";
+import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { getTablePrimaryKey } from "./introspect";
 import { isObject } from "../utils/guards";
@@ -186,7 +186,9 @@ interface ColumnsMeta {
  * PostgreSQL). A Map keeps prototype-named columns
  * (`constructor`, `toString`, …) from vanishing: on a plain object
  * `key in types` / `types[key]` would hit Object.prototype and silently skip
- * them.
+ * them. Declared fields come first, in the Schemas inspector's order: a store
+ * may return a row's keys in its own order (PostgreSQL's jsonb sorts them
+ * shortest first).
  */
 export async function fetchColumns(
   selection: BrowseSelection,
@@ -222,7 +224,15 @@ export async function fetchColumns(
     const type = descriptor && gridTypeOf(descriptor);
     if (type) typeByColumn.set(column, type);
   }
-  return { columns, types: Object.fromEntries(typeByColumn) };
+  const ordered = getDeclaredFieldOrder(
+    selection.schema,
+    selection.table,
+  ).filter((name) => typeByColumn.has(name));
+  const extra = columns.filter((name) => !ordered.includes(name));
+  return {
+    columns: [...ordered, ...extra],
+    types: Object.fromEntries(typeByColumn),
+  };
 }
 
 const GRID_TYPE_BY_KIND = new Map<FieldDescriptor["kind"], string>([
