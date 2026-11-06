@@ -5,6 +5,7 @@ covers:
   - src/routes/schemas.ts
   - src/service/schemaFilters.ts
   - src/service/introspect.ts
+  - src/service/declaredFields.ts
   - src/service/fieldDescriptor.ts
   - src/service/schemaRegistry.ts
   - src/service/types.ts
