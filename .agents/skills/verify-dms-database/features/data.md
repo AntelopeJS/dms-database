@@ -3,6 +3,7 @@ covers:
   - src/pages/data.ts
   - src/routes/data.ts
   - src/service/browse.ts
+  - src/service/declaredFields.ts
   - src/service/references.ts
   - src/utils/query.ts
   - src/utils/requestValidation.ts
