@@ -1,0 +1,7 @@
+{
+  "do": "snapshot",
+  "account": "admin",
+  "tab": "main",
+  "folder": "/home/debian/.tmp/dms-control/20261106T015505-1a4076/evidence/browser/05-main-snapshot",
+  "baseUrl": "http://127.0.0.1:37627"
+}

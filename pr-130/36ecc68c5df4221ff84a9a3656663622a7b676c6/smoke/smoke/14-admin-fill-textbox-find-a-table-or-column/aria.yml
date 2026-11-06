@@ -1,0 +1,121 @@
+- link "Antelope DMS, go to homepage":
+  - /url: /modules/database/overview
+  - img "Antelope DMS, go to homepage"
+- button "Search… Ctrl K"
+- text: Database
+- navigation:
+  - list:
+    - listitem: Explore
+    - listitem:
+      - link "Overview":
+        - /url: /modules/database/overview
+    - listitem:
+      - link "Schemas":
+        - /url: /modules/database/schemas
+    - listitem:
+      - link "Diagram":
+        - /url: /modules/database/diagram
+  - list:
+    - listitem: Work with data
+    - listitem:
+      - link "Data browser":
+        - /url: /modules/database/data
+    - listitem:
+      - link "Query console":
+        - /url: /modules/database/query
+- navigation:
+  - list:
+    - listitem:
+      - link "Back":
+        - /url: /modules
+    - listitem:
+      - link "Modules 1":
+        - /url: /modules
+- button "Verify Admin": VA Verify Admin admin+20261106t015505-1a4076@verify.local
+- separator
+- button "Collapse sidebar"
+- heading "Breadcrumb Add to favorites" [level=1]:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Modules":
+          - /url: /modules
+      - listitem:
+        - link "Database":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Schemas":
+          - /url: /modules/database/schemas
+  - button "Add to favorites"
+- button "Quick actions"
+- button "Notifications": "1"
+- heading "Schemas" [level=1]
+- paragraph: Every table registered by your modules, its rows counted in the picked instance. Open one to inspect its columns, indexes and relations.
+- link "Diagram":
+  - /url: /modules/database/diagram
+- search "Filter the tables":
+  - button "Schema": All schemas
+  - button "Instance": default
+  - textbox "Find a table or column": products
+  - button "Clear"
+  - button "With relations"
+  - button "With modifiers"
+  - button "Empty"
+  - status:
+    - text: 1 of 53 tables
+    - button "Clear"
+- banner:
+  - heading "Tables 1" [level=2]
+  - button
+  - button "Refresh data"
+  - button
+- table "Tables":
+  - caption: Tables
+  - rowgroup:
+    - row "Table Schema Rows Default sort Columns Indexes Relations Modifiers":
+      - cell
+      - cell "Table":
+        - button "Table"
+        - button
+      - cell "Schema":
+        - button "Schema"
+        - button
+      - cell "Rows Default sort":
+        - button "Rows Default sort"
+        - button
+      - cell "Columns":
+        - button "Columns"
+        - button
+      - cell "Indexes":
+        - button "Indexes"
+        - button
+      - cell "Relations":
+        - text: Relations
+        - button
+      - cell "Modifiers":
+        - text: Modifiers
+        - button
+      - cell
+  - rowgroup:
+    - row "products Copy shop 6 4 1 Actions for products":
+      - cell
+      - cell "products Copy":
+        - text: products
+        - button "Copy"
+      - cell "shop"
+      - cell "6"
+      - cell "4"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for products":
+        - button "Actions for products"
+- navigation "Navigation":
+  - text: 1 items Page size
+  - combobox "Page size": "50"
+  - text: J / K step through tables in the inspector Page 1 of 1
+- region "Notifications (F8)":
+  - list

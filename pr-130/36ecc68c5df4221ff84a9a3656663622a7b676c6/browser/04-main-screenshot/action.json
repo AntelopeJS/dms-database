@@ -1,0 +1,7 @@
+{
+  "do": "screenshot",
+  "account": "admin",
+  "tab": "main",
+  "folder": "/home/debian/.tmp/dms-control/20261106T015505-1a4076/evidence/browser/04-main-screenshot",
+  "baseUrl": "http://127.0.0.1:37627"
+}

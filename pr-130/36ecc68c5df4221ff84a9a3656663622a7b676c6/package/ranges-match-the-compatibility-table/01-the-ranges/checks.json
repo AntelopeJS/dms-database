@@ -1,0 +1,47 @@
+[
+  {
+    "name": "the table lists at least the six required interfaces",
+    "pass": true,
+    "detail": "[\"@antelopejs/interface-api\",\"@antelopejs/interface-api-util\",\"@antelopejs/interface-core\",\"@antelopejs/interface-database\",\"@antelopejs/interface-database-decorators\",\"@antelopejs/interface-dms\",\"@antelopejs/interface-dms-automation\"]"
+  },
+  {
+    "name": "@antelopejs/interface-api is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-api-util is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-core is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.4.0 <1.0.0\",\">=0.4.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-database is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-database-decorators is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.2.0 <1.0.0\",\">=0.2.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-dms is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.12.0 <1.0.0\",\">=0.12.0 <1.0.0\"]"
+  },
+  {
+    "name": "@antelopejs/interface-dms-automation is in the table with the same range",
+    "pass": true,
+    "detail": "[\">=0.6.0 <1.0.0\",\">=0.6.0 <1.0.0\"]"
+  },
+  {
+    "name": "the dashboard layer pins one renderer minor",
+    "pass": true,
+    "detail": "{\"@antelopejs/dms-frontend\":\">=0.10.0 <0.11.0\"}"
+  }
+]

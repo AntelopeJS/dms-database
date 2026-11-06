@@ -1,0 +1,6 @@
+{
+  "method": "GET",
+  "url": "http://127.0.0.1:39981/api/database/browse/list?filter_schema=shop&filter_table=products",
+  "authenticated": true,
+  "body": null
+}

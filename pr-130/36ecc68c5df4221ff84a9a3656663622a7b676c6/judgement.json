@@ -1,0 +1,12 @@
+{
+  "verifier": "claude-opus-5-5, the thread that wrote the change",
+  "doors": { "none": "The diff changes two locale strings; no stored data, API or contract changes." },
+  "docs": [
+    { "page": "README.md", "matches": true, "note": "Does not describe the Schemas subtitle." },
+    { "page": "docs/2.installation.md", "matches": true, "note": "Unaffected by a locale string." },
+    { "page": "docs/5.extending.md", "matches": true, "note": "Unaffected by a locale string." },
+    { "page": "docs/4.usage/2.schemas.md", "matches": true, "note": "Already says rows are counted in the picked instance; the en-GB subtitle now uses the same wording." }
+  ],
+  "notVerified": ["The fr-FR subtitle was not rendered in the browser; scripts/check-sources.mts in pnpm lint resolves its key."],
+  "attention": []
+}

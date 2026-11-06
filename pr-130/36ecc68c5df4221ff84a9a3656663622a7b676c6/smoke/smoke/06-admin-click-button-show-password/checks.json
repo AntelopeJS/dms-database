@@ -1,0 +1,7 @@
+[
+  {
+    "name": "click button \"Show password\"",
+    "pass": true,
+    "detail": "http://127.0.0.1:37627/auth"
+  }
+]

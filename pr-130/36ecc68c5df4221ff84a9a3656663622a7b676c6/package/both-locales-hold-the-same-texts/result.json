@@ -1,0 +1,38 @@
+{
+  "feature": "package",
+  "journey": "both-locales-hold-the-same-texts",
+  "title": "the English and French locale files hold exactly the same keys, none empty, so every string exists in both languages",
+  "entryPoint": "frontend-vue/i18n/locales/database-en-GB.json and database-fr-FR.json",
+  "status": "PASS",
+  "database": "verify_20261106T015505_1a4076_j001",
+  "steps": [
+    {
+      "name": "01-the-locales",
+      "folder": "package/both-locales-hold-the-same-texts/01-the-locales",
+      "checks": [
+        {
+          "name": "every English key exists in French",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "every French key exists in English",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "no English text is empty",
+          "pass": true,
+          "detail": "[]"
+        },
+        {
+          "name": "no French text is empty",
+          "pass": true,
+          "detail": "[]"
+        }
+      ]
+    }
+  ],
+  "error": null,
+  "folder": "package/both-locales-hold-the-same-texts"
+}

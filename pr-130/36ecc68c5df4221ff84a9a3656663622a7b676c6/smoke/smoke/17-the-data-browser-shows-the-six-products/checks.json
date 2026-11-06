@@ -1,0 +1,12 @@
+[
+  {
+    "name": "page shows /products\\s+6 rows/",
+    "pass": true,
+    "detail": "Search… CTRL K Database EXPLORE Overview Schemas Diagram WORK WITH DATA Data browser Query console Back Modules 1 VA Verify Admin admin+20261106t015505-1a4076@verify.local / Modules / Database / Data browser 1 Data browser Browse and fix rows. Edits are staged and written only when you save them. SC…"
+  },
+  {
+    "name": "cell \"Standing desk\" is visible",
+    "pass": true,
+    "detail": "http://127.0.0.1:37627/modules/database/data?schema=shop&table=products"
+  }
+]

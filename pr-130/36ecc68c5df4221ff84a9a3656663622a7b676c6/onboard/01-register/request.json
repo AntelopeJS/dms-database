@@ -1,0 +1,13 @@
+{
+  "method": "POST",
+  "url": "http://127.0.0.1:39981/api/onboarding/register",
+  "authenticated": false,
+  "body": {
+    "email": "admin+20261106t015505-1a4076@verify.local",
+    "password": "Vr1!OOucu1B9Gmfd",
+    "firstName": "Verify",
+    "lastName": "Admin",
+    "setupToken": "ce5f01bd035c8fee8547b4451928f4fb84d3907053130bf82874b1d51cb708f9",
+    "platformName": "Verify 20261106T015505-1a4076"
+  }
+}

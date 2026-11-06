@@ -1,0 +1,63 @@
+{
+  "feature": "package",
+  "journey": "ranges-match-the-compatibility-table",
+  "title": "the README compatibility table lists the interface ranges the module depends on, the dashboard layer pins one renderer minor, and the README names the same renderer cap as the layer's engines",
+  "entryPoint": "README.md, package.json, frontend-vue/package.json",
+  "status": "PASS",
+  "database": "verify_20261106T015505_1a4076_j001",
+  "steps": [
+    {
+      "name": "01-the-ranges",
+      "folder": "package/ranges-match-the-compatibility-table/01-the-ranges",
+      "checks": [
+        {
+          "name": "the table lists at least the six required interfaces",
+          "pass": true,
+          "detail": "[\"@antelopejs/interface-api\",\"@antelopejs/interface-api-util\",\"@antelopejs/interface-core\",\"@antelopejs/interface-database\",\"@antelopejs/interface-database-decorators\",\"@antelopejs/interface-dms\",\"@antelopejs/interface-dms-automation\"]"
+        },
+        {
+          "name": "@antelopejs/interface-api is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-api-util is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-core is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.4.0 <1.0.0\",\">=0.4.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-database is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-database-decorators is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.2.0 <1.0.0\",\">=0.2.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-dms is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.12.0 <1.0.0\",\">=0.12.0 <1.0.0\"]"
+        },
+        {
+          "name": "@antelopejs/interface-dms-automation is in the table with the same range",
+          "pass": true,
+          "detail": "[\">=0.6.0 <1.0.0\",\">=0.6.0 <1.0.0\"]"
+        },
+        {
+          "name": "the dashboard layer pins one renderer minor",
+          "pass": true,
+          "detail": "{\"@antelopejs/dms-frontend\":\">=0.10.0 <0.11.0\"}"
+        }
+      ]
+    }
+  ],
+  "error": null,
+  "folder": "package/ranges-match-the-compatibility-table"
+}

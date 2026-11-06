@@ -1,0 +1,283 @@
+{
+  "status": 200,
+  "body": {
+    "status": "ok",
+    "latencyMs": 0,
+    "driver": null,
+    "checkedAt": "2026-11-06T01:55:59.234Z",
+    "error": null,
+    "schemaCount": 19,
+    "tableCount": 53,
+    "relationCount": 23,
+    "indexCount": 66,
+    "totalRows": 1276,
+    "storage": [
+      {
+        "schema": "metrics",
+        "table": "readings",
+        "rows": 1250
+      },
+      {
+        "schema": "shop",
+        "table": "products",
+        "rows": 6
+      },
+      {
+        "schema": "demo",
+        "table": "tags",
+        "rows": 3
+      },
+      {
+        "schema": "demo",
+        "table": "posts",
+        "rows": 3
+      },
+      {
+        "schema": "demo",
+        "table": "comments",
+        "rows": 2
+      },
+      {
+        "schema": "vault",
+        "table": "accounts",
+        "rows": 2
+      },
+      {
+        "schema": "dms-core",
+        "table": "users",
+        "rows": 1
+      },
+      {
+        "schema": "dms-core",
+        "table": "tenants",
+        "rows": 1
+      },
+      {
+        "schema": "dms-core",
+        "table": "sessions",
+        "rows": 1
+      },
+      {
+        "schema": "dms-core",
+        "table": "system_state",
+        "rows": 1
+      },
+      {
+        "schema": "dms-core",
+        "table": "user_known_devices",
+        "rows": 1
+      },
+      {
+        "schema": "vault",
+        "table": "plain_notes",
+        "rows": 1
+      },
+      {
+        "schema": "vault",
+        "table": "parents_registry",
+        "rows": 1
+      },
+      {
+        "schema": "vault",
+        "table": "parents_links",
+        "rows": 1
+      },
+      {
+        "schema": "vault",
+        "table": "wide_records",
+        "rows": 1
+      },
+      {
+        "schema": "quirks",
+        "table": "members",
+        "rows": 1
+      },
+      {
+        "schema": "dms-database",
+        "table": "diagram_layouts",
+        "rows": 0
+      },
+      {
+        "schema": "dms-database",
+        "table": "diagram_notes",
+        "rows": 0
+      },
+      {
+        "schema": "dms-database",
+        "table": "query_history",
+        "rows": 0
+      },
+      {
+        "schema": "dms-database",
+        "table": "saved_queries",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "user_external_identities",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "attachments",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "setup_token",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "sign_in_attempts",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "user_email_changes",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "user_notification_preferences",
+        "rows": 0
+      },
+      {
+        "schema": "dms-core",
+        "table": "user_notifications",
+        "rows": 0
+      },
+      {
+        "schema": "shop",
+        "table": "customers",
+        "rows": 0
+      },
+      {
+        "schema": "shop",
+        "table": "orders",
+        "rows": 0
+      },
+      {
+        "schema": "shop",
+        "table": "order_items",
+        "rows": 0
+      },
+      {
+        "schema": "metrics",
+        "table": "empty_log",
+        "rows": 0
+      },
+      {
+        "schema": "mods",
+        "table": "hashed_only",
+        "rows": 0
+      },
+      {
+        "schema": "mods",
+        "table": "localized_only",
+        "rows": 0
+      },
+      {
+        "schema": "mods",
+        "table": "encrypted_only",
+        "rows": 0
+      },
+      {
+        "schema": "app-site",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "core",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "global",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "staging-eu",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "reviews",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "production",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "billing",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "tenant-acme",
+        "table": "entries",
+        "rows": 0
+      },
+      {
+        "schema": "links",
+        "table": "customer_refs",
+        "rows": 0
+      },
+      {
+        "schema": "links",
+        "table": "twelve_columns",
+        "rows": 0
+      },
+      {
+        "schema": "links",
+        "table": "thirteen_columns",
+        "rows": 0
+      },
+      {
+        "schema": "links",
+        "table": "anchor_target",
+        "rows": 0
+      },
+      {
+        "schema": "links",
+        "table": "anchor_source",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "roles",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "export_jobs",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "invite_resolutions",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "tenant_members",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "user_invites",
+        "rows": 0
+      },
+      {
+        "schema": "dms-tenant",
+        "table": "tenant_lifecycle",
+        "rows": 0
+      }
+    ]
+  },
+  "error": null
+}

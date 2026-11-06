@@ -1,0 +1,6 @@
+{
+  "method": "GET",
+  "url": "http://127.0.0.1:39981/api/user/me",
+  "authenticated": true,
+  "body": null
+}

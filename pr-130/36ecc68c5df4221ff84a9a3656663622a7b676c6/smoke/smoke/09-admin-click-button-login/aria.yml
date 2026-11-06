@@ -1,0 +1,53 @@
+- link "Antelope DMS, go to homepage":
+  - /url: /modules/database/overview
+  - img "Antelope DMS, go to homepage"
+- button "Search… Ctrl K"
+- text: Database
+- navigation:
+  - list:
+    - listitem: Explore
+    - listitem:
+      - link "Overview":
+        - /url: /modules/database/overview
+    - listitem:
+      - link "Schemas":
+        - /url: /modules/database/schemas
+    - listitem:
+      - link "Diagram":
+        - /url: /modules/database/diagram
+  - list:
+    - listitem: Work with data
+    - listitem:
+      - link "Data browser":
+        - /url: /modules/database/data
+    - listitem:
+      - link "Query console":
+        - /url: /modules/database/query
+- navigation:
+  - list:
+    - listitem:
+      - link "Back":
+        - /url: /modules
+    - listitem:
+      - link "Modules":
+        - /url: /modules
+- button "Verify Admin": VA Verify Admin admin+20261106t015505-1a4076@verify.local
+- separator
+- button "Collapse sidebar"
+- heading "Breadcrumb Add to favorites" [level=1]:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /modules/database/overview
+  - button "Add to favorites"
+- button "Quick actions"
+- button "Notifications": "1"
+- heading "Overview" [level=1]
+- paragraph: Connection health, schemas and recent activity of the database.
+- link "Open query console":
+  - /url: /modules/database/query
+- link "Browse data":
+  - /url: /modules/database/data
+- region "Notifications (F8)":
+  - list

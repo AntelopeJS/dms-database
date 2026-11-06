@@ -1,0 +1,5 @@
+{
+  "do": "goto",
+  "path": "/modules/database/overview",
+  "baseUrl": "http://127.0.0.1:37627"
+}

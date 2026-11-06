@@ -1,0 +1,181 @@
+[
+  {
+    "feature": "package",
+    "journey": "the-tarball-holds-what-its-manifest-names",
+    "title": "the package tarball holds the build, the dashboard layer with both locales and the agent skill, every path the manifest points at, without test build or build info and without the docs",
+    "entryPoint": "npm pack of the module",
+    "status": "PASS",
+    "database": "verify_20261106T015505_1a4076_j001",
+    "steps": [
+      {
+        "name": "01-the-packed-module",
+        "folder": "package/the-tarball-holds-what-its-manifest-names/01-the-packed-module",
+        "checks": [
+          {
+            "name": "dist/index.js is packed",
+            "pass": true,
+            "detail": "dist/index.js"
+          },
+          {
+            "name": "dist/index.d.ts is packed",
+            "pass": true,
+            "detail": "dist/index.d.ts"
+          },
+          {
+            "name": "dist/index.d.ts is packed",
+            "pass": true,
+            "detail": "dist/index.d.ts"
+          },
+          {
+            "name": "dist/index.js is packed",
+            "pass": true,
+            "detail": "dist/index.js"
+          },
+          {
+            "name": "dist/frontend-module.js is packed",
+            "pass": true,
+            "detail": "dist/frontend-module.js"
+          },
+          {
+            "name": "the manifest names the module",
+            "pass": true,
+            "detail": "@antelopejs/dms-database"
+          },
+          {
+            "name": "the skill ships and is declared",
+            "pass": true,
+            "detail": "[\"skills/dms-database/cases.json\",\"skills/dms-database/SKILL.md\"]"
+          },
+          {
+            "name": "the dashboard layer ships with both locales",
+            "pass": true,
+            "detail": "[\"frontend-vue/i18n/locales/database-en-GB.json\",\"frontend-vue/i18n/locales/database-fr-FR.json\",\"frontend-vue/tests/locales.test.ts\"]"
+          },
+          {
+            "name": "the layer's pages and components ship",
+            "pass": true,
+            "detail": "24"
+          },
+          {
+            "name": "no test build, no build info",
+            "pass": true,
+            "detail": "[\"frontend-vue/tests/apiErrorPresentation.test.ts\",\"frontend-vue/tests/backend-boundary.test.ts\",\"frontend-vue/tests/clientNavigation.test.ts\",\"frontend-vue/tests/dataBrowser.test.ts\",\"frontend-vue/tests/diagram.test.ts\",\"frontend-vue/tests/diagramLayout.test.ts\",\"frontend-vue/tests/helpers.test.ts\",\"frontend-vue/tests/fixtures/inertia.ts\",\"frontend-vue/tests/instanceOptions.test.ts\",\"frontend-vue/tests/locales.test.ts\",\"frontend-vue/tests/onDemandReads.test.ts\",\"frontend-vue/tests/persistence.test.ts\",\"frontend-vue/tests/pickerMenus.test.ts\",\"frontend-vue/tests/queryConsole.test.ts\",\"frontend-vue/tests/queryRuntime.test.ts\",\"frontend-vue/tests/registration.test.ts\",\"frontend-vue/tests/schemasFilters.test.ts\",\"frontend-vue/tests/serverRender.test.ts\",\"frontend-vue/tests/fixtures/serverRender.ts\",\"frontend-vue/vitest.config.ts\",\"frontend-vue/tests/fixtures/vueI18n.ts\"]"
+          },
+          {
+            "name": "the docs are not packed",
+            "pass": true,
+            "detail": "[]"
+          },
+          {
+            "name": "public access",
+            "pass": true,
+            "detail": "{\"access\":\"public\",\"provenance\":true,\"registry\":\"https://registry.npmjs.org/\"}"
+          }
+        ]
+      }
+    ],
+    "error": null,
+    "folder": "package/the-tarball-holds-what-its-manifest-names"
+  },
+  {
+    "feature": "package",
+    "journey": "both-locales-hold-the-same-texts",
+    "title": "the English and French locale files hold exactly the same keys, none empty, so every string exists in both languages",
+    "entryPoint": "frontend-vue/i18n/locales/database-en-GB.json and database-fr-FR.json",
+    "status": "PASS",
+    "database": "verify_20261106T015505_1a4076_j001",
+    "steps": [
+      {
+        "name": "01-the-locales",
+        "folder": "package/both-locales-hold-the-same-texts/01-the-locales",
+        "checks": [
+          {
+            "name": "every English key exists in French",
+            "pass": true,
+            "detail": "[]"
+          },
+          {
+            "name": "every French key exists in English",
+            "pass": true,
+            "detail": "[]"
+          },
+          {
+            "name": "no English text is empty",
+            "pass": true,
+            "detail": "[]"
+          },
+          {
+            "name": "no French text is empty",
+            "pass": true,
+            "detail": "[]"
+          }
+        ]
+      }
+    ],
+    "error": null,
+    "folder": "package/both-locales-hold-the-same-texts"
+  },
+  {
+    "feature": "package",
+    "journey": "ranges-match-the-compatibility-table",
+    "title": "the README compatibility table lists the interface ranges the module depends on, the dashboard layer pins one renderer minor, and the README names the same renderer cap as the layer's engines",
+    "entryPoint": "README.md, package.json, frontend-vue/package.json",
+    "status": "PASS",
+    "database": "verify_20261106T015505_1a4076_j001",
+    "steps": [
+      {
+        "name": "01-the-ranges",
+        "folder": "package/ranges-match-the-compatibility-table/01-the-ranges",
+        "checks": [
+          {
+            "name": "the table lists at least the six required interfaces",
+            "pass": true,
+            "detail": "[\"@antelopejs/interface-api\",\"@antelopejs/interface-api-util\",\"@antelopejs/interface-core\",\"@antelopejs/interface-database\",\"@antelopejs/interface-database-decorators\",\"@antelopejs/interface-dms\",\"@antelopejs/interface-dms-automation\"]"
+          },
+          {
+            "name": "@antelopejs/interface-api is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-api-util is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-core is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.4.0 <1.0.0\",\">=0.4.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-database is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.3.0 <1.0.0\",\">=0.3.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-database-decorators is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.2.0 <1.0.0\",\">=0.2.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-dms is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.12.0 <1.0.0\",\">=0.12.0 <1.0.0\"]"
+          },
+          {
+            "name": "@antelopejs/interface-dms-automation is in the table with the same range",
+            "pass": true,
+            "detail": "[\">=0.6.0 <1.0.0\",\">=0.6.0 <1.0.0\"]"
+          },
+          {
+            "name": "the dashboard layer pins one renderer minor",
+            "pass": true,
+            "detail": "{\"@antelopejs/dms-frontend\":\">=0.10.0 <0.11.0\"}"
+          }
+        ]
+      }
+    ],
+    "error": null,
+    "folder": "package/ranges-match-the-compatibility-table"
+  }
+]

@@ -1,0 +1,22 @@
+[
+  {
+    "name": "every English key exists in French",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "name": "every French key exists in English",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "name": "no English text is empty",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "name": "no French text is empty",
+    "pass": true,
+    "detail": "[]"
+  }
+]

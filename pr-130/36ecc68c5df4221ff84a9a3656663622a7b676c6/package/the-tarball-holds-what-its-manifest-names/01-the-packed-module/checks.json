@@ -1,0 +1,62 @@
+[
+  {
+    "name": "dist/index.js is packed",
+    "pass": true,
+    "detail": "dist/index.js"
+  },
+  {
+    "name": "dist/index.d.ts is packed",
+    "pass": true,
+    "detail": "dist/index.d.ts"
+  },
+  {
+    "name": "dist/index.d.ts is packed",
+    "pass": true,
+    "detail": "dist/index.d.ts"
+  },
+  {
+    "name": "dist/index.js is packed",
+    "pass": true,
+    "detail": "dist/index.js"
+  },
+  {
+    "name": "dist/frontend-module.js is packed",
+    "pass": true,
+    "detail": "dist/frontend-module.js"
+  },
+  {
+    "name": "the manifest names the module",
+    "pass": true,
+    "detail": "@antelopejs/dms-database"
+  },
+  {
+    "name": "the skill ships and is declared",
+    "pass": true,
+    "detail": "[\"skills/dms-database/cases.json\",\"skills/dms-database/SKILL.md\"]"
+  },
+  {
+    "name": "the dashboard layer ships with both locales",
+    "pass": true,
+    "detail": "[\"frontend-vue/i18n/locales/database-en-GB.json\",\"frontend-vue/i18n/locales/database-fr-FR.json\",\"frontend-vue/tests/locales.test.ts\"]"
+  },
+  {
+    "name": "the layer's pages and components ship",
+    "pass": true,
+    "detail": "24"
+  },
+  {
+    "name": "no test build, no build info",
+    "pass": true,
+    "detail": "[\"frontend-vue/tests/apiErrorPresentation.test.ts\",\"frontend-vue/tests/backend-boundary.test.ts\",\"frontend-vue/tests/clientNavigation.test.ts\",\"frontend-vue/tests/dataBrowser.test.ts\",\"frontend-vue/tests/diagram.test.ts\",\"frontend-vue/tests/diagramLayout.test.ts\",\"frontend-vue/tests/helpers.test.ts\",\"frontend-vue/tests/fixtures/inertia.ts\",\"frontend-vue/tests/instanceOptions.test.ts\",\"frontend-vue/tests/locales.test.ts\",\"frontend-vue/tests/onDemandReads.test.ts\",\"frontend-vue/tests/persistence.test.ts\",\"frontend-vue/tests/pickerMenus.test.ts\",\"frontend-vue/tests/queryConsole.test.ts\",\"frontend-vue/tests/queryRuntime.test.ts\",\"frontend-vue/tests/registration.test.ts\",\"frontend-vue/tests/schemasFilters.test.ts\",\"frontend-vue/tests/serverRender.test.ts\",\"frontend-vue/tests/fixtures/serverRender.ts\",\"frontend-vue/vitest.config.ts\",\"frontend-vue/tests/fixtures/vueI18n.ts\"]"
+  },
+  {
+    "name": "the docs are not packed",
+    "pass": true,
+    "detail": "[]"
+  },
+  {
+    "name": "public access",
+    "pass": true,
+    "detail": "{\"access\":\"public\",\"provenance\":true,\"registry\":\"https://registry.npmjs.org/\"}"
+  }
+]

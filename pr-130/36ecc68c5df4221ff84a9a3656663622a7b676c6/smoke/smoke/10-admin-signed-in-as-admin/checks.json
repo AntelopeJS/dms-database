@@ -1,0 +1,7 @@
+[
+  {
+    "name": "admin signs in and leaves /auth",
+    "pass": true,
+    "detail": "/modules/database/overview"
+  }
+]

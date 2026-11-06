@@ -1,0 +1,142 @@
+- link "Antelope DMS, go to homepage":
+  - /url: /modules/database/overview
+  - img "Antelope DMS, go to homepage"
+- button "Search… Ctrl K"
+- text: Database
+- navigation:
+  - list:
+    - listitem: Explore
+    - listitem:
+      - link "Overview":
+        - /url: /modules/database/overview
+    - listitem:
+      - link "Schemas":
+        - /url: /modules/database/schemas
+    - listitem:
+      - link "Diagram":
+        - /url: /modules/database/diagram
+  - list:
+    - listitem: Work with data
+    - listitem:
+      - link "Data browser":
+        - /url: /modules/database/data
+    - listitem:
+      - link "Query console":
+        - /url: /modules/database/query
+- navigation:
+  - list:
+    - listitem:
+      - link "Back":
+        - /url: /modules
+    - listitem:
+      - link "Modules 1":
+        - /url: /modules
+- button "Verify Admin": VA Verify Admin admin+20261106t015505-1a4076@verify.local
+- separator
+- button "Collapse sidebar"
+- heading "Breadcrumb Add to favorites" [level=1]:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Modules":
+          - /url: /modules
+      - listitem:
+        - link "Database":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Data browser":
+          - /url: /modules/database/data
+  - button "Add to favorites"
+- button "Quick actions"
+- button "Notifications": "1"
+- heading "Data browser" [level=1]
+- paragraph: Browse and fix rows. Edits are staged and written only when you save them.
+- complementary:
+  - paragraph: Schema
+  - button "Schema": shop
+  - paragraph: Instance
+  - button "Instance": default
+  - paragraph: Search
+  - textbox "Find a table"
+  - text: T
+  - paragraph: Tables · 4
+  - paragraph: Rows
+  - navigation:
+    - button "customers 0"
+    - button "products Open in a tab 6"
+    - button "orders 0"
+    - button "order_items 0"
+  - text: Counts for instance default
+- button "products"
+- button "Close tab"
+- text: products 6 rows
+- textbox "Search rows"
+- text: Ctrl /
+- button "Refresh (R)"
+- button "Open in query console"
+- button "Add filter"
+- table:
+  - rowgroup:
+    - row "_id Filter _id name Filter name price Filter price tags Filter tags":
+      - columnheader
+      - columnheader "_id Filter _id":
+        - button "_id"
+        - button "Filter _id"
+      - columnheader "name Filter name":
+        - button "name"
+        - button "Filter name"
+      - columnheader "price Filter price":
+        - button "price"
+        - button "Filter price"
+      - columnheader "tags Filter tags":
+        - button "tags"
+        - button "Filter tags"
+  - rowgroup:
+    - row "1 sku_monitor 27-inch monitor 289 [1] [\"office\"]":
+      - cell "1"
+      - cell "sku_monitor"
+      - cell "27-inch monitor"
+      - cell "289"
+      - cell "[1] [\"office\"]"
+    - row "2 sku_lamp Desk lamp 48 [2] [\"office\",\"bestseller\"]":
+      - cell "2"
+      - cell "sku_lamp"
+      - cell "Desk lamp"
+      - cell "48"
+      - cell "[2] [\"office\",\"bestseller\"]"
+    - row "3 sku_keyboard Mechanical keyboard 129 [2] [\"office\",\"bestseller\"]":
+      - cell "3"
+      - cell "sku_keyboard"
+      - cell "Mechanical keyboard"
+      - cell "129"
+      - cell "[2] [\"office\",\"bestseller\"]"
+    - row "4 sku_desk Standing desk 640 [2] [\"office\",\"bestseller\"]":
+      - cell "4"
+      - cell "sku_desk"
+      - cell "Standing desk"
+      - cell "640"
+      - cell "[2] [\"office\",\"bestseller\"]"
+    - row "5 sku_chair Task chair 320 [1] [\"office\"]":
+      - cell "5"
+      - cell "sku_chair"
+      - cell "Task chair"
+      - cell "320"
+      - cell "[1] [\"office\"]"
+    - row "6 sku_dock USB-C dock 179 [1] [\"office\"]":
+      - cell "6"
+      - cell "sku_dock"
+      - cell "USB-C dock"
+      - cell "179"
+      - cell "[1] [\"office\"]"
+- text: 6 rows Rows per page
+- combobox: "50"
+- navigation "Pagination":
+  - text: 1–6
+  - button "Previous page" [disabled]
+  - button "1"
+  - button "Next page" [disabled]
+- region "Notifications (F8)":
+  - list

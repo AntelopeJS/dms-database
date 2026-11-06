@@ -1,0 +1,8 @@
+{
+  "do": "goto",
+  "account": "admin",
+  "tab": "main",
+  "path": "/modules/database/schemas?instance=all",
+  "folder": "/home/debian/.tmp/dms-control/20261106T015505-1a4076/evidence/browser/06-main-goto-modules-database-schemas-instance-all",
+  "baseUrl": "http://127.0.0.1:37627"
+}

@@ -1,0 +1,9 @@
+{
+  "method": "POST",
+  "url": "http://127.0.0.1:39981/api/auth/login",
+  "authenticated": false,
+  "body": {
+    "email": "admin+20261106t015505-1a4076@verify.local",
+    "password": "Vr1!OOucu1B9Gmfd"
+  }
+}

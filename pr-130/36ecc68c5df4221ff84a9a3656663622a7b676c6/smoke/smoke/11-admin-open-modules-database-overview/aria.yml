@@ -1,0 +1,198 @@
+- link "Antelope DMS, go to homepage":
+  - /url: /modules/database/overview
+  - img "Antelope DMS, go to homepage"
+- button "Search… Ctrl K"
+- text: Database
+- navigation:
+  - list:
+    - listitem: Explore
+    - listitem:
+      - link "Overview":
+        - /url: /modules/database/overview
+    - listitem:
+      - link "Schemas":
+        - /url: /modules/database/schemas
+    - listitem:
+      - link "Diagram":
+        - /url: /modules/database/diagram
+  - list:
+    - listitem: Work with data
+    - listitem:
+      - link "Data browser":
+        - /url: /modules/database/data
+    - listitem:
+      - link "Query console":
+        - /url: /modules/database/query
+- navigation:
+  - list:
+    - listitem:
+      - link "Back":
+        - /url: /modules
+    - listitem:
+      - link "Modules":
+        - /url: /modules
+- button "Verify Admin": VA Verify Admin admin+20261106t015505-1a4076@verify.local
+- separator
+- button "Collapse sidebar"
+- heading "Breadcrumb Add to favorites" [level=1]:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /modules/database/overview
+  - button "Add to favorites"
+- button "Quick actions"
+- button "Notifications": "1"
+- heading "Overview" [level=1]
+- paragraph: Connection health, schemas and recent activity of the database.
+- link "Open query console":
+  - /url: /modules/database/query
+- link "Browse data":
+  - /url: /modules/database/data
+- paragraph: Connection
+- paragraph: Healthy
+- paragraph: checked 0 s ago
+- paragraph: Probe latency
+- paragraph: 2 ms
+- paragraph: last probe
+- paragraph: Tables
+- paragraph: "53"
+- paragraph: in 19 schemas
+- paragraph: Rows
+- paragraph: 1.3K
+- paragraph: in the default instances
+- paragraph: Indexes
+- paragraph: "66"
+- paragraph: declared in code
+- heading "Schemas" [level=2]
+- paragraph: Registered by modules. Open one to see its tables.
+- link "metrics 1 instance 2 tables · 1.3K rows 0 relations":
+  - /url: /modules/database/schemas?scope=metrics
+  - heading "metrics" [level=3]
+  - text: 1 instance 2 tables · 1.3K rows 0 relations
+- link "demo 1 instance 3 tables · 8 rows 2 relations":
+  - /url: /modules/database/schemas?scope=demo
+  - heading "demo" [level=3]
+  - text: 1 instance 3 tables · 8 rows 2 relations
+- link "shop 3 instances 4 tables · 6 rows 3 relations":
+  - /url: /modules/database/schemas?scope=shop
+  - heading "shop" [level=3]
+  - text: 3 instances 4 tables · 6 rows 3 relations
+- link "vault 1 instance 5 tables · 6 rows 2 relations":
+  - /url: /modules/database/schemas?scope=vault
+  - heading "vault" [level=3]
+  - text: 1 instance 5 tables · 6 rows 2 relations
+- link "dms-core 1 instance 12 tables · 5 rows 7 relations":
+  - /url: /modules/database/schemas?scope=dms-core
+  - heading "dms-core" [level=3]
+  - text: 1 instance 12 tables · 5 rows 7 relations
+- link "quirks 1 instance 1 table · 1 row 0 relations":
+  - /url: /modules/database/schemas?scope=quirks
+  - heading "quirks" [level=3]
+  - text: 1 instance 1 table · 1 row 0 relations
+- link "dms-database 1 instance 4 tables · 0 rows 2 relations":
+  - /url: /modules/database/schemas?scope=dms-database
+  - heading "dms-database" [level=3]
+  - text: 1 instance 4 tables · 0 rows 2 relations
+- link "mods 1 instance 3 tables · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=mods
+  - heading "mods" [level=3]
+  - text: 1 instance 3 tables · 0 rows 0 relations
+- link "app-site 1 instance Application 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=app-site
+  - heading "app-site" [level=3]
+  - text: 1 instance
+  - paragraph: Application
+  - text: 1 table · 0 rows 0 relations
+- link "core 1 instance Core 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=core
+  - heading "core" [level=3]
+  - text: 1 instance
+  - paragraph: Core
+  - text: 1 table · 0 rows 0 relations
+- link "global 1 instance Global 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=global
+  - heading "global" [level=3]
+  - text: 1 instance
+  - paragraph: Global
+  - text: 1 table · 0 rows 0 relations
+- link "staging-eu 1 instance Staging 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=staging-eu
+  - heading "staging-eu" [level=3]
+  - text: 1 instance
+  - paragraph: Staging
+  - text: 1 table · 0 rows 0 relations
+- link "reviews 1 instance Reviews 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=reviews
+  - heading "reviews" [level=3]
+  - text: 1 instance
+  - paragraph: Reviews
+  - text: 1 table · 0 rows 0 relations
+- link "production 1 instance Production 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=production
+  - heading "production" [level=3]
+  - text: 1 instance
+  - paragraph: Production
+  - text: 1 table · 0 rows 0 relations
+- link "billing 1 instance 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=billing
+  - heading "billing" [level=3]
+  - text: 1 instance 1 table · 0 rows 0 relations
+- link "tenant-acme 1 instance 1 table · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=tenant-acme
+  - heading "tenant-acme" [level=3]
+  - text: 1 instance 1 table · 0 rows 0 relations
+- link "links 4 instances 5 tables · 0 rows 2 relations":
+  - /url: /modules/database/schemas?scope=links
+  - heading "links" [level=3]
+  - text: 4 instances 5 tables · 0 rows 2 relations
+- link "hollow 1 instance 0 tables · 0 rows 0 relations":
+  - /url: /modules/database/schemas?scope=hollow
+  - heading "hollow" [level=3]
+  - text: 1 instance 0 tables · 0 rows 0 relations
+- link "dms-tenant 2 instances 6 tables · 0 rows 5 relations":
+  - /url: /modules/database/schemas?scope=dms-tenant
+  - heading "dms-tenant" [level=3]
+  - text: 2 instances 6 tables · 0 rows 5 relations
+- banner:
+  - paragraph: Largest tables
+  - paragraph: Rows per table, default instance
+- list:
+  - listitem:
+    - link "readings":
+      - /url: /modules/database/data?schema=metrics&table=readings
+    - paragraph: readings
+    - paragraph: metrics
+    - text: 1.3K
+  - listitem:
+    - link "products":
+      - /url: /modules/database/data?schema=shop&table=products
+    - paragraph: products
+    - paragraph: shop
+    - text: "6"
+  - listitem:
+    - link "tags":
+      - /url: /modules/database/data?schema=demo&table=tags
+    - paragraph: tags
+    - paragraph: demo
+    - text: "3"
+  - listitem:
+    - link "posts":
+      - /url: /modules/database/data?schema=demo&table=posts
+    - paragraph: posts
+    - paragraph: demo
+    - text: "3"
+  - listitem:
+    - link "comments":
+      - /url: /modules/database/data?schema=demo&table=comments
+    - paragraph: comments
+    - paragraph: demo
+    - text: "2"
+- text: Recent queries
+- link "Query console":
+  - /url: /modules/database/query
+- status:
+  - paragraph: No query run yet
+  - paragraph: Queries you run in the query console show up here.
+- region "Notifications (F8)":
+  - list

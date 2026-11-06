@@ -1,0 +1,7 @@
+[
+  {
+    "name": "six rows with the desk",
+    "pass": true,
+    "detail": "{\"results\":[{\"_id\":\"sku_monitor\",\"name\":\"27-inch monitor\",\"price\":289,\"tags\":[\"office\"],\"_instance\":null},{\"_id\":\"sku_lamp\",\"name\":\"Desk lamp\",\"price\":48,\"tags\":[\"office\",\"bestseller\"],\"_instance\":null},{\"_id\":\"sku_keyboard\",\"name\":\"Mechanical keyboard\",\"price\":129,\"tags\":[\"office\",\"bestseller\"],\"_instance\":null},{\"_id\":\"sku_desk\",\"name\":\"Standing desk\",\"price\":640,\"tags\":[\"office\",\"bestseller\"],\"_instance\":null},{\"_id\":\"sku_chair\",\"name\":\"Task chair\",\"price\":320,\"tags\":[\"office\"],\"_instance\":null},{\"_id\":\"sku_dock\",\"name\":\"USB-C dock\",\"price\":179,\"tags\":[\"office\"],\"_instance\":null}],\"total\":6,\"offset\":0,\"limit\":25,\"primaryKey\":\"_id\"}"
+  }
+]

@@ -1,0 +1,759 @@
+- link "Antelope DMS, go to homepage":
+  - /url: /modules/database/overview
+  - img "Antelope DMS, go to homepage"
+- button "Search… Ctrl K"
+- text: Database
+- navigation:
+  - list:
+    - listitem: Explore
+    - listitem:
+      - link "Overview":
+        - /url: /modules/database/overview
+    - listitem:
+      - link "Schemas":
+        - /url: /modules/database/schemas
+    - listitem:
+      - link "Diagram":
+        - /url: /modules/database/diagram
+  - list:
+    - listitem: Work with data
+    - listitem:
+      - link "Data browser":
+        - /url: /modules/database/data
+    - listitem:
+      - link "Query console":
+        - /url: /modules/database/query
+- navigation:
+  - list:
+    - listitem:
+      - link "Back":
+        - /url: /modules
+    - listitem:
+      - link "Modules 1":
+        - /url: /modules
+- button "Verify Admin": VA Verify Admin admin+20261106t015505-1a4076@verify.local
+- separator
+- button "Collapse sidebar"
+- heading "Breadcrumb Add to favorites" [level=1]:
+  - navigation "Breadcrumb":
+    - list:
+      - listitem:
+        - link "Home":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Modules":
+          - /url: /modules
+      - listitem:
+        - link "Database":
+          - /url: /modules/database/overview
+      - listitem:
+        - link "Schemas":
+          - /url: /modules/database/schemas
+  - button "Add to favorites"
+- button "Quick actions"
+- button "Notifications": "1"
+- heading "Schemas" [level=1]
+- paragraph: Every table registered by your modules, its rows counted in the picked instance. Open one to inspect its columns, indexes and relations.
+- link "Diagram":
+  - /url: /modules/database/diagram
+- search "Filter the tables":
+  - button "Schema": All schemas
+  - button "Instance": default
+  - textbox "Find a table or column"
+  - text: /
+  - button "With relations"
+  - button "With modifiers"
+  - button "Empty"
+- banner:
+  - heading "Tables 53" [level=2]
+  - button
+  - button "Refresh data"
+  - button
+- table "Tables":
+  - caption: Tables
+  - rowgroup:
+    - row "Table Schema Rows Default sort Columns Indexes Relations Modifiers":
+      - cell
+      - cell "Table":
+        - button "Table"
+        - button
+      - cell "Schema":
+        - button "Schema"
+        - button
+      - cell "Rows Default sort":
+        - button "Rows Default sort"
+        - button
+      - cell "Columns":
+        - button "Columns"
+        - button
+      - cell "Indexes":
+        - button "Indexes"
+        - button
+      - cell "Relations":
+        - text: Relations
+        - button
+      - cell "Modifiers":
+        - text: Modifiers
+        - button
+      - cell
+  - rowgroup:
+    - row "readings Copy metrics 1,250 4 1 Actions for readings":
+      - cell
+      - cell "readings Copy":
+        - text: readings
+        - button "Copy"
+      - cell "metrics"
+      - cell "1,250"
+      - cell "4"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for readings":
+        - button "Actions for readings"
+    - row "products Copy shop 6 4 1 Actions for products":
+      - cell
+      - cell "products Copy":
+        - text: products
+        - button "Copy"
+      - cell "shop"
+      - cell "6"
+      - cell "4"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for products":
+        - button "Actions for products"
+    - row "tags Copy demo 3 2 1 Actions for tags":
+      - cell
+      - cell "tags Copy":
+        - text: tags
+        - button "Copy"
+      - cell "demo"
+      - cell "3"
+      - cell "2"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for tags":
+        - button "Actions for tags"
+    - row "posts Copy demo 3 5 2 tags Actions for posts":
+      - cell
+      - cell "posts Copy":
+        - text: posts
+        - button "Copy"
+      - cell "demo"
+      - cell "3"
+      - cell "5"
+      - cell "2"
+      - cell "tags"
+      - cell
+      - cell "Actions for posts":
+        - button "Actions for posts"
+    - row "comments Copy demo 2 4 1 posts Actions for comments":
+      - cell
+      - cell "comments Copy":
+        - text: comments
+        - button "Copy"
+      - cell "demo"
+      - cell "2"
+      - cell "4"
+      - cell "1"
+      - cell "posts"
+      - cell
+      - cell "Actions for comments":
+        - button "Actions for comments"
+    - row "accounts Copy vault 2 5 1 Hashed Encrypted Localized Actions for accounts":
+      - cell
+      - cell "accounts Copy":
+        - text: accounts
+        - button "Copy"
+      - cell "vault"
+      - cell "2"
+      - cell "5"
+      - cell "1"
+      - cell
+      - cell "Hashed Encrypted Localized"
+      - cell "Actions for accounts":
+        - button "Actions for accounts"
+    - row "users Copy dms-core 1 31 7 Hashed Actions for users":
+      - cell
+      - cell "users Copy":
+        - text: users
+        - button "Copy"
+      - cell "dms-core"
+      - cell "1"
+      - cell "31"
+      - cell "7"
+      - cell
+      - cell "Hashed"
+      - cell "Actions for users":
+        - button "Actions for users"
+    - row "tenants Copy dms-core 1 8 2 Actions for tenants":
+      - cell
+      - cell "tenants Copy":
+        - text: tenants
+        - button "Copy"
+      - cell "dms-core"
+      - cell "1"
+      - cell "8"
+      - cell "2"
+      - cell
+      - cell
+      - cell "Actions for tenants":
+        - button "Actions for tenants"
+    - row "sessions Copy dms-core 1 15 3 users Actions for sessions":
+      - cell
+      - cell "sessions Copy":
+        - text: sessions
+        - button "Copy"
+      - cell "dms-core"
+      - cell "1"
+      - cell "15"
+      - cell "3"
+      - cell "users"
+      - cell
+      - cell "Actions for sessions":
+        - button "Actions for sessions"
+    - row "system_state Copy dms-core 1 6 2 Actions for system_state":
+      - cell
+      - cell "system_state Copy":
+        - text: system_state
+        - button "Copy"
+      - cell "dms-core"
+      - cell "1"
+      - cell "6"
+      - cell "2"
+      - cell
+      - cell
+      - cell "Actions for system_state":
+        - button "Actions for system_state"
+    - row "user_known_devices Copy dms-core 1 5 1 users Actions for user_known_devices":
+      - cell
+      - cell "user_known_devices Copy":
+        - text: user_known_devices
+        - button "Copy"
+      - cell "dms-core"
+      - cell "1"
+      - cell "5"
+      - cell "1"
+      - cell "users"
+      - cell
+      - cell "Actions for user_known_devices":
+        - button "Actions for user_known_devices"
+    - row "plain_notes Copy vault 1 2 0 Actions for plain_notes":
+      - cell
+      - cell "plain_notes Copy":
+        - text: plain_notes
+        - button "Copy"
+      - cell "vault"
+      - cell "1"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for plain_notes":
+        - button "Actions for plain_notes"
+    - row "parents_registry Copy vault 1 2 0 Actions for parents_registry":
+      - cell
+      - cell "parents_registry Copy":
+        - text: parents_registry
+        - button "Copy"
+      - cell "vault"
+      - cell "1"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for parents_registry":
+        - button "Actions for parents_registry"
+    - row "parents_links Copy vault 1 2 0 parents_registry Actions for parents_links":
+      - cell
+      - cell "parents_links Copy":
+        - text: parents_links
+        - button "Copy"
+      - cell "vault"
+      - cell "1"
+      - cell "2"
+      - cell "0"
+      - cell "parents_registry"
+      - cell
+      - cell "Actions for parents_links":
+        - button "Actions for parents_links"
+    - row "wide_records Copy vault 1 17 0 parents_registry Actions for wide_records":
+      - cell
+      - cell "wide_records Copy":
+        - text: wide_records
+        - button "Copy"
+      - cell "vault"
+      - cell "1"
+      - cell "17"
+      - cell "0"
+      - cell "parents_registry"
+      - cell
+      - cell "Actions for wide_records":
+        - button "Actions for wide_records"
+    - row "members Copy quirks 1 3 0 Actions for members":
+      - cell
+      - cell "members Copy":
+        - text: members
+        - button "Copy"
+      - cell "quirks"
+      - cell "1"
+      - cell "3"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for members":
+        - button "Actions for members"
+    - row "diagram_layouts Copy dms-database 0 4 1 Actions for diagram_layouts":
+      - cell
+      - cell "diagram_layouts Copy":
+        - text: diagram_layouts
+        - button "Copy"
+      - cell "dms-database"
+      - cell "0"
+      - cell "4"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for diagram_layouts":
+        - button "Actions for diagram_layouts"
+    - row "diagram_notes Copy dms-database 0 10 1 Actions for diagram_notes":
+      - cell
+      - cell "diagram_notes Copy":
+        - text: diagram_notes
+        - button "Copy"
+      - cell "dms-database"
+      - cell "0"
+      - cell "10"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for diagram_notes":
+        - button "Actions for diagram_notes"
+    - row "query_history Copy dms-database 0 11 1 dms-core.users Actions for query_history":
+      - cell
+      - cell "query_history Copy":
+        - text: query_history
+        - button "Copy"
+      - cell "dms-database"
+      - cell "0"
+      - cell "11"
+      - cell "1"
+      - cell "dms-core.users"
+      - cell
+      - cell "Actions for query_history":
+        - button "Actions for query_history"
+    - row "saved_queries Copy dms-database 0 10 2 dms-core.users Actions for saved_queries":
+      - cell
+      - cell "saved_queries Copy":
+        - text: saved_queries
+        - button "Copy"
+      - cell "dms-database"
+      - cell "0"
+      - cell "10"
+      - cell "2"
+      - cell "dms-core.users"
+      - cell
+      - cell "Actions for saved_queries":
+        - button "Actions for saved_queries"
+    - row "user_external_identities Copy dms-core 0 7 2 users Actions for user_external_identities":
+      - cell
+      - cell "user_external_identities Copy":
+        - text: user_external_identities
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "7"
+      - cell "2"
+      - cell "users"
+      - cell
+      - cell "Actions for user_external_identities":
+        - button "Actions for user_external_identities"
+    - row "attachments Copy dms-core 0 5 1 Actions for attachments":
+      - cell
+      - cell "attachments Copy":
+        - text: attachments
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "5"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for attachments":
+        - button "Actions for attachments"
+    - row "setup_token Copy dms-core 0 3 0 Actions for setup_token":
+      - cell
+      - cell "setup_token Copy":
+        - text: setup_token
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "3"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for setup_token":
+        - button "Actions for setup_token"
+    - row "sign_in_attempts Copy dms-core 0 5 2 users Actions for sign_in_attempts":
+      - cell
+      - cell "sign_in_attempts Copy":
+        - text: sign_in_attempts
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "5"
+      - cell "2"
+      - cell "users"
+      - cell
+      - cell "Actions for sign_in_attempts":
+        - button "Actions for sign_in_attempts"
+    - row "user_email_changes Copy dms-core 0 6 2 users Actions for user_email_changes":
+      - cell
+      - cell "user_email_changes Copy":
+        - text: user_email_changes
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "6"
+      - cell "2"
+      - cell "users"
+      - cell
+      - cell "Actions for user_email_changes":
+        - button "Actions for user_email_changes"
+    - row "user_notification_preferences Copy dms-core 0 5 3 users Actions for user_notification_preferences":
+      - cell
+      - cell "user_notification_preferences Copy":
+        - text: user_notification_preferences
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "5"
+      - cell "3"
+      - cell "users"
+      - cell
+      - cell "Actions for user_notification_preferences":
+        - button "Actions for user_notification_preferences"
+    - row "user_notifications Copy dms-core 0 17 8 users Actions for user_notifications":
+      - cell
+      - cell "user_notifications Copy":
+        - text: user_notifications
+        - button "Copy"
+      - cell "dms-core"
+      - cell "0"
+      - cell "17"
+      - cell "8"
+      - cell "users"
+      - cell
+      - cell "Actions for user_notifications":
+        - button "Actions for user_notifications"
+    - row "customers Copy shop 0 5 1 Actions for customers":
+      - cell
+      - cell "customers Copy":
+        - text: customers
+        - button "Copy"
+      - cell "shop"
+      - cell "0"
+      - cell "5"
+      - cell "1"
+      - cell
+      - cell
+      - cell "Actions for customers":
+        - button "Actions for customers"
+    - row "orders Copy shop 0 10 3 customers Actions for orders":
+      - cell
+      - cell "orders Copy":
+        - text: orders
+        - button "Copy"
+      - cell "shop"
+      - cell "0"
+      - cell "10"
+      - cell "3"
+      - cell "customers"
+      - cell
+      - cell "Actions for orders":
+        - button "Actions for orders"
+    - row "order_items Copy shop 0 5 1 orders products Actions for order_items":
+      - cell
+      - cell "order_items Copy":
+        - text: order_items
+        - button "Copy"
+      - cell "shop"
+      - cell "0"
+      - cell "5"
+      - cell "1"
+      - cell "orders products"
+      - cell
+      - cell "Actions for order_items":
+        - button "Actions for order_items"
+    - row "empty_log Copy metrics 0 2 0 Actions for empty_log":
+      - cell
+      - cell "empty_log Copy":
+        - text: empty_log
+        - button "Copy"
+      - cell "metrics"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for empty_log":
+        - button "Actions for empty_log"
+    - row "hashed_only Copy mods 0 2 0 Hashed Actions for hashed_only":
+      - cell
+      - cell "hashed_only Copy":
+        - text: hashed_only
+        - button "Copy"
+      - cell "mods"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell "Hashed"
+      - cell "Actions for hashed_only":
+        - button "Actions for hashed_only"
+    - row "localized_only Copy mods 0 2 0 Localized Actions for localized_only":
+      - cell
+      - cell "localized_only Copy":
+        - text: localized_only
+        - button "Copy"
+      - cell "mods"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell "Localized"
+      - cell "Actions for localized_only":
+        - button "Actions for localized_only"
+    - row "encrypted_only Copy mods 0 2 0 Encrypted Actions for encrypted_only":
+      - cell
+      - cell "encrypted_only Copy":
+        - text: encrypted_only
+        - button "Copy"
+      - cell "mods"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell
+      - cell "Encrypted"
+      - cell "Actions for encrypted_only":
+        - button "Actions for encrypted_only"
+    - row "entries Copy app-site 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "app-site"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy core 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "core"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy global 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "global"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy staging-eu 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "staging-eu"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy reviews 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "reviews"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy production 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "production"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy billing 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "billing"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "entries Copy tenant-acme 0 1 0 Actions for entries":
+      - cell
+      - cell "entries Copy":
+        - text: entries
+        - button "Copy"
+      - cell "tenant-acme"
+      - cell "0"
+      - cell "1"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for entries":
+        - button "Actions for entries"
+    - row "customer_refs Copy links 0 2 0 shop.customers Actions for customer_refs":
+      - cell
+      - cell "customer_refs Copy":
+        - text: customer_refs
+        - button "Copy"
+      - cell "links"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell "shop.customers"
+      - cell
+      - cell "Actions for customer_refs":
+        - button "Actions for customer_refs"
+    - row "twelve_columns Copy links 0 12 0 Actions for twelve_columns":
+      - cell
+      - cell "twelve_columns Copy":
+        - text: twelve_columns
+        - button "Copy"
+      - cell "links"
+      - cell "0"
+      - cell "12"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for twelve_columns":
+        - button "Actions for twelve_columns"
+    - row "thirteen_columns Copy links 0 13 0 Actions for thirteen_columns":
+      - cell
+      - cell "thirteen_columns Copy":
+        - text: thirteen_columns
+        - button "Copy"
+      - cell "links"
+      - cell "0"
+      - cell "13"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for thirteen_columns":
+        - button "Actions for thirteen_columns"
+    - row "anchor_target Copy links 0 14 0 Actions for anchor_target":
+      - cell
+      - cell "anchor_target Copy":
+        - text: anchor_target
+        - button "Copy"
+      - cell "links"
+      - cell "0"
+      - cell "14"
+      - cell "0"
+      - cell
+      - cell
+      - cell "Actions for anchor_target":
+        - button "Actions for anchor_target"
+    - row "anchor_source Copy links 0 2 0 anchor_target Actions for anchor_source":
+      - cell
+      - cell "anchor_source Copy":
+        - text: anchor_source
+        - button "Copy"
+      - cell "links"
+      - cell "0"
+      - cell "2"
+      - cell "0"
+      - cell "anchor_target"
+      - cell
+      - cell "Actions for anchor_source":
+        - button "Actions for anchor_source"
+    - row "roles Copy dms-tenant 0 6 3 Actions for roles":
+      - cell
+      - cell "roles Copy":
+        - text: roles
+        - button "Copy"
+      - cell "dms-tenant"
+      - cell "0"
+      - cell "6"
+      - cell "3"
+      - cell
+      - cell
+      - cell "Actions for roles":
+        - button "Actions for roles"
+    - row "export_jobs Copy dms-tenant 0 17 4 dms-core.users Actions for export_jobs":
+      - cell
+      - cell "export_jobs Copy":
+        - text: export_jobs
+        - button "Copy"
+      - cell "dms-tenant"
+      - cell "0"
+      - cell "17"
+      - cell "4"
+      - cell "dms-core.users"
+      - cell
+      - cell "Actions for export_jobs":
+        - button "Actions for export_jobs"
+    - row "invite_resolutions Copy dms-tenant 0 13 2 Actions for invite_resolutions":
+      - cell
+      - cell "invite_resolutions Copy":
+        - text: invite_resolutions
+        - button "Copy"
+      - cell "dms-tenant"
+      - cell "0"
+      - cell "13"
+      - cell "2"
+      - cell
+      - cell
+      - cell "Actions for invite_resolutions":
+        - button "Actions for invite_resolutions"
+- navigation "Navigation":
+  - text: 53 items Page size
+  - combobox "Page size": "50"
+  - text: J / K step through tables in the inspector Page 1 of 2
+  - button "First page" [disabled]
+  - button "Previous page" [disabled]
+  - button "Next page"
+  - button "Last page"
+- region "Notifications (F8)":
+  - list

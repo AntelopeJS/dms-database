@@ -1,0 +1,6 @@
+{
+  "do": "fill",
+  "target": "textbox \"Find a table or column\"",
+  "value": "products",
+  "baseUrl": "http://127.0.0.1:37627"
+}
