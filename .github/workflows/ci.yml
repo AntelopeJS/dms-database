@@ -32,6 +32,10 @@ jobs:
       docs-typescript-project: docs/tsconfig.json
       renovate-sync: false
       test-job: true
+      # The modules `ajs module test` downloads and installs. The harness
+      # names each by exact version, so a restored copy of another version
+      # is downloaded again.
+      cache-paths: .antelope/cache
     permissions:
       contents: read
 
@@ -54,8 +58,6 @@ jobs:
             frontend-vue/pnpm-lock.yaml
       # The root install provides the DMS layer verify-source builds against.
       - run: pnpm install --frozen-lockfile
-      # vitest over the Vue module's helpers, composables and registration.
-      - run: pnpm test:layer
       # Builds and type-checks the module inside a generated Inertia app with
       # the DMS core layer; it needs neither the module's dist nor a database.
       - run: pnpm test:frontend
@@ -74,6 +76,9 @@ jobs:
             pnpm-lock.yaml
             frontend-vue/pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile --ignore-scripts
+      # vitest over the Vue module's helpers, composables and registration,
+      # here rather than in `frontend`, the longest job.
+      - run: pnpm test:layer
       - uses: actions/setup-java@v4
         with:
           distribution: temurin

@@ -21,10 +21,10 @@
 
 `pnpm test` builds once, then runs the backend suites in `src/test` through `ajs module test .`. The harness (`src/test/harness.ts`) boots a real DMS against an in-memory MongoDB. Set `DMS_SOURCE=/absolute/path/to/dms` to test against a local DMS runtime.
 
-`pnpm run checks` does not run the Vue tests or the playground. CI runs the Vue ones in the `frontend` job:
+`pnpm run checks` does not run the Vue tests or the playground. CI runs the Vue ones in their own jobs:
 
-- `pnpm test:layer`: vitest over `frontend-vue/tests`.
-- `pnpm test:frontend`: builds and type-checks the module inside a generated Inertia app.
+- `pnpm test:layer`: vitest over `frontend-vue/tests`, in the `formal-table-watch` job.
+- `pnpm test:frontend`: builds and type-checks the module inside a generated Inertia app, in the `frontend` job.
 - `scripts/check-sources.mts` runs in `pnpm lint`: the components the backend pages name exist, `<i18n-t>` reads the global messages, and every text key a page names resolves in each locale.
 - The playground is linted but not type-checked. Check it with `pnpm --dir playground install --ignore-workspace --frozen-lockfile && pnpm --dir playground build`.
 
