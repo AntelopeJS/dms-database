@@ -41,7 +41,8 @@ export async function facts(tab) {
   const dialog = drawer(tab);
   const header = await dialog.locator("header").first().innerText();
   const lines = header.split("\n").map((line) => line.trim()).filter(Boolean);
-  const position = await dialog.getByText(/^Table \d+ of \d+$/).first().innerText().catch(() => "");
+  const positionLine = dialog.getByText(/^Table \d+ of \d+$/).first();
+  const position = (await positionLine.count()) > 0 ? await positionLine.innerText({ timeout: 2_000 }).catch(() => "") : "";
   const title = await dialog.getByRole("heading", { level: 2 }).first().innerText().catch(() => "");
   return {
     eyebrow: (lines.find((line) => line.toLowerCase().startsWith("schema ·")) ?? "").toLowerCase(),

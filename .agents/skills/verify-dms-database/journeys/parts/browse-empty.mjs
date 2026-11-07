@@ -89,30 +89,31 @@ const noMatch = {
     const tab = await signedIn(ctx);
     await openTable(tab, "shop", "orders", "eu");
     await tab.fill({ role: "textbox", name: "Search rows" }, "zzz-no-such-text");
-    await tab.visible({ role: "heading", name: "No row matches" }, { timeoutMs: 20_000 });
+    const empty = await tab.shows(/No row matches/, { timeoutMs: 20_000 });
     const body = await pageText(tab);
     const clear = await tab.visible({ role: "button", name: "Clear filters" });
     const searchAll = await tab.visible({ role: "button", name: "Search all instances" });
     await tab.click({ role: "button", name: "Search all instances" });
     const inAll = await settle(() => openTabs(tab), (tabs) => tabs.length === 1 && tabs[0]?.label === "orders @all");
-    await tab.visible({ role: "heading", name: "No row matches" }, { timeoutMs: 20_000 });
+    const emptyInAll = await tab.shows(/No row matches/, { timeoutMs: 20_000 });
+    const clearInAll = await tab.visible({ role: "button", name: "Clear filters" });
     const noSearchAll = await tab.visible({ role: "button", name: "Search all instances" }, { hidden: true, timeoutMs: 3_000 });
     await tab.click({ role: "button", name: "Clear filters" });
     const back = await settle(() => toolbarCount(tab), (content) => content === "160 rows");
     const searchBox = await tab.value({ role: "textbox", name: "Search rows" });
     await ctx.verify("No row matches", [
-      check("the heading and the hint about another instance", /No row matches/.test(body) && /Searched \d+ rows? in orders\. The row may live in another instance\./.test(body), body.slice(0, 600)),
+      check("the heading and the hint about another instance", empty.pass && /No row matches/.test(body) && /Searched \d+ rows? in orders\. The row may live in another instance\./.test(body), body.slice(0, 600)),
       check("Clear filters and Search all instances are offered", clear.pass && searchAll.pass, [clear.detail, searchAll.detail]),
       check("Search all instances switches the tab to All instances in place", show(inAll) === '[{"label":"orders @all","preview":false,"active":true}]', inAll),
-      check("in All instances only Clear filters remains", noSearchAll.pass, noSearchAll.detail),
+      check("in All instances only Clear filters remains", emptyInAll.pass && clearInAll.pass && noSearchAll.pass, [emptyInAll.detail, clearInAll.detail, noSearchAll.detail]),
       check("Clear filters empties the search and brings the 160 rows back", back === "160 rows" && searchBox === "", [back, searchBox]),
     ]);
     await openTable(tab, "metrics", "empty_log");
-    await tab.visible({ role: "heading", name: "empty_log has no row yet" }, { timeoutMs: 20_000 });
+    const noRowsShown = await tab.shows(/empty_log has no row yet/, { timeoutMs: 20_000 });
     const noRows = await pageText(tab);
     const count = await toolbarCount(tab);
     await ctx.verify("a table without rows", [
-      check("empty_log has no row yet, with the hint", /empty_log has no row yet/.test(noRows) && /Rows written by your modules show up here\./.test(noRows) && count === "0 rows", [count, noRows.slice(0, 300)]),
+      check("empty_log has no row yet, with the hint", noRowsShown.pass && /empty_log has no row yet/.test(noRows) && /Rows written by your modules show up here\./.test(noRows) && count === "0 rows", [count, noRows.slice(0, 300)]),
       check("a filter-free empty table offers no Clear filters", !/Clear filters/.test(noRows), noRows.slice(0, 300)),
     ]);
   },
@@ -126,11 +127,11 @@ const loadError = {
   async run(/** @type {Ctx} */ ctx) {
     const tab = await signedIn(ctx);
     await openTable(tab, "shop", "nope").catch(() => undefined);
-    await tab.visible({ role: "heading", name: "Couldn't load nope" }, { timeoutMs: 30_000 });
+    const unknownShown = await tab.shows(/Couldn't load nope/, { timeoutMs: 30_000 });
     const unknown = await pageText(tab);
     const href = await tab.page.getByRole("link", { name: "Check connection" }).getAttribute("href");
     await ctx.verify("an unknown table", [
-      check("Couldn't load nope with the kept-state hint and the refused read's status", /Couldn't load nope/.test(unknown) && /Your filters and unsaved changes are kept\./.test(unknown) && /404 Not Found/.test(unknown), unknown.slice(unknown.indexOf("Couldn't load"))),
+      check("Couldn't load nope with the kept-state hint and the refused read's status", unknownShown.pass && /Couldn't load nope/.test(unknown) && /Your filters and unsaved changes are kept\./.test(unknown) && /404 Not Found/.test(unknown), unknown.slice(unknown.indexOf("Couldn't load"))),
       check("Try again is offered and Check connection links to the Overview", (await tab.visible({ role: "button", name: "Try again" })).pass && href === "/modules/database/overview", href),
     ]);
     await openTable(tab, "metrics", "readings");
@@ -139,15 +140,15 @@ const loadError = {
       await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "Database unreachable" }) });
     });
     await tab.click({ role: "button", name: "Refresh (R)" });
-    await tab.visible({ role: "heading", name: "Couldn't load readings" }, { timeoutMs: 30_000 });
+    const refusedShown = await tab.shows(/Couldn't load readings/, { timeoutMs: 30_000 });
     const refused = await pageText(tab);
     await tab.page.unroute("**/api/database/browse/list**");
     await tab.click({ role: "button", name: "Try again" });
-    await tab.visible({ role: "heading", name: "Couldn't load readings" }, { hidden: true, timeoutMs: 30_000 });
+    const errorGone = await tab.shows(/Couldn't load readings/, { not: true, timeoutMs: 30_000 });
     const rows = await settle(() => columnValues(tab, "seq"), (values) => values.length === 50);
     await ctx.verify("a refused read", [
-      check("the refused read shows the error title and its status", /Couldn't load readings/.test(refused) && /500 Internal Server Error/.test(refused), refused.slice(refused.indexOf("Couldn't load"))),
-      check("Try again reads the 50 rows of the page again", rows.length === 50, rows.length),
+      check("the refused read shows the error title and its status", refusedShown.pass && /Couldn't load readings/.test(refused) && /500 Internal Server Error/.test(refused), refused.slice(refused.indexOf("Couldn't load"))),
+      check("Try again reads the 50 rows of the page again", errorGone.pass && rows.length === 50, [errorGone.pass, rows.length]),
     ]);
   },
 };

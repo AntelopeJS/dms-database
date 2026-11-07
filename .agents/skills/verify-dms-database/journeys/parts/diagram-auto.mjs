@@ -12,10 +12,26 @@ const SCRAMBLED = { customers: { x: 40, y: 700 }, orders: { x: 40, y: 20 }, orde
 
 /**
  * @param {Tab} tab The tab
- * @returns {Promise<string>} The text of the preview bar, empty when none shows
+ * @returns {import("playwright-core").Locator} The preview bar
+ */
+function barOf(tab) {
+  return tab.page.locator(".diagram-float").filter({ hasText: "Previewing auto layout." }).first();
+}
+
+/**
+ * @param {Tab} tab The tab
+ * @returns {Promise<string>} The text of the preview bar once it shows, empty when it does not within ten seconds
  */
 async function previewBar(tab) {
-  return (await tab.page.locator(".diagram-float").filter({ hasText: "Previewing auto layout." }).first().innerText().catch(() => "")).replace(/\s+/g, " ").trim();
+  return (await barOf(tab).innerText({ timeout: 10_000 }).catch(() => "")).replace(/\s+/g, " ").trim();
+}
+
+/**
+ * @param {Tab} tab The tab
+ * @returns {Promise<boolean>} Whether the preview bar is gone now, read once after the journey's own pause
+ */
+async function previewGone(tab) {
+  return (await barOf(tab).count()) === 0;
 }
 
 /**
@@ -57,7 +73,7 @@ export const preview = {
     const discarded = positionsOf(await tables(tab));
     await ctx.verify("Discard", [
       check("the tables go back to the team's layout", Object.entries(SCRAMBLED).every(([name, point]) => near(discarded[name], point, 0.5)), discarded),
-      check("the preview bar is gone", (await previewBar(tab)) === "", await previewBar(tab)),
+      check("the preview bar is gone", await previewGone(tab), "preview bar"),
       check("the API still holds the team's layout", JSON.stringify(await savedLayout(ctx, "shop")) === JSON.stringify(SCRAMBLED), "layout"),
     ]);
 
@@ -68,7 +84,7 @@ export const preview = {
     const keptShown = positionsOf(await tables(tab));
     await ctx.verify("Keep layout", [
       check("the arrangement is saved for all four tables", Object.keys(automatic).every((name) => near(kept[name], automatic[name], 0.5)), kept),
-      check("the canvas shows it and the bar is gone", Object.keys(automatic).every((name) => near(keptShown[name], automatic[name], 0.5)) && (await previewBar(tab)) === "", keptShown),
+      check("the canvas shows it and the bar is gone", Object.keys(automatic).every((name) => near(keptShown[name], automatic[name], 0.5)) && (await previewGone(tab)), keptShown),
       tab.enabled({ role: "button", name: "Undo" }),
     ]);
     await tab.click({ role: "button", name: "Undo" });
@@ -84,7 +100,7 @@ export const preview = {
     await tab.page.waitForTimeout(800);
     await ctx.verify("one table placed", [
       check("one table moved reads in the singular", single.startsWith("Previewing auto layout. 1 table moved."), single),
-      check("Escape discards the preview", (await previewBar(tab)) === "" && near(byName(await tables(tab), "customers"), { x: 1500, y: 1500 }, 0.5), await previewBar(tab)),
+      check("Escape discards the preview", (await previewGone(tab)) && near(byName(await tables(tab), "customers"), { x: 1500, y: 1500 }, 0.5), "preview bar"),
     ]);
   },
 };
