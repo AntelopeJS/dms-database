@@ -11,6 +11,7 @@ import { check, db, isRow, list, pick, text } from "../../database.mjs";
 const PAGE = "/modules/database/diagram";
 const WAIT_MS = 25_000;
 const POLL_MS = 250;
+const STILL_MS = 250;
 export const VIEWPORT = { width: 1440, height: 900 };
 
 /**
@@ -31,15 +32,56 @@ export async function openDiagram(ctx, query = "", existing) {
 }
 
 /**
- * Waits for the canvas: a table node, or the empty state.
+ * Runs in the page: resolves true once the canvas drew its nodes, all measured and shown, or the empty state, and
+ * neither the viewport nor any node's position or size changed for `stableMs`; false when `timeoutMs` ran out first.
+ * The canvas draws its nodes hidden, shows them once measured and fits the viewport right after, and a link that
+ * names a table then centers on it over 300 ms.
+ *
+ * @param {{ stableMs: number, timeoutMs: number }} wait How long the canvas must hold still, and how long to wait
+ * @returns {Promise<boolean>} Whether the canvas held still
+ */
+function canvasHeldStill(wait) {
+  return new Promise((resolve) => {
+    const started = performance.now();
+    let seen = "";
+    let since = started;
+    const look = () => {
+      const now = performance.now();
+      const drawn = [...document.querySelectorAll(".vue-flow__node")];
+      const measured = drawn.length > 0 && drawn.every((node) => node instanceof HTMLElement && node.offsetWidth > 0 && getComputedStyle(node).visibility !== "hidden");
+      const empty = drawn.length === 0 && document.body.innerText.includes("No tables in");
+      const pane = document.querySelector(".vue-flow__transformationpane");
+      const print =
+        measured || empty
+          ? JSON.stringify([pane instanceof HTMLElement ? pane.style.transform : "", drawn.map((node) => (node instanceof HTMLElement ? [node.dataset.id, node.style.transform, node.offsetWidth, node.offsetHeight] : []))])
+          : "";
+      if (print === "" || print !== seen) {
+        seen = print;
+        since = now;
+      } else if (now - since >= wait.stableMs) {
+        resolve(true);
+        return;
+      }
+      if (now - started > wait.timeoutMs) {
+        resolve(false);
+        return;
+      }
+      setTimeout(look, 25);
+    };
+    look();
+  });
+}
+
+/**
+ * Waits for the canvas: a table node, or the empty state, and for the nodes and the viewport to hold still.
  *
  * @param {Tab} tab The tab on the diagram
  * @returns {Promise<void>}
  */
 export async function ready(tab) {
   await tab.page.locator(".vue-flow__node-tableNode, [data-empty-schema], .vue-flow").first().waitFor({ state: "visible", timeout: WAIT_MS });
-  await tab.page.waitForFunction(() => document.querySelectorAll(".vue-flow__node").length > 0 || document.body.innerText.includes("No tables in"), { timeout: WAIT_MS });
-  await tab.page.waitForTimeout(1800);
+  const still = await tab.page.evaluate(canvasHeldStill, { stableMs: STILL_MS, timeoutMs: WAIT_MS });
+  if (!still) throw new Error(`the diagram did not hold still for ${STILL_MS} ms within ${WAIT_MS} ms`);
 }
 
 /**

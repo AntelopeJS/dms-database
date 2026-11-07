@@ -7,6 +7,7 @@
 export const BAR = { role: "search", name: "Filter the tables" };
 const PAGE = "/modules/database/schemas";
 const POLL_MS = 250;
+const HYDRATION_POLL_MS = 50;
 const WAIT_MS = 20_000;
 
 /**
@@ -25,7 +26,12 @@ export async function openSchemas(ctx, query = "") {
 }
 
 /**
- * Waits until the page is hydrated: the first filter chip toggles when clicked.
+ * Waits until the page is hydrated. The server renders the filter bar and the table, which show long before the
+ * browser hydrates them, and the `/` shortcut that focuses the search field is registered only once the bar is
+ * hydrated, together with the table's handlers. Pressing `/` until the field takes the focus proves it, and the
+ * field is left blurred and unchanged. A link with `record=` opens the table's inspector, a modal that closes when
+ * the focus leaves it, once the page is hydrated, or drops `record` from the URL when the table is unknown, so the
+ * inspector showing or `record` leaving the URL proves it without moving the focus.
  *
  * @param {Tab} tab The tab on the Schemas page
  * @returns {Promise<void>}
@@ -33,7 +39,21 @@ export async function openSchemas(ctx, query = "") {
 export async function settled(tab) {
   await tab.page.locator("[data-dms-database-schemas-filter-bar]").waitFor({ state: "visible", timeout: WAIT_MS });
   await tab.page.locator("table tbody tr, [data-empty-state], h2").first().waitFor({ state: "visible", timeout: WAIT_MS });
-  await tab.page.waitForTimeout(1500);
+  if (new URL(tab.page.url()).searchParams.has("record")) {
+    await tab.page.waitForFunction(() => document.querySelector('[role="dialog"]') !== null || !new URLSearchParams(location.search).has("record"), { timeout: WAIT_MS });
+    return;
+  }
+  const search = tab.page.locator("[data-dms-database-schemas-filter-bar] input").first();
+  const focused = () => search.evaluate((element) => element === document.activeElement);
+  await tab.page.evaluate(() => (document.activeElement instanceof HTMLElement ? document.activeElement.blur() : undefined));
+  const deadline = Date.now() + WAIT_MS;
+  for (;;) {
+    await tab.page.keyboard.press("/");
+    if (await focused()) break;
+    if (Date.now() > deadline) throw new Error(`the Schemas page did not hydrate within ${WAIT_MS} ms: / never focused the search field`);
+    await new Promise((resolve) => setTimeout(resolve, HYDRATION_POLL_MS));
+  }
+  await search.evaluate((element) => element.blur());
 }
 
 /**

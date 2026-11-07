@@ -4,11 +4,26 @@ import { readFileSync } from "node:fs";
 /** @typedef {import("../../database.mjs").Tab} Tab */
 
 const EDITOR = { role: "textbox", name: "Query editor (AQL)" };
-const SETTLE_MS = 1500;
-const HYDRATION_MS = 3000;
+const QUIET_MS = 250;
+const POLL_MS = 50;
+const RUN_WAIT_MS = 30_000;
+const LINK_WAIT_MS = 30_000;
+const LINK_KEYS = ["q", "history", "source", "schema", "table", "instance"];
+const REALTIME = "/api/realtime/";
 
 /**
- * Opens the Query console as the owner and waits for the editor to hydrate.
+ * @param {number} milliseconds How long to wait
+ * @returns {Promise<void>} Resolves after the delay
+ */
+function pause(milliseconds) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
+/**
+ * Opens the Query console as the owner and waits until it is hydrated. The editor is built in the browser when the
+ * console mounts, so it showing proves the console hydrated. A link into the console (`?history=`, `?q=`, `?source=`,
+ * `?schema=&table=`) is opened after the mount and then dropped from the URL, so the link's keys leaving the URL
+ * proves the link was opened.
  *
  * @param {Ctx} ctx The journey
  * @param {string} [path] The console path, with its query string
@@ -19,8 +34,73 @@ export async function openConsole(ctx, path = "/modules/database/query") {
   await tab.signIn("admin");
   await tab.goto(path);
   await ctx.verify("the console opens", [tab.visible({ role: "heading", name: "Query console", level: 1 }, { timeoutMs: 30_000 }), tab.visible(EDITOR)], { critical: true });
-  await tab.page.waitForTimeout(HYDRATION_MS);
+  const linked = [...new URL(path, "http://console.invalid").searchParams.keys()].filter((key) => LINK_KEYS.includes(key));
+  if (linked.length > 0) {
+    await tab.page.waitForURL((url) => linked.every((key) => !url.searchParams.has(key)), { timeout: LINK_WAIT_MS });
+  }
   return tab;
+}
+
+/**
+ * Counts the page's fetch and XHR calls that have not ended, and when the last one started or ended. The realtime
+ * connection stays open for the life of the page, so it is not a call to wait for.
+ *
+ * @param {import("playwright-core").Page} page The page
+ * @returns {{ idleMs: () => number, stop: () => void }} How long no call has been in flight, and the end of the watch
+ */
+function watchCalls(page) {
+  /** @type {Set<import("playwright-core").Request>} */
+  const inFlight = new Set();
+  let lastMs = Date.now();
+  /** @param {import("playwright-core").Request} request The request */
+  const started = (request) => {
+    if (!["fetch", "xhr"].includes(request.resourceType()) || request.url().includes(REALTIME)) return;
+    inFlight.add(request);
+    lastMs = Date.now();
+  };
+  /** @param {import("playwright-core").Request} request The request */
+  const ended = (request) => {
+    inFlight.delete(request);
+    lastMs = Date.now();
+  };
+  page.on("request", started);
+  page.on("requestfinished", ended);
+  page.on("requestfailed", ended);
+  return {
+    idleMs: () => (inFlight.size === 0 ? Date.now() - lastMs : 0),
+    stop: () => {
+      page.off("request", started);
+      page.off("requestfinished", ended);
+      page.off("requestfailed", ended);
+    },
+  };
+}
+
+/**
+ * Reads the page until a run has ended: no call in flight for a quiet moment, and the page text the same on reads
+ * that far apart. The run shows "Running" while it executes, the dry run of a write ends in the confirmation, a
+ * read in the result or the failure, a query that fails before it is sent in the failure.
+ *
+ * @param {Tab} tab The tab on the console
+ * @param {ReturnType<typeof watchCalls>} calls The watch started before the run
+ * @returns {Promise<string>} The page text when the run ended, or when the wait ran out
+ */
+async function textOnceQuiet(tab, calls) {
+  const deadline = Date.now() + RUN_WAIT_MS;
+  const read = () => tab.page.evaluate(() => document.body.innerText);
+  let seen = await read();
+  let since = Date.now();
+  while (Date.now() < deadline) {
+    await pause(POLL_MS);
+    const now = await read();
+    if (now !== seen) {
+      seen = now;
+      since = Date.now();
+    } else if (Date.now() - since >= QUIET_MS && calls.idleMs() >= QUIET_MS) {
+      break;
+    }
+  }
+  return seen;
 }
 
 /**
@@ -49,10 +129,14 @@ export async function editorText(tab) {
  */
 export async function runSource(tab, source, options = {}) {
   await editor(tab).fill(source);
-  if (options.button) await tab.page.getByRole("button", { name: /^Run/ }).click();
-  else await editor(tab).press("Control+Enter");
-  await tab.page.waitForTimeout(SETTLE_MS);
-  return flat(await tab.page.locator("body").innerText());
+  const calls = watchCalls(tab.page);
+  try {
+    if (options.button) await tab.page.getByRole("button", { name: /^Run/ }).click();
+    else await editor(tab).press("Control+Enter");
+    return flat(await textOnceQuiet(tab, calls));
+  } finally {
+    calls.stop();
+  }
 }
 
 /**
