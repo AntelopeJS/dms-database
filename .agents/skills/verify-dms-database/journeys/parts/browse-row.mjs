@@ -174,7 +174,7 @@ const drawerTabs = {
 };
 
 /**
- * The drawer's field control of a column.
+ * The drawer's field control of a column. The row's control is awaited first, so the absence of the other kind is read at once.
  *
  * @param {Tab} tab The tab
  * @param {string} field The column
@@ -182,7 +182,10 @@ const drawerTabs = {
  * @returns {Promise<{ width: number, found: boolean }>} Its width
  */
 async function controlWidth(tab, field, kind) {
-  const box = await tab.page.locator(`[data-field-row="${field}"] ${kind}`).first().boundingBox().catch(() => null);
+  const row = tab.page.locator(`[data-field-row="${field}"]`);
+  await row.locator("input, textarea").first().waitFor({ state: "visible", timeout: 15_000 }).catch(() => undefined);
+  const control = row.locator(kind).first();
+  const box = (await control.count()) > 0 ? await control.boundingBox({ timeout: 5_000 }).catch(() => null) : null;
   return { width: box?.width ?? 0, found: box !== null };
 }
 

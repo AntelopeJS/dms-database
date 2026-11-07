@@ -62,11 +62,12 @@ export async function openEditor(tab, rowId, column) {
  */
 export async function cellState(tab, rowId, column) {
   const cell = await cellOf(tab, rowId, column);
-  return {
-    text: (await cell.innerText()).replace(/\s+/g, " ").trim(),
-    struck: (await cell.locator("s").first().innerText().catch(() => "")).trim(),
-    title: (await cell.getAttribute("title")) ?? "",
-  };
+  const state = await cell.evaluate((element) => ({
+    text: element instanceof HTMLElement ? element.innerText : "",
+    struck: element.querySelector("s")?.textContent ?? "",
+    title: element.getAttribute("title") ?? "",
+  }));
+  return { text: state.text.replace(/\s+/g, " ").trim(), struck: state.struck.trim(), title: state.title };
 }
 
 /**
@@ -76,7 +77,9 @@ export async function cellState(tab, rowId, column) {
  * @returns {Promise<string>} Such as `Review and save 2 changes`, empty when there is no bar
  */
 export async function reviewLabel(tab) {
-  return (await tab.page.getByRole("button", { name: /^Review and save/ }).first().innerText().catch(() => "")).trim();
+  const button = tab.page.getByRole("button", { name: /^Review and save/ }).first();
+  if ((await button.count()) === 0) return "";
+  return (await button.innerText({ timeout: 2_000 }).catch(() => "")).trim();
 }
 
 /**
