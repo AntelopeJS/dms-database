@@ -92,7 +92,10 @@ const expandedBySchema = new Map<string, Set<string>>()
 // read when the schema loads and when auto layout runs, so a note moved
 // later does not move them.
 const layoutBasis = shallowRef<LayoutOptions>({})
-const loaded = ref(false)
+const loadedId = ref<string | null>(null)
+const loaded = computed(
+	() => loadedId.value !== null && loadedId.value === schemaId.value,
+)
 // The note just created, opened ready to write until its edit ends.
 const editNoteId = ref<string | null>(null)
 let sync: DiagramSync | null = null
@@ -295,7 +298,7 @@ async function load(id: string) {
 	// under its own id before the next schema loads (D-2).
 	const leaving = autosave?.flush()
 	autosave = null
-	loaded.value = false
+	loadedId.value = null
 	routing.clear()
 	history.clear()
 	historyRevision.value++
@@ -330,7 +333,7 @@ async function load(id: string) {
 	saveState.value = 'idle'
 	savedAt.value = null
 	requestFit()
-	loaded.value = true
+	loadedId.value = id
 }
 
 // The canvas is drawn in the browser, from a working copy of the layout and
