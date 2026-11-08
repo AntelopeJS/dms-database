@@ -21,7 +21,9 @@ const { t } = useI18n()
 
 const MIN_LINES = 12
 // The form field hands the drawer's height down to the editor.
-const FILL = { root: 'flex flex-1 flex-col', container: 'flex flex-1 flex-col' }
+const FILL = {
+	root: 'flex flex-1 flex-col *:last:flex *:last:flex-1 *:last:flex-col',
+}
 
 const draft = ref(jsonDraftText(props.value))
 
