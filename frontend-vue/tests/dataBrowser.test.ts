@@ -25,7 +25,12 @@ import {
 	instanceToUrl,
 	tableLink,
 } from '../app/build/utils/databaseLinks'
-import { describeField, valueDescriptor } from '../app/build/utils/fieldTypes'
+import {
+	columnModifiers,
+	describeField,
+	describeModifier,
+	valueDescriptor,
+} from '../app/build/utils/fieldTypes'
 
 describe('cell drafts: null', () => {
 	it('empties a cell of any type with null', () => {
@@ -350,5 +355,30 @@ describe('column types', () => {
 				members: [{ kind: 'string' }, { kind: 'number' }],
 			}).icon,
 		).toBe('i-ph-arrows-split')
+	})
+
+	it('reads a column named like an Object member by its declared type', () => {
+		for (const name of ['constructor', 'toString', '__proto__']) {
+			expect(describeField({ kind: 'string' }, name)).toEqual({
+				icon: 'i-ph-text-aa',
+				label: 'string',
+			})
+			expect(columnModifiers({}, name)).toEqual([])
+		}
+		expect(describeField({ kind: 'constructor' })).toEqual({
+			icon: 'i-ph-question',
+			label: 'unknown',
+		})
+		expect(describeModifier('constructor')).toEqual({
+			id: 'constructor',
+			icon: 'i-ph-sliders',
+		})
+	})
+
+	it('names the modifiers declared on a column', () => {
+		expect(columnModifiers({ secret: ['HashModifier'] }, 'secret')).toEqual([
+			describeModifier('HashModifier'),
+		])
+		expect(columnModifiers(undefined, 'secret')).toEqual([])
 	})
 })
