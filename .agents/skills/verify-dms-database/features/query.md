@@ -32,7 +32,7 @@ The Query console, run and read side: write AQL, run it, read the result.
 - `ctrl-space-completes-schemas-and-tables-from-the-workspace`: completion lists.
 - `an-empty-console-offers-examples-built-on-your-own-tables`: the two examples.
 - `results-over-1000-rows-are-cut-at-1000`: the 1,000 boundary, the JSON view and the CSV export.
-- `the-table-view-shows-every-returned-row`: the Table view up to 1,000 rows. Fails today: product finding, draft `dms-database-query-table-view-200-rows`.
+- `the-table-view-shows-every-returned-row`: the Table view up to 1,000 rows.
 - `ctrl-space-inside-a-filter-completes-the-columns-of-the-table`: the column list inside `row.key("`.
 - `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes`: the Chart view, its default axes and the X picker.
 - `open-in-data-browser-opens-the-target-table-or-the-row`: the result's header link and each row's link.
