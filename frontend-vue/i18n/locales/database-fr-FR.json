@@ -389,7 +389,6 @@
 				"chart_unavailable": "Aucune colonne numérique à tracer.",
 				"all_shown": "{count} ligne affichée. | Les {count} lignes sont affichées. Au-delà de 1 000 lignes le résultat est coupé ; ajoutez .slice() pour paginer.",
 				"truncated": "{shown} lignes affichées sur {total} : le résultat est coupé à 1 000. Ajoutez .slice() pour paginer.",
-				"table_first": "Le tableau montre les {shown} premières lignes sur {total} ; le JSON et l'export CSV les contiennent toutes.",
 				"running": "Exécution…",
 				"failed_local": "La requête n'a pas été envoyée · rien n'a été modifié",
 				"example_first": "Les 10 premières lignes de {table}"
