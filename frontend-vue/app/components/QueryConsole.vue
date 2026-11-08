@@ -30,13 +30,11 @@ import QueryResultPanel, { type QueryFailure } from './QueryResultPanel.vue'
 
 // The query console: the library rail, the editor and the result. A query
 // that changes data runs only after a dry run told what it touches (D-03):
-// deletes and multi-row writes ask for the table name; a single-row update
-// can be let through without asking until the browser tab is closed.
+// every write asks for the table name, as the docs say.
 
 // The query being written, kept for the browser tab: a reload, or a row link
 // followed by Back, brings it back (Q-9). A link that names a query wins.
 const DRAFT_KEY = 'dms-database:query:draft'
-const SKIP_SINGLE_UPDATES_KEY = 'dms-database:query:skip-single-row-updates'
 const PREFILL_ROWS = 50
 const OPERATION_ICONS: Record<string, string> = {
 	insert: 'i-ph-plus-circle',
@@ -213,20 +211,6 @@ function failBeforeRun(text: string, problem: QueryFailure) {
 	activeHistoryId.value = null
 }
 
-function skipsSingleUpdates(): boolean {
-	return (
-		typeof window !== 'undefined' &&
-		window.sessionStorage.getItem(SKIP_SINGLE_UPDATES_KEY) === 'true'
-	)
-}
-
-function isSingleRowUpdate(dry: DryRunResult): boolean {
-	return (
-		(dry.operation === 'update' || dry.operation === 'replace') &&
-		dry.rows === 1
-	)
-}
-
 function guardTexts(dry: DryRunResult) {
 	const rows = dry.rows ?? 0
 	// The whole target, schema and instance included: `demo.tags @eu`.
@@ -263,11 +247,6 @@ async function guard(query: Record<string, unknown>, text: string) {
 		return
 	}
 	if (dry.operation === 'read') return execute(query, text)
-	if (isSingleRowUpdate(dry) && skipsSingleUpdates())
-		return execute(query, text)
-	const skipNextTime = ref(false)
-	const typed =
-		dry.operation === 'delete' || dry.rows === null || (dry.rows ?? 0) > 1
 	const targetLabel = describeTarget(dry)
 	const texts = guardTexts(dry)
 	await confirm({
@@ -276,7 +255,7 @@ async function guard(query: Record<string, unknown>, text: string) {
 		color: dry.operation === 'delete' ? 'error' : 'warning',
 		icon: OPERATION_ICONS[dry.operation] ?? 'i-ph-warning',
 		initialFocus: 'cancel',
-		confirmText: typed ? (dry.table ?? dry.schema) : undefined,
+		confirmText: dry.table ?? dry.schema,
 		impact: [
 			{
 				icon: OPERATION_ICONS[dry.operation] ?? 'i-ph-lightning',
@@ -295,47 +274,15 @@ async function guard(query: Record<string, unknown>, text: string) {
 			},
 		],
 		body: () =>
-			h('div', { class: 'grid gap-3' }, [
-				h(
-					'pre',
-					{
-						class:
-							'border-default bg-elevated/50 max-h-40 overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]',
-					},
-					text,
-				),
-				isSingleRowUpdate(dry)
-					? h('label', { class: 'flex items-start gap-2 text-sm' }, [
-							h('input', {
-								type: 'checkbox',
-								class: 'mt-1',
-								checked: skipNextTime.value,
-								onChange: (event: Event) => {
-									skipNextTime.value = (
-										event.target as HTMLInputElement
-									).checked
-								},
-							}),
-							h('span', [
-								h(
-									'span',
-									{ class: 'text-toned' },
-									t('dms_database.query.guard.skip'),
-								),
-								h(
-									'span',
-									{ class: 'text-dimmed block text-xs' },
-									t('dms_database.query.guard.skip_detail'),
-								),
-							]),
-						])
-					: null,
-			]),
-		onConfirm: async () => {
-			if (skipNextTime.value)
-				window.sessionStorage.setItem(SKIP_SINGLE_UPDATES_KEY, 'true')
-			await execute(query, text)
-		},
+			h(
+				'pre',
+				{
+					class:
+						'border-default bg-elevated/50 max-h-40 overflow-auto rounded-md border p-3 font-mono text-xs whitespace-pre-wrap [overflow-wrap:anywhere]',
+				},
+				text,
+			),
+		onConfirm: () => execute(query, text),
 	})
 }
 

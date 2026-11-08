@@ -409,8 +409,6 @@
 				"confirm_replace": "Remplacer {count} ligne | Remplacer {count} lignes",
 				"confirm_delete": "Supprimer {count} ligne | Supprimer {count} lignes",
 				"confirm_unknown": "Lancer la requête",
-				"skip": "Ne plus demander pour les modifications d'une seule ligne",
-				"skip_detail": "Jusqu'à la fermeture de cet onglet. Les suppressions et les modifications de plusieurs lignes demandent toujours.",
 				"op_insert": "insertion",
 				"op_update": "modification",
 				"op_replace": "remplacement",

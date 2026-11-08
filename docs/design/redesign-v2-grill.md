@@ -236,6 +236,8 @@ always ask and need the table name typed (the DMS confirm dialog's
 `confirmText`). Only single-row updates can be skipped, until the browser tab
 is closed (session storage, not local storage): the browser cannot tell a
 sign-out from here, so the wording says what really happens.
+Superseded (dms-database#115): every write asks for the table name, as the
+user docs say, and the skip is gone.
 
 **Q26. History and saved queries (D-11)?**
 One library rail with tabs History · Saved · Team, one search field, entries

@@ -118,18 +118,22 @@ export const journeys = guarded([
   },
   {
     id: "confirming-a-single-row-update-needs-the-table-name-as-the-docs-say",
-    title: "the docs and the FAQ say every write is confirmed by typing the table name; a single-row update must ask for it",
+    title: "the docs and the FAQ say every write is confirmed by typing the table name; a single-row update, replace and insert must ask for it and offer no skip",
     entryPoint: "/modules/database/query, docs 'To confirm, type the table name'",
     async run(/** @type {Ctx} */ ctx) {
       const tab = await openConsole(ctx);
       await runSource(tab, `${RANT}.update({name: "typed"})`);
       const opened = await dialogText(tab);
-      await ctx.verify("the confirmation", [check("it asks for the table name", opened.includes("Type tags to confirm"), opened)]);
+      await ctx.verify("the confirmation", [check("it asks for the table name", opened.includes("Type tags to confirm"), opened), check("it offers no way to skip the question", !opened.includes("Don't ask again"), opened)]);
       await cancel(tab);
       const rows = list((await db(ctx, "tags", "GET", "/browse/list?filter_schema=demo&filter_table=tags&limit=200")).body, "results");
       await runSource(tab, `${TAGS}.get("${text(rows[0], "_id")}").replace({name: "typed"})`);
       const replacing = await dialogText(tab);
       await ctx.verify("a single-row replace", [check("it asks for the table name too", replacing.includes("Type tags to confirm"), replacing)]);
+      await cancel(tab);
+      await runSource(tab, `${TAGS}.insert([{name: "typed"}])`);
+      const inserting = await dialogText(tab);
+      await ctx.verify("a single-row insert", [check("it asks for the table name too", inserting.startsWith("Insert 1 row into demo.tags?") && inserting.includes("Type tags to confirm"), inserting)]);
     },
   },
   {
@@ -166,8 +170,7 @@ export const journeys = guarded([
         check("Operation replace, Target demo.tags, Rows 1", one.includes("Operation replace Target demo.tags Rows 1"), one),
         check("nothing was replaced before Confirm", !(await tagNames(ctx)).includes("solo"), await tagNames(ctx)),
       ]);
-      const name = tab.page.getByRole("textbox", { name: "Type tags to confirm" });
-      if ((await name.count()) > 0) await name.fill("tags");
+      await tab.page.getByRole("textbox", { name: "Type tags to confirm" }).fill("tags");
       await tab.page.getByRole("button", { name: "Replace 1 row" }).click();
       await tab.page.waitForTimeout(2000);
       await ctx.verify("Confirm one", [check("the picked row now holds solo and no row was added or lost", (await tagNames(ctx)).includes("solo") && (await tagNames(ctx)).length === 3, await tagNames(ctx))]);

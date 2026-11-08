@@ -409,8 +409,6 @@
 				"confirm_replace": "Replace {count} row | Replace {count} rows",
 				"confirm_delete": "Delete {count} row | Delete {count} rows",
 				"confirm_unknown": "Run query",
-				"skip": "Don't ask again for single-row updates",
-				"skip_detail": "Until you close this browser tab. Deletes and changes to more than one row always ask.",
 				"op_insert": "insert",
 				"op_update": "update",
 				"op_replace": "replace",
