@@ -97,8 +97,11 @@ export function resolveSelection(
 export function resolveTable(selection: BrowseSelection) {
   const schema = Schema.get(selection.schema);
   assert(schema, 404, `Unknown schema: ${selection.schema}`);
-  const definition = schema.definition[selection.table];
-  assert(definition, 404, `Unknown table: ${selection.table}`);
+  assert(
+    Object.hasOwn(schema.definition, selection.table),
+    404,
+    `Unknown table: ${selection.table}`,
+  );
   return schema.instance(selection.instance).table(selection.table);
 }
 
