@@ -255,12 +255,12 @@ function inferFromRows(rows: unknown[]): TableSummary["fields"] {
       observed.set(key, field);
     }
   }
-  const inferred: Record<string, FieldDescriptor> = {};
+  const inferred: [string, FieldDescriptor][] = [];
   for (const [key, { type, nullable }] of observed) {
-    if (type) inferred[key] = nullable ? withNull(type) : type;
-    else if (nullable) inferred[key] = NULL_DESCRIPTOR;
+    if (type) inferred.push([key, nullable ? withNull(type) : type]);
+    else if (nullable) inferred.push([key, NULL_DESCRIPTOR]);
   }
-  return inferred;
+  return Object.fromEntries(inferred);
 }
 
 async function inferTableFields(
@@ -303,8 +303,10 @@ async function summarizeTable(
 
   const declaredTypes = declaredFieldTypes(def, declared);
 
+  const sampledOf = (name: string): FieldDescriptor | undefined =>
+    Object.hasOwn(sampled, name) ? sampled[name] : undefined;
   const withSampled = (name: string, descriptor: FieldDescriptor) => {
-    const seen = sampled[name];
+    const seen = sampledOf(name);
     const element = arrayOf(seen)?.element;
     const typed: FieldDescriptor =
       descriptor.kind === "array" && !descriptor.element && element
@@ -312,27 +314,29 @@ async function summarizeTable(
         : descriptor;
     return seen && admitsNull(seen) ? withNull(typed) : typed;
   };
-  const fields: Record<string, FieldDescriptor> = {};
+  const fields = new Map<string, FieldDescriptor>();
   for (const name of declared.ordered) {
-    fields[name] = withSampled(
+    fields.set(
       name,
-      declaredTypes.get(name) ?? sampled[name] ?? UNKNOWN_DESCRIPTOR,
+      withSampled(
+        name,
+        declaredTypes.get(name) ?? sampledOf(name) ?? UNKNOWN_DESCRIPTOR,
+      ),
     );
   }
   for (const [name, descriptor] of declaredTypes) {
-    if (!Object.hasOwn(fields, name))
-      fields[name] = withSampled(name, descriptor);
+    if (!fields.has(name)) fields.set(name, withSampled(name, descriptor));
   }
   for (const [column, descriptor] of Object.entries(sampled)) {
-    if (!Object.hasOwn(fields, column)) fields[column] = descriptor;
+    if (!fields.has(column)) fields.set(column, descriptor);
   }
   for (const name of Object.keys(modifiers)) {
-    if (!Object.hasOwn(fields, name)) fields[name] = UNKNOWN_DESCRIPTOR;
+    if (!fields.has(name)) fields.set(name, UNKNOWN_DESCRIPTOR);
   }
 
   return {
     name: tableName,
-    fields,
+    fields: Object.fromEntries(fields),
     indexes: def.indexes,
     relations,
     modifiers,
