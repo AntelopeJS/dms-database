@@ -10,7 +10,6 @@ import {
 	DEFAULT_ASPECT,
 	linkedGroups,
 	packBlocks,
-	prefixOrder,
 	type Rect,
 	type Size,
 } from './packing'
@@ -76,8 +75,8 @@ function layOutGroup(
  * Lays out the whole schema, every table and a stub for each table of
  * another schema a relation points to: dagre on each group of tables linked
  * by relations, a stub staying with the tables it hangs from, then the
- * groups, largest first, and the tables on their own, by name prefix then
- * name, in rows shaped like the canvas. Tables count at their folded height.
+ * groups, largest first, and the tables on their own, by name, in rows
+ * shaped like the canvas. Tables count at their folded height.
  */
 export function layOutSchema(
 	schema: SchemaSummary,
@@ -109,10 +108,12 @@ export function layOutSchema(
 	groups.sort(
 		(a, b) => b.count - a.count || b.width * b.height - a.width * a.height,
 	)
-	const single: Block[] = prefixOrder(alone).map((name) => {
-		const id = tableNodeId(schema.id, name)
-		return { id, ...(sizes.get(id) as Size) }
-	})
+	const single: Block[] = alone
+		.sort((a, b) => a.localeCompare(b))
+		.map((name) => {
+			const id = tableNodeId(schema.id, name)
+			return { id, ...(sizes.get(id) as Size) }
+		})
 
 	const packed = packBlocks(
 		[...groups, ...single],

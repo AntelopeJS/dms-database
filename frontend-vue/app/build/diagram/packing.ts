@@ -227,30 +227,6 @@ export function linkedGroups(
 	return [...groups.values()]
 }
 
-/** What a table name starts with before `__` (`dms-core__users`), or ''. */
-export function namePrefix(name: string): string {
-	const at = name.indexOf('__')
-	return at > 0 ? name.slice(0, at) : ''
-}
-
-/**
- * Isolated tables in the order they are placed: by name prefix, the tables
- * without one in their own group, then by name within a group.
- */
-export function prefixOrder(names: string[]): string[] {
-	return [...names].sort((a, b) => {
-		const pa = namePrefix(a)
-		const pb = namePrefix(b)
-		if (pa !== pb) {
-			// The tables without a prefix come after the prefixed groups.
-			if (!pa) return 1
-			if (!pb) return -1
-			return pa.localeCompare(pb)
-		}
-		return a.localeCompare(b)
-	})
-}
-
 /**
  * The zoom Vue Flow's `fitView` gives `bounds` in a canvas of `size` with
  * `padding` (a share of the canvas), before its own zoom limits.
