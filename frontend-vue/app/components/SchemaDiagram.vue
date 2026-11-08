@@ -238,7 +238,12 @@ function setExpanded(next: Set<string>) {
 }
 
 function render() {
-	if (!canvas.value || !schema.value || !loaded.value) return
+	if (!canvas.value) return
+	if (!schema.value || !loaded.value) {
+		canvas.value.setNodes([])
+		canvas.value.setEdges([])
+		return
+	}
 	const built = buildGraph({
 		schema: schema.value,
 		positions: state.positions,
