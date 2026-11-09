@@ -22,7 +22,7 @@ import {
 	COLUMN_ROLE_CLASSES,
 	type ColumnRole,
 	describeField,
-	describeModifier,
+	columnModifiers,
 	isPrimaryKey,
 	valueDescriptor,
 } from '../build/utils/fieldTypes'
@@ -153,7 +153,7 @@ const columns = computed(() => {
 					? relation.toTable
 					: type.label,
 			nullable: !key && isNullable(descriptor),
-			modifiers: (current.modifiers?.[name] ?? []).map(describeModifier),
+			modifiers: columnModifiers(current.modifiers, name),
 		}
 	})
 })

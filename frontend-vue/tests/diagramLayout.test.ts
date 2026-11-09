@@ -330,6 +330,47 @@ describe('folded tables', () => {
 		}
 	})
 
+	it('ends an arrow on the table when its column is named like an Object member and absent', () => {
+		const relation = (fromField: string, toField: string) => ({
+			fromField,
+			toSchema: 'quirks',
+			toTable: 'teams',
+			toField,
+			many: false,
+		})
+		const schema: SchemaSummary = {
+			...APP,
+			id: 'quirks',
+			tables: [
+				{
+					name: 'members',
+					fields: { _id: { kind: 'string' }, team: { kind: 'string' } },
+					indexes: {},
+					relations: [
+						relation('team', 'constructor'),
+						relation('toString', '_id'),
+					],
+				},
+				{
+					name: 'teams',
+					fields: { _id: { kind: 'string' } },
+					indexes: {},
+					relations: [],
+				},
+			],
+		}
+		const graph = buildGraph(input({ schema }))
+		expect(
+			graph.edges.map((edge) => [
+				edge.sourceHandle.split('::')[0],
+				edge.targetHandle.split('::')[0],
+			]),
+		).toEqual([
+			['team', '__node__'],
+			['__node__', '_id'],
+		])
+	})
+
 	it('draws an expanded table whole, above the others', () => {
 		const graph = buildGraph(input({ expanded: new Set(['dms-core__audit']) }))
 		const node = graph.nodes.find(

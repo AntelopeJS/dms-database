@@ -341,13 +341,12 @@ export function relationEdges(
 				label: relation.fromField,
 				many: relation.many,
 				ends: {
-					sourceBase:
-						relation.fromField in table.fields
-							? relation.fromField
-							: '__node__',
+					sourceBase: Object.hasOwn(table.fields, relation.fromField)
+						? relation.fromField
+						: '__node__',
 					targetBase: isStubTarget
 						? 'stub'
-						: target && relation.toField in target.fields
+						: target && Object.hasOwn(target.fields, relation.toField)
 							? relation.toField
 							: '__node__',
 					isStubTarget,

@@ -100,7 +100,7 @@ function isDescriptor(value: unknown): value is FieldDescriptor {
 		value !== null &&
 		typeof value === 'object' &&
 		typeof (value as { kind?: unknown }).kind === 'string' &&
-		(value as { kind: string }).kind in VIEWS
+		Object.hasOwn(VIEWS, (value as { kind: string }).kind)
 	)
 }
 
@@ -109,8 +109,8 @@ export function describeField(
 	descriptor: unknown,
 	fieldName = '',
 ): FieldTypeView {
-	const named = NAMED_FIELDS[fieldName.toLowerCase()]
-	if (named) return named
+	const name = fieldName.toLowerCase()
+	if (Object.hasOwn(NAMED_FIELDS, name)) return NAMED_FIELDS[name]
 	if (!isDescriptor(descriptor)) return UNKNOWN
 	const view = VIEWS[descriptor.kind] as (d: FieldDescriptor) => FieldTypeView
 	return view(descriptor)
@@ -209,5 +209,19 @@ const MODIFIERS: Record<string, Omit<ModifierView, 'id'>> = {
 }
 
 export function describeModifier(id: string): ModifierView {
-	return { id, ...(MODIFIERS[id] ?? { icon: 'i-ph-sliders' }) }
+	return {
+		id,
+		...(Object.hasOwn(MODIFIERS, id)
+			? MODIFIERS[id]
+			: { icon: 'i-ph-sliders' }),
+	}
+}
+
+/** The modifiers a table declares on one of its columns, by own key only. */
+export function columnModifiers(
+	modifiers: Record<string, string[]> | undefined,
+	column: string,
+): ModifierView[] {
+	if (!modifiers || !Object.hasOwn(modifiers, column)) return []
+	return (modifiers[column] ?? []).map(describeModifier)
 }

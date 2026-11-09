@@ -107,6 +107,7 @@ describe("[integration] table summary of columns named like Object.prototype mem
           ["name", "n"],
           ["constructor", "c"],
           ["toString", "t"],
+          ["__proto__", "p"],
         ]),
       ])
       .run();
@@ -125,11 +126,22 @@ describe("[integration] table summary of columns named like Object.prototype mem
     const table = summary?.tables.find((t) => t.name === "things");
     assert.ok(table, "the table is summarised");
     assert.deepEqual(Object.keys(table.fields).sort(), [
+      "__proto__",
       "_id",
       "constructor",
       "name",
       "toString",
     ]);
+  });
+
+  it("sends a column named __proto__ as a column on the wire", async () => {
+    const summary = (await listSchemaSummaries()).find((s) => s.id === SCHEMA);
+    const table = summary?.tables.find((t) => t.name === "things");
+    assert.match(
+      JSON.stringify(table?.fields) ?? "",
+      /"__proto__":\{"kind":"string"\}/,
+      "the JSON body holds __proto__ as a column",
+    );
   });
 });
 

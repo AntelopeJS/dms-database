@@ -47,7 +47,7 @@ The Schemas page lists every table the loaded modules register, with the rows co
 - `a-row-click-opens-the-inspector-and-previous-next-j-and-k-step-through-the-list`: header, `Table N of M`, `?record=`, buttons, `J`/`K`, ends, Close, direct open, a record outside the list, an unknown record.
 - `dragging-the-drawer-edge-resizes-it-and-it-opens-at-the-width-you-left-it`: drag the edge both ways, reopen and step.
 - `the-inspector-states-the-counts-and-lists-each-column-with-its-type-null-and-notes`: facts in singular and plural, Columns tab, Null, notes.
-- `a-column-named-constructor-is-listed-like-any-other-column`: FAILS on the current product (see Gotchas).
+- `a-column-named-constructor-is-listed-like-any-other-column`: the inspector of `quirks.members` opens by click and by deep link and lists `constructor` as a string column.
 - `the-indexes-and-relations-tabs-list-what-the-table-declares-and-a-relation-opens-the-other-table`: compound versus single, out and in, a relation opens the other table, another schema's table, empty tabs.
 - `the-sample-row-tab-shows-one-row-and-another-row-pages-through-the-table`: labels, wrap-around, named and default instance, empty and one-row tables.
 - `browse-query-and-diagram-actions-open-the-other-pages-on-the-same-table`: the three inspector actions, the row menu, the header Diagram button.
@@ -67,7 +67,6 @@ dms-control journey "$RUN" schemas
 ## Gotchas
 
 - The playground registers DMS's own schemas too (`dms-core`, `dms-tenant`, `dms-database`), so unscoped counts move with the run; journeys scope to `shop`, `vault`, `links`, `metrics`, `demo` or read `all` from the API.
-- `a-column-named-constructor-is-listed-like-any-other-column` fails: opening the inspector of `quirks.members` (a column named `constructor`) renders an empty body, and the deep link answers a 500. Draft: `~/.cache/campaign/issues/dms-database-constructor-column.md`.
 - Clicking the header of the column the list is sorted by by default (Rows) does nothing visible; the journey leaves the default sort first.
 - The query page drops `schema` and `table` from its URL after it prefills the editor, so its check reads the editor.
 
@@ -94,5 +93,5 @@ dms-control journey "$RUN" schemas
 | No result and Clear filters | design, schemas.ts | a-filter-that-matches-nothing... |
 | On a narrow drawer the table and tabs scroll sideways | 2.schemas.md:37 | `a-narrow-inspector-scrolls-its-columns-table-and-its-tabs-sideways` |
 | First-run empty state (No table registered yet) | schemas.ts | Not driven: the playground always registers tables |
-| API routes and own-key lookups | src/routes/tables.ts, introspect.ts | the API journeys; the own-key case is the failing `constructor` journey |
+| API routes and own-key lookups | src/routes/tables.ts, introspect.ts | the API journeys; the own-key case is the `constructor` journey |
 | With modifiers keeps the tables with hashed, localized or encrypted columns (single-modifier tables) | 2.schemas.md:24 | `with-modifiers-keeps-a-table-with-only-a-hashed-only-a-localized-or-only-an-encrypted-column` |

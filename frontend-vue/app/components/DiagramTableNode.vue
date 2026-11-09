@@ -5,7 +5,7 @@ import {
 	COLUMN_ROLE_CLASSES,
 	type ColumnRole,
 	describeField,
-	describeModifier,
+	columnModifiers,
 	isPrimaryKey,
 } from '../build/utils/fieldTypes'
 
@@ -46,9 +46,7 @@ const rows = computed(() =>
 			role,
 			icon: key ? 'i-ph-key' : relation ? 'i-ph-arrow-right' : type.icon,
 			type: relation ? relation.toTable : type.label,
-			modifiers: (props.data.table.modifiers?.[name] ?? []).map(
-				describeModifier,
-			),
+			modifiers: columnModifiers(props.data.table.modifiers, name),
 			highlighted: props.data.highlighted.includes(name),
 		}
 	}),

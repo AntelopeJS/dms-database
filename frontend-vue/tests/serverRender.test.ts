@@ -145,7 +145,14 @@ describe('server render: every read is handed to the browser', () => {
 
 		const grid = await render(
 			DataGrid,
-			{ tab: { id: 'shop.orders', schema: 'shop', instance: '', table: 'orders' } },
+			{
+				tab: {
+					id: 'shop.orders',
+					schema: 'shop',
+					instance: '',
+					table: 'orders',
+				},
+			},
 			'/modules/database/data?schema=shop&table=orders',
 		)
 		const scroller = grid.html
@@ -250,6 +257,29 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).not.toContain('border-dashed')
 		expect(page.html).toContain('dms_database.inspector.cols.nullable')
 		expect(page.html).toContain('dms_database.inspector.cols.not_nullable')
+	})
+
+	it('table inspector: a column named like an Object member is listed like any other', async () => {
+		const members = {
+			name: 'members',
+			fields: { _id: { kind: 'string' }, constructor: { kind: 'string' } },
+			indexes: {},
+			relations: [],
+			modifiers: {},
+		}
+		const page = await serverRender(
+			TableInspector,
+			{ rowData: { schema: 'quirks', name: 'members' } },
+			{
+				url: '/modules/database/schemas',
+				respond: (read) =>
+					read.url === '/api/database/schemas'
+						? { schemas: [{ ...schema('quirks'), tables: [members] }] }
+						: backend(read),
+			},
+		)
+		expect(page.html).toMatch(/>\s*constructor\s*</)
+		expect(page.html).toContain('i-ph-text-aa')
 	})
 
 	it('schemas filter bar: the tables listed out of all', async () => {
