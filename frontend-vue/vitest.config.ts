@@ -33,7 +33,11 @@ export default defineConfig({
 		// `render`, not the server's `ssrRender`): what a client navigation
 		// mounts.
 		testTransformMode: {
-			web: ['**/clientNavigation.test.ts', '**/apiErrorPresentation.test.ts'],
+			web: [
+				'**/clientNavigation.test.ts',
+				'**/apiErrorPresentation.test.ts',
+				'**/connectionStatus.test.ts',
+			],
 		},
 	},
 })

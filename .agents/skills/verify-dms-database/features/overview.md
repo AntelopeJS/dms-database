@@ -23,7 +23,7 @@ The landing page of the module: whether the database answers, what it holds and 
 
 - `the-connection-card-reads-the-probe`: Healthy, the probe latency, and the table, schema, row and index totals, equal to the sums of the schemas API.
 - `a-configured-driver-label-shows-beside-the-age`: `driverLabel` names the database before the age of the check.
-- `without-a-driver-label-the-card-shows-a-dash`: the documented dash when no label is set. Fails today: product finding, draft `dms-database-overview-driver-placeholder`.
+- `without-a-driver-label-the-card-shows-a-dash`: the documented dash when no label is set.
 - `the-card-age-counts-up-and-the-probe-repeats-every-thirty-seconds`: the age counts up by the second and the page probes again after 30 seconds.
 - `schema-cards-list-every-schema-largest-first`: one card per schema, largest first, with instances, tables, rows and relations; a card opens Schemas filtered.
 - `largest-tables-rank-the-default-instances-by-rows`: five tables, biggest first, default instances only, each linking to the Data browser.
@@ -50,7 +50,7 @@ dms-control journey "$RUN" overview
 |---|---|
 | Overview: state Healthy and last check time | `the-connection-card-reads-the-probe` (Healthy), `the-card-age-counts-up-and-the-probe-repeats-every-thirty-seconds` |
 | Overview: database name from `driverLabel` | `a-configured-driver-label-shows-beside-the-age` |
-| Configuration: no label shows a dash; FAQ | `without-a-driver-label-the-card-shows-a-dash` (fails: finding) |
+| Configuration: no label shows a dash; FAQ | `without-a-driver-label-the-card-shows-a-dash` |
 | Overview: probe latency, tables, rows, indexes | `the-connection-card-reads-the-probe` |
 | Overview: one card per schema with instances, tables, rows, relations; opens Schemas filtered | `schema-cards-list-every-schema-largest-first` |
 | Overview: Largest tables, default instances | `largest-tables-rank-the-default-instances-by-rows` |

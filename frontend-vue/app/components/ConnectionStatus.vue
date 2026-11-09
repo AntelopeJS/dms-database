@@ -41,7 +41,7 @@ const checkedAgo = computed(() => {
 })
 
 const since = computed(() => {
-	const parts = [health.value.driver, checkedAgo.value].filter(Boolean)
+	const parts = [health.value.driver ?? '—', checkedAgo.value].filter(Boolean)
 	return parts.join(' · ')
 })
 
