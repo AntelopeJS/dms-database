@@ -35,7 +35,7 @@ The Diagram page draws the tables of one schema and the relations between them, 
 - `the-fold-keeps-the-twelve-column-boundary-and-every-column-an-arrow-ends-on`: 12 versus 13 columns, singular `+ 1 column`, an arrow end beyond the twelfth.
 - `a-large-schema-opens-at-forty-percent-on-its-top-left-and-fit-view-shows-it-whole`: 40 % start, overview map, `1`, `0`, Fit view.
 - `a-relation-to-a-table-not-drawn-ends-on-a-dashed-chip-that-opens-that-table`: focus, chip, opens and selects the table.
-- `a-relation-to-another-schema-ends-on-a-chip-that-opens-that-table`: FAILS on the current product (see Gotchas).
+- `a-relation-to-another-schema-ends-on-a-chip-that-opens-that-table`: the chip opens the other schema with that table selected.
 - `the-url-picks-the-schema-and-the-table-and-names-what-it-cannot-find`: deep link, not-found messages, schema picker and Back.
 - `a-schema-without-a-table-says-so-and-offers-no-note-or-auto-layout`: No tables in X.
 - `dragging-a-table-saves-the-layout-and-everyone-reads-it`: drag, Layout saved, API, reload, second tab.
@@ -68,7 +68,6 @@ dms-control journey "$RUN" diagram
 ## Gotchas
 
 - The playground adds `links` (cross-schema relation, 12, 13 and 14 column tables, named instances), `quirks` (a column named `constructor`) and `hollow` (no table), from `playground/src/bridge-schema.ts`, imported from `index.ts`.
-- A cross-schema chip opens the other schema's diagram but does not select or centre the table: `a-relation-to-another-schema-ends-on-a-chip-that-opens-that-table` fails. Draft: `~/.cache/campaign/issues/dms-database-diagram-cross-schema-chip.md`.
 - Icons are inline sprites; journeys compare them with the legend's by sprite id.
 - In focus mode the selection bar lies over the chip, so the journey presses the chip through its click handler.
 - The auto layout of `vault` is pinned to exact positions at a 1440 by 900 viewport.
@@ -80,7 +79,7 @@ dms-control journey "$RUN" diagram
 | Pick the schema, `?schema=&table=` opens a table | 3.diagram.md:8 | the-url-picks-the-schema... |
 | Columns with types; icons for key, relations, objects, encrypted; legend | 3.diagram.md:14-16 | tables-list-their-columns..., an-encrypted-column... |
 | Relation arrow from the column to its table | 3.diagram.md:16 | tables-list-their-columns... (edges, labels, markers) |
-| Dashed chip to a table not drawn, opens it | 3.diagram.md:16 | a-relation-to-a-table-not-drawn... ; another schema: failing |
+| Dashed chip to a table not drawn, opens it | 3.diagram.md:16 | a-relation-to-a-table-not-drawn..., a-relation-to-another-schema... |
 | Fold rule: 12 columns, key, arrow ends, `+ N columns`, click or Enter, Fold columns | 3.diagram.md:18 | a-table-of-more-than-twelve..., the-fold-keeps-the-twelve... |
 | Finding a hidden column unfolds the table | 3.diagram.md:18 | finding-a-column... |
 | Folding is not saved with the layout | 3.diagram.md:18 | folding-is-a-setting-of-your-own-view... |
