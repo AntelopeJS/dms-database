@@ -66,7 +66,6 @@ const emit = defineEmits<{
 	'use-instance': [instance: string]
 }>()
 
-const MAX_TABLE_ROWS = 200
 const EXAMPLE_ROWS = 10
 const CHART_ROWS = 50
 // Bars past this many are drawn sideways, a fixed height each, so their
@@ -104,11 +103,7 @@ const tableColumns = computed(() => filledColumns(rows.value, columns.value))
 const rightAligned = computed(
 	() => new Set(numericOnly(rows.value, tableColumns.value)),
 )
-const shownRows = computed(() => rows.value.slice(0, MAX_TABLE_ROWS))
 const targetLabel = computed(() => describeTarget(props.target))
-const tableCut = computed(
-	() => mode.value === 'table' && rows.value.length > MAX_TABLE_ROWS,
-)
 
 function renderCell(value: unknown): string {
 	if (value === null || value === undefined) return 'null'
@@ -482,7 +477,7 @@ const suggestion = computed(() => {
 					</thead>
 					<tbody>
 						<tr
-							v-for="(row, rowIndex) in shownRows"
+							v-for="(row, rowIndex) in rows"
 							:key="rowIndex"
 							class="group/result border-default/60 hover:bg-elevated/40 border-b last:border-0"
 						>
@@ -590,8 +585,6 @@ const suggestion = computed(() => {
 				:class="result.truncated ? 'text-warning' : ''"
 				class="size-3.5"
 			/>
-			<!-- The server cut the result and the table shows fewer still: both
-			     limits are said. -->
 			<span v-if="result.truncated">
 				{{
 					t('dms_database.query.result.truncated', {
@@ -600,15 +593,7 @@ const suggestion = computed(() => {
 					})
 				}}
 			</span>
-			<span v-if="tableCut">
-				{{
-					t('dms_database.query.result.table_first', {
-						shown: n(MAX_TABLE_ROWS),
-						total: n(rows.length),
-					})
-				}}
-			</span>
-			<span v-if="!result.truncated && !tableCut">
+			<span v-else>
 				{{
 					t(
 						'dms_database.query.result.all_shown',

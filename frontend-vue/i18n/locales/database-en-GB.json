@@ -389,7 +389,6 @@
 				"chart_unavailable": "No numeric column to plot.",
 				"all_shown": "{count} row shown. | All {count} rows shown. Results over 1,000 rows are cut; add .slice() to page through them.",
 				"truncated": "Showing {shown} of {total} rows: results are cut at 1,000. Add .slice() to page through them.",
-				"table_first": "The table shows the first {shown} of {total} rows; JSON and the CSV export hold them all.",
 				"running": "Running…",
 				"failed_local": "The query was not sent · nothing was changed",
 				"example_first": "First 10 rows of {table}"
