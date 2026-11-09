@@ -1,5 +1,42 @@
 # Changelog
 
+## v0.4.3
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.2...v0.4.3)
+
+### 🔥 Performance
+
+- **verify:** Stop journeys waiting out timeouts on a passing run ([#136](https://github.com/AntelopeJS/dms-database/pull/136))
+- **verify:** Wait on hydration and stillness instead of fixed sleeps ([#137](https://github.com/AntelopeJS/dms-database/pull/137))
+
+### 🩹 Fixes
+
+- **browse:** Accept only declared table names in resolveTable and describeUnknownQueryTarget ([#139](https://github.com/AntelopeJS/dms-database/pull/139))
+- **frontend:** Let the JSON cell editor fill the drawer's height ([#146](https://github.com/AntelopeJS/dms-database/pull/146))
+- **diagram:** Select and centre the table a cross-schema chip opens ([#143](https://github.com/AntelopeJS/dms-database/pull/143))
+- **overview:** Show a dash for the database name when driverLabel is unset ([#147](https://github.com/AntelopeJS/dms-database/pull/147))
+- **query:** Show every returned row in the Table view, up to the 1,000-row server cap ([#148](https://github.com/AntelopeJS/dms-database/pull/148))
+- **frontend:** Match the web-mode tests under a dot-directory checkout ([#140](https://github.com/AntelopeJS/dms-database/pull/140))
+- **schemas:** List a column named constructor in the inspector and the diagram ([#141](https://github.com/AntelopeJS/dms-database/pull/141))
+- **diagram:** Sort tables without relations by name, not by a `__` prefix ([#144](https://github.com/AntelopeJS/dms-database/pull/144))
+- **query:** Ask for the table name before every write ([#145](https://github.com/AntelopeJS/dms-database/pull/145))
+
+### 📖 Documentation
+
+- **readme:** Open with the AntelopeJS DMS module kit ([#150](https://github.com/AntelopeJS/dms-database/pull/150))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs/dms to 0.18.2 and drop verify publish ([#149](https://github.com/AntelopeJS/dms-database/pull/149))
+
+### 🤖 CI
+
+- Cache the test modules and run the layer tests beside the formal check ([#135](https://github.com/AntelopeJS/dms-database/pull/135))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.4.2
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.1...v0.4.2)
