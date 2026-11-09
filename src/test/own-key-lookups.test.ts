@@ -5,13 +5,18 @@ import {
   RegisterTable,
   Table,
 } from "@antelopejs/interface-database-decorators";
+import { User } from "@antelopejs/interface-dms/auth/db";
+import { formatModifier } from "../i18n/messages";
+import { DatabaseBrowseController } from "../routes/data";
+import { describeUnknownQueryTarget } from "../service/queryInspection";
 import { buildEditUpdates } from "../service/rowEdit";
 import { listSchemaSummaries } from "../service/introspect";
 import { applyFilterToList } from "../utils/query";
+import { refusal } from "./refusal";
 
 /**
- * Names a client or a column can carry that `Object.prototype` also answers
- * to (AntelopeJS/dms-database#79, #67).
+ * Names a client, a column, a table or a modifier can carry that
+ * `Object.prototype` also answers to (AntelopeJS/dms-database#79, #67, #69).
  */
 const PROTOTYPE_NAMES = [
   "constructor",
@@ -125,5 +130,47 @@ describe("[integration] table summary of columns named like Object.prototype mem
       "name",
       "toString",
     ]);
+  });
+});
+
+describe("column modifiers named like Object.prototype members", () => {
+  for (const name of PROTOTYPE_NAMES) {
+    it(`names the undeclared modifier '${name}' by its id`, () => {
+      assert.equal(formatModifier("en", name), name);
+    });
+  }
+});
+
+describe("[integration] tables named like Object.prototype members", () => {
+  const user = Object.assign(new User(), { _id: "own-key-lookups-user" });
+
+  before(async () => {
+    await RegisterSchema(SCHEMA);
+  });
+
+  for (const name of [...PROTOTYPE_NAMES, "__proto__"]) {
+    it(`refuses to browse the undeclared table '${name}'`, async () => {
+      const controller = new DatabaseBrowseController();
+      assert.deepEqual(
+        await refusal(
+          controller.count(user, `is:${SCHEMA}`, undefined, `is:${name}`),
+        ),
+        { status: 404, message: `Unknown table: ${name}` },
+      );
+    });
+
+    it(`reports a query on the undeclared table '${name}'`, async () => {
+      assert.equal(
+        await describeUnknownQueryTarget({ schema: SCHEMA, table: name }),
+        `Unknown table "${name}" in schema ${SCHEMA}`,
+      );
+    });
+  }
+
+  it("reports no declared table as unknown", async () => {
+    assert.equal(
+      await describeUnknownQueryTarget({ schema: SCHEMA, table: "things" }),
+      null,
+    );
   });
 });
