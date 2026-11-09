@@ -26,7 +26,7 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 - `invalid-drafts-are-refused-esc-cancels-and-a-click-away-decides`: the number, boolean and date messages with `Esc to cancel`, the empty and impossible drafts, an unchanged value, a click away.
 - `null-empties-a-cell-and-backslash-null-is-the-text-null`: `null`, `\null`, `\\null`, an emptied text, and the editor's escaped display of the text null.
 - `object-and-array-cells-open-the-json-editor-in-a-side-drawer`: the JSON editor drawer (resize by its edge), Invalid JSON, the scalar refusal, Cancel, Apply, null, and nested values stored as typed.
-- `the-json-editor-is-as-tall-as-the-drawer`: the JSON editor fills the drawer's height down to its footer. Fails today (see Gotchas).
+- `the-json-editor-is-as-tall-as-the-drawer`: the JSON editor fills the drawer's height down to its footer.
 - `discard-and-closing-a-tab-with-staged-changes-ask-first`: Discard, the kept preview tab, the close dialog with the count, singular and plural, and the leave guard.
 - `undo-writes-the-previous-values-back-within-the-window`: Undo restores values, null and a nested value in one PUT, announces the undone changes, and a new edit ends the offer.
 - `undo-is-offered-for-ten-seconds-then-the-values-stay`: Undo disappears 9.9 to 11.5 seconds after the click on Save, in real time, and the values stay.
@@ -60,8 +60,6 @@ dms-control journey "$RUN" editing
 - `playground/src/browse-fixtures.ts` adds two rows to `vault.accounts` (the stored form of a hashed, an encrypted and a localized column), imported from `playground/src/index.ts`.
 - `src/service/stagedSerialization.ts` and `frontend-vue/app/build/utils/stagedSerialization.ts` are the query console's wire format; the journeys use them to read rows back (`query-wire.mjs` encodes the same way) and to delete and insert rows.
 
-- `the-json-editor-is-as-tall-as-the-drawer` fails on purpose: the docs say the JSON editor is as tall as the drawer, the dashboard draws 12 lines (draft `~/.cache/campaign/issues/dms-database-json-editor-not-drawer-tall.md`).
-
 ## Coverage
 
 | Documented behaviour | Journey and check |
@@ -69,7 +67,7 @@ dms-control journey "$RUN" editing
 | docs/4.usage/4.data-browser.md:27 edits are staged, never written as you type | `edits-are-staged-then-reviewed-then-written-one-put-per-row` "typed cells are staged" (the API holds the old values) |
 | :32 double-click a cell, or press `Enter`, and type | `edits-are-staged-then-reviewed-then-written-one-put-per-row` (double-click), `object-and-array-cells-open-the-json-editor-in-a-side-drawer` (Enter and double-click), `null-empties-a-cell-and-backslash-null-is-the-text-null` (Enter) |
 | :32 object and array cells open a JSON editor in a side drawer, wide as you resize it | `object-and-array-cells-open-the-json-editor-in-a-side-drawer` "the drawer" (dragging the edge widens drawer and editor) |
-| :32 ... as tall as the drawer | `the-json-editor-is-as-tall-as-the-drawer` (fails: the editor stops at 12 lines, 244 px in a 900 px drawer) |
+| :32 ... as tall as the drawer | `the-json-editor-is-as-tall-as-the-drawer` (the editor ends within 120 px of the footer and takes over half the drawer) |
 | :32 Apply stages the value, `null` empties the cell, Cancel leaves it | `object-and-array-cells-open-the-json-editor-in-a-side-drawer` "Cancel and Apply" |
 | :32 edited cells show the old value struck through | `edits-are-staged-then-reviewed-then-written-one-put-per-row` (struck value, hover title) |
 | :36 the bar counts the unsaved changes; Review and save (`Ctrl S`) lists every change before anything is written | `edits-are-staged-then-reviewed-then-written-one-put-per-row` "the review lists every change" |
