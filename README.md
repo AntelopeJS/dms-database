@@ -12,7 +12,7 @@
 
 </div>
 
-![The Database diagram: the tables and relations of a shop schema](./docs/images/diagram-shop.png)
+<img data-illustration src="./.github/readme/hero.png" width="100%" alt="The Database diagram in the dark theme: the tables and relations of the Helio schema, with a minimap and the Auto layout button.">
 
 ## What it does
 
