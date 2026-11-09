@@ -88,7 +88,7 @@ dms-control journey "$RUN" diagram
 | Drag tables, Layout saved, shared by everyone | 3.diagram.md:26 | dragging-a-table-saves-the-layout... (everyone means platform owners, the routes are owner-only) |
 | Auto layout preview with Keep layout / Discard | 3.diagram.md:26 | auto-layout-previews-the-arrangement... |
 | Arrangement rules, folded height, clear of notes, placement of unplaced tables | 3.diagram.md:28 | auto-layout-keeps-groups-together..., a-table-not-placed-yet... |
-| Tables without relations sorted by prefix before `__` | 3.diagram.md:28 | Not driven: the interface refuses `__` in table names, no registered table has a prefix |
+| Tables without relations sorted by name | 3.diagram.md:26 | Not driven by a journey; `frontend-vue/tests/diagramLayout.test.ts` checks the row order |
 | Undo and redo cover every move | 3.diagram.md:26 | undo-and-redo-cover-every-move... |
 | Note button and `N`, double-click to write, saved with the schema, shared | 3.diagram.md:32 | n-and-the-note-button..., a-double-click-edits..., notes-belong-to-their-schema... |
 | Shortcut `F`, `N` | 3.diagram.md:38-39 | `N`: n-and-the-note-button...; `F`: finding-a-column... (focus by typing in the field) |

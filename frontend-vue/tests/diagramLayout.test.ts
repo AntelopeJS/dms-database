@@ -23,14 +23,13 @@ import {
 	overlaps,
 	PACK_GAP,
 	packBlocks,
-	prefixOrder,
 	type Rect,
 	shelfRows,
 	startViewport,
 } from '../app/build/diagram/packing'
 
 // A schema shaped like a real MongoDB one: about forty tables on their own,
-// most named `<module>__<table>`, a few groups linked by relations, a
+// most named `<module>_<table>`, a few groups linked by relations, a
 // relation to another schema, and one very tall table (60 columns) whose
 // relation column and the column pointed at sit far below the fold.
 
@@ -56,13 +55,13 @@ function to(fromField: string, toTable: string, toField = '_id'): Relation {
 
 const ISOLATED = [
 	...Array.from({ length: 12 }, (_, i) =>
-		table(`dms-core__t${String(i).padStart(2, '0')}`, 3 + (i % 6)),
+		table(`dms-core_t${String(i).padStart(2, '0')}`, 3 + (i % 6)),
 	),
 	...Array.from({ length: 10 }, (_, i) =>
-		table(`dms-tenant__t${String(i).padStart(2, '0')}`, 4 + (i % 5)),
+		table(`dms-tenant_t${String(i).padStart(2, '0')}`, 4 + (i % 5)),
 	),
 	...Array.from({ length: 8 }, (_, i) =>
-		table(`dms-files__t${String(i).padStart(2, '0')}`, 2 + (i % 7)),
+		table(`dms-files_t${String(i).padStart(2, '0')}`, 2 + (i % 7)),
 	),
 	...Array.from({ length: 10 }, (_, i) =>
 		table(`plain_${String(i).padStart(2, '0')}`, 5 + (i % 4)),
@@ -71,28 +70,28 @@ const ISOLATED = [
 
 // audit (60 columns) -> users by `user_id`, its 46th column; sessions point
 // at audit's `code`, its 31st column.
-const audit = table('dms-core__audit', 60)
+const audit = table('dms-core_audit', 60)
 audit.fields.user_id = { kind: 'string' }
-audit.relations = [to('user_id', 'dms-core__users')]
+audit.relations = [to('user_id', 'dms-core_users')]
 
 const APP = {
 	id: 'app',
 	tables: [
 		...ISOLATED,
 		audit,
-		table('dms-core__users', 6),
-		table('dms-core__sessions', 4, [
-			to('audit_code', 'dms-core__audit', 'field_30'),
+		table('dms-core_users', 6),
+		table('dms-core_sessions', 4, [
+			to('audit_code', 'dms-core_audit', 'field_30'),
 		]),
-		table('shop__orders', 5, [to('customer_id', 'shop__customers')]),
-		table('shop__customers', 4),
-		table('shop__items', 4, [
-			to('order_id', 'shop__orders'),
-			to('product_id', 'shop__products'),
+		table('shop_orders', 5, [to('customer_id', 'shop_customers')]),
+		table('shop_customers', 4),
+		table('shop_items', 4, [
+			to('order_id', 'shop_orders'),
+			to('product_id', 'shop_products'),
 		]),
-		table('shop__products', 6),
-		table('blog__posts', 5, [to('author_id', 'blog__authors')]),
-		table('blog__authors', 3),
+		table('shop_products', 6),
+		table('blog_posts', 5, [to('author_id', 'blog_authors')]),
+		table('blog_authors', 3),
 		table('invoices', 4, [
 			{
 				fromField: 'account_id',
@@ -142,9 +141,9 @@ function input(overrides: Partial<GraphInput> = {}): GraphInput {
 }
 
 const GROUPS = {
-	core: ['dms-core__audit', 'dms-core__users', 'dms-core__sessions'],
-	shop: ['shop__orders', 'shop__customers', 'shop__items', 'shop__products'],
-	blog: ['blog__posts', 'blog__authors'],
+	core: ['dms-core_audit', 'dms-core_users', 'dms-core_sessions'],
+	shop: ['shop_orders', 'shop_customers', 'shop_items', 'shop_products'],
+	blog: ['blog_posts', 'blog_authors'],
 }
 
 describe('diagram layout', () => {
@@ -191,14 +190,14 @@ describe('diagram layout', () => {
 	})
 
 	it('runs dagre left to right within a group', () => {
-		const items = placed.get('shop__items') as Rect
-		const orders = placed.get('shop__orders') as Rect
-		const customers = placed.get('shop__customers') as Rect
+		const items = placed.get('shop_items') as Rect
+		const orders = placed.get('shop_orders') as Rect
+		const customers = placed.get('shop_customers') as Rect
 		expect(items.x).toBeLessThan(orders.x)
 		expect(orders.x).toBeLessThan(customers.x)
 	})
 
-	it('places the groups first, then the tables on their own by prefix and name', () => {
+	it('places the groups first, then the tables on their own by name', () => {
 		// Rows are bands no table crosses: merge the tables' heights.
 		const bands: [number, number][] = []
 		for (const rect of [...placed.values()].sort((a, b) => a.y - b.y)) {
@@ -214,7 +213,7 @@ describe('diagram layout', () => {
 		}
 		const linked = Object.values(GROUPS).flat()
 		const lastGroupRow = Math.max(...linked.map(rowOf))
-		const order = prefixOrder(ISOLATED.map((t) => t.name))
+		const order = ISOLATED.map((t) => t.name).sort((a, b) => a.localeCompare(b))
 		// Rows follow the order: a table never sits on a row above one before it.
 		for (let i = 1; i < order.length; i++)
 			expect(rowOf(order[i] as string)).toBeGreaterThanOrEqual(
@@ -225,12 +224,6 @@ describe('diagram layout', () => {
 			Math.min(...linked.map(rowOf)),
 		)
 		expect(lastGroupRow).toBeLessThanOrEqual(rowOf(order.at(-1) as string))
-	})
-
-	it('orders by prefix, the tables without one last, then by name', () => {
-		expect(
-			prefixOrder(['plain', 'b__x', 'a__z', 'a__y', 'aa', 'b__a']),
-		).toEqual(['a__y', 'a__z', 'b__a', 'b__x', 'aa', 'plain'])
 	})
 
 	it('keeps clear of the notes', () => {
@@ -286,10 +279,10 @@ describe('diagram layout', () => {
 
 describe('folded tables', () => {
 	it('shows the first columns and every column an arrow ends on', () => {
-		const shown = shownColumns(APP, tableOf('dms-core__audit'), false)
+		const shown = shownColumns(APP, tableOf('dms-core_audit'), false)
 		expect(shown.foldable).toBe(true)
 		expect(shown.columns.slice(0, FOLDED_COLUMNS)).toEqual(
-			Object.keys(tableOf('dms-core__audit').fields).slice(0, FOLDED_COLUMNS),
+			Object.keys(tableOf('dms-core_audit').fields).slice(0, FOLDED_COLUMNS),
 		)
 		// Its key, its relation column, and the column sessions point at.
 		expect(shown.columns).toContain('_id')
@@ -297,19 +290,19 @@ describe('folded tables', () => {
 		expect(shown.columns).toContain('field_30')
 		expect(shown.columns).toHaveLength(FOLDED_COLUMNS + 2)
 		expect(shown.hiddenCount).toBe(61 - FOLDED_COLUMNS - 2)
-		const open = shownColumns(APP, tableOf('dms-core__audit'), true)
+		const open = shownColumns(APP, tableOf('dms-core_audit'), true)
 		expect(open.columns).toHaveLength(61)
 		expect(open.hiddenCount).toBe(0)
 	})
 
 	it('leaves small tables as they are, with no fold row', () => {
-		const shown = shownColumns(APP, tableOf('shop__orders'), false)
+		const shown = shownColumns(APP, tableOf('shop_orders'), false)
 		expect(shown).toMatchObject({ foldable: false, hiddenCount: 0 })
-		expect(nodeHeight(APP, tableOf('shop__orders'))).toBe(44 + 6 * 24)
+		expect(nodeHeight(APP, tableOf('shop_orders'))).toBe(44 + 6 * 24)
 	})
 
 	it('lays out at the folded height', () => {
-		const audit = tableOf('dms-core__audit')
+		const audit = tableOf('dms-core_audit')
 		expect(nodeHeight(APP, audit)).toBe(44 + (FOLDED_COLUMNS + 2 + 1) * 24)
 		expect(nodeHeight(APP, audit, true)).toBe(44 + (61 + 1) * 24)
 	})
@@ -372,9 +365,9 @@ describe('folded tables', () => {
 	})
 
 	it('draws an expanded table whole, above the others', () => {
-		const graph = buildGraph(input({ expanded: new Set(['dms-core__audit']) }))
+		const graph = buildGraph(input({ expanded: new Set(['dms-core_audit']) }))
 		const node = graph.nodes.find(
-			(n) => n.id === tableNodeId('app', 'dms-core__audit'),
+			(n) => n.id === tableNodeId('app', 'dms-core_audit'),
 		)
 		const data = node?.data as unknown as TableNodeData
 		expect(data.columns).toHaveLength(61)
@@ -384,7 +377,7 @@ describe('folded tables', () => {
 
 	it('unfolds the table a search finds a folded column in', () => {
 		const none = new Set<string>()
-		const audit = 'dms-core__audit'
+		const audit = 'dms-core_audit'
 		expect(expandForSearch(APP, audit, 'field_40', none)).toEqual(
 			new Set([audit]),
 		)

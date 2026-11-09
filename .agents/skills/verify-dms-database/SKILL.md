@@ -90,7 +90,7 @@ List these under `notVerified` in the judgement of every verdict:
 - the Table watch trigger (`database.table-watch`), its configuration, output and the replica-set failure: it needs `@antelopejs/dms-automation` and a change feed, and `dms-control` starts a standalone `mongod` (draft `dms-control-mongo-replica-set`);
 - the Overview's empty schema-cards state: the DMS registers its own schemas, so the list is never empty;
 - history rows written before runs recorded a status, and the Yesterday group of the history: a journey cannot write a legacy row or age a run;
-- the Diagram's `dms-core__` name-prefix sorting: the interface refuses table names holding `__`, so no registered table can have a prefix (see the diagram feature);
+- the Diagram's name order of the tables without relations: `frontend-vue/tests/diagramLayout.test.ts` checks it, no journey does (see the diagram feature);
 - the column completion of the console, Format, the Chart view and "Open in data browser" of a result row, until a journey drives them (listed in the query feature's coverage table);
 - the supported extension boundary (root barrel exports, no subclassing contract): a statement of non-support has no observable effect;
 - the role editor hiding one block per role: pages stay owner-only, so a hidden block has no effect an owner can see.
