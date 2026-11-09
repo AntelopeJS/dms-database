@@ -8,6 +8,10 @@ import { backendBoundary } from './build/backend-boundary.ts'
 // `@antelopejs/dms`), as `pnpm test:frontend` builds against them.
 const root = resolve(__dirname, '..', 'node_modules', '@antelopejs')
 
+/** Matches one test file wherever the checkout lives, dot directories included. */
+const testFile = (name: string) =>
+	resolve(__dirname, 'tests', name).replace(/[\\*?[\]{}()!+@|]/g, '\\$&')
+
 export default defineConfig({
 	plugins: [vue(), backendBoundary()],
 	resolve: {
@@ -34,9 +38,9 @@ export default defineConfig({
 		// mounts.
 		testTransformMode: {
 			web: [
-				'**/clientNavigation.test.ts',
-				'**/apiErrorPresentation.test.ts',
-				'**/connectionStatus.test.ts',
+				testFile('clientNavigation.test.ts'),
+				testFile('apiErrorPresentation.test.ts'),
+				testFile('connectionStatus.test.ts'),
 			],
 		},
 	},
