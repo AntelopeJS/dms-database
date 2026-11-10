@@ -172,7 +172,7 @@ function inferFieldType(value: unknown): FieldDescriptor | undefined {
 async function sampleRows(
   schema: Schema,
   tableName: string,
-  instance?: string,
+  instance?: InstanceId,
 ): Promise<unknown[]> {
   try {
     const rows: unknown[] = await schema
@@ -187,9 +187,9 @@ async function sampleRows(
 
 /**
  * The rows to infer a table's columns from: the default instance's, or, when
- * it holds none, the first named instance holding some. A schema whose data
- * lives in named instances (one per region, per tenant) otherwise shows only
- * its decorated columns.
+ * it holds none, rows read across every instance in one query. A schema whose
+ * data lives in named instances (one per region, per tenant) otherwise shows
+ * only its decorated columns.
  */
 async function sampleAnyInstance(
   schema: Schema,
@@ -197,11 +197,7 @@ async function sampleAnyInstance(
 ): Promise<unknown[]> {
   const rows = await sampleRows(schema, tableName);
   if (rows.length > 0) return rows;
-  for (const instance of await listSchemaInstances(schema)) {
-    const named = await sampleRows(schema, tableName, instance);
-    if (named.length > 0) return named;
-  }
-  return [];
+  return sampleRows(schema, tableName, CROSS_INSTANCE);
 }
 
 /**
