@@ -33,8 +33,18 @@ class SchemasPageInvoice extends Table {
   declare coupon_id: string | null;
 }
 
-/** Keeps the decorated class referenced: the decorator registers it. */
-const TABLES = [SchemasPageInvoice];
+/** A schema whose rows all live in a named instance, one per tenant. */
+const TENANTED = "schemas-page-tenanted";
+const TENANT = "tenant-1";
+
+@RegisterTable("credit_notes", TENANTED)
+class SchemasPageCreditNote extends Table {
+  declare _id: string;
+  declare amount: number;
+}
+
+/** Keeps the decorated classes referenced: the decorator registers them. */
+const TABLES = [SchemasPageInvoice, SchemasPageCreditNote];
 
 function shop() {
   const schema = Schema.get<{ invoices: SchemasPageInvoice }>(SCHEMA);
@@ -43,7 +53,7 @@ function shop() {
 }
 
 async function seed(): Promise<void> {
-  assert.equal(TABLES.length, 1);
+  assert.equal(TABLES.length, 2);
   await RegisterSchema(SCHEMA);
   await shop()
     .instance()
@@ -154,6 +164,40 @@ describe("[integration] Schemas page", () => {
       members: [{ kind: "string" }, { kind: "null" }],
     });
     assert.deepEqual(fields?.number, { kind: "string" });
+  });
+});
+
+describe("[integration] Schemas page on a tenanted schema", () => {
+  function tenanted() {
+    const schema = Schema.get<{ credit_notes: SchemasPageCreditNote }>(
+      TENANTED,
+    );
+    assert.ok(schema, "the tenanted schema is registered");
+    return schema;
+  }
+
+  before(async () => {
+    await RegisterSchema(TENANTED);
+    await tenanted()
+      .createInstance(TENANT)
+      .run()
+      .catch(() => undefined);
+    await tenanted()
+      .instance(TENANT)
+      .table("credit_notes")
+      .insert([{ _id: "cn-1", amount: 5 }])
+      .run();
+  });
+  after(() => tenanted().destroyInstance(TENANT).run());
+
+  it("types the columns of a table whose rows are all in a named instance", async () => {
+    const summary = (await listSchemaSummaries()).find(
+      (item) => item.id === TENANTED,
+    );
+    const fields = summary?.tables.find(
+      (table) => table.name === "credit_notes",
+    )?.fields;
+    assert.deepEqual(fields?.amount, { kind: "number" });
   });
 });
 
