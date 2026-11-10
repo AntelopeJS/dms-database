@@ -28,8 +28,9 @@ export const journeys = guarded([
       const accounts = tableOf(schemas.body, "vault", "accounts");
       const instances = await db(ctx, "shop instances", "GET", "/tables/instances?schema=shop");
       const none = await db(ctx, "demo instances", "GET", "/tables/instances?schema=demo");
+      const fields = pick(orders, "fields");
       await ctx.verify("the introspection", [
-        check("orders has its declared columns", ["_id", "number", "customer_id", "status", "total", "created_at"].every((name) => isRow(pick(orders, "fields")) && name in (/** @type {Record<string, unknown>} */ (pick(orders, "fields")))), pick(orders, "fields")),
+        check("orders has its declared columns", ["_id", "number", "customer_id", "status", "total", "created_at"].every((name) => isRow(fields) && name in fields), fields),
         check("orders has the indexes number, customer_id and the status_created group", JSON.stringify(Object.keys(pick(orders, "indexes") ?? {}).sort()) === JSON.stringify(["customer_id", "number", "status_created"]), pick(orders, "indexes")),
         check("orders points to customers through customer_id", list(orders, "relations").some((relation) => text(relation, "fromField") === "customer_id" && text(relation, "toTable") === "customers"), pick(orders, "relations")),
         check("accounts carries hashed, encrypted and localized modifiers on their fields", JSON.stringify(pick(accounts, "modifiers")) === JSON.stringify({ password: ["HashModifier"], card_number: ["EncryptionModifier"], display_name: ["LocalizationModifier"] }), pick(accounts, "modifiers")),

@@ -96,15 +96,18 @@ export function decodeStaged(value: JsonValue | undefined): Decoded {
   if (!isJsonObjectValue(value)) return value;
 
   if (isSerializedStaged(value)) {
-    const instance: unknown = Reflect.construct(
-      StagedObject,
-      [{ stage: "", options: undefined, args: [] }],
-      STAGED_CLASSES.get(value.__cls),
-    );
+    const cls = STAGED_CLASSES.get(value.__cls);
+    const instance = value.stages
+      .map(decodeStage)
+      .reduce<unknown>(
+        (previous, stage) =>
+          Reflect.construct(StagedObject, [stage, previous], cls),
+        undefined,
+      );
     if (!(instance instanceof StagedObject)) {
       throw new StagedDecodeError("Malformed query: invalid staged value");
     }
-    return Object.assign(instance, { stages: value.stages.map(decodeStage) });
+    return instance;
   }
   if (looksStaged(value)) {
     throw new StagedDecodeError("Malformed query: invalid staged value");
