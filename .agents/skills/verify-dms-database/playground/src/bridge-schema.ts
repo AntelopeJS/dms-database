@@ -102,5 +102,5 @@ export async function startBridgeSchemas(): Promise<void> {
   const members = schema.instance().table("members");
   if ((await members.count()) > 0) return;
   const row: MemberRow = { _id: "member_1", ["constructor"]: "ctor value", note: "plain column" };
-  await members.insert([row]).run();
+  await members.insert([row], { conflict: "update" }).run();
 }

@@ -81,8 +81,8 @@ export async function seedVault(): Promise<void> {
   if (!schema) return;
   const notes = schema.instance().table("plain_notes");
   if ((await notes.count()) > 0) return;
-  await notes.insert([{ _id: "note_1", body: "first note" }]).run();
-  await schema.instance().table("parents_registry").insert([{ _id: "reg_1", label: "registry one" }]).run();
-  await schema.instance().table("parents_links").insert([{ _id: "lnk_1", registry_id: "reg_1" }]).run();
-  await schema.instance().table("wide_records").insert([{ _id: "wide_1", registry_id: "reg_1", c01: "a", tail_marker: "tail" }]).run();
+  await notes.insert([{ _id: "note_1", body: "first note" }], { conflict: "update" }).run();
+  await schema.instance().table("parents_registry").insert([{ _id: "reg_1", label: "registry one" }], { conflict: "update" }).run();
+  await schema.instance().table("parents_links").insert([{ _id: "lnk_1", registry_id: "reg_1" }], { conflict: "update" }).run();
+  await schema.instance().table("wide_records").insert([{ _id: "wide_1", registry_id: "reg_1", c01: "a", tail_marker: "tail" }], { conflict: "update" }).run();
 }
