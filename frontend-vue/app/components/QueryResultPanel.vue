@@ -497,17 +497,19 @@ const suggestion = computed(() => {
 								{{ renderCell(row[column]) }}
 							</td>
 							<td v-if="browsable" class="px-1">
-								<UButton
+								<ULink
 									v-if="rowLink(row)"
 									:to="rowLink(row) ?? undefined"
-									icon="i-ph-arrow-square-out"
-									color="neutral"
-									variant="ghost"
-									size="xs"
-									class="opacity-0 focus-visible:opacity-100 group-hover/result:opacity-100"
+									raw
+									class="text-default hover:bg-elevated hover:text-highlighted outline-inverted/25 focus-visible:outline-3 inline-flex size-6 items-center justify-center rounded-[6px] text-xs opacity-0 transition focus-visible:opacity-100 active:scale-[0.98] group-hover/result:opacity-100"
 									:aria-label="t('dms_database.query.result.open_row')"
 									:title="t('dms_database.query.result.open_row')"
-								/>
+								>
+									<UIcon
+										name="i-ph-arrow-square-out"
+										class="size-3.5 shrink-0"
+									/>
+								</ULink>
 							</td>
 						</tr>
 					</tbody>
