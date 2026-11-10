@@ -20,6 +20,6 @@ export async function seedBrowseFixtures(): Promise<void> {
     .insert([
       { _id: "acc_ada", handle: "ada", password: ACCOUNT_PASSWORD, card_number: ACCOUNT_CARD, display_name: ACCOUNT_NAME_LONG },
       { _id: "acc_bob", handle: "bob", password: "$argon2id$v=19$stored-hash-of-bob", card_number: "enc:v1:stored-cipher-of-bob", display_name: "Bob" },
-    ])
+    ], { conflict: "update" })
     .run();
 }

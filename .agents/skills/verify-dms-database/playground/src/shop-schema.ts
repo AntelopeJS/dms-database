@@ -156,7 +156,7 @@ async function seedTable<Name extends keyof ShopTables>(
 ) {
   const target = schema.instance(region).table(table);
   if ((await target.count()) > 0) return;
-  await target.insert(rows).run();
+  await target.insert(rows, { conflict: "update" }).run();
 }
 
 /** Fills each region of the shop once, on a database that has none of it. */

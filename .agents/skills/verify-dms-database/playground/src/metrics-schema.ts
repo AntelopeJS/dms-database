@@ -36,5 +36,5 @@ export async function seedMetrics(): Promise<void> {
     band: `band-${(index % 5) + 1}`,
     value: (index * 7) % 101,
   }));
-  await readings.insert(rows).run();
+  await readings.insert(rows, { conflict: "update" }).run();
 }
