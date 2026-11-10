@@ -64,6 +64,7 @@ const FORGED_BODIES: JsonValue[] = [
   { label: "kept" },
   { __cls: "NoSuchClass", stages: [] },
   { __cls: "ValueProxy" },
+  { __cls: "ValueProxy", stages: [] },
   { stages: [] },
   { __cls: "ValueProxy", stages: [{ args: [] }] },
 ];

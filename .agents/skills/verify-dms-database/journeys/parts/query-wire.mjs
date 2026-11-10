@@ -7,7 +7,8 @@ import { db, isRow, isText, list, pick } from "../../database.mjs";
  * @typedef {import("../../database.mjs").Row} Row
  */
 
-const STAGED_CLASSES = /** @type {[string, abstract new (...args: never[]) => object][]} */ ([
+/** @type {[string, abstract new (...args: never[]) => object][]} */
+const STAGED_CLASSES = [
   ["Schema", Schema],
   ["SchemaInstance", SchemaInstance],
   ["Table", Table],
@@ -17,7 +18,7 @@ const STAGED_CLASSES = /** @type {[string, abstract new (...args: never[]) => ob
   ["Datum", Datum],
   ["Query", Query],
   ["ValueProxy", ValueProxy],
-]);
+];
 
 /**
  * The query console's wire form of a staged value: a staged object travels as its class and stages, the
