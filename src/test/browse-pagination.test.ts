@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { Schema } from "@antelopejs/interface-database";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseBrowseController } from "../routes/data";
-import { requestContext } from "./requestContext";
+import { queryContext } from "./requestContext";
 
 const SCHEMA = "browse-pagination-regression";
 const INSTANCE = "tenant-a";
@@ -50,20 +50,19 @@ describe("[integration] refined browse pagination", () => {
 
   it("returns exact filtered totals and sorted page results from one tenant", async () => {
     const controller = new DatabaseBrowseController();
-    const context = requestContext(
-      "https://example.test/?filter_name=contains:vidence",
-    );
     const result = await controller.list(
       new User(),
-      context,
-      `is:${SCHEMA}`,
-      `is:${INSTANCE}`,
-      "is:items",
-      "1",
-      "2",
-      "rank",
-      "asc",
-      "évidence",
+      queryContext({
+        filter_name: "contains:vidence",
+        filter_schema: `is:${SCHEMA}`,
+        filter_instance: `is:${INSTANCE}`,
+        filter_table: "is:items",
+        offset: "1",
+        limit: "2",
+        sortKey: "rank",
+        sortDirection: "asc",
+        search: "évidence",
+      }),
     );
     assert.equal(result.total, ROWS - MATCH_START);
     assert.deepEqual(

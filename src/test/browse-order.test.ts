@@ -7,7 +7,7 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseBrowseController } from "../routes/data";
-import { requestContext } from "./requestContext";
+import { queryContext } from "./requestContext";
 
 const SCHEMA = "browse-order-shop";
 const INSTANCE = "eu";
@@ -37,15 +37,15 @@ async function listIds(
 ) {
   const result = await new DatabaseBrowseController().list(
     USER,
-    requestContext("https://example.test/"),
-    `is:${SCHEMA}`,
-    `is:${INSTANCE}`,
-    "is:orders",
-    String(offset),
-    String(limit),
-    "",
-    direction,
-    search,
+    queryContext({
+      filter_schema: `is:${SCHEMA}`,
+      filter_instance: `is:${INSTANCE}`,
+      filter_table: "is:orders",
+      offset: String(offset),
+      limit: String(limit),
+      sortDirection: direction,
+      search,
+    }),
   );
   return result.results.map<unknown>((row) => row._id);
 }
@@ -87,10 +87,12 @@ describe("[integration] unsorted browse order", () => {
   it("keeps an edited row in its place", async () => {
     await new DatabaseBrowseController().edit(
       USER,
-      `is:${SCHEMA}`,
-      `is:${INSTANCE}`,
-      "is:orders",
-      "ord-1",
+      queryContext({
+        filter_schema: `is:${SCHEMA}`,
+        filter_instance: `is:${INSTANCE}`,
+        filter_table: "is:orders",
+        id: "ord-1",
+      }),
       { status: "shipped" },
     );
     assert.deepEqual(await listIds(0, 10), KEY_ORDER);
