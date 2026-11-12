@@ -7,14 +7,14 @@
     "anti-slop/no-unsafe-dictionary-type": 1,
     "eslint/max-params": 2,
     "typescript/no-base-to-string": 1,
-    "typescript/no-unsafe-assignment": 1,
-    "typescript/unbound-method": 1
+    "typescript/no-unsafe-assignment": 0,
+    "typescript/unbound-method": 0
   },
-  "tsExpectError": 1,
+  "tsExpectError": 0,
   "tsIgnore": 0,
   "safety": 0,
   "config": {
-    "vue/multi-word-component-names for frontend-vue/**/*.vue": 1
+    "vue/multi-word-component-names for frontend-vue/**/*.vue": 0
   },
   "agentFiles": true
 }

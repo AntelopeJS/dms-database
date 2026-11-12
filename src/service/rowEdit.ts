@@ -123,12 +123,10 @@ function resolveDateValue(
 function resolveEditValue(
   current: StoredRow,
   field: string,
-  value: JsonValue | undefined,
+  value: JsonValue,
   primaryKey: string | undefined,
 ): EditValue {
-  if (value === undefined || isProtectedField(field, primaryKey)) {
-    return SKIP_FIELD;
-  }
+  if (isProtectedField(field, primaryKey)) return SKIP_FIELD;
   if (value === null) return resolveClearedValue(current, field);
   if (isObject(value)) return resolveStructuredValue(current, field, value);
   if (!isWritableScalar(value)) return SKIP_FIELD;
@@ -148,7 +146,7 @@ function resolveEditValue(
  * Turn a form-submitted edit body (a map of field → new value) into a
  * sanitised update set. The data browser edits one cell at a time, so the body
  * usually holds a single field. Kept out of the update set:
- *   - untouched fields (undefined) and nulls over a cell already empty,
+ *   - nulls over a cell already empty,
  *   - the read-only primary key,
  *   - synthetic browse-only fields,
  *   - non-finite numbers, and
@@ -171,12 +169,7 @@ export function buildEditUpdates(
 ): Record<string, JsonValue | Date> {
   const updates = Object.fromEntries(
     Object.entries(body).flatMap(([field, value]) => {
-      const resolved = resolveEditValue(
-        current,
-        field,
-        isJsonValue(value) ? value : undefined,
-        primaryKey,
-      );
+      const resolved = resolveEditValue(current, field, value, primaryKey);
       return resolved === SKIP_FIELD ? [] : [[field, resolved]];
     }),
   );
