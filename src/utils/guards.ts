@@ -31,6 +31,16 @@ export function isNonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.length > 0;
 }
 
+/** Whether `value` is a bigint. */
+export function isBigInt(value: unknown): value is bigint {
+  return typeof value === "bigint";
+}
+
+/** Whether `value` is a symbol. */
+export function isSymbol(value: unknown): value is symbol {
+  return typeof value === "symbol";
+}
+
 /** Whether `value` is a function, a class included. */
 export function isFunction(value: unknown): value is Function {
   return typeof value === "function";

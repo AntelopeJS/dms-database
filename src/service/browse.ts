@@ -8,7 +8,15 @@ import {
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { getTablePrimaryKey } from "./introspect";
-import { isObject } from "../utils/guards";
+import {
+  isBigInt,
+  isBoolean,
+  isFunction,
+  isNumber,
+  isObject,
+  isString,
+  isSymbol,
+} from "../utils/guards";
 import {
   applyFilterToList,
   cellToText,
@@ -267,8 +275,14 @@ function gridTypeOf(descriptor: FieldDescriptor): string | undefined {
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what reports its type
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
+  if (value === undefined) return "undefined";
   if (value instanceof Date) return "date";
   if (Array.isArray(value)) return "array";
-  // oxlint-disable-next-line anti-slop/no-runtime-typeof -- the grid labels are the typeof vocabulary itself, and Antony decided on 2026-10-30 to keep typeof here rather than rebuild it from one guard per label
-  return typeof value;
+  if (isString(value)) return "string";
+  if (isNumber(value)) return "number";
+  if (isBoolean(value)) return "boolean";
+  if (isBigInt(value)) return "bigint";
+  if (isSymbol(value)) return "symbol";
+  if (isFunction(value)) return "function";
+  return "object";
 }

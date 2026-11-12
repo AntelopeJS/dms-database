@@ -3,7 +3,14 @@ import {
   type InstanceId,
 } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
-import { isBoolean, isNumber, isString } from "./guards";
+import {
+  isBigInt,
+  isBoolean,
+  isFunction,
+  isNumber,
+  isString,
+  isSymbol,
+} from "./guards";
 
 const FILTER_MODE_SEPARATOR = ":";
 const FILTER_MODE_IS = "is";
@@ -85,11 +92,11 @@ export function applyFilterToList<T extends object>(
 /**
  * Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
  * which sorts every object cell as equal; the JSON form keeps the content. A
- * cycle or a BigInt falls through to `String()`: this runs per cell on a
- * browse request, which has no catch of its own, and `String()` never threw,
- * so a search is not answered with a 500. A stored cell can carry a
- * non-callable `toString` (the browser is schemaless), which makes even that
- * throw: the cell then reads as empty.
+ * bigint, a symbol or a function, which JSON does not encode, reads as its own
+ * `toString()`. An object JSON cannot encode (a cycle, a nested bigint) reads
+ * as empty, as does a function whose `toString` throws: this runs per cell on
+ * a browse request, which has no catch of its own, so a search is not
+ * answered with a 500.
  */
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
 export function cellToText(value: unknown): string {
@@ -101,11 +108,11 @@ export function cellToText(value: unknown): string {
     if (json !== undefined) return json;
   } catch {}
   try {
-    // oxlint-disable-next-line typescript/no-base-to-string -- the cell is arbitrary JSON from a schemaless store, and the catch below handles a toString that throws
-    return String(value);
-  } catch {
-    return "";
-  }
+    if (isBigInt(value) || isSymbol(value) || isFunction(value)) {
+      return value.toString();
+    }
+  } catch {}
+  return "";
 }
 
 const SORT_DIRECTION_DESC = "desc";
