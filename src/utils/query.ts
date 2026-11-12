@@ -91,11 +91,12 @@ export function applyFilterToList<T extends object>(
 
 /**
  * Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
- * which sorts every object cell as equal; the JSON form keeps the content. A
- * bigint, a symbol or a function, which JSON does not encode, reads as its own
- * `toString()`. An object JSON cannot encode (a cycle, a nested bigint) reads
- * as empty, as does a function whose `toString` throws: this runs per cell on
- * a browse request, which has no catch of its own, so a search is not
+ * which makes every object cell match the same search and compare as equal;
+ * the JSON form keeps the content. A bigint, a symbol or a function, which
+ * JSON does not encode, reads as its own `toString()`. An object JSON cannot
+ * encode (a cycle, a nested bigint, a `toJSON` that throws or gives nothing)
+ * reads as empty, as does a function whose `toString` throws: this runs per
+ * cell on a browse request, which has no catch of its own, so a search is not
  * answered with a 500.
  */
 // oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
