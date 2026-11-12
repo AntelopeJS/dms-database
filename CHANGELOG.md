@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.4.4
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.3...v0.4.4)
+
+### 🔥 Performance
+
+- **schemas:** Sample a table's columns across instances in one query ([#153](https://github.com/AntelopeJS/dms-database/pull/153))
+- **query:** Render each result row's data browser link as a ULink ([#154](https://github.com/AntelopeJS/dms-database/pull/154))
+
+### 📦 Build
+
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.0 ([#152](https://github.com/AntelopeJS/dms-database/pull/152))
+- **deps:** Bump @antelopejs/tooling-configs to 0.5.1 ([#156](https://github.com/AntelopeJS/dms-database/pull/156))
+
+### 🤖 CI
+
+- **modules-update:** Refresh antelope-lock/ through the shared workflow ([#151](https://github.com/AntelopeJS/dms-database/pull/151))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.4.3
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.2...v0.4.3)
