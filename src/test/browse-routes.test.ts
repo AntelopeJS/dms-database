@@ -208,6 +208,10 @@ describe("[integration] browse routes: edits", () => {
       status: 400,
       message: "Missing 'id'",
     });
+    assert.deepEqual(await edit("is:alpha", "", {}), {
+      status: 400,
+      message: "Missing 'id'",
+    });
     assert.deepEqual(
       await refusal(controller.edit(USER, context("is:alpha", "i1"), [])),
       { status: 400, message: "Invalid request body" },
