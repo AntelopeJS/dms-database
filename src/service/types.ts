@@ -92,7 +92,7 @@ export interface HistoryEntry {
 }
 
 export interface ExecuteResult {
-  /** Each row a non-array object; a scalar the query answered is wrapped as `{ value }`. */
+  /** Each row a non-array object; any other answer, or list entry, is wrapped as `{ value }`. */
   rows: object[];
   /** Rows the query answered; above `rows.length` when they were cut. */
   rowCount: number;
