@@ -11,6 +11,5 @@ export default [
 	{
 		files: ['**/*.vue'],
 		languageOptions: { parserOptions: { parser: typescript } },
-		rules: { 'vue/multi-word-component-names': 'off' },
 	},
 ]

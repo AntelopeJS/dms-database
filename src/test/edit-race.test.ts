@@ -49,8 +49,8 @@ describe("[integration] public PUT edit", () => {
     const token = `${unsigned}.${createHmac("sha256", "1:edit-race-key:test-jwt-secret").update(unsigned).digest("base64url")}`;
     const table = schema.instance("race").table("items");
     await table.insert({ _id: "victim", name: "before" }).run();
-    // oxlint-disable-next-line typescript/unbound-method -- saved unbound deliberately: restored below and invoked with the query receiver
-    const originalRun = Query.prototype.run;
+    const originalRun = Object.getOwnPropertyDescriptor(Query.prototype, "run");
+    assert.ok(originalRun);
     let deleted = false;
     Query.prototype.run = async function () {
       if (
@@ -63,7 +63,8 @@ describe("[integration] public PUT edit", () => {
         deleted = true;
         await table.get("victim").delete().run();
       }
-      const answer: unknown = await originalRun.call(this);
+      Object.defineProperty(this, "run", originalRun);
+      const answer: unknown = await this.run();
       return answer;
     };
     try {
@@ -90,7 +91,7 @@ describe("[integration] public PUT edit", () => {
       assert.equal(await table.get("victim"), undefined);
       assert.equal(response.status, 404, body);
     } finally {
-      Query.prototype.run = originalRun;
+      Object.defineProperty(Query.prototype, "run", originalRun);
       await schema.destroyInstance("race").run();
       await sessions.delete(sessionId);
       await users.delete(userId);

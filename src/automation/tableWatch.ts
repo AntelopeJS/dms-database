@@ -1,6 +1,9 @@
 import { Logging } from "@antelopejs/interface-core/logging";
-import { Schema, type Table } from "@antelopejs/interface-database";
-import type { Changes } from "@antelopejs/interface-database/common";
+import { Schema } from "@antelopejs/interface-database";
+import type {
+  Changes,
+  WriteDocument,
+} from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import {
   isJsonObject,
@@ -34,7 +37,7 @@ type TableWatchOutput = {
   at: string;
 };
 
-type ChangeRow = object;
+type ChangeRow = WriteDocument;
 
 function rowOf(value: JsonValue | undefined): JsonObject | null {
   return value !== undefined && isJsonObjectValue(value) ? value : null;
@@ -138,11 +141,9 @@ function resolveEventTypes(
  * read with done and closes the server-side change stream.
  */
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
-  const schema = Schema.get(schemaId);
+  const schema = Schema.get<Record<string, ChangeRow>>(schemaId);
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
-  // oxlint-disable-next-line typescript/no-unsafe-assignment -- Schema.get returns a Schema of any, so table() answers Table<any>, and a table-watch trigger names any schema; Schema.get with a record type trades this for dictionary findings and dropping the local only moves the any into the returned feed
-  const table: Table<ChangeRow> = schema.instance().table(tableName);
-  return table.changes().cursor();
+  return schema.instance().table(tableName).changes().cursor();
 }
 
 function emitChange(

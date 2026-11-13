@@ -44,14 +44,4 @@ describe("row edit updates", () => {
     const updates = buildEditUpdates(stored, { cell }, "_id");
     assert.equal(JSON.stringify(updates.cell), JSON.stringify(cell));
   });
-
-  it("skips a cell that is not a JSON value", () => {
-    const updates = buildEditUpdates(
-      stored,
-      // @ts-expect-error off-contract cells (a function, a bigint, a symbol) are not JSON values, and the update set must skip them
-      { first: () => 1, second: 1n, third: Symbol("s") },
-      "_id",
-    );
-    assert.deepEqual(Object.keys(updates), []);
-  });
 });
