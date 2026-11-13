@@ -45,6 +45,23 @@ import {
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 200;
 
+/**
+ * A query-string input as `@Parameter(name, "query")` reads it, kept only
+ * when it is a non-empty string.
+ */
+function readQueryText(ctx: RequestContext, name: string): string | undefined {
+  return ctx.url.searchParams.get(name) || undefined;
+}
+
+/** The schema, instance and table a browse request names in its query string. */
+function readSelection(ctx: RequestContext) {
+  return resolveSelection(
+    readQueryText(ctx, "filter_schema"),
+    readQueryText(ctx, "filter_instance"),
+    readQueryText(ctx, "filter_table"),
+  );
+}
+
 /** One table of the data browser's list, counted in the browsed instance. */
 interface BrowseTableEntry {
   name: string;
@@ -56,40 +73,20 @@ export class DatabaseBrowseController extends Controller(
   "/api/database/browse",
 ) {
   @Get("/list")
-  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
-  async list(
-    @AuthRawUser() _user: User,
-    @Context() ctx: RequestContext,
-    @Parameter("filter_schema", "query") schemaFilter: unknown,
-    @Parameter("filter_instance", "query") instanceFilter: unknown,
-    @Parameter("filter_table", "query") tableFilter: unknown,
-    @Parameter("offset", "query") offsetRaw: unknown,
-    @Parameter("limit", "query") limitRaw: unknown,
-    @Parameter("sortKey", "query") sortKey: unknown,
-    @Parameter("sortDirection", "query") sortDirection: unknown,
-    @Parameter("search", "query") searchRaw: unknown,
-  ) {
-    const selection = resolveSelection(
-      isString(schemaFilter) ? schemaFilter : undefined,
-      isString(instanceFilter) ? instanceFilter : undefined,
-      isString(tableFilter) ? tableFilter : undefined,
-    );
+  async list(@AuthRawUser() _user: User, @Context() ctx: RequestContext) {
     return fetchRows({
-      ...selection,
-      offset: Math.max(
-        0,
-        parseInteger(isString(offsetRaw) ? offsetRaw : undefined, 0),
-      ),
+      ...readSelection(ctx),
+      offset: Math.max(0, parseInteger(readQueryText(ctx, "offset"), 0)),
       limit: clamp(
-        parseInteger(isString(limitRaw) ? limitRaw : undefined, DEFAULT_LIMIT),
+        parseInteger(readQueryText(ctx, "limit"), DEFAULT_LIMIT),
         1,
         MAX_LIMIT,
       ),
-      sortKey: isNonEmptyString(sortKey) ? sortKey : undefined,
+      sortKey: readQueryText(ctx, "sortKey"),
       sortDirection: normalizeSortDirection(
-        isString(sortDirection) ? sortDirection : undefined,
+        readQueryText(ctx, "sortDirection"),
       ),
-      search: isNonEmptyString(searchRaw) ? searchRaw : undefined,
+      search: readQueryText(ctx, "search"),
       columnFilters: readColumnFilters(ctx),
     });
   }
@@ -234,27 +231,19 @@ export class DatabaseBrowseController extends Controller(
    * rather than paying a second read.
    */
   @Put("/edit")
-  // oxlint-disable-next-line eslint/max-params -- each parameter is bound to a request input by its decorator, so the framework hands them in positionally: an options object is not expressible here
   async edit(
     @AuthRawUser() _user: User,
-    @Parameter("filter_schema", "query") schemaFilter: unknown,
-    @Parameter("filter_instance", "query") instanceFilter: unknown,
-    @Parameter("filter_table", "query") tableFilter: unknown,
-    @Parameter("id", "query") idRaw: unknown,
+    @Context() ctx: RequestContext,
     @JSONBody() body: JsonValue | undefined,
   ) {
-    const selection = resolveSelection(
-      isString(schemaFilter) ? schemaFilter : undefined,
-      isString(instanceFilter) ? instanceFilter : undefined,
-      isString(tableFilter) ? tableFilter : undefined,
-    );
+    const selection = readSelection(ctx);
     assert(
       selection.instance !== CROSS_INSTANCE,
       400,
       "Editing is disabled when browsing across all instances",
     );
-    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
-    const id = idRaw;
+    const id = readQueryText(ctx, "id");
+    assert(id !== undefined, 400, "Missing 'id'");
     assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
 
     const table = resolveTable(selection);

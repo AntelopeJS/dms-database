@@ -13,3 +13,8 @@ export function requestContext(url: string): RequestContext {
     response: new HTTPResult(200),
   };
 }
+
+/** A request context whose query string carries `query`. */
+export function queryContext(query: Record<string, string>): RequestContext {
+  return requestContext(`https://example.test/?${new URLSearchParams(query)}`);
+}

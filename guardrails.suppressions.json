@@ -5,7 +5,7 @@
     "anti-slop/no-runtime-typeof": 1,
     "anti-slop/no-unknown-parameters": 4,
     "anti-slop/no-unsafe-dictionary-type": 1,
-    "eslint/max-params": 2,
+    "eslint/max-params": 0,
     "typescript/no-base-to-string": 1,
     "typescript/no-unsafe-assignment": 0,
     "typescript/unbound-method": 0

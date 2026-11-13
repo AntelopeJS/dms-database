@@ -5,7 +5,7 @@ import { DatabaseBrowseController } from "../routes/data";
 import { DatabaseTablesController } from "../routes/tables";
 import type { JsonObject, JsonValue } from "../types/json";
 import { refusal } from "./refusal";
-import { requestContext } from "./requestContext";
+import { queryContext } from "./requestContext";
 
 const SCHEMA = "browse-routes-qa";
 const USER = Object.assign(new User(), { _id: "browse-routes-user" });
@@ -189,12 +189,17 @@ describe("[integration] browse routes: edits", () => {
 
   it("refuses an edit across instances, without an id or with a bad body", async () => {
     const controller = new DatabaseBrowseController();
-    const edit = (
-      instance: string,
-      id: JsonValue | undefined,
-      body: JsonObject,
-    ) =>
-      refusal(controller.edit(USER, IS_SCHEMA, instance, IS_ITEMS, id, body));
+    const selection = (instance: string) => ({
+      filter_schema: IS_SCHEMA,
+      filter_instance: instance,
+      filter_table: IS_ITEMS,
+    });
+    const context = (instance: string, id: string | undefined) =>
+      queryContext(
+        id === undefined ? selection(instance) : { ...selection(instance), id },
+      );
+    const edit = (instance: string, id: string | undefined, body: JsonObject) =>
+      refusal(controller.edit(USER, context(instance, id), body));
     assert.deepEqual(await edit("is:__CROSS_INSTANCE__", "i1", {}), {
       status: 400,
       message: "Editing is disabled when browsing across all instances",
@@ -203,15 +208,17 @@ describe("[integration] browse routes: edits", () => {
       status: 400,
       message: "Missing 'id'",
     });
+    assert.deepEqual(await edit("is:alpha", "", {}), {
+      status: 400,
+      message: "Missing 'id'",
+    });
     assert.deepEqual(
-      await refusal(
-        controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1", []),
-      ),
+      await refusal(controller.edit(USER, context("is:alpha", "i1"), [])),
       { status: 400, message: "Invalid request body" },
     );
     assert.deepEqual(
       await refusal(
-        controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1", undefined),
+        controller.edit(USER, context("is:alpha", "i1"), undefined),
       ),
       { status: 400, message: "Invalid request body" },
     );
@@ -224,7 +231,16 @@ describe("[integration] browse routes: edits", () => {
   it("edits only what changed and skips the protected and the empty", async () => {
     const controller = new DatabaseBrowseController();
     const edit = (body: JsonObject) =>
-      controller.edit(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i2", body);
+      controller.edit(
+        USER,
+        queryContext({
+          filter_schema: IS_SCHEMA,
+          filter_instance: "is:alpha",
+          filter_table: IS_ITEMS,
+          id: "i2",
+        }),
+        body,
+      );
     assert.deepEqual(
       await edit({ name: "second", count: "5", _id: "other", _instance: "x" }),
       { _id: "i2", _instance: "alpha", name: "second", count: 5, tags: ["x"] },
@@ -311,15 +327,14 @@ describe("[integration] table routes", () => {
     const controller = new DatabaseBrowseController();
     const page = await controller.list(
       USER,
-      requestContext("https://example.test/?filter_name=contains:SEC"),
-      IS_SCHEMA,
-      "is:alpha",
-      IS_ITEMS,
-      undefined,
-      undefined,
-      "name",
-      "desc",
-      undefined,
+      queryContext({
+        filter_name: "contains:SEC",
+        filter_schema: IS_SCHEMA,
+        filter_instance: "is:alpha",
+        filter_table: IS_ITEMS,
+        sortKey: "name",
+        sortDirection: "desc",
+      }),
     );
     assert.deepEqual(
       page.results.map<unknown>((row) => row._id),

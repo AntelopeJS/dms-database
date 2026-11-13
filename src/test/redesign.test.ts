@@ -21,7 +21,7 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import { listRowReferences } from "../service/references";
-import { requestContext } from "./requestContext";
+import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "redesign-shop";
@@ -30,6 +30,12 @@ const USER = Object.assign(new User(), {
   _id: "redesign-user",
   language: "fr",
 });
+const orderSelection = {
+  filter_schema: `is:${SCHEMA}`,
+  filter_instance: `is:${INSTANCE}`,
+  filter_table: "is:orders",
+};
+const orderContext = (id: string) => queryContext({ ...orderSelection, id });
 
 @RegisterTable("customers", SCHEMA)
 class RedesignCustomer extends Table {
@@ -166,13 +172,7 @@ describe("[integration] v2 redesign: browsing", () => {
   });
   it("clears a field with null and keeps a date cell a date", async () => {
     const controller = new DatabaseBrowseController();
-    const selection = [
-      `is:${SCHEMA}`,
-      `is:${INSTANCE}`,
-      "is:orders",
-      "o3",
-    ] as const;
-    await controller.edit(USER, ...selection, {
+    await controller.edit(USER, orderContext("o3"), {
       status: null,
       created_at: "2026-10-05T08:00:00.000Z",
     });
@@ -184,16 +184,9 @@ describe("[integration] v2 redesign: browsing", () => {
   it("refuses a value that is not a date for a date cell", async () => {
     const controller = new DatabaseBrowseController();
     await assert.rejects(
-      controller.edit(
-        USER,
-        `is:${SCHEMA}`,
-        `is:${INSTANCE}`,
-        "is:orders",
-        "o3",
-        {
-          created_at: "not a date",
-        },
-      ),
+      controller.edit(USER, orderContext("o3"), {
+        created_at: "not a date",
+      }),
       (error: { getStatus(): number }) => error.getStatus() === 400,
     );
   });
@@ -232,24 +225,17 @@ describe("[integration] v2 redesign: browsing", () => {
 describe("[integration] v2 redesign: edits", () => {
   it("answers an edit with the row as the listing then serves it", async () => {
     const controller = new DatabaseBrowseController();
-    const table = [`is:${SCHEMA}`, `is:${INSTANCE}`, "is:orders"] as const;
     const orders = shop().instance(INSTANCE).table("orders");
     const listed = async (id: string): Promise<string> => {
       const page = await controller.list(
         USER,
-        requestContext("https://example.test/"),
-        ...table,
-        "0",
-        "50",
-        undefined,
-        undefined,
-        undefined,
+        queryContext({ ...orderSelection, offset: "0", limit: "50" }),
       );
       return JSON.stringify(page.results.find((row) => row._id === id));
     };
     const before = await orders.get("o2");
     try {
-      const answer: unknown = await controller.edit(USER, ...table, "o2", {
+      const answer: unknown = await controller.edit(USER, orderContext("o2"), {
         status: "shipped",
         created_at: "2026-10-06T09:00:00.000Z",
         notes: { gift: true, tags: ["red"] },
@@ -262,14 +248,18 @@ describe("[integration] v2 redesign: edits", () => {
         JSON.parse(JSON.stringify(answer)).created_at,
         "2026-10-06T09:00:00.000Z",
       );
-      const unchanged: unknown = await controller.edit(USER, ...table, "o2", {
-        status: "shipped",
-      });
+      const unchanged: unknown = await controller.edit(
+        USER,
+        orderContext("o2"),
+        {
+          status: "shipped",
+        },
+      );
       assert.deepEqual(
         JSON.parse(JSON.stringify(unchanged)),
         JSON.parse(await listed("o2")),
       );
-      const cleared: unknown = await controller.edit(USER, ...table, "o2", {
+      const cleared: unknown = await controller.edit(USER, orderContext("o2"), {
         notes: null,
       });
       assert.deepEqual(
