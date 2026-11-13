@@ -62,11 +62,11 @@ function toSchemaDefinition(summary: SchemaSummary): SchemaDefLike {
 
 function buildSchemasMap(
 	summaries: SchemaSummary[],
-): Record<string, Schema<unknown, SchemaDefLike>> {
-	const bindings: Record<string, Schema<unknown, SchemaDefLike>> = {}
+): Record<string, Schema<unknown, unknown>> {
+	const bindings: Record<string, Schema<unknown, unknown>> = {}
 	for (const summary of summaries) {
 		bindings[summary.id] =
-			Schema.get<unknown, SchemaDefLike>(summary.id) ??
+			Schema.get(summary.id) ??
 			new Schema(summary.id, toSchemaDefinition(summary))
 	}
 	return bindings
@@ -155,7 +155,7 @@ function compile(code: string, text: string): QueryFunction {
 function evaluateUserCode(
 	code: string,
 	text: string,
-	schemas: Record<string, Schema<unknown, SchemaDefLike>>,
+	schemas: Record<string, Schema<unknown, unknown>>,
 ): unknown {
 	return compile(code, text)(
 		guardSchemas(schemas),
