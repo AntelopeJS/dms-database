@@ -5,7 +5,7 @@ import {
 	registerUnsavedChanges,
 	resetUnsavedChanges,
 } from '#dms-ui/app/build/composables/unsaved-changes/registry'
-import { browserMount, menuLocks } from './fixtures/serverRender'
+import { browserMount, menuLocks, serverRender } from './fixtures/serverRender'
 import type { BackendRead } from './fixtures/serverRender'
 import {
 	CONNECTIONS_URL,
