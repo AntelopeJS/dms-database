@@ -120,13 +120,15 @@ describe("[integration] diagram layout routes", () => {
       controller.putLayout(USER, OTHER_SCHEMA_NAME, {
         positions: { orders: { x, y: 0 } },
       });
-    await Promise.all([save(1), save(2)]);
-    const rows = await GetModel(DiagramLayoutModel).getBy(
-      "schemaName",
-      OTHER_SCHEMA_NAME,
-    );
-    assert.equal(rows.length, 1);
-    await GetModel(DiagramLayoutModel).delete(OTHER_SCHEMA_NAME);
+    const layouts = GetModel(DiagramLayoutModel);
+    try {
+      await Promise.all([save(1), save(2)]);
+      const rows = await layouts.getBy("schemaName", OTHER_SCHEMA_NAME);
+      assert.equal(rows.length, 1);
+    } finally {
+      for (const row of await layouts.getBy("schemaName", OTHER_SCHEMA_NAME))
+        await layouts.delete(row._id);
+    }
   });
 
   it("keeps a stored layout that no longer parses from failing the read", async () => {
