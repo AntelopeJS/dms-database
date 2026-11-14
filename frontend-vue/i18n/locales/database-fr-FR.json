@@ -217,7 +217,8 @@
 				"rows_gone": "{count} ligne n'existe plus : ses modifications ont été abandonnées. | {count} lignes n'existent plus : leurs modifications ont été abandonnées.",
 				"not_written": "{count} modification n'a pas été écrite et reste préparée ({error}). | {count} modifications n'ont pas été écrites et restent préparées ({error}).",
 				"undo_partial": "{count} modification n'a pas pu être annulée | {count} modifications n'ont pas pu être annulées",
-				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus."
+				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus.",
+				"database_changed": "La base sélectionnée a changé dans un autre onglet : rechargez la page."
 			},
 			"row": {
 				"position": "Ligne {index} sur {total}",
@@ -241,6 +242,34 @@
 				"not_structured": "La valeur doit être un objet JSON, un tableau ou null.",
 				"apply": "Appliquer",
 				"help": "Un objet ou une liste. Tapez null pour vider la cellule."
+			}
+		},
+		"connections": {
+			"own": "Base du projet",
+			"external": "Externe",
+			"engine_unknown": "Moteur inconnu",
+			"switcher": {
+				"label": "Base de données",
+				"menu": "Choisir la base à parcourir",
+				"failed": "La base n'a pas pu être changée.",
+					"connect": "Connecter une base"
+			},
+			"access": {
+				"read": "Accès à {name} : lecture seule",
+				"read_write": "Accès à {name} : lecture et écriture",
+				"toggle": "Autoriser les modifications de {name}",
+				"account_read_only": "Ce compte peut seulement lire. Utilisez un compte avec accès en écriture pour autoriser les modifications.",
+				"account_unverified": "Les droits d'écriture de ce compte n'ont pas pu être vérifiés.",
+				"failed": "L'accès à la base n'a pas pu être modifié.",
+				"confirm": {
+					"title": "Autoriser les modifications de {name} ?",
+					"description": "{name} est la base en production de votre client. Les modifications enregistrées y sont écrites aussitôt, et le DMS ne peut pas les annuler.",
+					"action": "Autoriser les modifications",
+					"cancel": "Rester en lecture seule"
+				}
+			},
+			"locked": {
+				"reason": "Indisponible sur une base externe"
 			}
 		},
 		"diagram": {

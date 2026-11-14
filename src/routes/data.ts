@@ -12,20 +12,26 @@ import { CROSS_INSTANCE } from "@antelopejs/interface-database";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import {
+  assertDefaultInstance,
   fetchColumns,
   fetchRows,
   fetchTotal,
-  readColumnFilters,
+  readBrowseQuery,
   resolveSelection,
   resolveTable,
 } from "../service/browse";
 import {
+  assertSupported,
+  assertWritable,
+  resolveSelectedDatabase,
+  STALE_DATABASE,
+} from "../service/connectionState";
+import {
   getTableElementCount,
-  getTablePrimaryKey,
   listSchemaSummaries,
 } from "../service/introspect";
 import { listRowReferences, type RowReference } from "../service/references";
-import { buildEditUpdates } from "../service/rowEdit";
+import { editRow } from "../service/rowEdit";
 import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
 import {
@@ -34,16 +40,7 @@ import {
   isRecord,
   isString,
 } from "../utils/guards";
-import {
-  clamp,
-  decodeInstanceFilter,
-  normalizeSortDirection,
-  parseInteger,
-  unwrapIsFilter,
-} from "../utils/query";
-
-const DEFAULT_LIMIT = 25;
-const MAX_LIMIT = 200;
+import { decodeInstanceFilter, unwrapIsFilter } from "../utils/query";
 
 /**
  * A query-string input as `@Parameter(name, "query")` reads it, kept only
@@ -73,27 +70,16 @@ export class DatabaseBrowseController extends Controller(
   "/api/database/browse",
 ) {
   @Get("/list")
-  async list(@AuthRawUser() _user: User, @Context() ctx: RequestContext) {
-    return fetchRows({
-      ...readSelection(ctx),
-      offset: Math.max(0, parseInteger(readQueryText(ctx, "offset"), 0)),
-      limit: clamp(
-        parseInteger(readQueryText(ctx, "limit"), DEFAULT_LIMIT),
-        1,
-        MAX_LIMIT,
-      ),
-      sortKey: readQueryText(ctx, "sortKey"),
-      sortDirection: normalizeSortDirection(
-        readQueryText(ctx, "sortDirection"),
-      ),
-      search: readQueryText(ctx, "search"),
-      columnFilters: readColumnFilters(ctx),
-    });
+  async list(@AuthRawUser() user: User, @Context() ctx: RequestContext) {
+    return fetchRows(
+      await resolveSelectedDatabase(user._id),
+      readBrowseQuery(ctx),
+    );
   }
 
   @Get("/count")
   async count(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
@@ -103,7 +89,8 @@ export class DatabaseBrowseController extends Controller(
       isString(instanceFilter) ? instanceFilter : undefined,
       isString(tableFilter) ? tableFilter : undefined,
     );
-    return { total: await fetchTotal(selection) };
+    const db = await resolveSelectedDatabase(user._id);
+    return { total: await fetchTotal(db, selection) };
   }
 
   /**
@@ -116,7 +103,7 @@ export class DatabaseBrowseController extends Controller(
    */
   @Get("/columns")
   async columns(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
@@ -126,11 +113,12 @@ export class DatabaseBrowseController extends Controller(
       isString(instanceFilter) ? instanceFilter : undefined,
       isString(tableFilter) ? tableFilter : undefined,
     );
-    const meta = await fetchColumns(selection);
+    const db = await resolveSelectedDatabase(user._id);
+    const meta = await fetchColumns(db, selection);
     return {
       columns: meta.columns,
       types: meta.types,
-      primaryKey: getTablePrimaryKey(selection.schema, selection.table) ?? null,
+      primaryKey: db.primaryKey(selection.schema, selection.table) ?? null,
     };
   }
 
@@ -140,7 +128,7 @@ export class DatabaseBrowseController extends Controller(
    */
   @Get("/tables")
   async tables(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
   ): Promise<ListResult<BrowseTableEntry>> {
@@ -151,7 +139,9 @@ export class DatabaseBrowseController extends Controller(
     const instance = decodeInstanceFilter(
       isString(instanceFilter) ? instanceFilter : undefined,
     );
-    const summary = (await listSchemaSummaries()).find(
+    const db = await resolveSelectedDatabase(user._id);
+    assertDefaultInstance(db, instance);
+    const summary = (await listSchemaSummaries(db)).find(
       (candidate) => candidate.id === schemaId,
     );
     assert(summary, 404, `Unknown schema: ${schemaId}`);
@@ -159,6 +149,7 @@ export class DatabaseBrowseController extends Controller(
       summary.tables.map(async (table) => ({
         name: table.name,
         elementCount: await getTableElementCount(
+          db,
           schemaId,
           table.name,
           instance,
@@ -171,12 +162,14 @@ export class DatabaseBrowseController extends Controller(
   /** Rows of other tables pointing at one row, per relation column. */
   @Get("/references")
   async references(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
     @Parameter("id", "query") idRaw: unknown,
   ): Promise<ListResult<RowReference>> {
+    const db = await resolveSelectedDatabase(user._id);
+    assertSupported(db, "rowReferences");
     const selection = resolveSelection(
       isString(schemaFilter) ? schemaFilter : undefined,
       isString(instanceFilter) ? instanceFilter : undefined,
@@ -189,9 +182,10 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const row: unknown = await resolveTable(selection).get(id).run();
+    const row: unknown = await resolveTable(db, selection).get(id).run();
     assert(isRecord(row), 404, "Row not found");
     const items = await listRowReferences(
+      db,
       selection.schema,
       selection.table,
       new Map(Object.entries(row)),
@@ -202,7 +196,7 @@ export class DatabaseBrowseController extends Controller(
 
   @Get("/get")
   async get(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("filter_schema", "query") schemaFilter: unknown,
     @Parameter("filter_instance", "query") instanceFilter: unknown,
     @Parameter("filter_table", "query") tableFilter: unknown,
@@ -215,55 +209,30 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const table = resolveTable(selection);
+    const table = resolveTable(
+      await resolveSelectedDatabase(user._id),
+      selection,
+    );
     const row: unknown = await table.get(id).run();
     assert(isObject(row), 404, "Row not found");
     return row;
   }
 
-  /**
-   * Writes are scoped to a single instance: the cross-instance view is a
-   * read-only union, so there is no unambiguous row to mutate. The adapter
-   * counts modified rows, not matches: zero can mean either a concurrent
-   * deletion or an unchanged value, and only a read distinguishes them, so a
-   * successful save of a row that no longer exists is never echoed. Otherwise
-   * the values are validated and type-stable, so the merged row is echoed
-   * rather than paying a second read.
-   */
   @Put("/edit")
   async edit(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Context() ctx: RequestContext,
     @JSONBody() body: JsonValue | undefined,
   ) {
     const selection = readSelection(ctx);
-    assert(
-      selection.instance !== CROSS_INSTANCE,
-      400,
-      "Editing is disabled when browsing across all instances",
-    );
     const id = readQueryText(ctx, "id");
     assert(id !== undefined, 400, "Missing 'id'");
     assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
-
-    const table = resolveTable(selection);
-    const target = table.get(id);
-    const existing: unknown = await target.run();
-    assert(isRecord(existing), 404, "Row not found");
-    const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
-    const updates = buildEditUpdates(
-      new Map(Object.entries(existing)),
-      body,
-      primaryKey,
-    );
-    if (Object.keys(updates).length > 0) {
-      const changed = await target.update(updates).run();
-      if (changed === 0) {
-        const persisted: unknown = await target.run();
-        assert(isObject(persisted), 404, "Row not found");
-        return persisted;
-      }
-    }
-    return { ...existing, ...updates };
+    const db = await resolveSelectedDatabase(user._id);
+    const connection = readQueryText(ctx, "connection");
+    assert(connection !== undefined, 400, "Missing 'connection'");
+    assert(connection === db.connection, 409, STALE_DATABASE);
+    assertWritable(db);
+    return editRow(db, selection, id, body);
   }
 }

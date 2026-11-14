@@ -28,9 +28,9 @@ import {
   decoratedFieldsOf,
   type SchemaTableDefinition,
 } from "./declaredFields";
+import type { Database, OWN_CONNECTION } from "./database";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { resolveSchemaLabel } from "./schemaLabels";
-import { getRegistry } from "./schemaRegistry";
 import type {
   RelationDeclaration,
   SchemaStats,
@@ -44,6 +44,29 @@ const FIELDS_TTL_MS = 30_000;
 const FIELD_INFERENCE_SAMPLE_SIZE = 5;
 const UNKNOWN_DESCRIPTOR: FieldDescriptor = { kind: "unknown" };
 const NULL_DESCRIPTOR: FieldDescriptor = { kind: "null" };
+
+/**
+ * The own connection's id, typed by `OWN_CONNECTION`: importing the value
+ * would close an import cycle, since `database.ts` reads this module.
+ */
+const OWN: typeof OWN_CONNECTION = "own";
+
+/**
+ * Whether a database's tables have instances. Only the project's own database
+ * does: an external collection has none, and its provider refuses a named
+ * instance and the stages that create or destroy one.
+ */
+export function hasInstances(db: Database): boolean {
+  return db.connection === OWN;
+}
+
+/**
+ * A cache key scoped to a database, so an own and an external schema of the
+ * same id never share an entry.
+ */
+function cacheKey(db: Database, ...parts: string[]): string {
+  return JSON.stringify([db.connection, ...parts]);
+}
 
 const warnedRelations = new Set<string>();
 
@@ -187,16 +210,17 @@ async function sampleRows(
 
 /**
  * The rows to infer a table's columns from: the default instance's, or, when
- * it holds none, rows read across every instance in one query. A schema whose
- * data lives in named instances (one per region, per tenant) otherwise shows
- * only its decorated columns.
+ * it holds none and the database has instances, rows read across every
+ * instance in one query. A schema whose data lives in named instances (one
+ * per region, per tenant) otherwise shows only its decorated columns.
  */
 async function sampleAnyInstance(
+  db: Database,
   schema: Schema,
   tableName: string,
 ): Promise<unknown[]> {
   const rows = await sampleRows(schema, tableName);
-  if (rows.length > 0) return rows;
+  if (rows.length > 0 || !hasInstances(db)) return rows;
   return sampleRows(schema, tableName, CROSS_INSTANCE);
 }
 
@@ -259,18 +283,28 @@ function inferFromRows(rows: unknown[]): TableSummary["fields"] {
   return Object.fromEntries(inferred);
 }
 
-async function inferTableFields(
-  schemaId: string,
-  schema: Schema,
-  tableName: string,
-): Promise<Record<string, FieldDescriptor>> {
-  const cacheKey = `${schemaId}::${tableName}`;
-  const cached = fieldsCache.get(cacheKey);
+interface TableRef {
+  db: Database;
+  schemaId: string;
+  schema: Schema;
+  tableName: string;
+}
+
+async function inferTableFields({
+  db,
+  schemaId,
+  schema,
+  tableName,
+}: TableRef): Promise<Record<string, FieldDescriptor>> {
+  const key = cacheKey(db, schemaId, tableName);
+  const cached = fieldsCache.get(key);
   const now = Date.now();
   if (cached && cached.expiresAt > now) return cached.value;
 
-  const inferred = inferFromRows(await sampleAnyInstance(schema, tableName));
-  fieldsCache.set(cacheKey, {
+  const inferred = inferFromRows(
+    await sampleAnyInstance(db, schema, tableName),
+  );
+  fieldsCache.set(key, {
     value: inferred,
     expiresAt: now + FIELDS_TTL_MS,
   });
@@ -283,18 +317,16 @@ async function inferTableFields(
  * sampled rows tell both (D-20).
  */
 async function summarizeTable(
-  id: string,
-  schema: Schema,
-  tableName: string,
+  table: TableRef,
   def: SchemaTableDefinition,
-  tableClasses: ReturnType<typeof getTablesForSchema>,
 ): Promise<TableSummary> {
-  const TableClass = tableClasses?.[tableName];
+  const { db, schemaId: id, tableName } = table;
+  const TableClass = db.tableClasses(id)?.[tableName];
   const relations = TableClass
     ? resolveRelations(id, tableName, TableClass)
     : [];
   const declared = decoratedFieldsOf(TableClass);
-  const sampled = await inferTableFields(id, schema, tableName);
+  const sampled = await inferTableFields(table);
   const modifiers = resolveModifiers(TableClass);
 
   const declaredTypes = declaredFieldTypes(def, declared);
@@ -340,22 +372,25 @@ async function summarizeTable(
 }
 
 async function summarizeSchema(
+  db: Database,
   id: string,
   schema: Schema,
 ): Promise<SchemaSummary> {
-  const tableClasses = getTablesForSchema(id);
   const tables: TableSummary[] = await Promise.all(
     Object.entries(schema.definition).map(([tableName, def]) =>
-      summarizeTable(id, schema, tableName, def, tableClasses),
+      summarizeTable({ db, schemaId: id, schema, tableName }, def),
     ),
   );
   return { id, options: {}, tables };
 }
 
-export async function listSchemaSummaries(): Promise<SchemaSummary[]> {
-  const entries = Array.from(getRegistry().entries());
+/** Every schema of a database, with its tables' fields, relations and modifiers. */
+export async function listSchemaSummaries(
+  db: Database,
+): Promise<SchemaSummary[]> {
+  const entries = Array.from(db.schemas().entries());
   return Promise.all(
-    entries.map(([id, schema]) => summarizeSchema(id, schema)),
+    entries.map(([id, schema]) => summarizeSchema(db, id, schema)),
   );
 }
 
@@ -363,11 +398,12 @@ const tableCountCache = new Map<string, { value: number; expiresAt: number }>();
 
 /** `String()` also handles the `CROSS_INSTANCE` symbol. */
 function tableCountKey(
+  db: Database,
   schemaId: string,
   tableName: string,
   instance?: InstanceId,
 ): string {
-  return `${schemaId}::${String(instance ?? "")}::${tableName}`;
+  return cacheKey(db, schemaId, String(instance ?? ""), tableName);
 }
 
 async function countTableRows(
@@ -392,9 +428,15 @@ async function cachedCount(
   return value;
 }
 
+/**
+ * A schema's named instances; none on a database without instances, which is
+ * never asked.
+ */
 export async function listSchemaInstances(
+  db: Database,
   schema: Pick<Schema, "listInstances">,
 ): Promise<string[]> {
+  if (!hasInstances(db)) return [];
   try {
     const named = await schema.listInstances().run();
     if (!Array.isArray(named)) return [];
@@ -404,27 +446,34 @@ export async function listSchemaInstances(
   }
 }
 
+/** Rows of a table in one instance, the default one when none is named. */
 export async function getTableElementCount(
+  db: Database,
   schemaId: string,
   tableName: string,
   instance?: InstanceId,
 ): Promise<number> {
-  const schema = getRegistry().get(schemaId);
+  const schema = db.schemas().get(schemaId);
   if (!schema) return 0;
-  return cachedCount(tableCountKey(schemaId, tableName, instance), () =>
+  return cachedCount(tableCountKey(db, schemaId, tableName, instance), () =>
     countTableRows(schema, tableName, instance).catch(() => 0),
   );
 }
 
-/** Rows of a table in every instance at once: one cross-instance count. */
+/**
+ * Rows of a table in every instance at once: one cross-instance count, or the
+ * default instance's on a database without instances.
+ */
 export async function getTableTotalCount(
+  db: Database,
   schemaId: string,
   tableName: string,
 ): Promise<number> {
-  const schema = getRegistry().get(schemaId);
-  if (!schema) return 0;
-  return cachedCount(tableCountKey(schemaId, tableName, CROSS_INSTANCE), () =>
-    countTableRows(schema, tableName, CROSS_INSTANCE).catch(() => 0),
+  return getTableElementCount(
+    db,
+    schemaId,
+    tableName,
+    hasInstances(db) ? CROSS_INSTANCE : undefined,
   );
 }
 
@@ -434,13 +483,14 @@ interface SchemaInsights {
 }
 
 async function computeInsights(
+  db: Database,
   id: string,
   schema: Schema,
 ): Promise<SchemaInsights> {
   const tableNames = Object.keys(schema.definition);
   const [counts, instances] = await Promise.all([
-    Promise.all(tableNames.map((name) => getTableElementCount(id, name))),
-    listSchemaInstances(schema),
+    Promise.all(tableNames.map((name) => getTableElementCount(db, id, name))),
+    listSchemaInstances(db, schema),
   ]);
   return {
     stats: {
@@ -460,28 +510,31 @@ interface CachedInsights {
 const insightsCache = new Map<string, CachedInsights>();
 
 async function getInsights(
+  db: Database,
   id: string,
   schema: Schema,
 ): Promise<SchemaInsights> {
-  const cached = insightsCache.get(id);
+  const key = cacheKey(db, id);
+  const cached = insightsCache.get(key);
   const now = Date.now();
   if (cached && cached.expiresAt > now) return cached.value;
 
-  const insights = await computeInsights(id, schema);
-  insightsCache.set(id, { value: insights, expiresAt: now + STATS_TTL_MS });
+  const insights = await computeInsights(db, id, schema);
+  insightsCache.set(key, { value: insights, expiresAt: now + STATS_TTL_MS });
   return insights;
 }
 
-export async function listSchemaSummariesWithStats(): Promise<
-  SchemaSummaryWithStats[]
-> {
+/** Every schema of a database, with its row counts and named instances. */
+export async function listSchemaSummariesWithStats(
+  db: Database,
+): Promise<SchemaSummaryWithStats[]> {
   const overrides = getModuleConfig().schemaLabels;
-  const entries = Array.from(getRegistry().entries());
+  const entries = Array.from(db.schemas().entries());
   const summaries = await Promise.all(
     entries.map(async ([id, schema]) => {
       const [base, insights] = await Promise.all([
-        summarizeSchema(id, schema),
-        getInsights(id, schema),
+        summarizeSchema(db, id, schema),
+        getInsights(db, id, schema),
       ]);
       const label = resolveSchemaLabel(id, overrides);
       return {

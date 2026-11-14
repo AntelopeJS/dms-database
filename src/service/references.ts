@@ -1,4 +1,5 @@
-import { type InstanceId, Schema } from "@antelopejs/interface-database";
+import type { InstanceId } from "@antelopejs/interface-database";
+import type { Database } from "./database";
 import { listSchemaSummaries } from "./introspect";
 import type { RelationDeclaration } from "./types";
 
@@ -17,16 +18,18 @@ interface InboundRelation extends RelationDeclaration {
 }
 
 interface CountInput {
+  db: Database;
   relation: InboundRelation;
   value: unknown;
   instance: InstanceId | undefined;
 }
 
 async function listInboundRelations(
+  db: Database,
   schema: string,
   table: string,
 ): Promise<InboundRelation[]> {
-  const summaries = await listSchemaSummaries();
+  const summaries = await listSchemaSummaries(db);
   return summaries.flatMap((summary) =>
     summary.tables.flatMap((candidate) =>
       candidate.relations
@@ -48,11 +51,12 @@ async function listInboundRelations(
  * default instance.
  */
 async function countReferences({
+  db,
   relation,
   value,
   instance,
 }: CountInput): Promise<number> {
-  const source = Schema.get(relation.fromSchema);
+  const source = db.schemas().get(relation.fromSchema);
   if (!source) return 0;
   const scope =
     relation.fromSchema === relation.toSchema ? instance : undefined;
@@ -75,12 +79,13 @@ async function countReferences({
  * at the given row, one entry per relation column.
  */
 export async function listRowReferences(
+  db: Database,
   schema: string,
   table: string,
   row: ReadonlyMap<string, unknown>,
   instance: InstanceId | undefined,
 ): Promise<RowReference[]> {
-  const relations = await listInboundRelations(schema, table);
+  const relations = await listInboundRelations(db, schema, table);
   return Promise.all(
     relations.map(async (relation) => ({
       schema: relation.fromSchema,
@@ -88,6 +93,7 @@ export async function listRowReferences(
       field: relation.fromField,
       many: relation.many,
       count: await countReferences({
+        db,
         relation,
         value: row.get(relation.toField),
         instance,

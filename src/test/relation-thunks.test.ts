@@ -8,6 +8,7 @@ import {
   RegisterTable,
   Table,
 } from "@antelopejs/interface-database-decorators";
+import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
 
 const SCHEMA = "relation-thunks-shop";
@@ -117,7 +118,7 @@ describe("a relation whose target thunk throws", () => {
     listener.register(record);
     try {
       await RegisterSchema(SCHEMA);
-      const summary = (await listSchemaSummaries()).find(
+      const summary = (await listSchemaSummaries(OWN_DATABASE)).find(
         (s) => s.id === SCHEMA,
       );
       const table = summary?.tables.find((t) => t.name === "throwers");

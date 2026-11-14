@@ -3,6 +3,7 @@ covers:
   - src/routes/query.ts
   - src/service/queryInspection.ts
   - frontend-vue/app/components/QueryConsole.vue
+  - frontend-vue/app/build/components/QueryConsoleBoard.vue
   - frontend-vue/app/components/QueryResultPanel.vue
 docs:
   - docs/4.usage/5.query-console.md

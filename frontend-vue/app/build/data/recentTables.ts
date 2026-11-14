@@ -46,3 +46,9 @@ export function rememberTable(entry: Omit<RecentTable, 'openedAt'>) {
 		// A full or private storage only loses the suggestions.
 	}
 }
+
+/** Drops the suggestions: they name the tables of the database browsed before a switch. */
+export function forgetRecentTables(): void {
+	if (typeof window === 'undefined') return
+	window.localStorage?.removeItem(STORAGE_KEY)
+}

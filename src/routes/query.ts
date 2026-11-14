@@ -20,6 +20,10 @@ import {
   type SavedQueryRow,
 } from "../db";
 import {
+  assertSupported,
+  resolveSelectedDatabase,
+} from "../service/connectionState";
+import {
   affectedRows,
   containsMutation,
   describeUnknownQueryTarget,
@@ -264,6 +268,15 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
 
 const QUERY_FAILED = "Query execution failed";
 
+/**
+ * Refuses a run while the user browses an external database: the console
+ * reads the project's own schemas. Saved queries and the history are the
+ * console's own data and stay available.
+ */
+async function assertQueryConsoleAvailable(user: User): Promise<void> {
+  assertSupported(await resolveSelectedDatabase(user._id), "queryConsole");
+}
+
 @AuthOwnerOnly()
 export class DatabaseQueryController extends Controller("/api/database/query") {
   @Post("/execute")
@@ -271,6 +284,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     @AuthRawUser() user: User,
     @JSONBody() body: ExecuteBody,
   ): Promise<ExecuteResult> {
+    await assertQueryConsoleAvailable(user);
     const { query, source, language, root } = parseExecuteBody(body);
     const mutation = containsMutation(root);
     const historyModel = GetModel(QueryHistoryModel);
@@ -338,9 +352,10 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
    */
   @Post("/dry-run")
   async dryRun(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @JSONBody() body: ExecuteBody,
   ): Promise<DryRunResult> {
+    await assertQueryConsoleAvailable(user);
     const query = body?.query;
     assert(isJsonObject(query), 400, "Expected query to be an object");
     const root = decodeRunnable(query);

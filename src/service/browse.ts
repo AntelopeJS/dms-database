@@ -1,13 +1,10 @@
 import type { RequestContext } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
-import {
-  type InstanceId,
-  Schema,
-  type Stream,
-} from "@antelopejs/interface-database";
+import type { InstanceId, Stream } from "@antelopejs/interface-database";
+import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
-import { getTablePrimaryKey } from "./introspect";
+import { hasInstances } from "./introspect";
 import {
   isBigInt,
   isBoolean,
@@ -20,10 +17,18 @@ import {
 import {
   applyFilterToList,
   cellToText,
+  clamp,
   decodeInstanceFilter,
+  normalizeSortDirection,
+  parseInteger,
   type SortDirection,
   unwrapIsFilter,
 } from "../utils/query";
+
+/** Rows a page holds when the request names no `limit`. */
+export const DEFAULT_LIMIT = 25;
+/** The most rows a page holds. */
+export const MAX_LIMIT = 200;
 
 /**
  * Rows sampled by `/columns` to union column names and infer coarse types; a
@@ -86,6 +91,34 @@ export function readColumnFilters(ctx: RequestContext): ColumnFilter[] {
   return filters;
 }
 
+/**
+ * Reads a page request from the browse query parameters: `filter_schema`,
+ * `filter_instance` and `filter_table` select the table, then `offset`,
+ * `limit`, `sortKey`, `sortDirection`, `search` and each `filter_<column>`.
+ *
+ * @param ctx The request
+ * @returns The page to read
+ */
+export function readBrowseQuery(ctx: RequestContext): BrowseQuery {
+  const params = ctx.url.searchParams;
+  const read = (name: string) => params.get(name) ?? undefined;
+  const sortKey = read("sortKey");
+  const search = read("search");
+  return {
+    ...resolveSelection(
+      read("filter_schema"),
+      read("filter_instance"),
+      read("filter_table"),
+    ),
+    offset: Math.max(0, parseInteger(read("offset"), 0)),
+    limit: clamp(parseInteger(read("limit"), DEFAULT_LIMIT), 1, MAX_LIMIT),
+    sortKey: sortKey || undefined,
+    sortDirection: normalizeSortDirection(read("sortDirection")),
+    search: search || undefined,
+    columnFilters: readColumnFilters(ctx),
+  };
+}
+
 export function resolveSelection(
   schemaFilter: string | undefined,
   instanceFilter: string | undefined,
@@ -102,8 +135,27 @@ export function resolveSelection(
   };
 }
 
-export function resolveTable(selection: BrowseSelection) {
-  const schema = Schema.get(selection.schema);
+/**
+ * Refuses an instance, named or every one, on a database whose tables have
+ * none: the console reads an external database in its default instance.
+ *
+ * @param db The database read
+ * @param instance The instance the request names
+ */
+export function assertDefaultInstance(
+  db: Database,
+  instance: InstanceId | undefined,
+): void {
+  assert(
+    instance === undefined || hasInstances(db),
+    400,
+    `${db.connection} has no instances: read its tables without one`,
+  );
+}
+
+export function resolveTable(db: Database, selection: BrowseSelection) {
+  assertDefaultInstance(db, selection.instance);
+  const schema = db.schemas().get(selection.schema);
   assert(schema, 404, `Unknown schema: ${selection.schema}`);
   assert(
     isObject(schema.definition) &&
@@ -147,9 +199,9 @@ async function refinePage<Row extends object>(
  * repeat and skip rows. The primary key is surfaced so the data browser knows
  * which column identifies a row when the user edits it.
  */
-export async function fetchRows(query: BrowseQuery) {
-  const table = resolveTable(query);
-  const primaryKey = getTablePrimaryKey(query.schema, query.table);
+export async function fetchRows(db: Database, query: BrowseQuery) {
+  const table = resolveTable(db, query);
+  const primaryKey = db.primaryKey(query.schema, query.table);
   const sorted = query.sortKey
     ? table.orderBy(query.sortKey, query.sortDirection)
     : primaryKey
@@ -182,8 +234,11 @@ export async function fetchRows(query: BrowseQuery) {
   };
 }
 
-export async function fetchTotal(selection: BrowseSelection): Promise<number> {
-  const table = resolveTable(selection);
+export async function fetchTotal(
+  db: Database,
+  selection: BrowseSelection,
+): Promise<number> {
+  const table = resolveTable(db, selection);
   return table.count().run();
 }
 
@@ -206,9 +261,10 @@ interface ColumnsMeta {
  * shortest first).
  */
 export async function fetchColumns(
+  db: Database,
   selection: BrowseSelection,
 ): Promise<ColumnsMeta> {
-  const table = resolveTable(selection);
+  const table = resolveTable(db, selection);
   const sample: unknown[] = await table.slice(0, COLUMN_SAMPLE_SIZE).run();
   const columns: string[] = [];
   const typeByColumn = new Map<string, string>();
@@ -230,6 +286,7 @@ export async function fetchColumns(
     }
   }
   const declared = getDeclaredFieldTypes(
+    db,
     selection.schema,
     selection.table,
     columns,
@@ -240,6 +297,7 @@ export async function fetchColumns(
     if (type) typeByColumn.set(column, type);
   }
   const ordered = getDeclaredFieldOrder(
+    db,
     selection.schema,
     selection.table,
   ).filter((name) => typeByColumn.has(name));

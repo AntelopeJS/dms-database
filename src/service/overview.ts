@@ -10,6 +10,7 @@ import type { Tone } from "@antelopejs/interface-dms/base/types/tone";
 import { QueryHistoryModel, type QueryHistoryRow } from "../db";
 import { DATABASE_PATHS } from "../module";
 import { OVERVIEW_FEED_LIMIT, SLOW_QUERY_MS } from "../types/constants";
+import type { Database } from "./database";
 import { getOverviewHealth } from "./health";
 import { listSchemaSummariesWithStats } from "./introspect";
 import type { QueryRunStatus, SchemaSummaryWithStats } from "./types";
@@ -67,17 +68,17 @@ function schemaCard(summary: SchemaSummaryWithStats): NavCardItem {
   };
 }
 
-/** One card per registered schema, largest first. */
-export async function listSchemaCards(): Promise<NavCardItem[]> {
-  const summaries = await listSchemaSummariesWithStats();
+/** One card per schema of a database, largest first. */
+export async function listSchemaCards(db: Database): Promise<NavCardItem[]> {
+  const summaries = await listSchemaSummariesWithStats(db);
   return summaries
     .sort((left, right) => right.stats.elementCount - left.stats.elementCount)
     .map(schemaCard);
 }
 
-/** The tables holding the most rows, across every schema. */
-export async function listLargestTables(): Promise<TopListItem[]> {
-  const { storage } = await getOverviewHealth();
+/** The tables of a database holding the most rows, across every schema. */
+export async function listLargestTables(db: Database): Promise<TopListItem[]> {
+  const { storage } = await getOverviewHealth(db);
   return storage.slice(0, OVERVIEW_FEED_LIMIT).map((entry) => ({
     id: `${entry.schema}::${entry.table}`,
     title: entry.table,

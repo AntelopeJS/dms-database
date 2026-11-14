@@ -64,6 +64,15 @@ function browserTabId(schema: string, instance: string, table: string): string {
 	return `${schema}::${instance}::${table}`
 }
 
+/**
+ * Drops the tabs this browser tab kept: they name tables of the database
+ * that was browsed, which the next one may not hold.
+ */
+export function forgetBrowserTabs(): void {
+	if (typeof window === 'undefined') return
+	window.sessionStorage.removeItem(STORAGE_KEY)
+}
+
 interface PersistedTabs {
 	tabs: BrowserTab[]
 	activeId: string | null

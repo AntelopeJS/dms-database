@@ -5,6 +5,7 @@ covers:
   - src/db/models/diagram_*.ts
   - src/db/tables/diagram_*.ts
   - frontend-vue/app/components/SchemaDiagram.vue
+  - frontend-vue/app/build/components/SchemaDiagramBoard.vue
   - frontend-vue/app/components/DiagramNoteNode.vue
   - frontend-vue/app/components/DiagramRelationEdge.vue
   - frontend-vue/app/components/DiagramStubNode.vue

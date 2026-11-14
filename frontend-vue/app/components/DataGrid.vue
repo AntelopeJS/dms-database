@@ -4,6 +4,7 @@ import {
 	DEFAULT_INSTANCE_VALUE,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
+import { useGridAccess } from '../build/composables/useGridAccess'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import {
 	browseListQuery,
@@ -68,8 +69,15 @@ const { tabs: browserTabs, pinTab, openTab, replaceTab } = useDataBrowserTabs()
 const { open: openDrawer } = useDrawer()
 const { schemas } = useDatabaseSchemas()
 
+const {
+	crossInstance,
+	readOnly,
+	showReferences,
+	canOpenQuery,
+	canSearchAllInstances,
+} = useGridAccess(() => props.tab)
+
 const state = grid.getState(props.tab.id)
-const readOnly = computed(() => props.tab.instance === CROSS_INSTANCE_VALUE)
 
 // --- data loading ---
 const selection = computed(() => browseSelectionQuery(props.tab))
@@ -127,7 +135,8 @@ const rows = computed(() => data.value?.rows ?? [])
 const total = computed(() => data.value?.total ?? 0)
 const rowIdKey = computed(() => data.value?.primaryKey ?? DEFAULT_PRIMARY_KEY)
 const visibleColumns = computed(() =>
-	readOnly.value || !columns.value.some((column) => column.name === '_instance')
+	crossInstance.value ||
+	!columns.value.some((column) => column.name === '_instance')
 		? columns.value
 		: columns.value.filter((column) => column.name !== '_instance'),
 )
@@ -227,7 +236,7 @@ function resizeColumn(name: string, width: number) {
 // --- links out ---
 function openInQueryConsole() {
 	const instance =
-		props.tab.instance === DEFAULT_INSTANCE_VALUE || readOnly.value
+		props.tab.instance === DEFAULT_INSTANCE_VALUE || crossInstance.value
 			? undefined
 			: props.tab.instance
 	const source = `${tableAccess({ schema: props.tab.schema, table: props.tab.table, instance })}.slice(0, 100)`
@@ -475,6 +484,7 @@ function rowDrawerOptions(index: number) {
 			columns: visibleColumns.value,
 			table: props.table,
 			readOnly: readOnly.value,
+			showReferences: showReferences.value,
 			onStage: stage,
 			onReview: review,
 		},
@@ -502,7 +512,7 @@ function openRow(index: number) {
 function rowKey(row: Record<string, unknown>, index: number): string | number {
 	const id = rowIdOf(row)
 	if (id === null) return index
-	return readOnly.value ? `${String(row._instance ?? '')}::${id}` : id
+	return crossInstance.value ? `${String(row._instance ?? '')}::${id}` : id
 }
 
 const hasRefinements = computed(
@@ -534,6 +544,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 			:table="tab.table"
 			:total="total"
 			:loading="loading"
+			:can-open-query="canOpenQuery"
 			@reload="reload"
 			@open-query="openInQueryConsole"
 		/>
@@ -546,7 +557,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 		/>
 
 		<DataGridReadOnlyBanner
-			v-if="readOnly"
+			v-if="crossInstance"
 			:table="tab.table"
 			:instances="namedInstances"
 			@switch-instance="switchInstance"
@@ -642,7 +653,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 				:loading="loading"
 				:empty="rows.length === 0"
 				:has-refinements="hasRefinements"
-				:read-only="readOnly"
+				:read-only="!canSearchAllInstances"
 				@reload="reload"
 				@clear-refinements="clearRefinements"
 				@search-all="switchInstance(CROSS_INSTANCE_VALUE)"

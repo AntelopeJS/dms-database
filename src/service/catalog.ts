@@ -5,19 +5,20 @@ import {
   type LocaleCarrier,
   localeOf,
 } from "../i18n/messages";
+import { OWN_DATABASE } from "./database";
 import { getOverviewHealth } from "./health";
 
 const SEPARATOR = " · ";
 
 /**
- * The two lines of the module's catalog tile: what the database holds, then
- * how the connection answers.
+ * The two lines of the module's catalog tile: what the project's own database
+ * holds, then how its connection answers.
  */
 export async function readCatalogReadout(
   user: LocaleCarrier | undefined,
 ): Promise<ModuleReadoutLine[]> {
   const locale = localeOf(user);
-  const health = await getOverviewHealth();
+  const health = await getOverviewHealth(OWN_DATABASE);
   if (health.status === "down") {
     return [{ text: formatMessage(locale, "connectionDown"), tone: "error" }];
   }

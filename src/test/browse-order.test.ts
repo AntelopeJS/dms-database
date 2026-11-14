@@ -92,6 +92,7 @@ describe("[integration] unsorted browse order", () => {
         filter_instance: `is:${INSTANCE}`,
         filter_table: "is:orders",
         id: "ord-1",
+        connection: "own",
       }),
       { status: "shipped" },
     );

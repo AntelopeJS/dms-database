@@ -4,11 +4,21 @@ import { join } from "node:path";
 import { version as DMS_VERSION } from "@antelopejs/dms/package.json";
 import { defineConfig } from "@antelopejs/interface-core/config";
 import { MongoMemoryReplSet } from "mongodb-memory-server-core";
+import {
+  CONFIG_WRITER_STUB,
+  DMS_DATABASE_OVERRIDES,
+  externalModules,
+  externalModuleConfigs,
+  MONGO_AUTH,
+  rootUri,
+  seedExternalDatabases,
+} from "./externalDatabases";
 
 const API_PORT = 5023;
 const JWT_SECRET = "test-jwt-secret";
 const HTML_RENDER_SECRET = "test-html-render-secret";
 const MONGO_BINARY_VERSION = "8.0.8";
+const DATABASE = "@antelopejs/interface-database";
 
 let mongod: MongoMemoryReplSet;
 let storageDir: string;
@@ -30,12 +40,14 @@ export default defineConfig({
       },
       config: {
         externalConnections: {
-          erp: { access: "read-write" },
+          ledger: { access: "read-write" },
           legacy: { access: "read" },
           blank: {},
         },
       },
+      importOverrides: [...DMS_DATABASE_OVERRIDES, CONFIG_WRITER_STUB],
     },
+    ...externalModules(),
     dms: {
       source: process.env.DMS_SOURCE
         ? {
@@ -47,6 +59,7 @@ export default defineConfig({
             package: "@antelopejs/dms",
             version: DMS_VERSION,
           },
+      importOverrides: [{ interface: DATABASE, source: "mongodb" }],
       config: {
         /**
          * No frontend server runs here: the dashboard URL is the API, whose
@@ -114,15 +127,20 @@ export default defineConfig({
     folder: "dist/test",
     async setup() {
       mongod = await MongoMemoryReplSet.create({
-        replSet: { count: 1 },
+        replSet: { count: 1, auth: MONGO_AUTH },
         binary: { version: MONGO_BINARY_VERSION },
       });
       storageDir = await mkdtemp(join(tmpdir(), "dms-database-test-storage-"));
+      await seedExternalDatabases(mongod.getUri());
       return {
         modules: {
           mongodb: {
-            config: { url: mongod.getUri(), database: "dms-database-test" },
+            config: {
+              url: rootUri(mongod.getUri()),
+              database: "dms-database-test",
+            },
           },
+          ...externalModuleConfigs(mongod.getUri()),
           "file-storage-local": {
             config: {
               storagePath: storageDir,

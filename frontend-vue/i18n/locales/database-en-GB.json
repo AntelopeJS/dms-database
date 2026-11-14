@@ -217,7 +217,8 @@
 				"rows_gone": "{count} row no longer exists: its changes were dropped. | {count} rows no longer exist: their changes were dropped.",
 				"not_written": "{count} change wasn't written and stays staged ({error}). | {count} changes weren't written and stay staged ({error}).",
 				"undo_partial": "{count} change couldn't be undone | {count} changes couldn't be undone",
-				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist."
+				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist.",
+				"database_changed": "The selected database changed in another tab: reload the page."
 			},
 			"row": {
 				"position": "Row {index} of {total}",
@@ -241,6 +242,34 @@
 				"not_structured": "The value must be a JSON object, an array or null.",
 				"apply": "Apply",
 				"help": "An object or a list. Type null to empty the cell."
+			}
+		},
+		"connections": {
+			"own": "Project database",
+			"external": "External",
+			"engine_unknown": "Unknown engine",
+			"switcher": {
+				"label": "Database",
+				"menu": "Choose the database to browse",
+				"failed": "The database could not be switched.",
+					"connect": "Connect a database"
+			},
+			"access": {
+				"read": "Access to {name}: Read only",
+				"read_write": "Access to {name}: Read & write",
+				"toggle": "Allow changes to {name}",
+				"account_read_only": "This account can only read. Use an account with write access to allow changes.",
+				"account_unverified": "This account's write access could not be checked.",
+				"failed": "The access to the database could not be changed.",
+				"confirm": {
+					"title": "Allow changes to {name}?",
+					"description": "{name} is your customer's live database. Changes you save are written to it at once, and the DMS cannot undo them.",
+					"action": "Allow changes",
+					"cancel": "Keep read only"
+				}
+			},
+			"locked": {
+				"reason": "Not available on an external database"
 			}
 		},
 		"diagram": {

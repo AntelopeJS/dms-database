@@ -64,7 +64,7 @@ const config: VerifyConfig = {
   smokeJourney: "onboard, open the Overview, find a registered schema's table in Schemas, read its rows in the Data browser, run a query on it",
   doors: {
     data: {
-      globs: ["src/routes/data.ts", "src/routes/query.ts", "src/routes/diagram.ts", "src/service/rowEdit.ts", "src/service/queryInspection.ts", "frontend-vue/app/build/data/useStagedSave.ts", "frontend-vue/app/build/data/stagedWrites.ts", "frontend-vue/app/components/QueryConsole.vue"],
+      globs: ["src/routes/data.ts", "src/routes/query.ts", "src/routes/diagram.ts", "src/service/rowEdit.ts", "src/service/queryInspection.ts", "frontend-vue/app/build/data/useStagedSave.ts", "frontend-vue/app/build/data/stagedWrites.ts", "frontend-vue/app/components/QueryConsole.vue", "frontend-vue/app/build/components/QueryConsoleBoard.vue"],
       funnels: [],
       why: "a saved edit and a confirmed write query go straight to the database, and a deleted row, note or layout is not brought back by a revert of the code",
     },

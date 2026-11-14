@@ -13,6 +13,7 @@ import { QueryHistoryModel } from "../db";
 import { DatabaseBrowseController } from "../routes/data";
 import { DatabaseQueryController } from "../routes/query";
 import { DatabaseTablesController } from "../routes/tables";
+import { OWN_DATABASE } from "../service/database";
 import { listRecentQueries, listSchemaCards } from "../service/overview";
 import {
   containsMutation,
@@ -36,7 +37,9 @@ const orderSelection = {
   filter_instance: `is:${INSTANCE}`,
   filter_table: "is:orders",
 };
-const orderContext = (id: string) => queryContext({ ...orderSelection, id });
+/** An edit of one order, made on the project's own database. */
+const orderContext = (id: string) =>
+  queryContext({ ...orderSelection, id, connection: "own" });
 
 @RegisterTable("customers", SCHEMA)
 class RedesignCustomer extends Table {
@@ -155,6 +158,7 @@ describe("[integration] v2 redesign: browsing", () => {
   });
   it("counts the rows of other tables pointing at a row", async () => {
     const [orders] = await listRowReferences(
+      OWN_DATABASE,
       SCHEMA,
       "customers",
       new Map(Object.entries({ _id: "c1" })),
@@ -194,7 +198,9 @@ describe("[integration] v2 redesign: browsing", () => {
     );
   });
   it("describes each schema as a card the dashboard composes", async () => {
-    const card = (await listSchemaCards()).find((item) => item.id === SCHEMA);
+    const card = (await listSchemaCards(OWN_DATABASE)).find(
+      (item) => item.id === SCHEMA,
+    );
     assert.ok(card);
     const key = (name: string) => `$dms_database.overview.schemas.card.${name}`;
     assert.equal(card.to, `/modules/database/schemas?scope=${SCHEMA}`);

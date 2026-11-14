@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { Schema } from "@antelopejs/interface-database";
 import { fetchColumns, resolveSelection } from "../service/browse";
+import { OWN_DATABASE } from "../service/database";
 import { cellToText } from "../utils/query";
 
 const SCHEMA = "cell-labels";
@@ -65,6 +66,7 @@ describe("[integration] the type a sampled cell gives its column", () => {
       })
       .run();
     const meta = await fetchColumns(
+      OWN_DATABASE,
       resolveSelection(`is:${SCHEMA}`, undefined, "is:cells"),
     );
     assert.deepEqual(Object.fromEntries(Object.entries(meta.types)), {

@@ -6,6 +6,7 @@ import {
 	tabInstanceOf,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
+import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import { useTableCounts } from '../build/composables/useTableCounts'
 import type { InstanceChoice } from '../build/data/instanceOptions'
 import { onKeyStroke } from '@vueuse/core'
@@ -34,6 +35,7 @@ const emit = defineEmits<{ retry: [] }>()
 const { t, n } = useI18n()
 const { tabs, activeId, activeTab, activations, openTab } = useDataBrowserTabs()
 const route = useDmsRoute()
+const { lacks } = useDatabaseConnections()
 
 const schemaId = ref<string | null>(null)
 const instance = ref<string>(DEFAULT_INSTANCE_VALUE)
@@ -158,7 +160,7 @@ onKeyStroke('t', (event) => {
 
 <template>
 	<aside
-		class="border-default bg-default flex max-h-[40vh] w-full shrink-0 flex-col border-b md:h-full md:max-h-none md:w-[264px] md:border-r md:border-b-0"
+		class="border-default bg-default flex max-h-[40vh] w-full shrink-0 flex-col border-b md:h-full md:max-h-none md:w-[264px] md:border-b-0 md:border-r"
 	>
 		<div class="border-default grid gap-2 border-b p-3">
 			<DmsEyebrow :label="t('dms_database.data.scope.schema')" />
@@ -175,15 +177,20 @@ onKeyStroke('t', (event) => {
 				class="w-full"
 				@update:model-value="pickSchema"
 			/>
-			<DmsEyebrow class="mt-1" :label="t('dms_database.data.scope.instance')" />
-			<InstancePicker
-				:model-value="instanceChoice"
-				:schema="schemaId"
-				all-mode="readonly"
-				:disabled="!schemaId"
-				class="w-full"
-				@update:model-value="pickInstance"
-			/>
+			<template v-if="!lacks('instances')">
+				<DmsEyebrow
+					class="mt-1"
+					:label="t('dms_database.data.scope.instance')"
+				/>
+				<InstancePicker
+					:model-value="instanceChoice"
+					:schema="schemaId"
+					all-mode="readonly"
+					:disabled="!schemaId"
+					class="w-full"
+					@update:model-value="pickInstance"
+				/>
+			</template>
 			<DmsEyebrow class="mt-1" :label="t('dms_database.data.scope.search')" />
 			<UInput
 				ref="filterInput"

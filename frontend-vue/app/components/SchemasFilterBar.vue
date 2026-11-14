@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { onKeyStroke, watchDebounced } from '@vueuse/core'
+import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import {
 	EMPTY_FILTER_STATE,
@@ -34,6 +35,7 @@ const { t, n } = useI18n()
 const route = useDmsRoute()
 const router = useDmsRouter()
 const { schemas, isSettled: schemasSettled } = useDatabaseSchemas()
+const { lacks } = useDatabaseConnections()
 const schemaIds = computed(() => schemas.value.map((schema) => schema.id))
 const listing = useSchemasListing()
 const state = listing.state
@@ -129,6 +131,7 @@ const count = computed(() => {
 		/>
 
 		<InstancePicker
+			v-if="!lacks('instances')"
 			:model-value="state.instance"
 			:schema="state.scope"
 			class="w-[calc(50%-0.25rem)] sm:w-48"

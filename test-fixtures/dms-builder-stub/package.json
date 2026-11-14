@@ -1,0 +1,16 @@
+{
+  "name": "dms-builder-stub",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Stands in for the DMS configuration writer in the backend tests: it accepts only the entry dms-database writes and records each call.",
+  "main": "index.js",
+  "dependencies": {
+    "@antelopejs/interface-core": ">=0.5.1 <0.6.0",
+    "@antelopejs/interface-dms-builder": ">=0.5.1 <0.6.0"
+  },
+  "antelopeJs": {
+    "implements": [
+      "@antelopejs/interface-dms-builder"
+    ]
+  }
+}

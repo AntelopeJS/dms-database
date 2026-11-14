@@ -35,16 +35,21 @@ interface RowReference {
 
 type DrawerTab = 'fields' | 'json' | 'references'
 
-const props = defineProps<{
-	tab: BrowserTab
-	row: Record<string, unknown>
-	rowId: string | null
-	columns: GridColumn[]
-	table?: TableSummary
-	readOnly: boolean
-	onStage: (rowId: string, field: string, value: unknown) => void
-	onReview: () => void
-}>()
+const props = withDefaults(
+	defineProps<{
+		tab: BrowserTab
+		row: Record<string, unknown>
+		rowId: string | null
+		columns: GridColumn[]
+		table?: TableSummary
+		readOnly: boolean
+		/** Whether the rows pointing at this one are offered. */
+		showReferences?: boolean
+		onStage: (rowId: string, field: string, value: unknown) => void
+		onReview: () => void
+	}>(),
+	{ showReferences: true },
+)
 
 // A link out closes the drawer: the page it opens may be this one.
 const emit = defineEmits<{ success: [] }>()
@@ -165,7 +170,9 @@ function setBoolean(field: string, value: boolean) {
 // Read once the drawer opens, in the browser.
 const referencesRead = useApiData<{ items: RowReference[] }>(
 	() =>
-		props.rowId && !props.readOnly ? '/api/database/browse/references' : null,
+		props.rowId && props.showReferences
+			? '/api/database/browse/references'
+			: null,
 	{
 		query: () => ({ ...browseSelectionQuery(props.tab), id: props.rowId }),
 		immediate: false,
@@ -194,7 +201,7 @@ const tabs = computed(() => {
 		},
 		{ value: 'json', label: t('dms_database.data.row.json') },
 	]
-	if (!props.readOnly)
+	if (props.showReferences)
 		items.push({
 			value: 'references',
 			label: t('dms_database.data.row.references'),

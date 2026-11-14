@@ -5,7 +5,9 @@ import {
 import { browseSelectionQuery } from '../composables/useDataBrowserGrid'
 import { h, onScopeDispose } from 'vue'
 import type { BrowserTab } from '../composables/useDataBrowserTabs'
+import { useDatabaseConnections } from '../composables/useDatabaseConnections'
 import { cellLabel } from './cellValues'
+import { presentableWriteError } from './staleDatabase'
 import { type StagedChange, undoBodies, useStagedEdits } from './stagedEdits'
 import { changesOf, type RowWriteOutcome, writeRows } from './stagedWrites'
 
@@ -53,6 +55,7 @@ export function useStagedSave(options: StagedSaveOptions) {
 	const { confirm } = useConfirm()
 	const toast = useToast()
 	const { presentError, resolveError } = useApiErrorPresenter()
+	const { selected } = useDatabaseConnections()
 	const staged = useStagedEdits()
 	const saving = ref(false)
 	const notice = ref<SaveNotice | null>(null)
@@ -100,8 +103,14 @@ export function useStagedSave(options: StagedSaveOptions) {
 	): Promise<Record<string, unknown>> {
 		return $authFetch<Record<string, unknown>>(EDIT_ENDPOINT, {
 			method: 'PUT',
-			query: { ...browseSelectionQuery(tab), id: rowId },
+			query: {
+				...browseSelectionQuery(tab),
+				id: rowId,
+				...(selected.value ? { connection: selected.value.id } : {}),
+			},
 			body,
+		}).catch((error: unknown) => {
+			throw presentableWriteError(error)
 		})
 	}
 
