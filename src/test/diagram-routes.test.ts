@@ -114,9 +114,25 @@ describe("[integration] diagram layout routes", () => {
     });
   });
 
+  it("keeps one layout row when two saves of a schema race", async () => {
+    const controller = new DatabaseDiagramController();
+    const save = (x: number) =>
+      controller.putLayout(USER, OTHER_SCHEMA_NAME, {
+        positions: { orders: { x, y: 0 } },
+      });
+    await Promise.all([save(1), save(2)]);
+    const rows = await GetModel(DiagramLayoutModel).getBy(
+      "schemaName",
+      OTHER_SCHEMA_NAME,
+    );
+    assert.equal(rows.length, 1);
+    await GetModel(DiagramLayoutModel).delete(OTHER_SCHEMA_NAME);
+  });
+
   it("keeps a stored layout that no longer parses from failing the read", async () => {
     const layouts = GetModel(DiagramLayoutModel);
     await layouts.insert({
+      _id: OTHER_SCHEMA_NAME,
       schemaName: OTHER_SCHEMA_NAME,
       positions: "{not json",
       updatedAt: new Date(),
