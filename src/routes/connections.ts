@@ -6,6 +6,7 @@ import {
   Put,
 } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
+import { Logging } from "@antelopejs/interface-core/logging";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import type {
@@ -13,33 +14,50 @@ import type {
   RelationSummary,
 } from "@antelopejs/interface-database-catalog";
 import {
+  CATALOG_DEADLINE_MS,
   changeAccess,
   type ConnectionsState,
   readConnectionsState,
   selectConnection,
 } from "../service/connectionState";
 import { resolveCatalog } from "../service/connections";
+import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
 import { isNonEmptyString, isObject } from "../utils/guards";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
-/** Reads a catalog, answering its refusal (outside development, say) as a conflict. */
+/**
+ * Reads a catalog, answering its refusal (outside development, say) or its
+ * silence with a conflict. The driver's message stays in the server log: it
+ * names the host, the port and the account.
+ */
 async function readCatalog<T>(
   connection: string,
   read: () => Promise<T>,
 ): Promise<T> {
-  const outcome = await read().then(
-    (value) => ({ ok: true as const, value }),
-    (error: unknown) => ({
-      ok: false as const,
-      reason: error instanceof Error ? error.message : String(error),
-    }),
+  const outcome = await withDeadline(
+    read().then(
+      (value) => ({ ok: true as const, value }),
+      (error: unknown) => {
+        Logging.Warn(
+          `[dms-database] the catalog of ${connection} refused`,
+          error,
+        );
+        return { ok: false as const };
+      },
+    ),
+    CATALOG_DEADLINE_MS,
+  );
+  assert(
+    outcome !== TIMED_OUT,
+    409,
+    `The catalog of ${connection} did not answer in time`,
   );
   assert(
     outcome.ok,
     409,
-    `The catalog of ${connection} refused: ${outcome.ok ? "" : outcome.reason}`,
+    `The catalog of ${connection} refused: see the server log`,
   );
   return outcome.value;
 }
