@@ -9,7 +9,7 @@ import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { OVERVIEW_FEED_LIMIT } from "../types/constants";
-import { lockedOnExternal } from "./externalLock";
+import { linksHiddenOnExternal, lockedOnExternal } from "./externalLock";
 
 @RegisterPage()
 export class DatabaseOverviewPage extends PageController(
@@ -116,10 +116,12 @@ export class DatabaseOverviewPage extends PageController(
               title: "$dms_database.overview.recent.empty_title",
               description: "$dms_database.overview.recent.empty_description",
             },
-          }).meta({
-            name: "$dms_database.overview.recent.title",
-            icon: "i-ph-clock-counter-clockwise",
-          }),
+          })
+            .onFilter(linksHiddenOnExternal)
+            .meta({
+              name: "$dms_database.overview.recent.title",
+              icon: "i-ph-clock-counter-clockwise",
+            }),
         ),
     )
     .meta({

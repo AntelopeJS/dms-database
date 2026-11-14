@@ -5,7 +5,7 @@ import type { User } from "@antelopejs/interface-dms/auth/db";
 import { formatModifier, localeOf, type ServerLocale } from "../i18n/messages";
 import { assertDefaultInstance } from "../service/browse";
 import { resolveSelectedDatabase } from "../service/connectionState";
-import type { Database } from "../service/database";
+import { type Database, OWN_CONNECTION } from "../service/database";
 import {
   getTableElementCount,
   getTableTotalCount,
@@ -34,6 +34,11 @@ export interface TableSourceRow {
   /** The tables this one points to, `schema.table` outside its schema. */
   relations: string[];
   modifiers: string[];
+  /**
+   * The table lives in an external database, which the query console and the
+   * diagram cannot open: its row hides the actions leading there.
+   */
+  external: boolean;
 }
 
 interface TableSourceResult {
@@ -127,6 +132,7 @@ function sourceRowId(schemaId: string, tableName: string): string {
 }
 
 function toSourceRow(
+  db: Database,
   { schemaId, table }: ListedTable,
   elementCount: number,
   locale: ServerLocale,
@@ -140,6 +146,7 @@ function toSourceRow(
     indexCount: Object.keys(table.indexes ?? {}).length,
     relations: relationTargets(schemaId, table),
     modifiers: modifierNames(table, locale),
+    external: db.connection !== OWN_CONNECTION,
   };
 }
 
@@ -173,7 +180,7 @@ async function listTableSourceRows(
     tables.map((listed) => countRows(db, listed, filters.instance)),
   );
   const rows = tables.map((listed, index) =>
-    toSourceRow(listed, counts[index] ?? 0, locale),
+    toSourceRow(db, listed, counts[index] ?? 0, locale),
   );
   return {
     rows: filters.has.includes("empty")
@@ -252,7 +259,7 @@ export class DatabaseTablesController extends Controller(
       listed.schemaId,
       listed.table.name,
     );
-    return toSourceRow(listed, count, localeOf(user));
+    return toSourceRow(db, listed, count, localeOf(user));
   }
 
   /**
