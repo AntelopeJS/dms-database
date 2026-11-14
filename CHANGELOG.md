@@ -1,5 +1,57 @@
 # Changelog
 
+## v0.5.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.4...v0.5.0)
+
+### 🚀 Enhancements
+
+- **connections:** Register the external connections' access with the DMS ([#170](https://github.com/AntelopeJS/dms-database/pull/170))
+- **connections:** List external databases and read and write them ([#157](https://github.com/AntelopeJS/dms-database/pull/157))
+
+### 🩹 Fixes
+
+- **frontend:** Look up the console's schemas without type arguments ([#163](https://github.com/AntelopeJS/dms-database/pull/163))
+- **deps:** Require interface-database-decorators 0.3.1, the floor @antelopejs/dms needs ([#166](https://github.com/AntelopeJS/dms-database/pull/166))
+- **test:** Install the dms version the lockfile pins ([#167](https://github.com/AntelopeJS/dms-database/pull/167))
+- **diagram:** Keep one layout row when two saves of a schema race ([#168](https://github.com/AntelopeJS/dms-database/pull/168))
+- **test:** Lock dms 0.19.6, the version the decorators floor needs ([#169](https://github.com/AntelopeJS/dms-database/pull/169))
+- **connections:** Bound external pages, time out catalogs, hide driver errors and check columns ([#176](https://github.com/AntelopeJS/dms-database/pull/176))
+- **data:** Show the read-only access refusal of a save translated ([#172](https://github.com/AntelopeJS/dms-database/pull/172))
+- **pages:** Lock the query console and diagram header links on an external database ([#173](https://github.com/AntelopeJS/dms-database/pull/173))
+- **frontend:** Name the dms 0.20 components and check every Dms tag the layer uses ([#177](https://github.com/AntelopeJS/dms-database/pull/177))
+- **pages:** Hide the recent queries' console link and the Query and Diagram row actions on an external database ([#174](https://github.com/AntelopeJS/dms-database/pull/174))
+- **connections:** Lock the inspector's actions, answer its count, hydrate the locked sidebar and say why cells take no edit ([#178](https://github.com/AntelopeJS/dms-database/pull/178))
+- **deps:** Require interface-dms-automation 0.7, the one dms-automation 0.11 provides ([#179](https://github.com/AntelopeJS/dms-database/pull/179))
+
+### 💅 Refactors
+
+- Fix the code four suppressions hid and lower their ceilings ([#158](https://github.com/AntelopeJS/dms-database/pull/158))
+- **routes:** Read the list and edit query inputs from the request context ([#159](https://github.com/AntelopeJS/dms-database/pull/159))
+- **cells:** Label and print a cell through type guards ([#160](https://github.com/AntelopeJS/dms-database/pull/160))
+- **query:** Type a query result row as an object ([#161](https://github.com/AntelopeJS/dms-database/pull/161))
+- Drop the last two suppressions and narrow a query console fallback row ([#162](https://github.com/AntelopeJS/dms-database/pull/162))
+
+### 📦 Build
+
+- **deps:** ⚠️  Move to interface-database 0.4.0 and every AntelopeJS package's newest minor ([#164](https://github.com/AntelopeJS/dms-database/pull/164))
+
+### ✅ Tests
+
+- **connections:** Pin how config.externalConnections reads a malformed access ([#175](https://github.com/AntelopeJS/dms-database/pull/175))
+
+### 🤖 CI
+
+- Run the CI on Windows in parallel with Linux ([#165](https://github.com/AntelopeJS/dms-database/pull/165))
+
+#### ⚠️ Breaking Changes
+
+- **deps:** ⚠️  Move to interface-database 0.4.0 and every AntelopeJS package's newest minor ([#164](https://github.com/AntelopeJS/dms-database/pull/164))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.4.4
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.3...v0.4.4)
