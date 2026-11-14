@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.5.1
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.0...v0.5.1)
+
+### 🚀 Enhancements
+
+- **data:** Say a capped page of an external database reads only the first 10,000 rows ([#182](https://github.com/AntelopeJS/dms-database/pull/182))
+
+### 🩹 Fixes
+
+- **release:** Keep the README's module range in step with the release ([#181](https://github.com/AntelopeJS/dms-database/pull/181))
+- **connections:** Write a malformed configured access back as the project gave it ([#184](https://github.com/AntelopeJS/dms-database/pull/184))
+- **data:** Drop the instance labels on an external database ([#183](https://github.com/AntelopeJS/dms-database/pull/183))
+- **data:** Drop the instance from the sample row's position on an external database ([#185](https://github.com/AntelopeJS/dms-database/pull/185))
+- **connections:** Write a null external connection entry back as an empty one ([#186](https://github.com/AntelopeJS/dms-database/pull/186))
+- **data:** Drop the browser tabs kept on another database when they load ([#180](https://github.com/AntelopeJS/dms-database/pull/180))
+- **data:** Keep the recently opened tables per database ([#187](https://github.com/AntelopeJS/dms-database/pull/187))
+- **connections:** Answer an access change the builder refuses with the builder's reason ([#188](https://github.com/AntelopeJS/dms-database/pull/188))
+- **connections:** Show the switcher's and the access switch's refusals as translated sentences ([#189](https://github.com/AntelopeJS/dms-database/pull/189))
+- **data:** Answer the Data browser's and the relation routes' refusals with translated sentences ([#190](https://github.com/AntelopeJS/dms-database/pull/190))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.5.0
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.4.4...v0.5.0)
