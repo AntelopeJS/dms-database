@@ -10,7 +10,10 @@
   },
   "hooks": {
     "before:init": ["pnpm typecheck", "pnpm lint", "pnpm format:check"],
-    "after:bump": "git add CHANGELOG.md"
+    "after:bump": [
+      "node scripts/sync-module-range.mts ${version}",
+      "git add README.md docs CHANGELOG.md"
+    ]
   },
   "plugins": {
     "release-it-changelogen": {
