@@ -188,7 +188,9 @@ export function buildEditUpdates(
  * deletion or an unchanged value, and only a read distinguishes them, so a
  * successful save of a row that no longer exists is never echoed. Otherwise
  * the values are validated and type-stable, so the merged row is echoed
- * rather than paying a second read.
+ * rather than paying a second read. A field the table's schema does not
+ * declare is refused with 400 before any write, rather than left to the
+ * provider's error.
  *
  * @param db The database the row lives in
  * @param selection The row's schema, instance and table
@@ -206,6 +208,15 @@ export async function editRow(
     selection.instance !== CROSS_INSTANCE,
     400,
     "Editing is disabled when browsing across all instances",
+  );
+  const columns = db.columns(selection.schema, selection.table);
+  const unknown = Object.keys(body).find(
+    (field) => columns && !columns.has(field) && !SYNTHETIC_FIELDS.has(field),
+  );
+  assert(
+    unknown === undefined,
+    400,
+    `Unknown column '${unknown}' in ${selection.table}`,
   );
   const target = resolveTable(db, selection).get(id);
   const existing: unknown = await target.run();

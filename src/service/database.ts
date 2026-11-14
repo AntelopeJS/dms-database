@@ -25,6 +25,11 @@ export interface Database {
   tableClasses(schemaId: string): Record<string, Class<Table>> | undefined;
   /** The field that identifies a row, when the table has one. */
   primaryKey(schemaId: string, tableName: string): string | undefined;
+  /**
+   * The columns a table stores, when its schema fixes them. The own database
+   * is schemaless, so it answers `undefined` and takes any field.
+   */
+  columns(schemaId: string, tableName: string): ReadonlySet<string> | undefined;
 }
 
 /** The project's own database, the binding a plain import reaches. */
@@ -33,6 +38,7 @@ export const OWN_DATABASE: Database = {
   schemas: () => Schema.list(),
   tableClasses: getTablesForSchema,
   primaryKey: getTablePrimaryKey,
+  columns: () => undefined,
 };
 
 /**
@@ -47,16 +53,22 @@ export function externalDatabase(
   connection: string,
   schemas: () => ReadonlyMap<string, Schema>,
 ): Database {
+  const fieldsOf = (schemaId: string, tableName: string) => {
+    const definition = schemas().get(schemaId)?.definition;
+    if (!definition || !Object.hasOwn(definition, tableName)) return;
+    return definition[tableName].fields;
+  };
   return {
     connection,
     schemas,
     tableClasses: () => undefined,
     primaryKey: (schemaId, tableName) => {
-      const definition = schemas().get(schemaId)?.definition;
-      if (!definition || !Object.hasOwn(definition, tableName)) return;
-      return Object.hasOwn(definition[tableName].fields, "_id")
-        ? "_id"
-        : undefined;
+      const fields = fieldsOf(schemaId, tableName);
+      return fields && Object.hasOwn(fields, "_id") ? "_id" : undefined;
+    },
+    columns: (schemaId, tableName) => {
+      const fields = fieldsOf(schemaId, tableName);
+      return fields && new Set(Object.keys(fields));
     },
   };
 }
