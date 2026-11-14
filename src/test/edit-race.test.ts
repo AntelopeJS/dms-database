@@ -39,14 +39,31 @@ describe("[integration] public PUT edit", () => {
     });
     const encode = (value: JsonValue) =>
       Buffer.from(JSON.stringify(value)).toString("base64url");
+    const iat = Math.floor(Date.now() / 1000);
+    const exp = iat + 300;
+    const key = createHmac("sha256", "1:edit-race-key:test-jwt-secret")
+      .update(
+        JSON.stringify([
+          userId,
+          "access",
+          DEFAULT_TENANT_ID,
+          sessionId,
+          null,
+          iat,
+          exp,
+        ]),
+      )
+      .digest("base64url");
     const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({
       id: userId,
       tenantId: DEFAULT_TENANT_ID,
       sessionId,
       purpose: "access",
-      exp: Math.floor(Date.now() / 1000) + 300,
+      iat,
+      exp,
+      key,
     })}`;
-    const token = `${unsigned}.${createHmac("sha256", "1:edit-race-key:test-jwt-secret").update(unsigned).digest("base64url")}`;
+    const token = `${unsigned}.${createHmac("sha256", "2:test-jwt-secret").update(unsigned).digest("base64url")}`;
     const table = schema.instance("race").table("items");
     await table.insert({ _id: "victim", name: "before" }).run();
     const originalRun = Object.getOwnPropertyDescriptor(Query.prototype, "run");
