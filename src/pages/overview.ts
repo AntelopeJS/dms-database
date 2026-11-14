@@ -9,6 +9,7 @@ import { TopListCard } from "@antelopejs/interface-dms/base/top-list-card";
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { OVERVIEW_FEED_LIMIT } from "../types/constants";
+import { lockedOnExternal } from "./externalLock";
 
 @RegisterPage()
 export class DatabaseOverviewPage extends PageController(
@@ -23,14 +24,14 @@ export class DatabaseOverviewPage extends PageController(
   },
   DefaultLayout({
     headerActions: [
-      {
+      ...lockedOnExternal({
         id: "open-query",
         label: "$dms_database.overview.actions.query",
         icon: "i-ph-code",
         variant: ButtonVariant.outline,
         color: "neutral",
         target: { type: "page", url: DATABASE_PATHS.query },
-      },
+      }),
       {
         id: "browse-data",
         label: "$dms_database.overview.actions.browse",

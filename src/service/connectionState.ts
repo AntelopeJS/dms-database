@@ -164,6 +164,11 @@ async function selectedConnection(userId: string): Promise<string> {
     : OWN_CONNECTION;
 }
 
+/** Whether a user browses an external database rather than the project's own. */
+export async function browsesExternal(userId: string): Promise<boolean> {
+  return (await selectedConnection(userId)) !== OWN_CONNECTION;
+}
+
 /** The database a user browses, which every page of the module reads. */
 export async function resolveSelectedDatabase(
   userId: string,
