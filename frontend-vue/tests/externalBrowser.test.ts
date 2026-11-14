@@ -191,3 +191,50 @@ describe('a read-only external database in the data grid', () => {
 		expect(cursor).not.toContain('cursor-not-allowed')
 	})
 })
+
+describe('a capped page of an external database in the data grid', () => {
+	async function gridText(capped: boolean, search = '') {
+		const page = browserMount(
+			DataGrid,
+			connectionsBackend(connectionsState(WAREHOUSE), {
+				others: (read) =>
+					read.url === '/api/database/browse/list'
+						? { results: [{ _id: '1' }], total: 1, primaryKey: '_id', capped }
+						: others(read),
+			}),
+			{ tab: TAB },
+		)
+		await page.shown
+		await vi.waitFor(() =>
+			expect(page.text()).toContain('dms_database.data.grid.rows 1'),
+		)
+		if (search) {
+			const input = page.find(
+				(props) => props.placeholder === 'dms_database.data.grid.search',
+			)?.['onUpdate:modelValue']
+			if (typeof input === 'function') input(search)
+			await vi.waitFor(
+				() =>
+					expect(page.reads.map((read) => read.query.search)).toContain(search),
+				{ timeout: 2000 },
+			)
+		}
+		return page.text()
+	}
+
+	it('says a search matches among the first rows only, which a grid that drops the API cap gets wrong', async () => {
+		expect(await gridText(true, 'retail')).toContain(
+			'dms_database.data.grid.capped 10000',
+		)
+	})
+
+	it('says the count stops at the cap on a page with no search, where nothing is matched', async () => {
+		const text = await gridText(true)
+		expect(text).toContain('dms_database.data.grid.count_capped 10000')
+		expect(text).not.toContain('dms_database.data.grid.capped')
+	})
+
+	it('says nothing of a cap on a page that read every row', async () => {
+		expect(await gridText(false)).not.toMatch(/grid\.(count_)?capped/)
+	})
+})

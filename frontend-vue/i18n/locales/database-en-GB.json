@@ -152,6 +152,8 @@
 				"close_keep": "Keep editing"
 			},
 			"grid": {
+				"count_capped": "Counts stop at {count} rows",
+				"capped": "Matches among the first {count} rows",
 				"rows": "{count} row | {count} rows",
 				"search": "Search rows",
 				"refresh": "Refresh (R)",

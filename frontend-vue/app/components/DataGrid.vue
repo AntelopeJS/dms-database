@@ -21,13 +21,12 @@ import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
 import type {
 	ColumnFilterState,
 	GridColumn,
-	GridData,
 } from '../build/composables/useDataBrowserGrid'
 import { DATABASE_PAGES, tableAccess } from '../build/utils/databaseLinks'
 import { type ColumnRole, isPrimaryKey } from '../build/utils/fieldTypes'
 import {
 	DEFAULT_PRIMARY_KEY,
-	columnsOf,
+	gridDataOf,
 	moveFocus,
 	type ColumnsResponse,
 	type ListResponse,
@@ -98,17 +97,9 @@ const loadError = computed(() => {
 	return error instanceof Error ? error.message : String(error)
 })
 
-const data = computed<GridData | null>(() => {
+const data = computed(() => {
 	const list = listRead.data.value
-	if (!list) return null
-	const meta = columnsRead.data.value
-	const primaryKey = list.primaryKey ?? meta?.primaryKey ?? null
-	return {
-		columns: columnsOf(meta, primaryKey, props.table),
-		rows: list.results ?? [],
-		total: list.total ?? 0,
-		primaryKey,
-	}
+	return list ? gridDataOf(list, columnsRead.data.value, props.table) : null
 })
 
 watch(data, (next) => {
@@ -677,6 +668,8 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 			v-model:page="state.page"
 			v-model:page-size="state.pageSize"
 			:total="total"
+			:capped="data?.capped"
+			:refined="hasRefinements"
 		/>
 	</div>
 </template>
