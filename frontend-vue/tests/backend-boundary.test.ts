@@ -31,6 +31,11 @@ beforeEach(() => {
 })
 afterEach(() => rmSync(root, { recursive: true, force: true }))
 
+/** A file under the root as the plugin names it, with Vite's `/` separators. */
+function reported(path: string) {
+	return normalizePath(join(root, path))
+}
+
 function bundle(entry: string, extra: Plugin[] = []) {
 	writeFileSync(join(root, 'frontend/entry.ts'), entry)
 	return build({
@@ -50,10 +55,8 @@ it('fails on an import of the backend source and names both files', async () => 
 		'import { api } from "../backend/src/api"\nexport default api\n',
 	)
 	await expect(failing).rejects.toThrow(BOUNDARY)
-	await expect(failing).rejects.toThrow(
-		normalizePath(join(root, 'frontend/entry.ts')),
-	)
-	await expect(failing).rejects.toThrow(join(root, 'backend/src/api.ts'))
+	await expect(failing).rejects.toThrow(reported('frontend/entry.ts'))
+	await expect(failing).rejects.toThrow(reported('backend/src/api.ts'))
 })
 
 it('fails on an import nested below the backend source', async () => {
@@ -66,7 +69,7 @@ it('fails on an import nested below the backend source', async () => {
 		'import { deep } from "../backend/src/x/y/deep"\nexport default deep\n',
 	)
 	await expect(failing).rejects.toThrow(BOUNDARY)
-	await expect(failing).rejects.toThrow(join(root, 'backend/src/x/y/deep.ts'))
+	await expect(failing).rejects.toThrow(reported('backend/src/x/y/deep.ts'))
 })
 
 it('accepts a backend directory that only starts with src', async () => {
@@ -115,7 +118,7 @@ it('follows a symlink the resolver returns to the backend source', async () => {
 		resolvingTo(() => join(root, 'frontend/linked.ts')),
 	])
 	await expect(failing).rejects.toThrow(BOUNDARY)
-	await expect(failing).rejects.toThrow(join(root, 'backend/src/api.ts'))
+	await expect(failing).rejects.toThrow(reported('backend/src/api.ts'))
 })
 
 it('sees through a query on the resolved id', async () => {
@@ -123,7 +126,7 @@ it('sees through a query on the resolved id', async () => {
 		resolvingTo(() => `${join(root, 'backend/src/api.ts')}?raw`),
 	])
 	await expect(failing).rejects.toThrow(BOUNDARY)
-	await expect(failing).rejects.toThrow(join(root, 'backend/src/api.ts'))
+	await expect(failing).rejects.toThrow(reported('backend/src/api.ts'))
 })
 
 it('lets the owning package decide, not the directory name', async () => {
