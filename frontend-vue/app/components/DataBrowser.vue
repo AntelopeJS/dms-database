@@ -3,10 +3,7 @@ import {
 	instanceBadge,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
-import {
-	OWN_CONNECTION,
-	useDatabaseConnections,
-} from '../build/composables/useDatabaseConnections'
+import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import { provideReadOnlyReason } from '../build/data/readOnlyReason'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
@@ -36,7 +33,7 @@ const { tabs, activeTab, restore, openTab, openFromRoute } =
 const staged = useStagedEdits()
 const route = useDmsRoute()
 
-onMounted(() => restore(selected.value?.id ?? OWN_CONNECTION))
+onMounted(() => restore(selected.value?.id))
 // A link from this page to another table (a relation) keeps the page mounted.
 watch(
 	() => route.query,

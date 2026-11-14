@@ -81,13 +81,19 @@ interface PersistedTabs {
 	activeId: string | null
 }
 
-function readPersisted(database: string): PersistedTabs | null {
+/**
+ * The tabs this browser tab kept, when they were opened on the selected
+ * database; any database's when the selection is unknown.
+ */
+function readPersisted(selected: string | undefined): PersistedTabs | null {
 	if (typeof window === 'undefined') return null
 	try {
 		const raw = window.sessionStorage.getItem(STORAGE_KEY)
 		if (!raw) return null
 		const parsed = JSON.parse(raw) as PersistedTabs
-		if (parsed.database !== database || !Array.isArray(parsed.tabs)) return null
+		const { database } = parsed
+		if (typeof database !== 'string' || !Array.isArray(parsed.tabs)) return null
+		if (selected !== undefined && database !== selected) return null
 		const tabs = parsed.tabs
 			.filter(
 				(tab) =>
@@ -356,16 +362,22 @@ export function useDataBrowserTabs() {
 	/**
 	 * Restores the tabs this browser tab kept on the selected database,
 	 * preview included, then lets the URL win for the active selection. Tabs
-	 * kept on another database are dropped. Call once, from the page's
-	 * onMounted, with the selected connection's id.
+	 * of another database, kept or still open, are dropped. Call once, from
+	 * the page's onMounted, with the selected connection's id, undefined when
+	 * the selection is unknown.
 	 */
-	function restore(selected: string) {
-		database.value = selected
+	function restore(selected: string | undefined) {
 		const persisted = readPersisted(selected)
+		const owner = persisted?.database ?? selected ?? database.value
 		if (persisted) {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId
+		} else if (owner !== database.value) {
+			for (const tab of tabs.value) grid.drop(tab.id)
+			tabs.value = []
+			activeId.value = null
 		}
+		database.value = owner
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}

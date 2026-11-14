@@ -66,6 +66,66 @@ it('drops the tabs kept on another database', () => {
 	})
 })
 
+function storing(saved: object) {
+	let raw = JSON.stringify(saved)
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () => raw,
+			setItem: (_key: string, value: string) => {
+				raw = value
+			},
+		},
+	})
+}
+
+it('drops a tab set saved with no database', () => {
+	setup()
+	storing({
+		tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
+		activeId: null,
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore('own')
+	expect(browser.tabs.value).toEqual([])
+})
+
+it('drops the open tabs of another database when the page comes back to it without a reload', () => {
+	setup()
+	const states = new Map<string, unknown>()
+	vi.stubGlobal('useDmsState', (key: string, init: () => unknown) => {
+		if (!states.has(key)) states.set(key, ref(init()))
+		return states.get(key)
+	})
+	storing({ database: 'own', tabs: [], activeId: null })
+	const before = useDataBrowserTabs()
+	before.restore('own')
+	before.openTab('shop', 'eu', 'orders', false)
+	const after = useDataBrowserTabs()
+	after.restore('warehouse')
+	expect(after.tabs.value).toEqual([])
+	after.openTab('audit', 'us', 'events', false)
+	expect(after.tabs.value.map((tab) => tab.id)).toEqual(['audit::us::events'])
+})
+
+it('keeps the tabs when the selected database is unknown', () => {
+	setup()
+	storing({
+		database: 'warehouse',
+		tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
+		activeId: null,
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore(undefined)
+	expect(browser.tabs.value.map((tab) => tab.id)).toEqual(['sales::eu::orders'])
+	browser.openTab('audit', 'us', 'events', false)
+	const reloaded = useDataBrowserTabs()
+	reloaded.restore('warehouse')
+	expect(reloaded.tabs.value.map((tab) => tab.id)).toEqual([
+		'sales::eu::orders',
+		'audit::us::events',
+	])
+})
+
 it('retains usable tabs when session storage is unavailable', () => {
 	setup()
 	const deny = () => {
