@@ -150,6 +150,24 @@ describe('data browser sidebar', () => {
 		expect((await sidebar(OWN)).text()).toContain(COUNTS_FOR)
 		expect((await sidebar(WAREHOUSE)).text()).not.toContain(COUNTS_FOR)
 	})
+
+	it('still warns that the counts failed on an external database, which a footer hidden for every external database gets wrong', async () => {
+		const page = browserMount(
+			DataBrowserSidebar,
+			connectionsBackend(connectionsState(WAREHOUSE), {
+				others: (read) => {
+					if (read.url === '/api/database/browse/tables')
+						throw Object.assign(new Error('down'), { statusCode: 500 })
+					return { items: [] }
+				},
+			}),
+			{ schemas: [{ id: 'erp', tables: [] }], loading: false, error: false },
+		)
+		await page.shown
+		await vi.waitFor(() =>
+			expect(page.text()).toContain('dms_database.data.scope.counts_failed'),
+		)
+	})
 })
 
 describe('a read-only external database in the data grid', () => {
