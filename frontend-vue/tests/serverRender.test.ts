@@ -267,6 +267,28 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).not.toContain('dms_database.inspector.actions.diagram')
 	})
 
+	it('table inspector: counts instances on the project database only, which an inspector reading 1 instance on an external database gets wrong', async () => {
+		const INSTANCES = 'dms_database.inspector.instances'
+		const own = await render(
+			TableInspector,
+			{ rowData: { schema: 'shop', name: 'orders' } },
+			'/modules/database/schemas',
+		)
+		expect(own.html).toContain(INSTANCES)
+		const external = await serverRender(
+			TableInspector,
+			{ rowData: { schema: 'shop', name: 'orders' } },
+			{
+				url: '/modules/database/schemas',
+				respond: (read) =>
+					read.url === CONNECTIONS_URL
+						? connectionsState(WAREHOUSE)
+						: backend(read),
+			},
+		)
+		expect(external.html).not.toContain(INSTANCES)
+	})
+
 	it('table inspector: leaves the position and steps to the DMS header', async () => {
 		const page = await render(
 			TableInspector,
