@@ -15,7 +15,7 @@ import type { ConnectionsState } from '../app/build/composables/useDatabaseConne
 import DataBrowserAccessBar from '../app/build/components/DataBrowserAccessBar.vue'
 
 const SWITCH = (props: Record<string, unknown>) =>
-	props['data-stub'] === 'DmsSwitch'
+	props['data-stub'] === 'DmsInputSwitch'
 
 async function mountBar(state: ConnectionsState, answer?: () => unknown) {
 	const page = browserMount(

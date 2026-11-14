@@ -311,14 +311,14 @@ const scopedInstance = computed(() =>
 							:class="field.wide ? 'items-start' : 'min-h-8 items-center'"
 						>
 							<div class="min-w-0 flex-1">
-								<DmsSwitch
+								<DmsInputSwitch
 									v-if="typeof field.value === 'boolean'"
 									:id="controlId(field.name)"
 									:model-value="field.value"
 									@update:model-value="setBoolean(field.name, Boolean($event))"
 								/>
 								<!-- JSON, or a text of several lines: a text area. -->
-								<DmsTextarea
+								<DmsInputTextarea
 									v-else-if="field.wide"
 									:id="controlId(field.name)"
 									:model-value="draftOf(field.name, field.value)"

@@ -137,7 +137,7 @@ function initials(name?: string): string {
 </script>
 
 <template>
-	<DmsCard :padded="false" class="flex min-h-0 flex-col overflow-hidden">
+	<DmsCardPanel :padded="false" class="flex min-h-0 flex-col overflow-hidden">
 		<div class="border-default border-b px-3 pt-2">
 			<UTabs
 				v-model="tab"
@@ -160,7 +160,7 @@ function initials(name?: string): string {
 		<div class="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
 			<template v-if="tab === 'history'">
 				<section v-for="group in historyGroups" :key="group.key" class="mb-2">
-					<DmsEyebrow :label="group.label" class="px-2 pb-1 pt-2" />
+					<DmsEyebrowLabel :label="group.label" class="px-2 pb-1 pt-2" />
 					<div
 						v-for="{ entry, target } in group.items"
 						:key="entry.id"
@@ -313,5 +313,5 @@ function initials(name?: string): string {
 				@click="emit('clear-history')"
 			/>
 		</footer>
-	</DmsCard>
+	</DmsCardPanel>
 </template>

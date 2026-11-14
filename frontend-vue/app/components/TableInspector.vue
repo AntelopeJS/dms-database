@@ -301,7 +301,7 @@ async function copyName() {
 	<div class="flex w-full min-w-0 flex-col gap-4">
 		<header class="grid grid-cols-[minmax(0,1fr)] gap-3">
 			<div class="flex min-w-0 flex-wrap items-center gap-2">
-				<DmsEyebrow
+				<DmsEyebrowLabel
 					class="min-w-0 truncate"
 					:label="t('dms_database.inspector.eyebrow', { schema: schemaId })"
 				/>
@@ -524,7 +524,7 @@ async function copyName() {
 
 			<div v-else-if="tab === 'relations'" class="grid gap-5">
 				<section class="grid gap-2">
-					<DmsEyebrow
+					<DmsEyebrowLabel
 						:label="
 							t('dms_database.inspector.relations.out', {
 								count: outgoing.length,
@@ -550,7 +550,7 @@ async function copyName() {
 					</p>
 				</section>
 				<section class="grid gap-2">
-					<DmsEyebrow
+					<DmsEyebrowLabel
 						:label="
 							t('dms_database.inspector.relations.in', {
 								count: incoming.length,
@@ -583,7 +583,7 @@ async function copyName() {
 					v-if="sampleTotal > 0"
 					class="flex min-w-0 items-center justify-between gap-2"
 				>
-					<DmsEyebrow
+					<DmsEyebrowLabel
 						class="min-w-0 truncate"
 						:label="
 							t('dms_database.inspector.sample.position', {

@@ -549,7 +549,7 @@ await Promise.all([schemasRead, store.libraryRead])
 						:label="t('dms_database.query.save.notes')"
 						label-for="dms-database-save-query-description"
 					>
-						<DmsTextarea
+						<DmsInputTextarea
 							id="dms-database-save-query-description"
 							v-model="saveDescription"
 							class="w-full"
@@ -562,7 +562,7 @@ await Promise.all([schemasRead, store.libraryRead])
 						:description="t('dms_database.query.save.share_description')"
 						label-for="dms-database-save-query-shared"
 					>
-						<DmsSwitch
+						<DmsInputSwitch
 							id="dms-database-save-query-shared"
 							v-model="saveShared"
 						/>

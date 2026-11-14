@@ -319,7 +319,7 @@ const themeCompartment = new Compartment()
 const placeholderCompartment = new Compartment()
 const colorMode = useColorMode()
 
-// Transparent surfaces so the editor blends into the DmsCard (bg-default).
+// Transparent surfaces so the editor blends into the DmsCardPanel (bg-default).
 const baseTheme = EditorView.theme({
 	'&': { backgroundColor: 'transparent', height: '100%', fontSize: '13px' },
 	'&.cm-focused': { outline: 'none' },
@@ -444,7 +444,7 @@ defineExpose({ focus: () => view?.focus() })
 </script>
 
 <template>
-	<DmsCard :padded="false" class="overflow-hidden">
+	<DmsCardPanel :padded="false" class="overflow-hidden">
 		<div
 			class="border-default flex flex-wrap items-center gap-2 border-b px-3.5 py-2.5"
 		>
@@ -524,7 +524,7 @@ defineExpose({ focus: () => view?.focus() })
 		<div
 			class="border-default text-dimmed flex flex-wrap items-center gap-2 border-t px-3.5 py-2 text-[11.5px]"
 		>
-			<DmsEyebrow :label="t('dms_database.query.editor.insert')" />
+			<DmsEyebrowLabel :label="t('dms_database.query.editor.insert')" />
 			<button
 				v-for="snippet in SNIPPETS"
 				:key="snippet.label"
@@ -550,5 +550,5 @@ defineExpose({ focus: () => view?.focus() })
 				}}
 			</span>
 		</div>
-	</DmsCard>
+	</DmsCardPanel>
 </template>
