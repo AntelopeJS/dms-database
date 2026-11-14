@@ -8,6 +8,7 @@ import QueryConsole from '../app/components/QueryConsole.vue'
 import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 import SchemasFilterBar from '../app/components/SchemasFilterBar.vue'
 import TableInspector from '../app/components/TableInspector.vue'
+import { WAREHOUSE, connectionsState } from './fixtures/connections'
 
 // What a server render of each page reads, and that the browser is handed
 // every response it read: a read the page does not hand over is made again
@@ -214,10 +215,28 @@ describe('server render: every read is handed to the browser', () => {
 		)
 		expect(page.reads.map((read) => read.url).sort()).toEqual([
 			'/api/database/browse/count',
+			CONNECTIONS_URL,
 			'/api/database/schemas',
 		])
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('9876')
+	})
+
+	it('table inspector on an external database: offers neither the query console nor the diagram, which an inspector linking to locked pages would not', async () => {
+		const external = connectionsState(WAREHOUSE)
+		const page = await serverRender(
+			TableInspector,
+			{ rowData: { schema: 'shop', name: 'orders' } },
+			{
+				url: '/modules/database/schemas',
+				respond: (read) =>
+					read.url === CONNECTIONS_URL ? external : backend(read),
+			},
+		)
+		expect(page.untransferred).toEqual([])
+		expect(page.html).toContain('dms_database.inspector.actions.browse')
+		expect(page.html).not.toContain('dms_database.inspector.actions.query')
+		expect(page.html).not.toContain('dms_database.inspector.actions.diagram')
 	})
 
 	it('table inspector: leaves the position and steps to the DMS header', async () => {

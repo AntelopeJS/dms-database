@@ -216,6 +216,18 @@ describe("[integration] what the selected external database refuses", () => {
     }
   });
 
+  it("counts an external table's rows when the inspector asks for every instance, which a count refusing the instance would answer 400", async () => {
+    assert.deepEqual(
+      await new DatabaseBrowseController().count(
+        EXTERNAL_USER,
+        IS_ERP,
+        "is:__CROSS_INSTANCE__",
+        IS_CUSTOMERS,
+      ),
+      { total: 2 },
+    );
+  });
+
   it("refuses an edit while the external database's access is read", async () => {
     assert.deepEqual(
       await refusal(

@@ -1,4 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
+import { defineComponent, h } from 'vue'
+import { provideReadOnlyReason } from '../app/build/data/readOnlyReason'
 import {
 	browserMount,
 	drawers,
@@ -141,5 +143,51 @@ describe('data browser sidebar', () => {
 		const page = await sidebar(WAREHOUSE)
 		expect(page.text()).not.toContain(PICKER)
 		expect(page.text()).not.toContain('dms_database.data.scope.instance')
+	})
+})
+
+describe('a read-only external database in the data grid', () => {
+	const REASON = 'dms_database.data.save.read_only_access Warehouse'
+	const Browser = defineComponent({
+		setup() {
+			provideReadOnlyReason()
+			return () => h(DataGrid, { tab: TAB })
+		},
+	})
+
+	async function cellTitles(connection: DatabaseConnection) {
+		const page = browserMount(
+			Browser,
+			connectionsBackend(connectionsState(connection), { others }),
+		)
+		await page.shown
+		await vi.waitFor(() =>
+			expect(page.reads.map((read) => read.url)).toContain(
+				'/api/database/browse/list',
+			),
+		)
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		const cell = page.find(
+			(props) =>
+				props.class !== undefined &&
+				'title' in props &&
+				String(props.class).includes('align-middle'),
+		)
+		return { title: cell?.title, cursor: String(cell?.class) }
+	}
+
+	it('names why a cell takes no edit where the user tries one, which a grid saying nothing past the access bar gets wrong', async () => {
+		const { title, cursor } = await cellTitles(WAREHOUSE)
+		expect(title).toBe(REASON)
+		expect(cursor).toContain('cursor-not-allowed')
+	})
+
+	it('gives no such reason once read and write is allowed', async () => {
+		const { title, cursor } = await cellTitles({
+			...WAREHOUSE,
+			access: 'read-write',
+		})
+		expect(title).toBeUndefined()
+		expect(cursor).not.toContain('cursor-not-allowed')
 	})
 })

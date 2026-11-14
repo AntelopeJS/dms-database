@@ -4,6 +4,7 @@ import {
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
 import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
+import { provideReadOnlyReason } from '../build/data/readOnlyReason'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
 import { type RecentTable, readRecentTables } from '../build/data/recentTables'
@@ -26,6 +27,7 @@ const {
 	refresh: refreshSchemas,
 } = useDatabaseSchemas()
 const { ready: connectionsRead } = useDatabaseConnections()
+provideReadOnlyReason()
 const { tabs, activeTab, restore, openTab, openFromRoute } =
 	useDataBrowserTabs()
 const staged = useStagedEdits()
