@@ -1,6 +1,10 @@
 import { strict as assert } from "node:assert";
 import { User } from "@antelopejs/interface-dms/auth/db";
-import { getModuleConfig, setModuleConfig } from "../config";
+import {
+  type DmsDatabaseConfig,
+  getModuleConfig,
+  setModuleConfig,
+} from "../config";
 import { DatabaseConnectionsController } from "../routes/connections";
 import { DatabaseBrowseController } from "../routes/data";
 import {
@@ -94,15 +98,18 @@ describe("[integration] external connections: changing access", () => {
     });
   });
 
-  it("writes the malformed access of another connection back as the project gave it, and follows the change", async () => {
+  it("writes the malformed access of another connection back as the project gave it and a null entry as an empty one, and follows the change", async () => {
     const archive = {};
     const ledger = {};
     Reflect.set(archive, "access", "readwrite");
     Reflect.set(ledger, "access", true);
-    setModuleConfig({
-      ...original,
-      externalConnections: { archive, ledger, erp: { access: "read" } },
-    });
+    const externalConnections = {
+      archive,
+      ledger,
+      erp: { access: "read" },
+    } satisfies DmsDatabaseConfig["externalConnections"];
+    Reflect.set(externalConnections, "crm", null);
+    setModuleConfig({ ...original, externalConnections });
     await writeAccess("erp", "read-write");
     assert.equal(await accessOf("erp"), "read-write");
     assert.deepEqual(writerCalls().at(-1), {
@@ -112,6 +119,7 @@ describe("[integration] external connections: changing access", () => {
           externalConnections: {
             archive: { access: "readwrite" },
             ledger: { access: true },
+            crm: {},
             erp: { access: "read-write" },
           },
         },
