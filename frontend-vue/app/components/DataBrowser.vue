@@ -99,7 +99,7 @@ await connectionsRead
 				>
 					<template v-if="recent.length" #actions>
 						<div class="grid w-full max-w-sm gap-1.5">
-							<DmsEyebrow :label="t('dms_database.data.empty.recent')" />
+							<DmsEyebrowLabel :label="t('dms_database.data.empty.recent')" />
 							<button
 								v-for="entry in recent"
 								:key="`${entry.schema}.${entry.instance}.${entry.table}`"

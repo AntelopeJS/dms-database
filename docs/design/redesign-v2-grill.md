@@ -31,13 +31,13 @@ Read against the migration guide, only a handful do. The module has no
 `TableView` over a data controller, no `Form`, no settings page and no
 notification, so the table-view, form, settings and notification sections do
 not apply. What applies:
-- `<DmsBanner color>` became `tone` (Frontend APIs table): the overview banner.
+- `<DmsNoticeBanner color>` became `tone` (Frontend APIs table): the overview banner.
 - Tone vocabulary: `accent`/`ok` are gone; the schema label colours already
   used the seven `Tone` names, so `SchemaLabelColor` becomes an alias of `Tone`.
-- `DmsTable`, `DmsEmpty`, `DmsPagination` and the other `build/` components are
-  private. The module only used the public `DmsTableView`, `DmsCard`,
-  `DmsKpiCard`, `DmsStatusSummary`, `DmsActivityItem`, `DmsSegmented`,
-  `DmsFlowCanvas` and `DmsChart`, which all stay public.
+- `DmsTableRoot`, `DmsTableEmpty`, `DmsTablePagination` and the other `build/` components are
+  private. The module only used the public `DmsTableView`, `DmsCardPanel`,
+  `DmsKpiCard`, `DmsStatusSummary`, `DmsActivityItem`, `DmsSegmentedControl`,
+  `DmsFlowCanvas` and `DmsChartBlock`, which all stay public.
 
 **Q3. And the breaking changes of dms-frontend 0.4 / 0.5?**
 Both apply and both break the layer today (`ajs dms verify-source` reports 60
@@ -200,7 +200,7 @@ the DMS leave guard.
 
 **Q20. How is scope shown (D-04)?**
 The sidebar gets labelled Schema and Instance controls; instances are a
-`DmsSegmented` (`default · <named> · all`), with "all" marked read-only. In
+`DmsSegmentedControl` (`default · <named> · all`), with "all" marked read-only. In
 "all", a read-only strip explains it and offers to switch to one instance; the
 `_instance` column is shown. The table list has its own filter field and its
 row counts say which instance they count.

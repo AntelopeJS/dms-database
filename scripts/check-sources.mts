@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 
 /**
  * Invariants over the module's sources that no component test can reach:
@@ -90,6 +90,55 @@ for (const { file, name } of named)
     failures.push(
       `${shown(file)}: CustomComponent("DmsDatabase${name}") has no app/components/${name}.vue`,
     );
+
+const NODE_MODULES = join(ROOT, "..", "node_modules", "@antelopejs");
+const DMS_LAYERS = join(NODE_MODULES, "dms", "frontend-vue", "layers");
+const DMS_FRONTEND_RUNTIME = join(
+  NODE_MODULES,
+  "dms-frontend",
+  "templates",
+  "vue",
+  "frontend-runtime",
+);
+
+/** `card-panel.vue` and `CardPanel.vue` both register as `CardPanel`, as dms names them. */
+const pascalCase = (name: string): string =>
+  name
+    .split(/[./_-]+/)
+    .filter(Boolean)
+    .map((part) => `${part[0].toUpperCase()}${part.slice(1)}`)
+    .join("");
+const componentFile = (file: string): string =>
+  pascalCase(basename(file, ".vue"));
+
+const shipped = new Set([
+  ...list(DMS_LAYERS, ".vue")
+    .filter((file) => /[\\/]app[\\/](?:build[\\/])?components[\\/]/.test(file))
+    .map((file) => `Dms${componentFile(file)}`),
+  ...[
+    ...read(join(DMS_LAYERS, "..", "dms.frontend.ts")).matchAll(
+      /^\s+\w+: "(\w+)",$/gm,
+    ),
+  ].map(([, alias]) => `Dms${alias}`),
+  ...list(DMS_FRONTEND_RUNTIME, ".ts").flatMap((file) =>
+    [...read(file).matchAll(/app\.component\("(Dms\w+)"/g)].map(
+      ([, name]) => name,
+    ),
+  ),
+  ...list(join(ROOT, "app"), ".vue").map(
+    (file) => `DmsDatabase${componentFile(file)}`,
+  ),
+]);
+if (shipped.size === 0)
+  failures.push("no component found in @antelopejs/dms or dms-frontend");
+for (const file of list(join(ROOT, "app"), ".vue"))
+  for (const [, tag] of read(file).matchAll(
+    /<\/?(Dms[A-Z]\w*|dms-[a-z][\w-]*)/g,
+  ))
+    if (!shipped.has(tag.startsWith("dms-") ? pascalCase(tag) : tag))
+      failures.push(
+        `${shown(file)}: <${tag}> is no component @antelopejs/dms, @antelopejs/dms-frontend or this layer registers`,
+      );
 
 for (const file of list(join(ROOT, "app"), ".vue"))
   for (const [tag] of read(file).matchAll(/<i18n-t\b[^>]*>/g))

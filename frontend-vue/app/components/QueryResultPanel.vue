@@ -284,7 +284,7 @@ const suggestion = computed(() => {
 </script>
 
 <template>
-	<DmsCard :padded="false" class="overflow-hidden">
+	<DmsCardPanel :padded="false" class="overflow-hidden">
 		<div
 			class="border-default flex flex-wrap items-center gap-2.5 border-b px-4 py-2.5"
 		>
@@ -348,7 +348,7 @@ const suggestion = computed(() => {
 				v-if="result && rows.length > 0 && !running"
 				class="ml-auto flex flex-wrap items-center gap-1.5"
 			>
-				<DmsSegmented
+				<DmsSegmentedControl
 					v-model="mode"
 					:items="modeItems"
 					size="sm"
@@ -524,7 +524,7 @@ const suggestion = computed(() => {
 
 			<div v-else class="grid gap-3 p-4">
 				<div class="flex flex-wrap items-center gap-2">
-					<DmsEyebrow :label="t('dms_database.query.result.bars')" />
+					<DmsEyebrowLabel :label="t('dms_database.query.result.bars')" />
 					<USelect
 						v-model="xColumn"
 						:items="columns"
@@ -556,7 +556,7 @@ const suggestion = computed(() => {
 						}}
 					</span>
 				</div>
-				<DmsChart
+				<DmsChartBlock
 					v-if="yColumn"
 					:key="sideways ? 'sideways' : 'upright'"
 					page-id="query"
@@ -617,5 +617,5 @@ const suggestion = computed(() => {
 				"
 			/>
 		</div>
-	</DmsCard>
+	</DmsCardPanel>
 </template>

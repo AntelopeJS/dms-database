@@ -163,7 +163,7 @@ onKeyStroke('t', (event) => {
 		class="border-default bg-default flex max-h-[40vh] w-full shrink-0 flex-col border-b md:h-full md:max-h-none md:w-[264px] md:border-b-0 md:border-r"
 	>
 		<div class="border-default grid gap-2 border-b p-3">
-			<DmsEyebrow :label="t('dms_database.data.scope.schema')" />
+			<DmsEyebrowLabel :label="t('dms_database.data.scope.schema')" />
 			<SchemaPicker
 				:model-value="schemaId"
 				:schema-ids="schemaIds"
@@ -178,7 +178,7 @@ onKeyStroke('t', (event) => {
 				@update:model-value="pickSchema"
 			/>
 			<template v-if="!lacks('instances')">
-				<DmsEyebrow
+				<DmsEyebrowLabel
 					class="mt-1"
 					:label="t('dms_database.data.scope.instance')"
 				/>
@@ -191,7 +191,10 @@ onKeyStroke('t', (event) => {
 					@update:model-value="pickInstance"
 				/>
 			</template>
-			<DmsEyebrow class="mt-1" :label="t('dms_database.data.scope.search')" />
+			<DmsEyebrowLabel
+				class="mt-1"
+				:label="t('dms_database.data.scope.search')"
+			/>
 			<UInput
 				ref="filterInput"
 				v-model="filter"
@@ -220,10 +223,10 @@ onKeyStroke('t', (event) => {
 
 		<div class="flex min-h-0 flex-1 flex-col p-2">
 			<div class="flex items-center justify-between px-2 py-1">
-				<DmsEyebrow
+				<DmsEyebrowLabel
 					:label="t('dms_database.data.scope.tables', { count: tables.length })"
 				/>
-				<DmsEyebrow :label="t('dms_database.data.scope.rows')" />
+				<DmsEyebrowLabel :label="t('dms_database.data.scope.rows')" />
 			</div>
 			<nav class="min-h-0 flex-1 overflow-y-auto">
 				<div
