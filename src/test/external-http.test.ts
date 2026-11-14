@@ -1,4 +1,5 @@
 import { strict as assert } from "node:assert";
+import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
 import {
   createMemberSession,
   createOwnerSession,
@@ -65,10 +66,18 @@ describe("[integration] external databases over HTTP: who may call", () => {
     });
     assert.equal(selected.status, 200, selected.text);
     const edit = await send(owner, "PUT", EDIT_C1, { name: "Owner edit" });
-    assert.deepEqual(edit, {
-      status: 403,
-      text: "Access to erp is read only",
-    });
+    const body: unknown = JSON.parse(edit.text);
+    assert.deepEqual(
+      { status: edit.status, body },
+      {
+        status: 403,
+        body: {
+          message: CONNECTION_REFUSALS.readOnlyConnection,
+          params: { connection: "erp" },
+          severity: "warning",
+        },
+      },
+    );
     const row = await send(
       owner,
       "GET",

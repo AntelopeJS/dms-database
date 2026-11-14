@@ -20,8 +20,6 @@ import { useStagedEdits } from '../app/build/data/stagedEdits'
 import { useStagedSave } from '../app/build/data/useStagedSave'
 
 const EDIT_URL = '/api/database/browse/edit'
-const STALE_MESSAGE =
-	'The selected database changed in another tab: reload the page'
 const TAB: BrowserTab = {
 	id: 'public::__DEFAULT__::orders',
 	schema: 'public',
@@ -91,55 +89,6 @@ describe('the edit request', () => {
 			expect(edits(page.reads)).toHaveLength(1)
 			expect(edits(page.reads)[0]?.query).toMatchObject({
 				connection: selected.id,
-			})
-		},
-	)
-
-	it.each([
-		['as text, the way the API sends it', STALE_MESSAGE],
-		['as JSON', { message: STALE_MESSAGE }],
-	])(
-		'presents the refusal of a write from a stale tab, %s, as a translated error, which an implementation showing the generic failure gets wrong',
-		async (_shape, data) => {
-			const stale = Object.assign(new Error('Conflict'), {
-				statusCode: 409,
-				data,
-			})
-			await expect(
-				saveAnEdit(
-					backendFor(OWN, () => {
-						throw stale
-					}),
-				),
-			).rejects.toMatchObject({
-				statusCode: 409,
-				data: { message: 'dms_database.data.save.database_changed' },
-			})
-		},
-	)
-
-	it.each([
-		['as text, the way the API sends it', 'Access to warehouse is read only'],
-		['as JSON', { message: 'Access to warehouse is read only' }],
-	])(
-		'presents the refusal of a write to a connection back to read-only access, %s, as a translated error naming the connection, which an implementation showing the generic failure gets wrong',
-		async (_shape, data) => {
-			const refused = Object.assign(new Error('Forbidden'), {
-				statusCode: 403,
-				data,
-			})
-			await expect(
-				saveAnEdit(
-					backendFor(WAREHOUSE, () => {
-						throw refused
-					}),
-				),
-			).rejects.toMatchObject({
-				statusCode: 403,
-				data: {
-					message: 'dms_database.data.save.read_only_access',
-					params: { connection: 'warehouse' },
-				},
 			})
 		},
 	)

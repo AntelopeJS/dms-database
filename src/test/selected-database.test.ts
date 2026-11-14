@@ -11,7 +11,8 @@ import { DatabaseOverviewController } from "../routes/overview";
 import { DatabaseQueryController } from "../routes/query";
 import { DatabaseSchemasController } from "../routes/schemas";
 import { DatabaseTablesController } from "../routes/tables";
-import { refusal } from "./refusal";
+import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { keyedRefusal, refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
@@ -230,7 +231,7 @@ describe("[integration] what the selected external database refuses", () => {
 
   it("refuses an edit while the external database's access is read", async () => {
     assert.deepEqual(
-      await refusal(
+      await keyedRefusal(
         new DatabaseBrowseController().edit(
           EXTERNAL_USER,
           queryContext({
@@ -242,7 +243,14 @@ describe("[integration] what the selected external database refuses", () => {
           { name: "Ada Lovelace" },
         ),
       ),
-      { status: 403, message: "Access to erp is read only" },
+      {
+        status: 403,
+        body: {
+          message: CONNECTION_REFUSALS.readOnlyConnection,
+          params: { connection: EXTERNAL },
+          severity: "warning",
+        },
+      },
     );
     assert.deepEqual((await browseList(EXTERNAL_USER)).results, EXTERNAL_ROWS);
   });

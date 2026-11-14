@@ -24,12 +24,15 @@ import {
   assertSupported,
   assertWritable,
   resolveSelectedDatabase,
-  STALE_DATABASE,
 } from "../service/connectionState";
 import {
   getTableElementCount,
   listSchemaSummaries,
 } from "../service/introspect";
+import {
+  CONNECTION_REFUSALS,
+  connectionRefusal,
+} from "../service/connectionRefusals";
 import { listRowReferences, type RowReference } from "../service/references";
 import { editRow } from "../service/rowEdit";
 import type { JsonValue } from "../types/json";
@@ -231,7 +234,14 @@ export class DatabaseBrowseController extends Controller(
     const db = await resolveSelectedDatabase(user._id);
     const connection = readQueryText(ctx, "connection");
     assert(connection !== undefined, 400, "Missing 'connection'");
-    assert(connection === db.connection, 409, STALE_DATABASE);
+    if (connection !== db.connection) {
+      throw connectionRefusal(
+        409,
+        CONNECTION_REFUSALS.staleDatabase,
+        db.connection,
+        "warning",
+      );
+    }
     await assertWritable(db);
     return editRow(db, selection, id, body);
   }

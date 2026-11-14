@@ -20,6 +20,10 @@ import {
   readConnectionsState,
   selectConnection,
 } from "../service/connectionState";
+import {
+  CONNECTION_REFUSALS,
+  connectionRefusal,
+} from "../service/connectionRefusals";
 import { resolveCatalog } from "../service/connections";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import type { JsonValue } from "../types/json";
@@ -49,16 +53,20 @@ async function readCatalog<T>(
     ),
     CATALOG_DEADLINE_MS,
   );
-  assert(
-    outcome !== TIMED_OUT,
-    409,
-    `The catalog of ${connection} did not answer in time`,
-  );
-  assert(
-    outcome.ok,
-    409,
-    `The catalog of ${connection} refused: see the server log`,
-  );
+  if (outcome === TIMED_OUT) {
+    throw connectionRefusal(
+      409,
+      CONNECTION_REFUSALS.catalogTimedOut,
+      connection,
+    );
+  }
+  if (!outcome.ok) {
+    throw connectionRefusal(
+      409,
+      CONNECTION_REFUSALS.catalogRefused,
+      connection,
+    );
+  }
   return outcome.value;
 }
 
