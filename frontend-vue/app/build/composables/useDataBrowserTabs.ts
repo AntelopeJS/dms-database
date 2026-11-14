@@ -58,6 +58,7 @@ export interface BrowserTab {
 }
 
 const STORAGE_KEY = 'dms-database:data-browser:tabs'
+const DATABASE_STATE = 'dms-database-browser-database'
 const ACTIVATIONS_STATE = 'dms-database-browser-activations'
 
 function browserTabId(schema: string, instance: string, table: string): string {
@@ -74,16 +75,24 @@ export function forgetBrowserTabs(): void {
 }
 
 interface PersistedTabs {
+	/**
+	 * The connection the tabs were opened on: another one may not hold their
+	 * tables. Null when they were opened while the selection was unknown.
+	 */
+	database: string | null
 	tabs: BrowserTab[]
 	activeId: string | null
 }
 
+/** The tabs this browser tab kept, with the database they were opened on. */
 function readPersisted(): PersistedTabs | null {
 	if (typeof window === 'undefined') return null
 	try {
 		const raw = window.sessionStorage.getItem(STORAGE_KEY)
 		if (!raw) return null
 		const parsed = JSON.parse(raw) as PersistedTabs
+		const { database } = parsed
+		if (typeof database !== 'string' && database !== null) return null
 		if (!Array.isArray(parsed.tabs)) return null
 		const tabs = parsed.tabs
 			.filter(
@@ -112,7 +121,7 @@ function readPersisted(): PersistedTabs | null {
 		const activeId = tabs.some((tab) => tab.id === parsed.activeId)
 			? parsed.activeId
 			: (tabs[0]?.id ?? null)
-		return { tabs, activeId }
+		return { database, tabs, activeId }
 	} catch {
 		return null
 	}
@@ -127,6 +136,7 @@ export function useDataBrowserTabs() {
 	// Counts the activations, a tab already active included: the sidebar
 	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
+	const database = useDmsState<string | null>(DATABASE_STATE, () => null)
 	const route = useDmsRoute()
 	const router = useDmsRouter()
 	// Captured at setup so closeTab can drop the closed tab's
@@ -147,7 +157,11 @@ export function useDataBrowserTabs() {
 		try {
 			window.sessionStorage.setItem(
 				STORAGE_KEY,
-				JSON.stringify({ tabs: tabs.value, activeId: activeId.value }),
+				JSON.stringify({
+					database: database.value,
+					tabs: tabs.value,
+					activeId: activeId.value,
+				}),
 			)
 		} catch {
 			// Quota/private-mode failures only cost tab restoration.
@@ -345,16 +359,63 @@ export function useDataBrowserTabs() {
 		return true
 	}
 
-	// Restore persisted tabs, preview included, then let the URL win for the
-	// active selection. Call once, from the page's onMounted.
-	function restore() {
-		const persisted = readPersisted()
-		if (persisted) {
-			tabs.value = persisted.tabs
-			activeId.value = persisted.activeId
+	/** Drops the grid state and staged edits of tabs that are gone; returns their ids. */
+	function release(gone: BrowserTab[]): string[] {
+		for (const tab of gone) {
+			grid.drop(tab.id)
+			staged.discard(tab.id)
 		}
+		return gone.map((tab) => tab.id)
+	}
+
+	/**
+	 * Makes `owner` the database of the tabs, open and saved: the tabs of
+	 * another known database are released, tabs of no known database are
+	 * claimed. Returns the ids released, so a URL that mirrors one of them is
+	 * cleared instead of opened.
+	 */
+	function settle(owner: string | null, saved: PersistedTabs | null) {
+		const dropped: string[] = []
+		if (database.value !== null && database.value !== owner) {
+			dropped.push(...release(tabs.value))
+			tabs.value = []
+			activeId.value = null
+		}
+		if (saved && (saved.database === owner || saved.database === null)) {
+			tabs.value = saved.tabs
+			activeId.value = saved.activeId
+		} else if (saved) {
+			dropped.push(...release(saved.tabs))
+		}
+		database.value = owner
+		if (owner !== null && saved?.database !== owner) persist()
+		return new Set(dropped)
+	}
+
+	/**
+	 * Restores the tabs this browser tab kept on the selected database,
+	 * preview included, then lets the URL win for the active selection. Tabs
+	 * of another database, kept or still open, are dropped, and a URL that
+	 * mirrors one of them is cleared. Call once, from the page's onMounted,
+	 * with the selected connection's id, undefined when the selection is
+	 * unknown.
+	 */
+	function restore(selected: string | undefined) {
+		const saved = readPersisted()
+		const dropped = settle(selected ?? saved?.database ?? database.value, saved)
+		const target = routeTable()
+		if (target && dropped.has(target.id)) return syncUrl()
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
+	}
+
+	/**
+	 * Follows a selection the page learns once restored (its connections
+	 * read again in the background). Register it after restore().
+	 */
+	function follow(selected: string | undefined) {
+		if (selected === undefined || selected === database.value) return
+		if (settle(selected, null).size > 0) syncUrl()
 	}
 
 	return {
@@ -370,6 +431,7 @@ export function useDataBrowserTabs() {
 		pinTab,
 		moveTab,
 		restore,
+		follow,
 		openFromRoute,
 	}
 }
