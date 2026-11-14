@@ -264,6 +264,7 @@
 				"account_read_only": "This account can only read. Use an account with write access to allow changes.",
 				"account_unverified": "This account's write access could not be checked.",
 				"failed": "The access to the database could not be changed.",
+				"refused": "The project's configuration refused the change: {reason}",
 				"confirm": {
 					"title": "Allow changes to {name}?",
 					"description": "{name} is your customer's live database. Changes you save are written to it at once, and the DMS cannot undo them.",

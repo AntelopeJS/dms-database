@@ -264,6 +264,7 @@
 				"account_read_only": "Ce compte peut seulement lire. Utilisez un compte avec accès en écriture pour autoriser les modifications.",
 				"account_unverified": "Les droits d'écriture de ce compte n'ont pas pu être vérifiés.",
 				"failed": "L'accès à la base n'a pas pu être modifié.",
+				"refused": "La configuration du projet a refusé la modification : {reason}",
 				"confirm": {
 					"title": "Autoriser les modifications de {name} ?",
 					"description": "{name} est la base en production de votre client. Les modifications enregistrées y sont écrites aussitôt, et le DMS ne peut pas les annuler.",
