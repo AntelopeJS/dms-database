@@ -31,6 +31,7 @@ export interface GridData {
 	rows: Record<string, unknown>[]
 	total: number
 	primaryKey: string | null
+	capped: boolean
 }
 
 export const GRID_PAGE_SIZES = [25, 50, 100, 200]

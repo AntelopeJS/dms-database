@@ -191,3 +191,33 @@ describe('a read-only external database in the data grid', () => {
 		expect(cursor).not.toContain('cursor-not-allowed')
 	})
 })
+
+describe('a capped page of an external database in the data grid', () => {
+	async function gridText(capped: boolean) {
+		const page = browserMount(
+			DataGrid,
+			connectionsBackend(connectionsState(WAREHOUSE), {
+				others: (read) =>
+					read.url === '/api/database/browse/list'
+						? { results: [{ _id: '1' }], total: 1, primaryKey: '_id', capped }
+						: others(read),
+			}),
+			{ tab: TAB },
+		)
+		await page.shown
+		await vi.waitFor(() =>
+			expect(page.text()).toContain('dms_database.data.grid.rows 1'),
+		)
+		return page.text()
+	}
+
+	it('says the matches come from the first rows only, which a grid that drops the API cap gets wrong', async () => {
+		expect(await gridText(true)).toContain(
+			'dms_database.data.grid.capped 10000',
+		)
+	})
+
+	it('says nothing of a cap on a page that read every row', async () => {
+		expect(await gridText(false)).not.toContain('dms_database.data.grid.capped')
+	})
+})

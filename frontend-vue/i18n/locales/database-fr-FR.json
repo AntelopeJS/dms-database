@@ -152,6 +152,7 @@
 				"close_keep": "Continuer"
 			},
 			"grid": {
+				"capped": "Correspondances parmi les {count} premières lignes",
 				"rows": "{count} ligne | {count} lignes",
 				"search": "Chercher dans les lignes",
 				"refresh": "Actualiser (R)",

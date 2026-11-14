@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { GRID_PAGE_SIZES } from '../composables/useDataBrowserGrid'
+import { EXTERNAL_SCAN_CAP } from '../data/gridData'
 
 const PAGE_WINDOW = 2
 
-const props = defineProps<{ total: number }>()
+const props = defineProps<{ total: number; capped?: boolean }>()
 const current = defineModel<number>('page', { required: true })
 const pageSize = defineModel<number>('pageSize', { required: true })
 
@@ -47,6 +48,10 @@ function setPageSize(size: number) {
 	>
 		<span class="tabular-nums">
 			{{ t('dms_database.data.grid.rows', { count: n(total) }, total) }}
+		</span>
+		<span v-if="capped" class="text-warning flex items-center gap-1">
+			<UIcon name="i-ph-warning" class="size-3.5" />
+			{{ t('dms_database.data.grid.capped', { count: n(EXTERNAL_SCAN_CAP) }) }}
 		</span>
 		<span class="flex items-center gap-1.5">
 			{{ t('dms_database.data.grid.page_size') }}
