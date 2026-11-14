@@ -25,6 +25,8 @@ import {
 } from "@antelopejs/interface-dms/base/table-view";
 import { ExternalConnection } from "@antelopejs/interface-dms/connection-access";
 import { CORE_SCHEMA_NAME } from "@antelopejs/interface-dms/constants";
+import { getModuleConfig, setModuleConfig } from "../config";
+import { configuredAccess } from "../connectionAccess";
 import { isObject } from "../utils/guards";
 import { type OwnerSession, createOwnerSession } from "./ownerSession";
 
@@ -82,18 +84,6 @@ export class ReadCountries extends MappedCountries(
 @ExternalConnection("blank")
 export class BlankCountries extends MappedCountries(
   "/api/connection-access/blank",
-) {}
-
-@RegisterDataController()
-@ExternalConnection("typo")
-export class TypoCountries extends MappedCountries(
-  "/api/connection-access/typo",
-) {}
-
-@RegisterDataController()
-@ExternalConnection("wrongType")
-export class WrongTypeCountries extends MappedCountries(
-  "/api/connection-access/wrongType",
 ) {}
 
 @RegisterDataController()
@@ -167,13 +157,7 @@ describe("[integration] a table mapped from an external connection", () => {
     assert.equal(row?.name, "Italy");
   });
 
-  for (const connection of [
-    "legacy",
-    "blank",
-    "typo",
-    "wrongType",
-    "unlisted",
-  ]) {
+  for (const connection of ["legacy", "blank", "unlisted"]) {
     it(`answers 403 to a write on the ${connection} connection, which config.externalConnections leaves read-only, and still lists`, async () => {
       const created = await send("POST", `${API}/${connection}/new`, {
         name: "Spain",
@@ -188,4 +172,56 @@ describe("[integration] a table mapped from an external connection", () => {
       assert.equal(listed.status, 200, await listed.text());
     });
   }
+});
+
+describe("the access config.externalConnections gives a connection", () => {
+  it("is read-write only for an access that is exactly read-write, read for any other entry, and nothing for one it does not list", () => {
+    const before = getModuleConfig();
+    const connections = {};
+    for (const [id, settings] of Object.entries({
+      ledger: { access: "read-write" },
+      legacy: { access: "read" },
+      blank: {},
+      typo: { access: "readwrite" },
+      upper: { access: "READ-WRITE" },
+      wrongType: { access: true },
+      bare: "read-write",
+      empty: null,
+    })) {
+      Reflect.set(connections, id, settings);
+    }
+    setModuleConfig({ ...before, externalConnections: connections });
+    try {
+      assert.deepEqual(
+        Object.fromEntries(
+          [
+            "ledger",
+            "legacy",
+            "blank",
+            "typo",
+            "upper",
+            "wrongType",
+            "bare",
+            "empty",
+            "unlisted",
+            "constructor",
+          ].map((id) => [id, configuredAccess(id) ?? "none"]),
+        ),
+        {
+          ledger: "read-write",
+          legacy: "read",
+          blank: "read",
+          typo: "read",
+          upper: "read",
+          wrongType: "read",
+          bare: "read",
+          empty: "read",
+          unlisted: "none",
+          constructor: "none",
+        },
+      );
+    } finally {
+      setModuleConfig(before);
+    }
+  });
 });
