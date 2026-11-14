@@ -66,7 +66,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/auth-jwt",
-        version: "1.1.0",
+        version: "1.1.2",
       },
       config: {
         secret: JWT_SECRET,
@@ -76,14 +76,14 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: "0.2.0",
+        version: "0.2.1",
       },
     },
     nodemailer: {
       source: {
         type: "package",
         package: "@antelopejs/nodemailer",
-        version: "0.0.6",
+        version: "0.0.12",
       },
       config: {
         host: "127.0.0.1",
@@ -96,7 +96,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/api",
-        version: "1.7.0",
+        version: "1.7.4",
       },
       config: {
         servers: [{ protocol: "http", host: "127.0.0.1", port: API_PORT }],

@@ -21,6 +21,7 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import { listRowReferences } from "../service/references";
+import { isObject, isRecord } from "../utils/guards";
 import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
@@ -55,10 +56,7 @@ class RedesignOrder extends Table {
 const TABLES = [RedesignCustomer, RedesignOrder];
 
 function shop() {
-  const schema = Schema.get<{
-    customers: RedesignCustomer;
-    orders: RedesignOrder;
-  }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }
@@ -176,7 +174,12 @@ describe("[integration] v2 redesign: browsing", () => {
       status: null,
       created_at: "2026-10-05T08:00:00.000Z",
     });
-    const row = await shop().instance(INSTANCE).table("orders").get("o3");
+    const row: unknown = await shop()
+      .instance(INSTANCE)
+      .table("orders")
+      .get("o3")
+      .run();
+    assert.ok(isRecord(row));
     assert.equal(row.status, null);
     assert.ok(row.created_at instanceof Date);
     assert.equal(row.created_at.toISOString(), "2026-10-05T08:00:00.000Z");
@@ -233,7 +236,8 @@ describe("[integration] v2 redesign: edits", () => {
       );
       return JSON.stringify(page.results.find((row) => row._id === id));
     };
-    const before = await orders.get("o2");
+    const before: unknown = await orders.get("o2").run();
+    assert.ok(isObject(before));
     try {
       const answer: unknown = await controller.edit(USER, orderContext("o2"), {
         status: "shipped",
@@ -288,7 +292,7 @@ describe("[integration] v2 redesign: queries", () => {
     });
     const single = orders.get("o2").update({ status: "refunded" });
     assert.equal((await dryRun(single)).rows, 1);
-    assert.equal(await orders.count(), 3, "a dry run writes nothing");
+    assert.equal(await orders.count().run(), 3, "a dry run writes nothing");
     const read = await dryRun(orders.slice(0, 1));
     assert.equal(read.operation, "read");
   });

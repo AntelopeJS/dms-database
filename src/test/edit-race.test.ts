@@ -88,7 +88,7 @@ describe("[integration] public PUT edit", () => {
       );
       const body = await response.text();
       assert.equal(deleted, true, body);
-      assert.equal(await table.get("victim"), undefined);
+      assert.equal(await table.get("victim").run(), undefined);
       assert.equal(response.status, 404, body);
     } finally {
       Object.defineProperty(Query.prototype, "run", originalRun);

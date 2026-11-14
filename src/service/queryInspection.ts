@@ -156,7 +156,13 @@ export async function describeUnknownQueryTarget(
   if (!target.schema) return null;
   const schema = Schema.get(target.schema);
   if (!schema) return `Unknown schema "${target.schema}"`;
-  if (target.table && !Object.hasOwn(schema.definition, target.table)) {
+  if (
+    target.table &&
+    !(
+      isObject(schema.definition) &&
+      Object.hasOwn(schema.definition, target.table)
+    )
+  ) {
     return `Unknown table "${target.table}" in schema ${target.schema}`;
   }
   const instance = target.instance;

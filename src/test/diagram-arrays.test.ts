@@ -22,15 +22,8 @@ class DiagramArraysProduct extends Table {
 /** Keeps the decorated class referenced: the decorator registers it. */
 const TABLES = [DiagramArraysProduct];
 
-interface ProductRow {
-  _id: string;
-  tags: (string | null)[];
-  scores?: number[];
-  mixed?: (string | number | null)[];
-}
-
 function store() {
-  const schema = Schema.get<{ products: ProductRow }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }

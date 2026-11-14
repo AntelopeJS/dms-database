@@ -25,7 +25,7 @@ class BrowseOrderOrder extends Table {
 const TABLES = [BrowseOrderOrder];
 
 function shop() {
-  const schema = Schema.get<{ orders: BrowseOrderOrder }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }

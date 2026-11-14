@@ -12,6 +12,7 @@ import {
   Table,
 } from "@antelopejs/interface-database-decorators";
 import { Schema } from "@antelopejs/interface-database";
+import type { Schema as StagedSchema } from "@antelopejs/interface-database/staged-query";
 
 /** A schema whose tables carry every modifier and a table with more than twelve columns. */
 export const VAULT_SCHEMA = "vault";
@@ -77,10 +78,10 @@ interface VaultTables {
 
 /** Fills the vault once, on a database that has none of it. */
 export async function seedVault(): Promise<void> {
-  const schema = Schema.get<VaultTables>(VAULT_SCHEMA);
+  const schema: StagedSchema<VaultTables, unknown> | undefined = Schema.get(VAULT_SCHEMA);
   if (!schema) return;
   const notes = schema.instance().table("plain_notes");
-  if ((await notes.count()) > 0) return;
+  if ((await notes.count().run()) > 0) return;
   await notes.insert([{ _id: "note_1", body: "first note" }], { conflict: "update" }).run();
   await schema.instance().table("parents_registry").insert([{ _id: "reg_1", label: "registry one" }], { conflict: "update" }).run();
   await schema.instance().table("parents_links").insert([{ _id: "lnk_1", registry_id: "reg_1" }], { conflict: "update" }).run();

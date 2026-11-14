@@ -47,7 +47,7 @@ class SchemasPageCreditNote extends Table {
 const TABLES = [SchemasPageInvoice, SchemasPageCreditNote];
 
 function shop() {
-  const schema = Schema.get<{ invoices: SchemasPageInvoice }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema;
 }
@@ -169,9 +169,7 @@ describe("[integration] Schemas page", () => {
 
 describe("[integration] Schemas page on a tenanted schema", () => {
   function tenanted() {
-    const schema = Schema.get<{ credit_notes: SchemasPageCreditNote }>(
-      TENANTED,
-    );
+    const schema = Schema.get(TENANTED);
     assert.ok(schema, "the tenanted schema is registered");
     return schema;
   }

@@ -63,22 +63,8 @@ const defined = new Schema<{ events: EventRow }>(DEFINED, {
   },
 });
 
-interface StoredSecret {
-  _id: string;
-  name: Record<string, string>;
-  secret: string[];
-}
-
 function store() {
-  const schema = Schema.get<{
-    orders: {
-      _id: string;
-      created_at: string;
-      stamped_at: string;
-      extra: number;
-    };
-    secrets: StoredSecret;
-  }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema.instance();
 }

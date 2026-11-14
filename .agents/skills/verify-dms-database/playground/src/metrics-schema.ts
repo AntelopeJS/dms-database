@@ -1,4 +1,5 @@
 import { Schema } from "@antelopejs/interface-database";
+import type { Schema as StagedSchema } from "@antelopejs/interface-database/staged-query";
 import { Field, Index, RegisterTable, Table } from "@antelopejs/interface-database-decorators";
 
 /** Tables that are large (1,250 rows) or empty. */
@@ -26,10 +27,10 @@ interface MetricsTables {
 
 /** Fills `readings` once with rows numbered 1 to {@link READING_COUNT}. */
 export async function seedMetrics(): Promise<void> {
-  const schema = Schema.get<MetricsTables>(METRICS_SCHEMA);
+  const schema: StagedSchema<MetricsTables, unknown> | undefined = Schema.get(METRICS_SCHEMA);
   if (!schema) return;
   const readings = schema.instance().table("readings");
-  if ((await readings.count()) > 0) return;
+  if ((await readings.count().run()) > 0) return;
   const rows = Array.from({ length: READING_COUNT }, (_, index) => ({
     _id: `r_${String(index + 1).padStart(4, "0")}`,
     seq: index + 1,

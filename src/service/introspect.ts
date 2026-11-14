@@ -157,7 +157,6 @@ function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what types it
 function inferFieldType(value: unknown): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
@@ -178,7 +177,8 @@ async function sampleRows(
     const rows: unknown[] = await schema
       .instance(instance)
       .table(tableName)
-      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE);
+      .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)
+      .run();
     return rows;
   } catch {
     return [];
@@ -376,7 +376,7 @@ async function countTableRows(
   instance?: InstanceId,
 ): Promise<number> {
   const table = schema.instance(instance).table(tableName);
-  const total = await table.count();
+  const total = await table.count().run();
   return isFiniteNumber(total) ? total : 0;
 }
 
@@ -392,7 +392,9 @@ async function cachedCount(
   return value;
 }
 
-export async function listSchemaInstances(schema: Schema): Promise<string[]> {
+export async function listSchemaInstances(
+  schema: Pick<Schema, "listInstances">,
+): Promise<string[]> {
   try {
     const named = await schema.listInstances().run();
     if (!Array.isArray(named)) return [];
