@@ -12,8 +12,11 @@ export interface ExternalConnectionConfig {
 
 export interface DmsDatabaseConfig {
   schemaLabels?: SchemaLabelOverrides;
-  /** The external connections the DMS maps tables from, keyed by connection id. */
-  externalConnections?: Record<string, ExternalConnectionConfig>;
+  /**
+   * The external connections the DMS maps tables from, keyed by connection id. A `null` entry
+   * lists the connection with no settings: it reads as `{}`.
+   */
+  externalConnections?: Record<string, ExternalConnectionConfig | null>;
   /**
    * Display name of the underlying database driver shown on the overview
    * health hero (e.g. "MongoDB 6.0"). The driver cannot be introspected

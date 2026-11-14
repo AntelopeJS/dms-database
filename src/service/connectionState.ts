@@ -270,7 +270,7 @@ async function writeAccessNow(
   const externalConnections = Object.fromEntries(
     Object.entries(next).map(([id, settings]) => [
       id,
-      settings.access === undefined ? {} : { access: settings.access },
+      settings?.access === undefined ? {} : { access: settings.access },
     ]),
   );
   const written = await ConfigureModule(moduleId, {
