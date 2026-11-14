@@ -669,6 +669,7 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 			v-model:page-size="state.pageSize"
 			:total="total"
 			:capped="data?.capped"
+			:refined="hasRefinements"
 		/>
 	</div>
 </template>

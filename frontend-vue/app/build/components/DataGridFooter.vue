@@ -4,7 +4,11 @@ import { EXTERNAL_SCAN_CAP } from '../data/gridData'
 
 const PAGE_WINDOW = 2
 
-const props = defineProps<{ total: number; capped?: boolean }>()
+const props = defineProps<{
+	total: number
+	capped?: boolean
+	refined?: boolean
+}>()
 const current = defineModel<number>('page', { required: true })
 const pageSize = defineModel<number>('pageSize', { required: true })
 
@@ -51,7 +55,13 @@ function setPageSize(size: number) {
 		</span>
 		<span v-if="capped" class="text-warning flex items-center gap-1">
 			<UIcon name="i-ph-warning" class="size-3.5" />
-			{{ t('dms_database.data.grid.capped', { count: n(EXTERNAL_SCAN_CAP) }) }}
+			{{
+				refined
+					? t('dms_database.data.grid.capped', { count: n(EXTERNAL_SCAN_CAP) })
+					: t('dms_database.data.grid.count_capped', {
+							count: n(EXTERNAL_SCAN_CAP),
+						})
+			}}
 		</span>
 		<span class="flex items-center gap-1.5">
 			{{ t('dms_database.data.grid.page_size') }}
