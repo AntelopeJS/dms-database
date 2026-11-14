@@ -8,8 +8,8 @@ import {
 import { DatabaseConnectionsController } from "../routes/connections";
 import { DatabaseBrowseController } from "../routes/data";
 import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
-import { STALE_DATABASE, writeAccess } from "../service/connectionState";
-import { refusal } from "./refusal";
+import { writeAccess } from "../service/connectionState";
+import { keyedRefusal, refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 import { answerNextWrite, writerCalls } from "./writerCalls";
 
@@ -155,9 +155,13 @@ describe("[integration] external connections: changing access", () => {
     });
     const editor = user("race-editor");
     await controller.select(editor, { connection: "erp" });
-    assert.deepEqual(await refusal(edit(editor, "Ada")), {
+    assert.deepEqual(await keyedRefusal(edit(editor, "Ada")), {
       status: 403,
-      message: "Access to erp is read only",
+      body: {
+        message: CONNECTION_REFUSALS.readOnlyConnection,
+        params: { connection: "erp" },
+        severity: "warning",
+      },
     });
   });
 });
@@ -216,9 +220,13 @@ describe("[integration] external connections: writes through the Data browser", 
   });
 
   it("refuses an edit of the selected external database while its access is read, then writes the customer's row once it is read-write", async () => {
-    assert.deepEqual(await refusal(edit(writer, "Ada Lovelace")), {
+    assert.deepEqual(await keyedRefusal(edit(writer, "Ada Lovelace")), {
       status: 403,
-      message: "Access to erp is read only",
+      body: {
+        message: CONNECTION_REFUSALS.readOnlyConnection,
+        params: { connection: "erp" },
+        severity: "warning",
+      },
     });
     await writeAccess("erp", "read-write");
     assert.deepEqual(await edit(writer, "Ada Lovelace"), {
@@ -234,10 +242,17 @@ describe("[integration] external connections: writes through the Data browser", 
 
   it("refuses an edit made on another database than the one the user now browses, which a stale tab would write to the wrong database", async () => {
     await writeAccess("erp", "read-write");
-    assert.deepEqual(await refusal(edit(writer, "From a stale tab", "own")), {
-      status: 409,
-      message: STALE_DATABASE,
-    });
+    assert.deepEqual(
+      await keyedRefusal(edit(writer, "From a stale tab", "own")),
+      {
+        status: 409,
+        body: {
+          message: CONNECTION_REFUSALS.staleDatabase,
+          params: { connection: "erp" },
+          severity: "warning",
+        },
+      },
+    );
     assert.deepEqual(
       await refusal(browse.edit(writer, c1Edit(), { name: "No connection" })),
       { status: 400, message: "Missing 'connection'" },

@@ -12,7 +12,7 @@ import {
 import { setExternalConnections, withAccess } from "../config";
 import { configuredAccess } from "../connectionAccess";
 import { builderRefusalReason } from "./builderRefusal";
-import { CONNECTION_REFUSALS } from "./connectionRefusals";
+import { CONNECTION_REFUSALS, connectionRefusal } from "./connectionRefusals";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import {
   listExternalIds,
@@ -50,10 +50,6 @@ const FEATURE_NAMES: Record<ConsoleFeature, string> = {
   instances: "Instances",
   rowReferences: "A row's references",
 };
-
-/** Why an edit made on a database the user no longer browses is refused. */
-export const STALE_DATABASE =
-  "The selected database changed in another tab: reload the page";
 
 /**
  * One database the console shows. The dashboard names the project's own
@@ -293,11 +289,14 @@ async function writeAccessNow(
  */
 export async function assertWritable(db: Database): Promise<void> {
   if (db.connection === OWN_CONNECTION) return;
-  assert(
-    (await GetConnectionAccess(db.connection)) === "read-write",
-    403,
-    `Access to ${db.connection} is read only`,
-  );
+  if ((await GetConnectionAccess(db.connection)) !== "read-write") {
+    throw connectionRefusal(
+      403,
+      CONNECTION_REFUSALS.readOnlyConnection,
+      db.connection,
+      "warning",
+    );
+  }
 }
 
 /**

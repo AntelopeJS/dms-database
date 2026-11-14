@@ -12,6 +12,7 @@ import type {
   RelationSummary,
 } from "@antelopejs/interface-database-catalog";
 import { isFunction, isObject } from "../utils/guards";
+import { CONNECTION_REFUSALS } from "./connectionRefusals";
 import {
   type Database,
   externalDatabase,
@@ -116,12 +117,12 @@ function loadBinding<T>(
   assert(
     listExternalIds().includes(connection),
     404,
-    `Unknown connection: ${connection}`,
+    CONNECTION_REFUSALS.unknownConnection,
   );
   const instance = asOwnModule(() =>
     GetInterfaceInstance(interfaceId, connection),
   );
-  assert(instance, 404, `Unknown connection: ${connection}`);
+  assert(instance, 404, CONNECTION_REFUSALS.unknownConnection);
   return asOwnModule(() => {
     const loaded: unknown = require(instance.path);
     assert(

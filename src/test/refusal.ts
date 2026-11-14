@@ -33,6 +33,21 @@ export function queryFailure(error: HTTPResult): QueryFailure {
   return { message: body.message, durationMs: body.durationMs };
 }
 
+/** A refusal whose body travels as JSON: a translation key, its parameters and its severity. */
+export interface KeyedRefusal {
+  status: number;
+  body: unknown;
+}
+
+/** Awaits a call that must fail with an HTTP error whose body is JSON, and parses that body. */
+export async function keyedRefusal(
+  call: Promise<unknown>,
+): Promise<KeyedRefusal> {
+  const { status, message } = await refusal(call);
+  const body: unknown = JSON.parse(message);
+  return { status, body };
+}
+
 /** Awaits a call that must fail with an HTTP error, and reads that error. */
 export async function refusal(call: Promise<unknown>): Promise<Refusal> {
   try {

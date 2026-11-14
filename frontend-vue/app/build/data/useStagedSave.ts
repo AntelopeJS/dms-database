@@ -7,7 +7,6 @@ import { h, onScopeDispose } from 'vue'
 import type { BrowserTab } from '../composables/useDataBrowserTabs'
 import { useDatabaseConnections } from '../composables/useDatabaseConnections'
 import { cellLabel } from './cellValues'
-import { presentableWriteError } from './staleDatabase'
 import { type StagedChange, undoBodies, useStagedEdits } from './stagedEdits'
 import { changesOf, type RowWriteOutcome, writeRows } from './stagedWrites'
 
@@ -109,8 +108,6 @@ export function useStagedSave(options: StagedSaveOptions) {
 				...(selected.value ? { connection: selected.value.id } : {}),
 			},
 			body,
-		}).catch((error: unknown) => {
-			throw presentableWriteError(error)
 		})
 	}
 

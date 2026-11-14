@@ -99,4 +99,16 @@ describe("[integration] external connections: listing and selection", () => {
       404,
     );
   });
+
+  it("refuses the relations of a connection the project does not have with the sentence the dashboard translates", async () => {
+    const reader = user("relations-user");
+    assert.deepEqual(await refusal(controller.relations(reader, "nope")), {
+      status: 404,
+      message: CONNECTION_REFUSALS.unknownConnection,
+    });
+    assert.deepEqual(
+      await refusal(controller.relation(reader, "nope", "erp.customers")),
+      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+    );
+  });
 });

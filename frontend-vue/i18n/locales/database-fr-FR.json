@@ -252,6 +252,10 @@
 			"external": "Externe",
 			"engine_unknown": "Moteur inconnu",
 			"unknown": "Cette base ne fait plus partie des bases du projet. Rechargez la page pour voir la liste à jour.",
+			"catalog": {
+				"timed_out": "Le catalogue de {connection} n'a pas répondu à temps.",
+				"refused": "Le catalogue de {connection} a refusé de répondre. Le journal du serveur en donne la cause."
+			},
 			"switcher": {
 				"label": "Base de données",
 				"menu": "Choisir la base à parcourir",
