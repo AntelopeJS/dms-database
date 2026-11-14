@@ -1,10 +1,6 @@
 import { strict as assert } from "node:assert";
-import { createHmac } from "node:crypto";
 import { Query, Schema } from "@antelopejs/interface-database";
-import { GetModel } from "@antelopejs/interface-database-decorators";
-import { SessionModel, UserModel } from "@antelopejs/interface-dms/auth/db";
-import { DEFAULT_TENANT_ID } from "@antelopejs/interface-dms/constants";
-import type { JsonValue } from "../types/json";
+import { createOwnerSession } from "./ownerSession";
 
 const SCHEMA = "edit-race-regression";
 const schema = new Schema<{ items: { _id: string; name: string } }>(SCHEMA, {
@@ -13,57 +9,7 @@ const schema = new Schema<{ items: { _id: string; name: string } }>(SCHEMA, {
 
 describe("[integration] public PUT edit", () => {
   it("returns 404 when deletion wins between the validation read and update", async () => {
-    const users = GetModel(UserModel);
-    const sessions = GetModel(SessionModel);
-    const now = new Date();
-    const [userId] = await users.insert({
-      email: "edit-race@example.test",
-      name: "Edit race",
-      authKey: "edit-race-key",
-      isValidated: true,
-      owner: true,
-      language: "en",
-      createdAt: now,
-      updatedAt: now,
-    });
-    const [sessionId] = await sessions.insert({
-      userId,
-      userAgent: "",
-      ip: "",
-      browser: "Unknown",
-      os: "Unknown",
-      deviceType: "desktop",
-      location: "",
-      createdAt: now,
-      lastActiveAt: now,
-    });
-    const encode = (value: JsonValue) =>
-      Buffer.from(JSON.stringify(value)).toString("base64url");
-    const iat = Math.floor(Date.now() / 1000);
-    const exp = iat + 300;
-    const key = createHmac("sha256", "1:edit-race-key:test-jwt-secret")
-      .update(
-        JSON.stringify([
-          userId,
-          "access",
-          DEFAULT_TENANT_ID,
-          sessionId,
-          null,
-          iat,
-          exp,
-        ]),
-      )
-      .digest("base64url");
-    const unsigned = `${encode({ alg: "HS256", typ: "JWT" })}.${encode({
-      id: userId,
-      tenantId: DEFAULT_TENANT_ID,
-      sessionId,
-      purpose: "access",
-      iat,
-      exp,
-      key,
-    })}`;
-    const token = `${unsigned}.${createHmac("sha256", "2:test-jwt-secret").update(unsigned).digest("base64url")}`;
+    const owner = await createOwnerSession("edit-race@example.test");
     const table = schema.instance("race").table("items");
     await table.insert({ _id: "victim", name: "before" }).run();
     const originalRun = Object.getOwnPropertyDescriptor(Query.prototype, "run");
@@ -96,7 +42,7 @@ describe("[integration] public PUT edit", () => {
         {
           method: "PUT",
           headers: {
-            Authorization: `Bearer ${token}`,
+            Authorization: `Bearer ${owner.token}`,
             "Content-Type": "application/json",
             "x-antelopejs-namespace": "default",
           },
@@ -110,8 +56,7 @@ describe("[integration] public PUT edit", () => {
     } finally {
       Object.defineProperty(Query.prototype, "run", originalRun);
       await schema.destroyInstance("race").run();
-      await sessions.delete(sessionId);
-      await users.delete(userId);
+      await owner.remove();
     }
   });
 });

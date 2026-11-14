@@ -7,15 +7,17 @@ import {
   unregisterAutomationNodes,
 } from "./automation";
 import { type DmsDatabaseConfig, setModuleConfig } from "./config";
+import { registerConnectionAccess } from "./connectionAccess";
 import { SCHEMA_NAME } from "./types/constants";
 import { frontendModule } from "./frontend-module";
 
-export type { DmsDatabaseConfig } from "./config";
+export type { DmsDatabaseConfig, ExternalConnectionConfig } from "./config";
 export * from "./pages";
 export * from "./routes";
 
 export async function construct(config?: DmsDatabaseConfig): Promise<void> {
   setModuleConfig(config);
+  registerConnectionAccess();
   await AddFrontendModule(frontendModule());
 }
 
