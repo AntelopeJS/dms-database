@@ -373,17 +373,34 @@ export function useDataBrowserTabs() {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId
 		} else if (owner !== database.value) {
-			for (const tab of tabs.value) {
-				grid.drop(tab.id)
-				staged.discard(tab.id)
-			}
-			tabs.value = []
-			activeId.value = null
+			dropAll()
 		}
 		database.value = owner
 		if (!persisted && owner !== null) persist()
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
+	}
+
+	function dropAll() {
+		for (const tab of tabs.value) {
+			grid.drop(tab.id)
+			staged.discard(tab.id)
+		}
+		tabs.value = []
+		activeId.value = null
+	}
+
+	/**
+	 * Follows a selection the page learns once mounted (its connections read
+	 * again in the background): the tabs of the database it showed are
+	 * dropped, the saved ones and the table the URL names included.
+	 */
+	function follow(selected: string | undefined) {
+		if (selected === undefined || selected === database.value) return
+		dropAll()
+		database.value = selected
+		persist()
+		syncUrl()
 	}
 
 	return {
@@ -399,6 +416,7 @@ export function useDataBrowserTabs() {
 		pinTab,
 		moveTab,
 		restore,
+		follow,
 		openFromRoute,
 	}
 }

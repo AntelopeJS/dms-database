@@ -145,6 +145,42 @@ it('forgets the dropped set, so a load with an unknown selection does not reopen
 	expect(reloaded.tabs.value).toEqual([])
 })
 
+it('drops the open tab, its saved set and its URL when the selection changes once mounted', () => {
+	setup()
+	const route = reactive({ query: {} as Record<string, string> })
+	const replace = vi.fn(({ query }: { query: Record<string, string> }) => {
+		route.query = query
+	})
+	vi.stubGlobal('useDmsRoute', () => route)
+	vi.stubGlobal('useDmsRouter', () => ({ replace }))
+	let raw = ''
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () => raw || null,
+			setItem: (_key: string, value: string) => {
+				raw = value
+			},
+		},
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore('own')
+	browser.openTab('shop', 'eu', 'orders', false)
+	expect(route.query).toEqual({
+		schema: 'shop',
+		table: 'orders',
+		instance: 'eu',
+	})
+	browser.follow('warehouse')
+	expect(browser.tabs.value).toEqual([])
+	expect(route.query).toEqual({})
+	expect(JSON.parse(raw)).toEqual({
+		database: 'warehouse',
+		tabs: [],
+		activeId: null,
+	})
+	expect(browser.openFromRoute()).toBe(false)
+})
+
 it('keeps the tabs when the selected database is unknown', () => {
 	setup()
 	storing({
