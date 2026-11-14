@@ -232,7 +232,7 @@ export class DatabaseBrowseController extends Controller(
     const connection = readQueryText(ctx, "connection");
     assert(connection !== undefined, 400, "Missing 'connection'");
     assert(connection === db.connection, 409, STALE_DATABASE);
-    assertWritable(db);
+    await assertWritable(db);
     return editRow(db, selection, id, body);
   }
 }

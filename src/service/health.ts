@@ -1,4 +1,6 @@
+import { Logging } from "@antelopejs/interface-core/logging";
 import { getModuleConfig } from "../config";
+import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import { resolveCatalog } from "./connections";
 import { type Database, OWN_CONNECTION } from "./database";
 import { getTableElementCount, listSchemaSummaries } from "./introspect";
@@ -54,6 +56,11 @@ interface StorageAggregate {
   storage: StorageEntry[];
 }
 
+/** The longest the health probe waits, in milliseconds. */
+const PROBE_DEADLINE_MS = 3_000;
+const PROBE_OK = "ok";
+const PROBE_REFUSED = "refused";
+
 /**
  * Lightweight connection probe: time counting the rows of the first table of
  * the first schema that has one, in its default instance, which every
@@ -67,16 +74,40 @@ async function probeConnection(db: Database): Promise<ConnectionProbe> {
     .at(0);
   if (!probe) return { status: "ok", latencyMs: null, error: null };
   const startedAt = Date.now();
-  try {
-    await probe.schema.instance().table(probe.table).count().run();
+  const answer = await withDeadline(
+    probe.schema
+      .instance()
+      .table(probe.table)
+      .count()
+      .run()
+      .then(
+        () => PROBE_OK,
+        (error: unknown) => {
+          Logging.Warn(
+            `[dms-database] ${db.connection} refused the probe`,
+            error,
+          );
+          return PROBE_REFUSED;
+        },
+      ),
+    PROBE_DEADLINE_MS,
+  );
+  if (answer === PROBE_OK) {
     return { status: "ok", latencyMs: Date.now() - startedAt, error: null };
-  } catch (error) {
-    return {
-      status: "down",
-      latencyMs: null,
-      error: error instanceof Error ? error.message : String(error),
-    };
   }
+  if (answer === TIMED_OUT) {
+    Logging.Warn(
+      `[dms-database] ${db.connection} did not answer the probe in time`,
+    );
+  }
+  return {
+    status: "down",
+    latencyMs: null,
+    error:
+      answer === TIMED_OUT
+        ? "The database did not answer in time"
+        : "The database refused the probe: see the server log",
+  };
 }
 
 /**

@@ -1,9 +1,13 @@
 import { assert } from "@antelopejs/interface-api-util";
+import { Logging } from "@antelopejs/interface-core/logging";
 import { GetRuntimeInfo } from "@antelopejs/interface-core/runtime";
 import type { RelationSummary } from "@antelopejs/interface-database-catalog";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { ConfigureModule } from "@antelopejs/interface-dms-builder";
-import type { ConnectionAccess } from "@antelopejs/interface-dms/connection-access";
+import {
+  type ConnectionAccess,
+  GetConnectionAccess,
+} from "@antelopejs/interface-dms/connection-access";
 import { setExternalConnections, withAccess } from "../config";
 import { configuredAccess } from "../connectionAccess";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
@@ -14,6 +18,7 @@ import {
   resolveDatabase,
 } from "./connections";
 import { type Database, OWN_CONNECTION } from "./database";
+import { TIMED_OUT, withDeadline } from "../utils/deadline";
 
 /**
  * The console's features an external database does not offer: the console
@@ -83,11 +88,36 @@ function grantsWrite({ writes }: RelationSummary): boolean {
   return writes.insert || writes.update || writes.delete;
 }
 
+/** The longest the switcher waits for one external catalog, in milliseconds. */
+export const CATALOG_DEADLINE_MS = 3_000;
+
+/**
+ * Reads one catalog answer, or nothing when it fails or takes longer than
+ * {@link CATALOG_DEADLINE_MS}: one slow or unreachable database never holds
+ * up the others. The failure is logged on the server, never sent to the
+ * browser, since a driver's message names the host and the account.
+ */
+async function catalogAnswer<T>(
+  id: string,
+  read: Promise<T>,
+): Promise<T | undefined> {
+  const answer = await withDeadline(
+    read.catch((error: unknown) => {
+      Logging.Warn(`[dms-database] the catalog of ${id} refused`, error);
+      return undefined;
+    }),
+    CATALOG_DEADLINE_MS,
+  );
+  if (answer !== TIMED_OUT) return answer;
+  Logging.Warn(`[dms-database] the catalog of ${id} did not answer in time`);
+  return undefined;
+}
+
 async function summarizeExternal(id: string): Promise<ConnectionSummary> {
   const catalog = resolveCatalog(id);
   const [info, relations] = await Promise.all([
-    catalog.Info().catch(() => undefined),
-    catalog.ListRelations().catch(() => undefined),
+    catalogAnswer(id, catalog.Info()),
+    catalogAnswer(id, catalog.ListRelations()),
   ]);
   return {
     id,
@@ -259,10 +289,10 @@ async function writeAccessNow(
  *
  * @param db The database written to
  */
-export function assertWritable(db: Database): void {
+export async function assertWritable(db: Database): Promise<void> {
+  if (db.connection === OWN_CONNECTION) return;
   assert(
-    db.connection === OWN_CONNECTION ||
-      configuredAccess(db.connection) === "read-write",
+    (await GetConnectionAccess(db.connection)) === "read-write",
     403,
     `Access to ${db.connection} is read only`,
   );

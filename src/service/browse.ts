@@ -5,6 +5,7 @@ import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { hasInstances } from "./introspect";
+import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import {
   isBigInt,
   isBoolean,
@@ -29,6 +30,15 @@ import {
 export const DEFAULT_LIMIT = 25;
 /** The most rows a page holds. */
 export const MAX_LIMIT = 200;
+
+/**
+ * The most rows a search or a column filter reads on an external database,
+ * and the most rows its exact count reads. A customer's table can be large,
+ * and the filter runs in this process, not in the database.
+ */
+export const EXTERNAL_SCAN_CAP = 10_000;
+/** The longest a page of an external database's rows may take, in milliseconds. */
+export const EXTERNAL_PAGE_DEADLINE_MS = 10_000;
 
 /**
  * Rows sampled by `/columns` to union column names and infer coarse types; a
@@ -167,17 +177,24 @@ export function resolveTable(db: Database, selection: BrowseSelection) {
 }
 
 /**
- * Streams the full selection to count exactly while retaining only this page.
+ * Streams the selection to count exactly while retaining only this page.
  * Arbitrary JSON stringification and Unicode matching must retain JS
- * semantics.
+ * semantics. With a deadline, the scan stops when it passes it, and the page
+ * says it was cut short.
  */
 async function refinePage<Row extends object>(
   sorted: Stream<Row>,
   query: BrowseQuery,
+  deadline?: number,
 ) {
   const results: Row[] = [];
   let total = 0;
+  let capped = false;
   for await (const row of sorted) {
+    if (deadline !== undefined && Date.now() > deadline) {
+      capped = true;
+      break;
+    }
     let matches = [row];
     for (const filter of query.columnFilters) {
       matches = applyFilterToList(matches, filter.field, filter.raw);
@@ -188,7 +205,74 @@ async function refinePage<Row extends object>(
       results.push(row);
     total++;
   }
-  return { results, total };
+  return { results, total, capped };
+}
+
+/**
+ * Refuses a sort on a column the table neither declares nor shows in its
+ * rows: the column name goes to the database as it is.
+ *
+ * @param db The database read
+ * @param selection The table
+ * @param column The column asked for
+ */
+async function assertKnownColumn(
+  db: Database,
+  selection: BrowseSelection,
+  column: string,
+): Promise<void> {
+  const { columns } = await fetchColumns(db, selection);
+  assert(
+    columns.includes(column) ||
+      column === db.primaryKey(selection.schema, selection.table),
+    400,
+    `Unknown column: ${column}`,
+  );
+}
+
+/**
+ * A page of an external database's rows, bounded: a search or a column
+ * filter reads at most {@link EXTERNAL_SCAN_CAP} rows, the count stops there
+ * too, and the page gives up after {@link EXTERNAL_PAGE_DEADLINE_MS}. `capped`
+ * says the rows or the total cover only part of the table.
+ */
+async function fetchExternalPage<Row extends object>(
+  table: Stream<Row>,
+  sorted: Stream<Row>,
+  query: BrowseQuery,
+) {
+  const deadline = Date.now() + EXTERNAL_PAGE_DEADLINE_MS;
+  const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
+  const page = hasRefine
+    ? refinePage(sorted.slice(0, EXTERNAL_SCAN_CAP), query, deadline).then(
+        async (refined) => ({
+          ...refined,
+          capped:
+            refined.capped ||
+            (await table
+              .slice(0, EXTERNAL_SCAN_CAP + 1)
+              .count()
+              .run()) > EXTERNAL_SCAN_CAP,
+        }),
+      )
+    : Promise.all([
+        sorted.slice(query.offset, query.limit).run(),
+        table
+          .slice(0, EXTERNAL_SCAN_CAP + 1)
+          .count()
+          .run(),
+      ]).then(([results, counted]) => ({
+        results,
+        total: Math.min(counted, EXTERNAL_SCAN_CAP),
+        capped: counted > EXTERNAL_SCAN_CAP,
+      }));
+  const answer = await withDeadline(page, EXTERNAL_PAGE_DEADLINE_MS);
+  assert(
+    answer !== TIMED_OUT,
+    504,
+    "The external database did not answer in time: narrow the search or try again",
+  );
+  return answer;
 }
 
 /**
@@ -202,11 +286,20 @@ async function refinePage<Row extends object>(
 export async function fetchRows(db: Database, query: BrowseQuery) {
   const table = resolveTable(db, query);
   const primaryKey = db.primaryKey(query.schema, query.table);
+  if (query.sortKey) await assertKnownColumn(db, query, query.sortKey);
   const sorted = query.sortKey
     ? table.orderBy(query.sortKey, query.sortDirection)
     : primaryKey
       ? table.orderBy(primaryKey)
       : table;
+  if (!hasInstances(db)) {
+    return {
+      ...(await fetchExternalPage(table, sorted, query)),
+      offset: query.offset,
+      limit: query.limit,
+      primaryKey,
+    };
+  }
 
   const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
   if (!hasRefine) {
@@ -221,6 +314,7 @@ export async function fetchRows(db: Database, query: BrowseQuery) {
       offset: query.offset,
       limit: query.limit,
       primaryKey,
+      capped: false,
     };
   }
 
@@ -231,6 +325,7 @@ export async function fetchRows(db: Database, query: BrowseQuery) {
     offset: query.offset,
     limit: query.limit,
     primaryKey,
+    capped: false,
   };
 }
 
@@ -239,7 +334,12 @@ export async function fetchTotal(
   selection: BrowseSelection,
 ): Promise<number> {
   const table = resolveTable(db, selection);
-  return table.count().run();
+  if (hasInstances(db)) return table.count().run();
+  const counted = await table
+    .slice(0, EXTERNAL_SCAN_CAP + 1)
+    .count()
+    .run();
+  return Math.min(counted, EXTERNAL_SCAN_CAP);
 }
 
 interface ColumnsMeta {

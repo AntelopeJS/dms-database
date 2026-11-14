@@ -13,6 +13,7 @@ import {
 import {
   BasicDataModel,
   Field,
+  GetModel,
   Model,
   RegisterTable,
   Table,
@@ -24,6 +25,8 @@ import {
 } from "@antelopejs/interface-dms/base/table-view";
 import { ExternalConnection } from "@antelopejs/interface-dms/connection-access";
 import { CORE_SCHEMA_NAME } from "@antelopejs/interface-dms/constants";
+import { getModuleConfig, setModuleConfig } from "../config";
+import { configuredAccess } from "../connectionAccess";
 import { isObject } from "../utils/guards";
 import { type OwnerSession, createOwnerSession } from "./ownerSession";
 
@@ -103,8 +106,25 @@ describe("[integration] a table mapped from an external connection", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
+  /** Empties the table and stores one row, so each test starts from the same state. */
+  const seed = async () => {
+    const countries = GetModel(CountryModel);
+    for (const row of await countries.getAll()) {
+      await countries.delete(row._id);
+    }
+    const [id] = await countries.insert({ name: "Italy" });
+    assert.ok(id);
+    return id;
+  };
+
+  let seeded: string;
+
   before(async () => {
     owner = await createOwnerSession("connection-access@example.test");
+  });
+
+  beforeEach(async () => {
+    seeded = await seed();
   });
 
   after(async () => {
@@ -126,6 +146,17 @@ describe("[integration] a table mapped from an external connection", () => {
     assert.equal(removed.status, 200, await removed.text());
   });
 
+  it("answers 403 to an edit and a delete on the legacy connection, leaving the row as it was", async () => {
+    const edited = await send("PUT", `${API}/legacy/edit?id=${seeded}`, {
+      name: "Republic of Italy",
+    });
+    assert.equal(edited.status, 403, await edited.text());
+    const removed = await send("DELETE", `${API}/legacy/delete?id=${seeded}`);
+    assert.equal(removed.status, 403, await removed.text());
+    const row = await GetModel(CountryModel).get(seeded);
+    assert.equal(row?.name, "Italy");
+  });
+
   for (const connection of ["legacy", "blank", "unlisted"]) {
     it(`answers 403 to a write on the ${connection} connection, which config.externalConnections leaves read-only, and still lists`, async () => {
       const created = await send("POST", `${API}/${connection}/new`, {
@@ -141,4 +172,56 @@ describe("[integration] a table mapped from an external connection", () => {
       assert.equal(listed.status, 200, await listed.text());
     });
   }
+});
+
+describe("the access config.externalConnections gives a connection", () => {
+  it("is read-write only for an access that is exactly read-write, read for any other entry, and nothing for one it does not list", () => {
+    const before = getModuleConfig();
+    const connections = {};
+    for (const [id, settings] of Object.entries({
+      ledger: { access: "read-write" },
+      legacy: { access: "read" },
+      blank: {},
+      typo: { access: "readwrite" },
+      upper: { access: "READ-WRITE" },
+      wrongType: { access: true },
+      bare: "read-write",
+      empty: null,
+    })) {
+      Reflect.set(connections, id, settings);
+    }
+    setModuleConfig({ ...before, externalConnections: connections });
+    try {
+      assert.deepEqual(
+        Object.fromEntries(
+          [
+            "ledger",
+            "legacy",
+            "blank",
+            "typo",
+            "upper",
+            "wrongType",
+            "bare",
+            "empty",
+            "unlisted",
+            "constructor",
+          ].map((id) => [id, configuredAccess(id) ?? "none"]),
+        ),
+        {
+          ledger: "read-write",
+          legacy: "read",
+          blank: "read",
+          typo: "read",
+          upper: "read",
+          wrongType: "read",
+          bare: "read",
+          empty: "read",
+          unlisted: "none",
+          constructor: "none",
+        },
+      );
+    } finally {
+      setModuleConfig(before);
+    }
+  });
 });
