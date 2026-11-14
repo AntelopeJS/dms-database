@@ -13,6 +13,7 @@ import {
 import {
   BasicDataModel,
   Field,
+  GetModel,
   Model,
   RegisterTable,
   Table,
@@ -84,6 +85,18 @@ export class BlankCountries extends MappedCountries(
 ) {}
 
 @RegisterDataController()
+@ExternalConnection("typo")
+export class TypoCountries extends MappedCountries(
+  "/api/connection-access/typo",
+) {}
+
+@RegisterDataController()
+@ExternalConnection("wrongType")
+export class WrongTypeCountries extends MappedCountries(
+  "/api/connection-access/wrongType",
+) {}
+
+@RegisterDataController()
 @ExternalConnection("unlisted")
 export class UnlistedCountries extends MappedCountries(
   "/api/connection-access/unlisted",
@@ -103,8 +116,25 @@ describe("[integration] a table mapped from an external connection", () => {
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
+  /** Empties the table and stores one row, so each test starts from the same state. */
+  const seed = async () => {
+    const countries = GetModel(CountryModel);
+    for (const row of await countries.getAll()) {
+      await countries.delete(row._id);
+    }
+    const [id] = await countries.insert({ name: "Italy" });
+    assert.ok(id);
+    return id;
+  };
+
+  let seeded: string;
+
   before(async () => {
     owner = await createOwnerSession("connection-access@example.test");
+  });
+
+  beforeEach(async () => {
+    seeded = await seed();
   });
 
   after(async () => {
@@ -126,7 +156,24 @@ describe("[integration] a table mapped from an external connection", () => {
     assert.equal(removed.status, 200, await removed.text());
   });
 
-  for (const connection of ["legacy", "blank", "unlisted"]) {
+  it("answers 403 to an edit and a delete on the legacy connection, leaving the row as it was", async () => {
+    const edited = await send("PUT", `${API}/legacy/edit?id=${seeded}`, {
+      name: "Republic of Italy",
+    });
+    assert.equal(edited.status, 403, await edited.text());
+    const removed = await send("DELETE", `${API}/legacy/delete?id=${seeded}`);
+    assert.equal(removed.status, 403, await removed.text());
+    const row = await GetModel(CountryModel).get(seeded);
+    assert.equal(row?.name, "Italy");
+  });
+
+  for (const connection of [
+    "legacy",
+    "blank",
+    "typo",
+    "wrongType",
+    "unlisted",
+  ]) {
     it(`answers 403 to a write on the ${connection} connection, which config.externalConnections leaves read-only, and still lists`, async () => {
       const created = await send("POST", `${API}/${connection}/new`, {
         name: "Spain",

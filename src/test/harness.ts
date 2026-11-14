@@ -43,6 +43,8 @@ export default defineConfig({
           ledger: { access: "read-write" },
           legacy: { access: "read" },
           blank: {},
+          typo: { access: "readwrite" },
+          wrongType: { access: true },
         },
       },
       importOverrides: [...DMS_DATABASE_OVERRIDES, CONFIG_WRITER_STUB],
