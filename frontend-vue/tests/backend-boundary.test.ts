@@ -1,13 +1,14 @@
 import {
 	mkdirSync,
 	mkdtempSync,
+	realpathSync,
 	rmSync,
 	symlinkSync,
 	writeFileSync,
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { build, type Plugin } from 'vite'
+import { build, normalizePath, type Plugin } from 'vite'
 import { afterEach, beforeEach, expect, it } from 'vitest'
 import { backendBoundary } from '../build/backend-boundary.ts'
 
@@ -15,7 +16,9 @@ const BOUNDARY = 'Backend boundary: '
 
 let root: string
 beforeEach(() => {
-	root = mkdtempSync(join(tmpdir(), 'dms-database-boundary-'))
+	root = realpathSync.native(
+		mkdtempSync(join(tmpdir(), 'dms-database-boundary-')),
+	)
 	mkdirSync(join(root, 'backend/src'), { recursive: true })
 	mkdirSync(join(root, 'backend/dist'), { recursive: true })
 	mkdirSync(join(root, 'frontend'), { recursive: true })
@@ -47,7 +50,9 @@ it('fails on an import of the backend source and names both files', async () => 
 		'import { api } from "../backend/src/api"\nexport default api\n',
 	)
 	await expect(failing).rejects.toThrow(BOUNDARY)
-	await expect(failing).rejects.toThrow(join(root, 'frontend/entry.ts'))
+	await expect(failing).rejects.toThrow(
+		normalizePath(join(root, 'frontend/entry.ts')),
+	)
 	await expect(failing).rejects.toThrow(join(root, 'backend/src/api.ts'))
 })
 

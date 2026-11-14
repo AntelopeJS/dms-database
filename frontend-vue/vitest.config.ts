@@ -1,5 +1,6 @@
 import { resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
+import { normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
 import { backendBoundary } from './build/backend-boundary.ts'
 
@@ -10,7 +11,10 @@ const root = resolve(__dirname, '..', 'node_modules', '@antelopejs')
 
 /** Matches one test file wherever the checkout lives, dot directories included. */
 const testFile = (name: string) =>
-	resolve(__dirname, 'tests', name).replace(/[\\*?[\]{}()!+@|]/g, '\\$&')
+	normalizePath(resolve(__dirname, 'tests', name)).replace(
+		/[*?[\]{}()!+@|]/g,
+		'\\$&',
+	)
 
 export default defineConfig({
 	plugins: [vue(), backendBoundary()],
