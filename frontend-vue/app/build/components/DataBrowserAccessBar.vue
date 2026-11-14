@@ -74,7 +74,7 @@ async function toggle(allowed: boolean) {
 					)
 				}}
 			</span>
-			<DmsSwitch
+			<DmsInputSwitch
 				class="ml-auto"
 				:model-value="readWrite"
 				:disabled="cannotAllowWrites || saving"

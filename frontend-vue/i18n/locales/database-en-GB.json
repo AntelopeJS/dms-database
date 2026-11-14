@@ -218,7 +218,8 @@
 				"not_written": "{count} change wasn't written and stays staged ({error}). | {count} changes weren't written and stay staged ({error}).",
 				"undo_partial": "{count} change couldn't be undone | {count} changes couldn't be undone",
 				"rows_missing": "{count} row no longer exists. | {count} rows no longer exist.",
-				"database_changed": "The selected database changed in another tab: reload the page."
+				"database_changed": "The selected database changed in another tab: reload the page.",
+				"read_only_access": "Access to {connection} is read only."
 			},
 			"row": {
 				"position": "Row {index} of {total}",
@@ -252,7 +253,7 @@
 				"label": "Database",
 				"menu": "Choose the database to browse",
 				"failed": "The database could not be switched.",
-					"connect": "Connect a database"
+				"connect": "Connect a database"
 			},
 			"access": {
 				"read": "Access to {name}: Read only",

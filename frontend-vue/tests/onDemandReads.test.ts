@@ -139,7 +139,7 @@ describe('server render: what only the browser reads', () => {
 		expect(row('status')).toContain('layout="form"')
 		expect(row('description')).toContain('layout="stack"')
 		expect(row('address')).toContain('layout="stack"')
-		expect(page.html.match(/data-stub="DmsTextarea"/g)).toHaveLength(2)
+		expect(page.html.match(/data-stub="DmsInputTextarea"/g)).toHaveLength(2)
 		// Every editable field, the switch too, keeps the same end slot.
 		expect(page.html.match(/data-null-slot/g)).toHaveLength(4)
 		expect(page.html.match(/icon="i-ph-circle-dashed"/g)).toHaveLength(4)
