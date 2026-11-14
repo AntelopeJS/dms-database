@@ -192,7 +192,7 @@ describe("[integration] external connections: a refused access write", () => {
     assert.equal(await accessOf("erp"), "read");
   });
 
-  it("answers 503 naming the development builder only when no builder answers", async () => {
+  it("answers 503 only when the builder does not answer", async () => {
     answerNextWrite("absent");
     assert.deepEqual(await refusal(writeAccess("erp", "read-write")), {
       status: 503,
