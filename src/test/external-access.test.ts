@@ -94,6 +94,42 @@ describe("[integration] external connections: changing access", () => {
     });
   });
 
+  it("writes the malformed access of another connection back as the project gave it, and follows the change", async () => {
+    const archive = {};
+    const ledger = {};
+    Reflect.set(archive, "access", "readwrite");
+    Reflect.set(ledger, "access", true);
+    setModuleConfig({
+      ...original,
+      externalConnections: { archive, ledger, erp: { access: "read" } },
+    });
+    await writeAccess("erp", "read-write");
+    assert.equal(await accessOf("erp"), "read-write");
+    assert.deepEqual(writerCalls().at(-1), {
+      id: "local",
+      entry: {
+        config: {
+          externalConnections: {
+            archive: { access: "readwrite" },
+            ledger: { access: true },
+            erp: { access: "read-write" },
+          },
+        },
+      },
+    });
+  });
+
+  it("writes over a malformed access on the connection the owner changes", async () => {
+    const erp = {};
+    Reflect.set(erp, "access", "readwrite");
+    setModuleConfig({ ...original, externalConnections: { erp } });
+    await writeAccess("erp", "read");
+    assert.deepEqual(writerCalls().at(-1), {
+      id: "local",
+      entry: { config: { externalConnections: { erp: { access: "read" } } } },
+    });
+  });
+
   it("keeps a revocation when another change is in flight, which two writes from one snapshot lose", async () => {
     await writeAccess("erp", "read-write");
     await Promise.all([

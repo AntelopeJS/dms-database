@@ -10,8 +10,6 @@ Reflect.set(
   calls,
 );
 
-const ACCESSES = ["read", "read-write"];
-
 /**
  * Whether a value is a non-null object.
  *
@@ -38,7 +36,8 @@ function hasExactly(value, keys) {
 
 /**
  * Whether an entry holds only `config.externalConnections`, each connection
- * with no setting or only an `access` of `read` or `read-write`.
+ * with no setting or only an `access`. Like the DMS's `ConfigureModule`, it
+ * takes any `access` value: only the builder's MCP tool refuses one.
  *
  * @param {unknown} entry The module entry to merge
  * @returns {boolean} Whether dms-database could have written it
@@ -50,9 +49,7 @@ function isAccessEntry(entry) {
   const connections = config.externalConnections;
   if (!isRecord(connections)) return false;
   return Object.values(connections).every(
-    (settings) =>
-      hasExactly(settings, []) ||
-      (hasExactly(settings, ["access"]) && ACCESSES.includes(settings.access)),
+    (settings) => hasExactly(settings, []) || hasExactly(settings, ["access"]),
   );
 }
 
