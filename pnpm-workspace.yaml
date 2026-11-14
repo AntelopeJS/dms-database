@@ -1,2 +1,4 @@
 packages:
   - frontend-vue
+ignoredOptionalDependencies:
+  - playwright-core
