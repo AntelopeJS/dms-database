@@ -8,8 +8,9 @@ import {
 } from "../types/json";
 import { isBoolean, isObject, isRecord } from "../utils/guards";
 import { cellToText } from "../utils/query";
-import { type BrowseSelection, resolveTable } from "./browse";
+import { type BrowseSelection, fetchColumns, resolveTable } from "./browse";
 import type { Database } from "./database";
+import { hasInstances } from "./introspect";
 
 /**
  * Synthetic columns the browse layer surfaces but does not persist (e.g. the
@@ -181,6 +182,36 @@ export function buildEditUpdates(
 }
 
 /**
+ * Refuses an edit of an external database that names a field the table
+ * neither declares, nor shows in its rows, nor holds in the edited row: the
+ * field name goes to the customer's database as it is. The project's own
+ * database, schemaless, keeps taking a new field. The fields an edit skips
+ * (`_id`, `_instance`) pass.
+ *
+ * @param db The database written to
+ * @param selection The table
+ * @param rowFields The edited row's fields
+ * @param body The edit
+ */
+async function assertKnownFields(
+  db: Database,
+  selection: BrowseSelection,
+  rowFields: string[],
+  body: JsonObject,
+): Promise<void> {
+  if (hasInstances(db)) return;
+  const { columns } = await fetchColumns(db, selection);
+  const known = new Set([
+    ...columns,
+    ...rowFields,
+    ...SYNTHETIC_FIELDS,
+    ...READONLY_FIELDS,
+  ]);
+  const unknown = Object.keys(body).filter((field) => !known.has(field));
+  assert(unknown.length === 0, 400, `Unknown column: ${unknown.join(", ")}`);
+}
+
+/**
  * Applies an edit to one row and answers the row as stored. Writes are
  * scoped to a single instance: the cross-instance view is a read-only union,
  * so there is no unambiguous row to mutate. The adapter
@@ -210,6 +241,7 @@ export async function editRow(
   const target = resolveTable(db, selection).get(id);
   const existing: unknown = await target.run();
   assert(isRecord(existing), 404, "Row not found");
+  await assertKnownFields(db, selection, Object.keys(existing), body);
   const updates = buildEditUpdates(
     new Map(Object.entries(existing)),
     body,

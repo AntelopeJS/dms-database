@@ -11,7 +11,19 @@ export interface OwnerSession {
 }
 
 /** Creates an owner and a session, and signs an access token for them with the harness's JWT secret. */
-export async function createOwnerSession(email: string): Promise<OwnerSession> {
+export function createOwnerSession(email: string): Promise<OwnerSession> {
+  return createSession(email, true);
+}
+
+/** Creates a member who is not the owner, and a session, signed the same way. */
+export function createMemberSession(email: string): Promise<OwnerSession> {
+  return createSession(email, false);
+}
+
+async function createSession(
+  email: string,
+  owner: boolean,
+): Promise<OwnerSession> {
   const users = GetModel(UserModel);
   const sessions = GetModel(SessionModel);
   const now = new Date();
@@ -21,7 +33,7 @@ export async function createOwnerSession(email: string): Promise<OwnerSession> {
     name: email,
     authKey,
     isValidated: true,
-    owner: true,
+    owner,
     language: "en",
     createdAt: now,
     updatedAt: now,
