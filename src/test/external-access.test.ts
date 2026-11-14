@@ -166,4 +166,18 @@ describe("[integration] external connections: writes through the Data browser", 
       { _id: "c1", name: "Ada", segment: "retail" },
     );
   });
+
+  it("refuses an edit naming a column the external table lacks with 400 and the column's name, writing nothing", async () => {
+    await writeAccess("erp", "read-write");
+    assert.deepEqual(
+      await refusal(
+        browse.edit(writer, c1Edit("erp"), { name: "Ada", nickname: "A" }),
+      ),
+      { status: 400, message: "Unknown column 'nickname' in customers" },
+    );
+    assert.deepEqual(
+      await browse.get(writer, "is:erp", undefined, "is:customers", "c1"),
+      { _id: "c1", name: "Ada", segment: "retail" },
+    );
+  });
 });
