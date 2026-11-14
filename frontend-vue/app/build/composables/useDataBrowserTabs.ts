@@ -1,7 +1,11 @@
 import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
 import { useDataBrowserGrid } from './useDataBrowserGrid'
 import type { InstanceChoice } from '../data/instanceOptions'
-import { rememberTable } from '../data/recentTables'
+import {
+	type RecentTable,
+	readRecentTables,
+	rememberTable,
+} from '../data/recentTables'
 import { useStagedEdits } from '../data/stagedEdits'
 import {
 	decodeMatch,
@@ -60,6 +64,7 @@ export interface BrowserTab {
 const STORAGE_KEY = 'dms-database:data-browser:tabs'
 const DATABASE_STATE = 'dms-database-browser-database'
 const ACTIVATIONS_STATE = 'dms-database-browser-activations'
+const RECENT_STATE = 'dms-database-browser-recent'
 
 function browserTabId(schema: string, instance: string, table: string): string {
 	return `${schema}::${instance}::${table}`
@@ -137,6 +142,9 @@ export function useDataBrowserTabs() {
 	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
 	const database = useDmsState<string | null>(DATABASE_STATE, () => null)
+	// Read from the browser's storage once restored: the server renders
+	// without it, and a list only the client has would not match its markup.
+	const recent = useDmsState<RecentTable[]>(RECENT_STATE, () => [])
 	const route = useDmsRoute()
 	const router = useDmsRouter()
 	// Captured at setup so closeTab can drop the closed tab's
@@ -194,11 +202,14 @@ export function useDataBrowserTabs() {
 	function activateTab(id: string) {
 		const tab = tabs.value.find((candidate) => candidate.id === id)
 		if (!tab) return
-		rememberTable({
-			schema: tab.schema,
-			instance: tab.instance,
-			table: tab.table,
-		})
+		if (database.value !== null) {
+			rememberTable(database.value, {
+				schema: tab.schema,
+				instance: tab.instance,
+				table: tab.table,
+			})
+			recent.value = readRecentTables(database.value)
+		}
 		activeId.value = id
 		activations.value += 1
 		syncUrl()
@@ -388,6 +399,7 @@ export function useDataBrowserTabs() {
 			dropped.push(...release(saved.tabs))
 		}
 		database.value = owner
+		recent.value = owner === null ? [] : readRecentTables(owner)
 		if (owner !== null && saved?.database !== owner) persist()
 		return new Set(dropped)
 	}
@@ -424,6 +436,8 @@ export function useDataBrowserTabs() {
 		activeTab,
 		activations,
 		hasMultipleSchemas,
+		/** The tables opened lately on the tabs' database, newest first. */
+		recent: computed(() => recent.value),
 		openTab,
 		replaceTab,
 		closeTab,

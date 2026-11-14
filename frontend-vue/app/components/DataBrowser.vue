@@ -7,7 +7,6 @@ import { useDatabaseConnections } from '../build/composables/useDatabaseConnecti
 import { provideReadOnlyReason } from '../build/data/readOnlyReason'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
-import { type RecentTable, readRecentTables } from '../build/data/recentTables'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import DataBrowserAccessBar from '../build/components/DataBrowserAccessBar.vue'
 import DataBrowserSidebar from './DataBrowserSidebar.vue'
@@ -28,7 +27,7 @@ const {
 } = useDatabaseSchemas()
 const { ready: connectionsRead, selected } = useDatabaseConnections()
 provideReadOnlyReason()
-const { tabs, activeTab, restore, follow, openTab, openFromRoute } =
+const { tabs, activeTab, recent, restore, follow, openTab, openFromRoute } =
 	useDataBrowserTabs()
 const staged = useStagedEdits()
 const route = useDmsRoute()
@@ -58,16 +57,6 @@ const activeTableSummary = computed(() =>
 		? findTable(activeTab.value.schema, activeTab.value.table)
 		: undefined,
 )
-
-// Read once mounted: the server renders without the browser's storage, and
-// a list only the client has would not match its markup.
-const recent = ref<RecentTable[]>([])
-onMounted(() => {
-	recent.value = readRecentTables()
-})
-watch(activeTab, () => {
-	recent.value = readRecentTables()
-})
 
 function instanceLabel(instance: string): string {
 	return instanceBadge(instance, t('dms_database.data.scope.all')) ?? ''
