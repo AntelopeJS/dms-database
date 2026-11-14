@@ -1,6 +1,10 @@
 import type { RequestContext } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
-import type { InstanceId, Stream } from "@antelopejs/interface-database";
+import {
+  CROSS_INSTANCE,
+  type InstanceId,
+  type Stream,
+} from "@antelopejs/interface-database";
 import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
@@ -329,12 +333,21 @@ export async function fetchRows(db: Database, query: BrowseQuery) {
   };
 }
 
+/**
+ * The rows of a table. On an external database, which has no instances,
+ * "every instance" is its default one, as the table inspector asks for it.
+ */
 export async function fetchTotal(
   db: Database,
   selection: BrowseSelection,
 ): Promise<number> {
-  const table = resolveTable(db, selection);
-  if (hasInstances(db)) return table.count().run();
+  if (hasInstances(db)) return resolveTable(db, selection).count().run();
+  const table = resolveTable(
+    db,
+    selection.instance === CROSS_INSTANCE
+      ? { ...selection, instance: undefined }
+      : selection,
+  );
   const counted = await table
     .slice(0, EXTERNAL_SCAN_CAP + 1)
     .count()

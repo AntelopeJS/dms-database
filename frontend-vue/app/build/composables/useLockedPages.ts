@@ -19,6 +19,9 @@ const LOCK_REASON = '$dms_database.connections.locked.reason'
 /**
  * Keeps the sidebar entries of the pages the selected database cannot serve
  * locked, with the reason as their tooltip, and unlocks them once it can.
+ * Applied once mounted: the server renders the sidebar before it knows the
+ * selection, so a lock set there would reach the client's state and not the
+ * server's markup, and the menu would not hydrate.
  * The lock closes the entry only: each page shows its own locked state for a
  * direct URL.
  *
@@ -35,14 +38,16 @@ export function useLockedPages(selected: Ref<DatabaseConnection | undefined>) {
 				: []
 		}),
 	)
-	watch(
-		pages,
-		(entries) => {
-			for (const { fullId, locked } of entries) {
-				if (locked) lock({ fullId, reason: LOCK_REASON })
-				else unlock(fullId)
-			}
-		},
-		{ immediate: true },
-	)
+	onMounted(() => {
+		watch(
+			pages,
+			(entries) => {
+				for (const { fullId, locked } of entries) {
+					if (locked) lock({ fullId, reason: LOCK_REASON })
+					else unlock(fullId)
+				}
+			},
+			{ immediate: true },
+		)
+	})
 }

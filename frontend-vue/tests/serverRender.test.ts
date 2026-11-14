@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { defineComponent, h } from 'vue'
-import { serverRender, type BackendRead } from './fixtures/serverRender'
+import {
+	menuLocks,
+	serverRender,
+	type BackendRead,
+} from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import DataBrowser from '../app/components/DataBrowser.vue'
 import DataGrid from '../app/components/DataGrid.vue'
@@ -8,6 +12,9 @@ import QueryConsole from '../app/components/QueryConsole.vue'
 import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 import SchemasFilterBar from '../app/components/SchemasFilterBar.vue'
 import TableInspector from '../app/components/TableInspector.vue'
+import DatabaseSwitcher from '../app/components/DatabaseSwitcher.vue'
+import { useDatabaseConnections } from '../app/build/composables/useDatabaseConnections'
+import { WAREHOUSE, connectionsState } from './fixtures/connections'
 
 // What a server render of each page reads, and that the browser is handed
 // every response it read: a read the page does not hand over is made again
@@ -214,10 +221,50 @@ describe('server render: every read is handed to the browser', () => {
 		)
 		expect(page.reads.map((read) => read.url).sort()).toEqual([
 			'/api/database/browse/count',
+			CONNECTIONS_URL,
 			'/api/database/schemas',
 		])
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('9876')
+	})
+
+	it('database switcher: sets no sidebar lock in a server render, even once the connections are read, which the sidebar it renders before would hydrate against a locked client state', async () => {
+		menuLocks.value = []
+		const ConnectionsFirst = defineComponent({
+			async setup() {
+				await useDatabaseConnections().ready
+				return () => h(DatabaseSwitcher)
+			},
+		})
+		await serverRender(
+			ConnectionsFirst,
+			{},
+			{
+				url: '/modules/database/data',
+				respond: (read) =>
+					read.url === CONNECTIONS_URL
+						? connectionsState(WAREHOUSE)
+						: backend(read),
+			},
+		)
+		expect(menuLocks.value).toEqual([])
+	})
+
+	it('table inspector on an external database: offers neither the query console nor the diagram, which an inspector linking to locked pages would not', async () => {
+		const external = connectionsState(WAREHOUSE)
+		const page = await serverRender(
+			TableInspector,
+			{ rowData: { schema: 'shop', name: 'orders' } },
+			{
+				url: '/modules/database/schemas',
+				respond: (read) =>
+					read.url === CONNECTIONS_URL ? external : backend(read),
+			},
+		)
+		expect(page.untransferred).toEqual([])
+		expect(page.html).toContain('dms_database.inspector.actions.browse')
+		expect(page.html).not.toContain('dms_database.inspector.actions.query')
+		expect(page.html).not.toContain('dms_database.inspector.actions.diagram')
 	})
 
 	it('table inspector: leaves the position and steps to the DMS header', async () => {

@@ -6,6 +6,7 @@ import {
 	isStructured,
 } from '../build/data/cellValues'
 import type { StagedCell } from '../build/data/stagedEdits'
+import { READ_ONLY_REASON } from '../build/data/readOnlyReason'
 import type { ColumnRole } from '../build/utils/fieldTypes'
 
 // One cell of the data grid. A staged cell is tinted, with the stored value
@@ -32,6 +33,7 @@ const emit = defineEmits<{
 	cancel: []
 }>()
 
+const readOnlyReason = inject(READ_ONLY_REASON, ref<string | null>(null))
 const shown = computed(() => (props.staged ? props.staged.after : props.value))
 const isNull = computed(() => shown.value === null || shown.value === undefined)
 const isEmptyText = computed(() => shown.value === '')
@@ -83,7 +85,7 @@ function cancel() {
 
 <template>
 	<td
-		class="border-default relative cursor-default border-b border-r p-0 align-middle"
+		class="border-default relative border-b border-r p-0 align-middle"
 		:class="[
 			invalid
 				? 'ring-error ring-2 ring-inset'
@@ -91,13 +93,14 @@ function cancel() {
 					? 'ring-primary ring-2 ring-inset'
 					: '',
 			staged ? 'bg-warning/10' : editing ? 'bg-primary/5' : '',
+			readOnlyReason ? 'cursor-not-allowed' : 'cursor-default',
 		]"
 		:title="
 			staged
 				? $t('dms_database.data.grid.staged_title', {
 						before: cellLabel(staged.before),
 					})
-				: undefined
+				: (readOnlyReason ?? undefined)
 		"
 		@click="emit('select')"
 		@dblclick="editable && emit('start-edit')"

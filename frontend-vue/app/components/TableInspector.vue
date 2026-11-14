@@ -29,6 +29,7 @@ import {
 import { CROSS_INSTANCE_VALUE } from '../build/composables/useDataBrowserTabs'
 import { ALL_INSTANCES_PARAM, tableLink } from '../build/utils/databaseLinks'
 import { useTableSample } from '../build/composables/useTableSample'
+import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import DrawerTabs from './DrawerTabs.vue'
 
 // The Schemas page's row drawer (D-07), also opened from the diagram: the
@@ -61,6 +62,7 @@ const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
 const BROWSE_COUNT = '/api/database/browse/count'
 
 const { t, n } = useI18n()
+const { lacks } = useDatabaseConnections()
 const { copy } = useClipboard()
 const toast = useToast()
 
@@ -361,6 +363,7 @@ async function copyName() {
 					:label="t('dms_database.inspector.actions.browse')"
 				/>
 				<UButton
+					v-if="!lacks('queryConsole')"
 					:to="tableLink('query', address)"
 					@click="emit('success')"
 					icon="i-ph-code"
@@ -370,6 +373,7 @@ async function copyName() {
 					:label="t('dms_database.inspector.actions.query')"
 				/>
 				<UButton
+					v-if="!lacks('diagram')"
 					:to="tableLink('diagram', address)"
 					@click="emit('success')"
 					icon="i-ph-graph"
