@@ -218,7 +218,8 @@
 				"not_written": "{count} modification n'a pas été écrite et reste préparée ({error}). | {count} modifications n'ont pas été écrites et restent préparées ({error}).",
 				"undo_partial": "{count} modification n'a pas pu être annulée | {count} modifications n'ont pas pu être annulées",
 				"rows_missing": "{count} ligne n'existe plus. | {count} lignes n'existent plus.",
-				"database_changed": "La base sélectionnée a changé dans un autre onglet : rechargez la page."
+				"database_changed": "La base sélectionnée a changé dans un autre onglet : rechargez la page.",
+				"read_only_access": "L'accès à {connection} est en lecture seule."
 			},
 			"row": {
 				"position": "Ligne {index} sur {total}",
@@ -252,7 +253,7 @@
 				"label": "Base de données",
 				"menu": "Choisir la base à parcourir",
 				"failed": "La base n'a pas pu être changée.",
-					"connect": "Connecter une base"
+				"connect": "Connecter une base"
 			},
 			"access": {
 				"read": "Accès à {name} : lecture seule",
