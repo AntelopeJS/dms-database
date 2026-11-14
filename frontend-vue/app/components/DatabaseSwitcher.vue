@@ -9,7 +9,6 @@ import { confirmLeave } from '#dms-ui/app/entries/composables/unsaved-changes/re
 import { forgetBrowserTabs } from '../build/composables/useDataBrowserTabs'
 import { useLockedPages } from '../build/composables/useLockedPages'
 import { useSelectionRecheck } from '../build/composables/useSelectionRecheck'
-import { forgetRecentTables } from '../build/data/recentTables'
 import {
 	ONBOARDING_KEY,
 	type PublicOnboarding,
@@ -44,7 +43,6 @@ async function pick(id: string) {
 		return
 	}
 	forgetBrowserTabs()
-	forgetRecentTables()
 	window.location.assign(route.path)
 }
 
