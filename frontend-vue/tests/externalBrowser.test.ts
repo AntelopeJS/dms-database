@@ -144,6 +144,12 @@ describe('data browser sidebar', () => {
 		expect(page.text()).not.toContain(PICKER)
 		expect(page.text()).not.toContain('dms_database.data.scope.instance')
 	})
+
+	it('names the instance its counts are for on the project database only, which an external database without instances would otherwise read as default', async () => {
+		const COUNTS_FOR = 'dms_database.data.scope.counts_for'
+		expect((await sidebar(OWN)).text()).toContain(COUNTS_FOR)
+		expect((await sidebar(WAREHOUSE)).text()).not.toContain(COUNTS_FOR)
+	})
 })
 
 describe('a read-only external database in the data grid', () => {

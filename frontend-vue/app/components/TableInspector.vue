@@ -308,7 +308,7 @@ async function copyName() {
 					:label="t('dms_database.inspector.eyebrow', { schema: schemaId })"
 				/>
 				<UBadge
-					v-if="!loading"
+					v-if="!loading && !lacks('instances')"
 					color="neutral"
 					variant="outline"
 					size="sm"

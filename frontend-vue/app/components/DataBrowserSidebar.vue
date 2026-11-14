@@ -301,6 +301,7 @@ onKeyStroke('t', (event) => {
 			</nav>
 		</div>
 		<footer
+			v-if="countsFailed || !lacks('instances')"
 			class="border-default text-dimmed flex items-center gap-1.5 border-t px-3 py-2 text-[11.5px]"
 		>
 			<UIcon
