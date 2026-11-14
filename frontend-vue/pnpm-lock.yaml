@@ -3111,6 +3111,9 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
+ignoredOptionalDependencies:
+  - playwright-core
+
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
