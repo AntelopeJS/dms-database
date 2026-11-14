@@ -99,7 +99,6 @@ export function applyFilterToList<T extends object>(
  * cell on a browse request, which has no catch of its own, so a search is not
  * answered with a 500.
  */
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what turns it into text
 export function cellToText(value: unknown): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;

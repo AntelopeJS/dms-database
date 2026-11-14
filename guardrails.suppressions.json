@@ -3,7 +3,7 @@
     "anti-slop/no-chained-type-assertions": 0,
     "anti-slop/no-object-parameters": 0,
     "anti-slop/no-runtime-typeof": 0,
-    "anti-slop/no-unknown-parameters": 2,
+    "anti-slop/no-unknown-parameters": 0,
     "anti-slop/no-unsafe-dictionary-type": 0,
     "eslint/max-params": 0,
     "typescript/no-base-to-string": 0,

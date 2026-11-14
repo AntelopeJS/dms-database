@@ -45,7 +45,13 @@ import type {
 } from "../types/responses";
 import { MAX_HISTORY_PER_USER } from "../types/constants";
 import { isJsonObject, type JsonObject } from "../types/json";
-import { isFiniteNumber, isObject, isString } from "../utils/guards";
+import {
+  isBoolean,
+  isFiniteNumber,
+  isNumber,
+  isObject,
+  isString,
+} from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
@@ -187,17 +193,36 @@ function isRow(value: unknown): value is ExecuteResult["rows"][number] {
   return isObject(value) && !Array.isArray(value);
 }
 
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- raw is the unparsed answer of a query the user typed, whose shape no schema describes, and this function is what classifies it into rows
+/** A value a query answers that the console shows as a one-column row. */
+type ScalarAnswer = string | number | boolean | null;
+
+function isScalarAnswer(value: unknown): value is ScalarAnswer {
+  return (
+    value === null || isString(value) || isNumber(value) || isBoolean(value)
+  );
+}
+
+/**
+ * One row of the console's grid: an object as is, a scalar or a list as
+ * `{ value }`. Anything else (a bigint, a symbol, a function, an `undefined`
+ * list entry) has no JSON form, so its row is empty, as `JSON.stringify`
+ * already sends a symbol, a function or `undefined`.
+ */
+function rowOf(entry: unknown): ExecuteResult["rows"][number] {
+  if (isRow(entry)) return entry;
+  if (isList(entry) || isScalarAnswer(entry)) return { value: entry };
+  return {};
+}
+
+function isList(value: unknown): value is unknown[] {
+  return Array.isArray(value);
+}
+
 function normaliseRows(raw: unknown): ExecuteResult["rows"] {
-  if (Array.isArray(raw)) {
-    const entries: unknown[] = raw;
-    return entries.map((entry) => (isRow(entry) ? entry : { value: entry }));
-  }
-  if (raw === undefined) return [];
-  if (isRow(raw)) {
-    return [raw];
-  }
-  return [{ value: raw }];
+  if (isList(raw)) return raw.map((entry) => rowOf(entry));
+  if (isRow(raw)) return [raw];
+  if (isScalarAnswer(raw)) return [{ value: raw }];
+  return raw === undefined ? [] : [{}];
 }
 
 function toHistoryWire(row: QueryHistoryRow): HistoryEntry {
