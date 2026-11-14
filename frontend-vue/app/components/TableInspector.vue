@@ -590,11 +590,16 @@ async function copyName() {
 					<DmsEyebrowLabel
 						class="min-w-0 truncate"
 						:label="
-							t('dms_database.inspector.sample.position', {
-								position: sampleOffset + 1,
-								total: sampleTotal,
-								instance: sampleInstanceLabel,
-							})
+							lacks('instances')
+								? t('dms_database.inspector.sample.position_uninstanced', {
+										position: sampleOffset + 1,
+										total: sampleTotal,
+									})
+								: t('dms_database.inspector.sample.position', {
+										position: sampleOffset + 1,
+										total: sampleTotal,
+										instance: sampleInstanceLabel,
+									})
 						"
 					/>
 					<UButton

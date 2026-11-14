@@ -16,6 +16,7 @@ import {
 import type { DatabaseConnection } from '../app/build/composables/useDatabaseConnections'
 import DataBrowserSidebar from '../app/components/DataBrowserSidebar.vue'
 import DataGrid from '../app/components/DataGrid.vue'
+import TableInspector from '../app/components/TableInspector.vue'
 
 const PICKER = 'data-dms-database-instance-picker'
 const TAB = {
@@ -260,5 +261,58 @@ describe('a capped page of an external database in the data grid', () => {
 
 	it('says nothing of a cap on a page that read every row', async () => {
 		expect(await gridText(false)).not.toMatch(/grid\.(count_)?capped/)
+	})
+})
+
+const SAMPLE_POSITION = 'dms_database.inspector.sample.position'
+
+async function samplePosition(connection: DatabaseConnection) {
+	const page = browserMount(
+		TableInspector,
+		connectionsBackend(connectionsState(connection), {
+			others: ({ url }) => {
+				if (url === '/api/database/schemas')
+					return {
+						schemas: [
+							{
+								id: 'shop',
+								options: {},
+								tables: [
+									{
+										name: 'orders',
+										fields: { _id: { kind: 'string' } },
+										indexes: {},
+										relations: [],
+									},
+								],
+								stats: { tableCount: 1, elementCount: 3, instanceCount: 0 },
+								instances: [],
+							},
+						],
+					}
+				if (url === '/api/database/browse/count') return { total: 3 }
+				if (url === '/api/database/browse/list')
+					return { results: [{ _id: '1' }], total: 3, primaryKey: '_id' }
+				return { items: [] }
+			},
+		}),
+		{ rowData: { schema: 'shop', name: 'orders' } },
+	)
+	await page.shown
+	await vi.waitFor(() => {
+		const tabs = page.find((props) => Array.isArray(props.items))
+		;(tabs?.['onUpdate:modelValue'] as (value: string) => void)('sample')
+		expect(page.text()).toContain(SAMPLE_POSITION)
+	})
+	return page.text()
+}
+
+describe('the Schemas drawer sample row', () => {
+	it('names the instance on the project database only, which a position reading default instance on an external database gets wrong', async () => {
+		const own = await samplePosition(OWN)
+		expect(own).toContain(`${SAMPLE_POSITION} `)
+		const external = await samplePosition(WAREHOUSE)
+		expect(external).toContain(`${SAMPLE_POSITION}_uninstanced`)
+		expect(external).not.toContain(`${SAMPLE_POSITION} `)
 	})
 })
