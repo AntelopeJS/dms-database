@@ -32,6 +32,7 @@ jobs:
       docs-typescript-project: docs/tsconfig.json
       renovate-sync: false
       test-job: true
+      windows: true
       # The modules `ajs module test` downloads and installs. The harness
       # names each by exact version, so a restored copy of another version
       # is downloaded again.
@@ -40,9 +41,23 @@ jobs:
       contents: read
 
   frontend:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 30
     steps:
+      - if: runner.os == 'Windows'
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.symlinks true
+          bash_path=$(cygpath -w /usr/bin/bash)
+          echo "npm_config_script_shell=${bash_path}" >> "$GITHUB_ENV"
+          echo "pnpm_config_script_shell=${bash_path}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       # Before setup-node: its pnpm cache resolves the store by running pnpm.
       # The version comes from `packageManager` in package.json.
@@ -63,9 +78,23 @@ jobs:
       - run: pnpm test:frontend
 
   formal-table-watch:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        shell: bash
     timeout-minutes: 20
     steps:
+      - if: runner.os == 'Windows'
+        run: |
+          git config --global core.autocrlf false
+          git config --global core.symlinks true
+          bash_path=$(cygpath -w /usr/bin/bash)
+          echo "npm_config_script_shell=${bash_path}" >> "$GITHUB_ENV"
+          echo "pnpm_config_script_shell=${bash_path}" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
