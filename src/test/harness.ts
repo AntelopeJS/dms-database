@@ -28,7 +28,13 @@ export default defineConfig({
         path: ".",
         installCommand: process.env.DMS_PREBUILT ? [] : ["pnpm build"],
       },
-      config: {},
+      config: {
+        externalConnections: {
+          erp: { access: "read-write" },
+          legacy: { access: "read" },
+          blank: {},
+        },
+      },
     },
     dms: {
       source: process.env.DMS_SOURCE
