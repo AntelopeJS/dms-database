@@ -14,7 +14,7 @@ import {
 } from "../service/connectionState";
 import { refusal } from "./refusal";
 import { queryContext } from "./requestContext";
-import { writerCalls } from "./writerCalls";
+import { answerNextWrite, writerCalls } from "./writerCalls";
 
 const controller = new DatabaseConnectionsController();
 const browse = new DatabaseBrowseController();
@@ -162,6 +162,47 @@ describe("[integration] external connections: changing access", () => {
       status: 403,
       message: "Access to erp is read only",
     });
+  });
+});
+
+describe("[integration] external connections: a refused access write", () => {
+  beforeEach(() => setModuleConfig({ ...original, externalConnections: {} }));
+  afterEach(() => setModuleConfig(original));
+
+  it("answers 409 with the writer's reason when the builder refuses, and keeps the access", async () => {
+    answerNextWrite({
+      code: "invalid_config",
+      issues: [
+        { pointer: "/modules/local/config", message: "is held in a variable" },
+        { pointer: "", message: "the configuration is spread" },
+      ],
+    });
+    const { status, message } = await refusal(writeAccess("erp", "read-write"));
+    const body: unknown = JSON.parse(message);
+    assert.deepEqual(
+      { status, body },
+      {
+        status: 409,
+        body: {
+          message: "$dms_database.connections.access.refused",
+          params: {
+            reason:
+              "/modules/local/config is held in a variable; the configuration is spread",
+          },
+        },
+      },
+    );
+    assert.equal(await accessOf("erp"), "read");
+  });
+
+  it("answers 503 naming the development builder only when no builder answers", async () => {
+    answerNextWrite("absent");
+    assert.deepEqual(await refusal(writeAccess("erp", "read-write")), {
+      status: 503,
+      message:
+        "The project's configuration could not be written: the DMS builder runs in development",
+    });
+    assert.equal(await accessOf("erp"), "read");
   });
 });
 

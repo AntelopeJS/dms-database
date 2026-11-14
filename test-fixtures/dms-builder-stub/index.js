@@ -54,13 +54,33 @@ function isAccessEntry(entry) {
 }
 
 /**
- * Records the call, and answers the result the DMS's writer would.
+ * The answers the tests queue for the next calls, read under this key: a builder error to refuse
+ * with, or `"absent"` to reject as a call no builder answers.
+ *
+ * @type {unknown[]}
+ */
+const answers = [];
+Reflect.set(
+  globalThis,
+  Symbol.for("dms-database-test:configure-module-answers"),
+  answers,
+);
+
+/**
+ * Records the call, and answers the result the tests queued, else the one the DMS's writer would.
  *
  * @param {string} id The module entry
  * @param {unknown} entry What to merge into it
  */
 async function ConfigureModule(id, entry) {
   calls.push({ id, entry });
+  const answer = answers.shift();
+  if (answer === "absent") {
+    throw new Error("No implementation of interface-dms-builder");
+  }
+  if (answer !== undefined) {
+    return { ok: false, error: answer };
+  }
   if (!isAccessEntry(entry)) {
     return {
       ok: false,

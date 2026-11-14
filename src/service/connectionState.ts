@@ -1,3 +1,4 @@
+import { HTTPResult } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetRuntimeInfo } from "@antelopejs/interface-core/runtime";
@@ -10,6 +11,7 @@ import {
 } from "@antelopejs/interface-dms/connection-access";
 import { setExternalConnections, withAccess } from "../config";
 import { configuredAccess } from "../connectionAccess";
+import { builderRefusalReason } from "./builderRefusal";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import {
   listExternalIds,
@@ -277,10 +279,16 @@ async function writeAccessNow(
     config: { externalConnections },
   }).catch(() => undefined);
   assert(
-    written?.ok === true,
+    written !== undefined,
     503,
     "The project's configuration could not be written: the DMS builder runs in development",
   );
+  if (!written.ok) {
+    throw new HTTPResult(409, {
+      message: "$dms_database.connections.access.refused",
+      params: { reason: builderRefusalReason(written.error) },
+    });
+  }
   setExternalConnections(next);
 }
 
