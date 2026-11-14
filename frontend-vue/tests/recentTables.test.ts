@@ -59,7 +59,7 @@ it('offers on a reload only the tables of the selected database, and those of th
 	expect(offered(back)).toEqual(['shop.orders'])
 })
 
-it('offers no table while the selection is unknown, which tables remembered under no database would get wrong once one is selected', () => {
+it('offers no table while no database is known, which tables remembered under no database get wrong', () => {
 	browsing()
 	const browser = useDataBrowserTabs()
 	browser.restore(undefined)
