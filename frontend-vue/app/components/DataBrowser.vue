@@ -3,10 +3,12 @@ import {
 	instanceBadge,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
+import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
 import { type RecentTable, readRecentTables } from '../build/data/recentTables'
 import { useStagedEdits } from '../build/data/stagedEdits'
+import DataBrowserAccessBar from '../build/components/DataBrowserAccessBar.vue'
 import DataBrowserSidebar from './DataBrowserSidebar.vue'
 import DataBrowserTabBar from './DataBrowserTabBar.vue'
 import DataGrid from './DataGrid.vue'
@@ -23,6 +25,7 @@ const {
 	error: schemasError,
 	refresh: refreshSchemas,
 } = useDatabaseSchemas()
+const { ready: connectionsRead } = useDatabaseConnections()
 const { tabs, activeTab, restore, openTab, openFromRoute } =
 	useDataBrowserTabs()
 const staged = useStagedEdits()
@@ -61,6 +64,8 @@ watch(activeTab, () => {
 function instanceLabel(instance: string): string {
 	return instanceBadge(instance, t('dms_database.data.scope.all')) ?? ''
 }
+
+await connectionsRead
 </script>
 
 <template>
@@ -74,6 +79,7 @@ function instanceLabel(instance: string): string {
 			@retry="refreshSchemas()"
 		/>
 		<section class="flex min-w-0 flex-1 flex-col md:min-h-0">
+			<DataBrowserAccessBar />
 			<DataBrowserTabBar />
 			<DataGrid
 				v-if="activeTab"

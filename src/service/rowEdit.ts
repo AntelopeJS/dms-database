@@ -1,12 +1,15 @@
 import { assert } from "@antelopejs/interface-api-util";
+import { CROSS_INSTANCE } from "@antelopejs/interface-database";
 import {
   isJsonContainer,
   isJsonValue,
   type JsonObject,
   type JsonValue,
 } from "../types/json";
-import { isBoolean, isObject } from "../utils/guards";
+import { isBoolean, isObject, isRecord } from "../utils/guards";
 import { cellToText } from "../utils/query";
+import { type BrowseSelection, resolveTable } from "./browse";
+import type { Database } from "./database";
 
 /**
  * Synthetic columns the browse layer surfaces but does not persist (e.g. the
@@ -175,4 +178,50 @@ export function buildEditUpdates(
   );
   Reflect.setPrototypeOf(updates, null);
   return updates;
+}
+
+/**
+ * Applies an edit to one row and answers the row as stored. Writes are
+ * scoped to a single instance: the cross-instance view is a read-only union,
+ * so there is no unambiguous row to mutate. The adapter
+ * counts modified rows, not matches: zero can mean either a concurrent
+ * deletion or an unchanged value, and only a read distinguishes them, so a
+ * successful save of a row that no longer exists is never echoed. Otherwise
+ * the values are validated and type-stable, so the merged row is echoed
+ * rather than paying a second read.
+ *
+ * @param db The database the row lives in
+ * @param selection The row's schema, instance and table
+ * @param id The row's key
+ * @param body The fields to write
+ * @returns The row after the edit
+ */
+export async function editRow(
+  db: Database,
+  selection: BrowseSelection,
+  id: string,
+  body: JsonObject,
+): Promise<object> {
+  assert(
+    selection.instance !== CROSS_INSTANCE,
+    400,
+    "Editing is disabled when browsing across all instances",
+  );
+  const target = resolveTable(db, selection).get(id);
+  const existing: unknown = await target.run();
+  assert(isRecord(existing), 404, "Row not found");
+  const updates = buildEditUpdates(
+    new Map(Object.entries(existing)),
+    body,
+    db.primaryKey(selection.schema, selection.table),
+  );
+  if (Object.keys(updates).length > 0) {
+    const changed = await target.update(updates).run();
+    if (changed === 0) {
+      const persisted: unknown = await target.run();
+      assert(isObject(persisted), 404, "Row not found");
+      return persisted;
+    }
+  }
+  return { ...existing, ...updates };
 }

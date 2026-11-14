@@ -25,6 +25,7 @@ export default defineConfig({
 				'dms-frontend/templates/vue/frontend-module.ts',
 			),
 			'#dms-core': resolve(root, 'dms/frontend-vue/layers/dms-core'),
+			'#dms-ui': resolve(root, 'dms/frontend-vue/layers/dms-ui'),
 			// The renderer's own imports, from this package's dependencies: one
 			// Vue for the renderer and the components.
 			vue: resolve(__dirname, 'node_modules/vue'),
@@ -45,6 +46,11 @@ export default defineConfig({
 				testFile('clientNavigation.test.ts'),
 				testFile('apiErrorPresentation.test.ts'),
 				testFile('connectionStatus.test.ts'),
+				testFile('databaseSwitcher.test.ts'),
+				testFile('accessBar.test.ts'),
+				testFile('lockedPages.test.ts'),
+				testFile('externalBrowser.test.ts'),
+				testFile('editRequest.test.ts'),
 			],
 		},
 	},

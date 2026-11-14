@@ -13,6 +13,10 @@ import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { DiagramLayoutModel, type DiagramNote, DiagramNoteModel } from "../db";
 import {
+  assertSupported,
+  resolveSelectedDatabase,
+} from "../service/connectionState";
+import {
   isJsonContainer,
   isJsonObjectValue,
   isJsonValue,
@@ -110,15 +114,21 @@ function toNoteWire(row: DiagramNote): NoteWire {
   };
 }
 
+/** Refuses the diagram while the user browses an external database. */
+async function assertDiagramAvailable(user: User): Promise<void> {
+  assertSupported(await resolveSelectedDatabase(user._id), "diagram");
+}
+
 @AuthOwnerOnly()
 export class DatabaseDiagramController extends Controller(
   "/api/database/diagram",
 ) {
   @Get("/layout/:schema")
   async getLayout(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("schema", "param") schema: unknown,
   ): Promise<LayoutResponse> {
+    await assertDiagramAvailable(user);
     assertNonEmptyString(schema);
     const layoutModel = GetModel(DiagramLayoutModel);
     const row = await layoutModel.getBySchema(schema);
@@ -135,10 +145,11 @@ export class DatabaseDiagramController extends Controller(
 
   @Put("/layout/:schema")
   async putLayout(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("schema", "param") schema: unknown,
     @JSONBody() body: LayoutBody,
   ): Promise<SuccessResponse> {
+    await assertDiagramAvailable(user);
     assertNonEmptyString(schema);
     const raw = body?.positions;
     assert(isJsonValue(raw), 400, "Expected positions object");
@@ -150,9 +161,10 @@ export class DatabaseDiagramController extends Controller(
 
   @Get("/notes")
   async listNotes(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("schema", "query") schema: unknown,
   ): Promise<ListResult<NoteWire>> {
+    await assertDiagramAvailable(user);
     assertNonEmptyString(schema);
     const noteModel = GetModel(DiagramNoteModel);
     const rows = await noteModel.listBySchema(schema);
@@ -163,9 +175,10 @@ export class DatabaseDiagramController extends Controller(
 
   @Post("/notes")
   async createNote(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @JSONBody() body: NoteCreateBody,
   ): Promise<NoteWire> {
+    await assertDiagramAvailable(user);
     const schemaName = body?.schemaName;
     assertNonEmptyString(schemaName);
     const rawText = body?.text;
@@ -203,10 +216,11 @@ export class DatabaseDiagramController extends Controller(
 
   @Put("/notes/:id")
   async updateNote(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("id", "param") id: unknown,
     @JSONBody() body: NoteUpdateBody,
   ): Promise<NoteWire> {
+    await assertDiagramAvailable(user);
     assertNonEmptyString(id);
     const noteModel = GetModel(DiagramNoteModel);
     const existing = await noteModel.get(id);
@@ -241,9 +255,10 @@ export class DatabaseDiagramController extends Controller(
 
   @Delete("/notes/:id")
   async deleteNote(
-    @AuthRawUser() _user: User,
+    @AuthRawUser() user: User,
     @Parameter("id", "param") id: unknown,
   ): Promise<SuccessResponse> {
+    await assertDiagramAvailable(user);
     assertNonEmptyString(id);
     const noteModel = GetModel(DiagramNoteModel);
     const existing = await noteModel.get(id);

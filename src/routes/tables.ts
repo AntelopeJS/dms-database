@@ -3,6 +3,9 @@ import { assert } from "@antelopejs/interface-api-util";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { formatModifier, localeOf, type ServerLocale } from "../i18n/messages";
+import { assertDefaultInstance } from "../service/browse";
+import { resolveSelectedDatabase } from "../service/connectionState";
+import type { Database } from "../service/database";
 import {
   getTableElementCount,
   getTableTotalCount,
@@ -14,7 +17,6 @@ import {
   readSchemaFilters,
   type SchemaFilters,
 } from "../service/schemaFilters";
-import { getRegistry } from "../service/schemaRegistry";
 import type { TableSummary } from "../service/types";
 import { isNonEmptyString, isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
@@ -109,14 +111,15 @@ function matchesStructure(
 }
 
 function countRows(
-  schemaId: string,
-  tableName: string,
+  db: Database,
+  { schemaId, table }: ListedTable,
   instance: InstanceChoice,
 ): Promise<number> {
-  if (instance.kind === "all") return getTableTotalCount(schemaId, tableName);
+  if (instance.kind === "all")
+    return getTableTotalCount(db, schemaId, table.name);
   if (instance.kind === "default")
-    return getTableElementCount(schemaId, tableName);
-  return getTableElementCount(schemaId, tableName, instance.id);
+    return getTableElementCount(db, schemaId, table.name);
+  return getTableElementCount(db, schemaId, table.name, instance.id);
 }
 
 function sourceRowId(schemaId: string, tableName: string): string {
@@ -152,11 +155,14 @@ interface TableSourceListing {
  * then the empty ones when asked.
  */
 async function listTableSourceRows(
+  db: Database,
   locale: ServerLocale,
   filters: SchemaFilters,
 ): Promise<TableSourceListing> {
+  if (filters.instance.kind === "named")
+    assertDefaultInstance(db, filters.instance.id);
   const needle = needleOf(filters.q);
-  const summaries = await listSchemaSummaries();
+  const summaries = await listSchemaSummaries(db);
   const registered: ListedTable[] = summaries.flatMap((summary) =>
     summary.tables.map((table) => ({ schemaId: summary.id, table })),
   );
@@ -164,9 +170,7 @@ async function listTableSourceRows(
     matchesStructure(listed, filters, needle),
   );
   const counts = await Promise.all(
-    tables.map(({ schemaId, table }) =>
-      countRows(schemaId, table.name, filters.instance),
-    ),
+    tables.map((listed) => countRows(db, listed, filters.instance)),
   );
   const rows = tables.map((listed, index) =>
     toSourceRow(listed, counts[index] ?? 0, locale),
@@ -211,6 +215,7 @@ export class DatabaseTablesController extends Controller(
     @Parameter("filter_has", "query") has: unknown,
   ): Promise<TableSourceResult> {
     const { rows, all } = await listTableSourceRows(
+      await resolveSelectedDatabase(user._id),
       localeOf(user),
       readSchemaFilters({
         scope: isString(scope) ? scope : undefined,
@@ -234,7 +239,8 @@ export class DatabaseTablesController extends Controller(
   ): Promise<TableSourceRow> {
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const summaries = await listSchemaSummaries();
+    const db = await resolveSelectedDatabase(user._id);
+    const summaries = await listSchemaSummaries(db);
     const listed = summaries
       .flatMap((summary) =>
         summary.tables.map((table) => ({ schemaId: summary.id, table })),
@@ -242,6 +248,7 @@ export class DatabaseTablesController extends Controller(
       .find(({ schemaId, table }) => sourceRowId(schemaId, table.name) === id);
     assert(listed, 404, `Unknown table ${id}`);
     const count = await getTableElementCount(
+      db,
       listed.schemaId,
       listed.table.name,
     );
@@ -251,19 +258,22 @@ export class DatabaseTablesController extends Controller(
   /**
    * A schema's named instances for the filter bar's instance picker: a
    * schema may hold one per tenant, so it searches them here and lists at
-   * most `limit`, with how many matched.
+   * most `limit`, with how many matched. An external database's tables have
+   * no instances, so its schemas list none.
    */
   @Get("/instances")
   async instances(
+    @AuthRawUser() user: User,
     @Parameter("schema", "query") schemaRaw: unknown,
     @Parameter("search", "query") search: unknown,
     @Parameter("limit", "query") limitRaw: unknown,
   ): Promise<InstancesResult> {
     assert(isNonEmptyString(schemaRaw), 400, "Missing 'schema'");
     const schema = schemaRaw;
-    const registered = getRegistry().get(schema);
+    const db = await resolveSelectedDatabase(user._id);
+    const registered = db.schemas().get(schema);
     assert(registered, 404, `Unknown schema ${schema}`);
-    const named = await listSchemaInstances(registered);
+    const named = await listSchemaInstances(db, registered);
     const limit = clamp(
       parseInteger(
         isString(limitRaw) ? limitRaw : undefined,

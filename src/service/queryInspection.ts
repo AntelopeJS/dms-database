@@ -1,10 +1,11 @@
-import { CROSS_INSTANCE, Query, Schema } from "@antelopejs/interface-database";
+import { CROSS_INSTANCE, Query } from "@antelopejs/interface-database";
 import {
   type QueryStage,
   StagedObject,
 } from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 import { isNumber, isObject, isString } from "../utils/guards";
+import { OWN_DATABASE } from "./database";
 import { listSchemaInstances } from "./introspect";
 
 const MUTATING_STAGES = ["insert", "update", "replace", "delete"] as const;
@@ -154,7 +155,7 @@ export async function describeUnknownQueryTarget(
   target: QueryTarget,
 ): Promise<string | null> {
   if (!target.schema) return null;
-  const schema = Schema.get(target.schema);
+  const schema = OWN_DATABASE.schemas().get(target.schema);
   if (!schema) return `Unknown schema "${target.schema}"`;
   if (
     target.table &&
@@ -167,7 +168,7 @@ export async function describeUnknownQueryTarget(
   }
   const instance = target.instance;
   if (!instance || instance === "*") return null;
-  const named = await listSchemaInstances(schema);
+  const named = await listSchemaInstances(OWN_DATABASE, schema);
   if (named.includes(instance)) return null;
   const listed = named.slice(0, LISTED_INSTANCES).map((id) => `"${id}"`);
   const more = named.length > listed.length ? ", …" : "";

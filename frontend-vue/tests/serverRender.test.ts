@@ -13,6 +13,8 @@ import TableInspector from '../app/components/TableInspector.vue'
 // every response it read: a read the page does not hand over is made again
 // by the browser, after a server request for nothing.
 
+const CONNECTIONS_URL = '/api/database/connections'
+
 const table = (name: string) => ({
 	name,
 	fields: {
@@ -100,11 +102,12 @@ const render = (
 describe('server render: every read is handed to the browser', () => {
 	it('data browser: the table counts of the first schema', async () => {
 		const page = await render(DataBrowser, {}, '/modules/database/data')
-		expect(page.reads.map((read) => read.url)).toEqual([
+		const reads = page.reads.filter((read) => read.url !== CONNECTIONS_URL)
+		expect(reads.map((read) => read.url)).toEqual([
 			'/api/database/schemas',
 			'/api/database/browse/tables',
 		])
-		expect(page.reads[1]!.query).toEqual({ filter_schema: 'is:audit' })
+		expect(reads[1]!.query).toEqual({ filter_schema: 'is:audit' })
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('4242')
 	})
@@ -115,7 +118,8 @@ describe('server render: every read is handed to the browser', () => {
 			{},
 			'/modules/database/data?schema=shop&table=orders&instance=eu',
 		)
-		expect(page.reads[1]!.query).toEqual({
+		const reads = page.reads.filter((read) => read.url !== CONNECTIONS_URL)
+		expect(reads[1]!.query).toEqual({
 			filter_schema: 'is:shop',
 			filter_instance: 'is:eu',
 		})
@@ -165,6 +169,7 @@ describe('server render: every read is handed to the browser', () => {
 	it('query console: the library, saved, shared and run', async () => {
 		const page = await render(QueryConsole, {}, '/modules/database/query')
 		expect(page.reads.map((read) => read.url).sort()).toEqual([
+			CONNECTIONS_URL,
 			'/api/database/query/history',
 			'/api/database/query/saved',
 			'/api/database/query/saved',
@@ -179,6 +184,7 @@ describe('server render: every read is handed to the browser', () => {
 	it('diagram: no layout or notes, which only the browser draws', async () => {
 		const page = await render(SchemaDiagram, {}, '/modules/database/diagram')
 		expect(page.reads.map((read) => read.url)).toEqual([
+			CONNECTIONS_URL,
 			'/api/database/schemas',
 		])
 		expect(page.untransferred).toEqual([])
@@ -195,6 +201,7 @@ describe('server render: every read is handed to the browser', () => {
 		const page = await render(SchemasFirst, {}, '/modules/database/diagram')
 		expect(page.reads.map((read) => read.url)).toEqual([
 			'/api/database/schemas',
+			CONNECTIONS_URL,
 		])
 		expect(page.untransferred).toEqual([])
 	})

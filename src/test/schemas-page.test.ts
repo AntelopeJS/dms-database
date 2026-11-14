@@ -8,6 +8,7 @@ import {
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseSchemasPage } from "../pages/schemas";
 import { DatabaseTablesController } from "../routes/tables";
+import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
 import {
   decodeInstanceParam,
@@ -138,22 +139,22 @@ describe("[integration] Schemas page", () => {
 
   it("searches a schema's named instances", async () => {
     const controller = new DatabaseTablesController();
-    assert.deepEqual(await controller.instances(SCHEMA, "U", undefined), {
+    assert.deepEqual(await controller.instances(USER, SCHEMA, "U", undefined), {
       instances: ["eu", "us"],
       total: 2,
     });
-    assert.deepEqual(await controller.instances(SCHEMA, undefined, "1"), {
+    assert.deepEqual(await controller.instances(USER, SCHEMA, undefined, "1"), {
       instances: ["eu"],
       total: 2,
     });
     await assert.rejects(
-      controller.instances("no-such-schema", undefined, undefined),
+      controller.instances(USER, "no-such-schema", undefined, undefined),
       (error: { getStatus(): number }) => error.getStatus() === 404,
     );
   });
 
   it("types a column holding null as nullable", async () => {
-    const summary = (await listSchemaSummaries()).find(
+    const summary = (await listSchemaSummaries(OWN_DATABASE)).find(
       (item) => item.id === SCHEMA,
     );
     const fields = summary?.tables.find(
@@ -189,7 +190,7 @@ describe("[integration] Schemas page on a tenanted schema", () => {
   after(() => tenanted().destroyInstance(TENANT).run());
 
   it("types the columns of a table whose rows are all in a named instance", async () => {
-    const summary = (await listSchemaSummaries()).find(
+    const summary = (await listSchemaSummaries(OWN_DATABASE)).find(
       (item) => item.id === TENANTED,
     );
     const fields = summary?.tables.find(

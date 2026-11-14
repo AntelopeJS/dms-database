@@ -1,6 +1,7 @@
 import { getModuleConfig } from "../config";
+import { resolveCatalog } from "./connections";
+import { type Database, OWN_CONNECTION } from "./database";
 import { getTableElementCount, listSchemaSummaries } from "./introspect";
-import { getRegistry } from "./schemaRegistry";
 
 export type ConnectionStatus = "ok" | "down";
 
@@ -54,17 +55,20 @@ interface StorageAggregate {
 }
 
 /**
- * Lightweight connection probe: time listing instances of the first registered
- * schema. No schema registered -> "ok" with unknown latency.
+ * Lightweight connection probe: time counting the rows of the first table of
+ * the first schema that has one, in its default instance, which every
+ * database offers. No table registered -> "ok" with unknown latency.
  */
-async function probeConnection(): Promise<ConnectionProbe> {
-  const registry = getRegistry();
-  const schemaIds = Array.from(registry.keys());
-  const probeSchema = schemaIds[0] ? registry.get(schemaIds[0]) : undefined;
-  if (!probeSchema) return { status: "ok", latencyMs: null, error: null };
+async function probeConnection(db: Database): Promise<ConnectionProbe> {
+  const probe = Array.from(db.schemas().values())
+    .flatMap((schema) =>
+      Object.keys(schema.definition).map((table) => ({ schema, table })),
+    )
+    .at(0);
+  if (!probe) return { status: "ok", latencyMs: null, error: null };
   const startedAt = Date.now();
   try {
-    await probeSchema.listInstances().run();
+    await probe.schema.instance().table(probe.table).count().run();
     return { status: "ok", latencyMs: Date.now() - startedAt, error: null };
   } catch (error) {
     return {
@@ -80,6 +84,7 @@ async function probeConnection(): Promise<ConnectionProbe> {
  * sorted descending) from the introspected schema summaries.
  */
 async function aggregateStorage(
+  db: Database,
   summaries: Awaited<ReturnType<typeof listSchemaSummaries>>,
 ): Promise<StorageAggregate> {
   let tableCount = 0;
@@ -92,7 +97,7 @@ async function aggregateStorage(
     tableCount += summary.tables.length;
     const counts = await Promise.all(
       summary.tables.map((table) =>
-        getTableElementCount(summary.id, table.name),
+        getTableElementCount(db, summary.id, table.name),
       ),
     );
     summary.tables.forEach((table, idx) => {
@@ -109,23 +114,38 @@ async function aggregateStorage(
 }
 
 /**
- * Probes the database connection and aggregates overview statistics.
- *
- * Status/latency come from a lightweight probe (listing instances of the first
- * registered schema). The driver name is not exposed by the interface-database
- * abstraction and comes from the module config; byte-size storage is not
- * available either, so row counts stand in for it.
+ * The driver label a database shows: the configured one for the project's
+ * own, the engine and version its catalog reports for an external one, or
+ * `null` when the catalog does not answer.
  */
-export async function getOverviewHealth(): Promise<OverviewHealth> {
+async function driverLabelOf(db: Database): Promise<string | null> {
+  if (db.connection === OWN_CONNECTION) {
+    return getModuleConfig().driverLabel ?? null;
+  }
+  const info = await resolveCatalog(db.connection)
+    .Info()
+    .catch(() => undefined);
+  return info ? `${info.engine} ${info.version}` : null;
+}
+
+/**
+ * Probes a database's connection and aggregates its overview statistics.
+ *
+ * Status/latency come from a lightweight probe (counting the first table's
+ * rows in its default instance). Byte-size storage is not exposed by the
+ * interface-database abstraction, so row counts stand in for it.
+ */
+export async function getOverviewHealth(db: Database): Promise<OverviewHealth> {
   const checkedAt = new Date().toISOString();
-  const { status, latencyMs, error } = await probeConnection();
-  const summaries = await listSchemaSummaries();
-  const aggregate = await aggregateStorage(summaries);
+  const { status, latencyMs, error } = await probeConnection(db);
+  const summaries = await listSchemaSummaries(db);
+  const aggregate = await aggregateStorage(db, summaries);
+  const driver = await driverLabelOf(db);
 
   return {
     status,
     latencyMs,
-    driver: getModuleConfig().driverLabel ?? null,
+    driver,
     checkedAt,
     error,
     schemaCount: summaries.length,

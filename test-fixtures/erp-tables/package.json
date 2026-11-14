@@ -1,0 +1,11 @@
+{
+  "name": "erp-tables",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The tables module the connect flow writes for an external database, as the backend tests run it.",
+  "main": "index.js",
+  "dependencies": {
+    "@antelopejs/interface-database": ">=0.4.0 <0.5.0"
+  },
+  "antelopeJs": {}
+}

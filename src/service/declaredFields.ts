@@ -3,14 +3,13 @@ import type { Schema } from "@antelopejs/interface-database";
 import {
   DatumStaticMetadata,
   getMetadata,
-  getTablesForSchema,
   ModifiersStaticMetadata,
   RelationStaticMetadata,
   type Table,
 } from "@antelopejs/interface-database-decorators";
 import { isObject } from "../utils/guards";
+import type { Database } from "./database";
 import { type FieldDescriptor, toFieldDescriptor } from "./fieldDescriptor";
-import { getRegistry } from "./schemaRegistry";
 
 const DESIGN_TYPE_DESCRIPTORS = new Map<unknown, () => FieldDescriptor>([
   [String, () => ({ kind: "string" })],
@@ -117,13 +116,14 @@ export function declaredFieldTypes(
  * and is left out.
  */
 export function getDeclaredFieldTypes(
+  db: Database,
   schemaId: string,
   tableName: string,
   columns: readonly string[],
 ): Map<string, FieldDescriptor> {
-  const def = getRegistry().get(schemaId)?.definition[tableName];
+  const def = db.schemas().get(schemaId)?.definition[tableName];
   if (!def) return new Map();
-  const TableClass = getTablesForSchema(schemaId)?.[tableName];
+  const TableClass = db.tableClasses(schemaId)?.[tableName];
   const types = declaredFieldTypes(def, decoratedFieldsOf(TableClass));
   if (!TableClass) return types;
   for (const column of columns) {
@@ -145,11 +145,12 @@ export function getDeclaredFieldTypes(
  * definition's fields.
  */
 export function getDeclaredFieldOrder(
+  db: Database,
   schemaId: string,
   tableName: string,
 ): string[] {
-  const def = getRegistry().get(schemaId)?.definition[tableName];
-  const TableClass = getTablesForSchema(schemaId)?.[tableName];
+  const def = db.schemas().get(schemaId)?.definition[tableName];
+  const TableClass = db.tableClasses(schemaId)?.[tableName];
   const decorated = decoratedFieldsOf(TableClass).ordered;
   return [...new Set([...decorated, ...Object.keys(def?.fields ?? {})])];
 }

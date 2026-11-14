@@ -66,9 +66,9 @@ function MappedCountries(path: string) {
 }
 
 @RegisterDataController()
-@ExternalConnection("erp")
+@ExternalConnection("ledger")
 export class ReadWriteCountries extends MappedCountries(
-  "/api/connection-access/erp",
+  "/api/connection-access/ledger",
 ) {}
 
 @RegisterDataController()
@@ -112,17 +112,17 @@ describe("[integration] a table mapped from an external connection", () => {
   });
 
   it("writes through its generated routes when config.externalConnections makes it read-write", async () => {
-    const created = await send("POST", `${API}/erp/new`, { name: "France" });
+    const created = await send("POST", `${API}/ledger/new`, { name: "France" });
     const body = await created.text();
     assert.equal(created.status, 200, body);
     const row: unknown = JSON.parse(body);
     assert.ok(isObject(row) && "_id" in row);
     const id = String(row._id);
-    const edited = await send("PUT", `${API}/erp/edit?id=${id}`, {
+    const edited = await send("PUT", `${API}/ledger/edit?id=${id}`, {
       name: "Republic of France",
     });
     assert.equal(edited.status, 200, await edited.text());
-    const removed = await send("DELETE", `${API}/erp/delete?id=${id}`);
+    const removed = await send("DELETE", `${API}/ledger/delete?id=${id}`);
     assert.equal(removed.status, 200, await removed.text());
   });
 

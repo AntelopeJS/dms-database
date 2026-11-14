@@ -1,5 +1,6 @@
 import { defineAsyncComponent, type Component } from 'vue'
 import type { DmsFrontendModule } from '#dms/frontend-module'
+import { registerDatabaseSwitcher } from './app/build/composables/registerDatabaseSwitcher'
 
 interface VueModule {
 	default: Component
@@ -23,6 +24,7 @@ const frontendModule: DmsFrontendModule = {
 				defineAsyncComponent(async () => (await loader()).default),
 			)
 		}
+		sdk.registerPlugin(registerDatabaseSwitcher)
 	},
 }
 

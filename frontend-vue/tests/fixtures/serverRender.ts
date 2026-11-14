@@ -18,6 +18,8 @@ export interface BackendRead {
 	url: string
 	method: string
 	query: Record<string, unknown>
+	body?: unknown
+	headers?: Record<string, string>
 }
 
 export type Backend = (read: BackendRead) => unknown
@@ -25,7 +27,39 @@ export type Backend = (read: BackendRead) => unknown
 interface FetchOptions {
 	method?: string
 	query?: Record<string, unknown>
+	body?: unknown
+	headers?: Record<string, string>
 	signal?: AbortSignal
+}
+
+const CONNECTIONS_URL = '/api/database/connections'
+/**
+ * What the connections read answers when a test's backend says nothing of it:
+ * the project database alone, selected.
+ */
+const OWN_DATABASE_ONLY = {
+	selected: 'own',
+	accessEditable: false,
+	connections: [
+		{
+			id: 'own',
+			kind: 'own',
+			label: 'own',
+			engine: null,
+			access: 'read-write',
+			canWrite: true,
+			unsupported: [],
+		},
+	],
+}
+
+function answerIsConnections(answer: unknown): boolean {
+	return (
+		typeof answer === 'object' &&
+		answer !== null &&
+		'connections' in answer &&
+		Array.isArray(answer.connections)
+	)
 }
 
 let backend: Backend = () => ({})
@@ -38,10 +72,15 @@ const $authFetch = async (url: string, options: FetchOptions = {}) => {
 		url,
 		method: (options.method ?? 'GET').toUpperCase(),
 		query: options.query ?? {},
+		body: options.body,
+		headers: options.headers,
 	}
 	reads.push(read)
 	readOptions.set(read, options)
-	return backend(read)
+	const answer = backend(read)
+	if (read.url === CONNECTIONS_URL && read.method === 'GET')
+		return answerIsConnections(answer) ? answer : OWN_DATABASE_ONLY
+	return answer
 }
 
 const noop = () => undefined
@@ -78,9 +117,51 @@ vi.stubGlobal('useRegionalFormat', () => ({
 }))
 vi.stubGlobal('regionalDayKey', regional.regionalDayKey)
 vi.stubGlobal('regionalDayNumber', regional.regionalDayNumber)
-vi.stubGlobal('useToast', () => ({ add: noop }))
-vi.stubGlobal('useConfirm', () => ({ confirm: async () => false }))
-vi.stubGlobal('useDrawer', () => ({ open: noop }))
+vi.stubGlobal('useToast', () => ({ add: () => ({ id: 'toast' }) }))
+/** The sidebar entries the mounted components locked, as the layer's `useMenuLocks` keeps them. */
+export const menuLocks = vue.ref<{ fullId: string; reason: string }[]>([])
+vi.stubGlobal('useMenuLocks', () => ({
+	locks: menuLocks,
+	lock: (entry: { fullId: string; reason: string }) => {
+		const known = menuLocks.value.find((lock) => lock.fullId === entry.fullId)
+		if (known?.reason === entry.reason) return
+		menuLocks.value = [
+			...menuLocks.value.filter((known) => known.fullId !== entry.fullId),
+			entry,
+		]
+	},
+	unlock: (fullId: string) => {
+		if (!menuLocks.value.some((lock) => lock.fullId === fullId)) return
+		menuLocks.value = menuLocks.value.filter((known) => known.fullId !== fullId)
+	},
+}))
+/** Every page of the site layout, its `fullId` derived from its path. */
+vi.stubGlobal('useSiteLayout', () => ({
+	findMatchingRoute: (path: string) => ({
+		metadata: { fullId: `page${path}` },
+	}),
+}))
+/** The confirmation dialogs the mounted components opened, in order. */
+export const confirmations: unknown[] = []
+let confirmationAnswer = false
+/** What the next confirmation dialogs resolve: the user's choice. */
+export function answerConfirmations(confirmed: boolean): void {
+	confirmationAnswer = confirmed
+}
+vi.stubGlobal('useConfirm', () => ({
+	confirm: async (options: unknown) => {
+		confirmations.push(options)
+		return confirmationAnswer
+	},
+}))
+/** The options of each drawer the mounted components opened, in order. */
+export const drawers: { componentOptions?: Record<string, unknown> }[] = []
+vi.stubGlobal('useDrawer', () => ({
+	open: (options: { componentOptions?: Record<string, unknown> }) => {
+		drawers.push(options)
+		return { result: new Promise(noop), patch: noop }
+	},
+}))
 vi.stubGlobal('resolveDmsComponent', engine.resolveDmsComponent)
 vi.stubGlobal('useUnsavedChanges', noop)
 vi.stubGlobal('useDmsUserSession', () => ({
@@ -125,6 +206,7 @@ const UI_COMPONENTS = [
 	'UAvatar',
 	'UBadge',
 	'UButton',
+	'UDropdownMenu',
 	'UFormField',
 	'UIcon',
 	'UInput',
@@ -213,6 +295,18 @@ function mountText(node: MountNode): string {
 	return `<${node.tag}${attributes}>${node.children.map(mountText).join('')}</${node.tag}>`
 }
 
+function findNode(
+	node: MountNode,
+	match: (props: Record<string, unknown>) => boolean,
+): MountNode | undefined {
+	if (node.tag !== undefined && match(node.props)) return node
+	for (const child of node.children) {
+		const found = findNode(child, match)
+		if (found) return found
+	}
+	return undefined
+}
+
 /** A component mounted in a browser, as a client navigation shows it. */
 export interface BrowserMount {
 	/**
@@ -222,9 +316,24 @@ export interface BrowserMount {
 	shown: Promise<void>
 	/** What the component shows now (`''` while the navigation waits). */
 	text: () => string
+	/**
+	 * The props, handlers included, of the first element shown that `match`
+	 * accepts: what a click or a toggle on it would call.
+	 */
+	find: (
+		match: (props: Record<string, unknown>) => boolean,
+	) => Record<string, unknown> | undefined
 	reads: BackendRead[]
 	/** What the mounted components threw outside a test's own calls. */
 	errors: unknown[]
+}
+
+/** What a browser mount adds to the app around the component. */
+export interface BrowserMountOptions {
+	/** Values the app provides, as an installed module does for the whole app. */
+	provide?: [symbol, unknown][]
+	/** Components registered over the stubs, by name. */
+	components?: Record<string, Component>
 }
 
 /**
@@ -236,9 +345,12 @@ export function browserMount(
 	component: Component,
 	respond: Backend,
 	props: Record<string, unknown> = {},
+	options: BrowserMountOptions = {},
 ): BrowserMount {
 	backend = respond
 	reads.length = 0
+	confirmations.length = 0
+	drawers.length = 0
 	const runtime = engine.createDmsFrontendRuntime(undefined, {}, false)
 	let resolveShown!: () => void
 	const shown = new Promise<void>((resolve) => (resolveShown = resolve))
@@ -255,7 +367,12 @@ export function browserMount(
 	// themselves in the render's context: an empty one stands in for it.
 	app.provide(vue.ssrContextKey, {})
 	app.component('DmsClientOnly', engine.DmsClientOnly)
-	for (const name of UI_COMPONENTS) app.component(name, uiStub(name))
+	const replacements = options.components ?? {}
+	for (const name of UI_COMPONENTS)
+		if (!Object.hasOwn(replacements, name)) app.component(name, uiStub(name))
+	for (const [name, replacement] of Object.entries(replacements))
+		app.component(name, replacement)
+	for (const [key, value] of options.provide ?? []) app.provide(key, value)
 	app.config.warnHandler = noop
 	const errors: unknown[] = []
 	app.config.errorHandler = (error) => {
@@ -263,7 +380,13 @@ export function browserMount(
 	}
 	const root = mountNode({ tag: 'root' })
 	app.mount(root)
-	return { shown, text: () => mountText(root), reads, errors }
+	return {
+		shown,
+		text: () => mountText(root),
+		find: (match) => findNode(root, match)?.props,
+		reads,
+		errors,
+	}
 }
 
 export interface ServerRender {

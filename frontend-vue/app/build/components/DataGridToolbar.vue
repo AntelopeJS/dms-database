@@ -1,9 +1,13 @@
 <script setup lang="ts">
-defineProps<{
-	table: string
-	total: number
-	loading: boolean
-}>()
+withDefaults(
+	defineProps<{
+		table: string
+		total: number
+		loading: boolean
+		canOpenQuery?: boolean
+	}>(),
+	{ canOpenQuery: true },
+)
 
 const search = defineModel<string>('search', { required: true })
 
@@ -60,6 +64,7 @@ defineExpose({
 				/>
 			</UTooltip>
 			<UButton
+				v-if="canOpenQuery"
 				icon="i-ph-code"
 				color="neutral"
 				variant="ghost"

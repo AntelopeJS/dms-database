@@ -10,6 +10,7 @@ import { formatModifier } from "../i18n/messages";
 import { DatabaseBrowseController } from "../routes/data";
 import { describeUnknownQueryTarget } from "../service/queryInspection";
 import { buildEditUpdates } from "../service/rowEdit";
+import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
 import { applyFilterToList } from "../utils/query";
 import { refusal } from "./refusal";
@@ -118,7 +119,9 @@ describe("[integration] table summary of columns named like Object.prototype mem
   });
 
   it("lists every sampled column", async () => {
-    const summary = (await listSchemaSummaries()).find((s) => s.id === SCHEMA);
+    const summary = (await listSchemaSummaries(OWN_DATABASE)).find(
+      (s) => s.id === SCHEMA,
+    );
     const table = summary?.tables.find((t) => t.name === "things");
     assert.ok(table, "the table is summarised");
     assert.deepEqual(Object.keys(table.fields).sort(), [
@@ -131,7 +134,9 @@ describe("[integration] table summary of columns named like Object.prototype mem
   });
 
   it("sends a column named __proto__ as a column on the wire", async () => {
-    const summary = (await listSchemaSummaries()).find((s) => s.id === SCHEMA);
+    const summary = (await listSchemaSummaries(OWN_DATABASE)).find(
+      (s) => s.id === SCHEMA,
+    );
     const table = summary?.tables.find((t) => t.name === "things");
     assert.match(
       JSON.stringify(table?.fields) ?? "",

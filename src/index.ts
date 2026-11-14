@@ -10,6 +10,7 @@ import { type DmsDatabaseConfig, setModuleConfig } from "./config";
 import { registerConnectionAccess } from "./connectionAccess";
 import { SCHEMA_NAME } from "./types/constants";
 import { frontendModule } from "./frontend-module";
+import { recordOwnModule } from "./service/connections";
 
 export type { DmsDatabaseConfig, ExternalConnectionConfig } from "./config";
 export * from "./pages";
@@ -18,6 +19,7 @@ export * from "./routes";
 export async function construct(config?: DmsDatabaseConfig): Promise<void> {
   setModuleConfig(config);
   registerConnectionAccess();
+  recordOwnModule();
   await AddFrontendModule(frontendModule());
 }
 

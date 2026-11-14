@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": ".",
+    "types": ["node"],
+    "allowJs": true,
+    "checkJs": true,
+    "incremental": false,
+    "noEmit": true
+  },
+  "include": ["**/*.js"]
+}

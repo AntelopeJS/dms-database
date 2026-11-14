@@ -36,6 +36,7 @@ describe("[integration] public PUT edit", () => {
         filter_instance: "is:race",
         filter_table: "is:items",
         id: "victim",
+        connection: "own",
       });
       const response = await fetch(
         `http://127.0.0.1:5023/api/database/browse/edit?${query}`,

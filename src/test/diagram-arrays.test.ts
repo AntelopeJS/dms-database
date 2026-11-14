@@ -5,6 +5,7 @@ import {
   RegisterTable,
   Table,
 } from "@antelopejs/interface-database-decorators";
+import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
 
 /**
@@ -47,7 +48,7 @@ describe("[integration] Diagram array columns", () => {
   });
 
   it("types an array by its elements other than null", async () => {
-    const fields = (await listSchemaSummaries())
+    const fields = (await listSchemaSummaries(OWN_DATABASE))
       .find((item) => item.id === SCHEMA)
       ?.tables.find((table) => table.name === "products")?.fields;
     assert.deepEqual(fields?.tags, {

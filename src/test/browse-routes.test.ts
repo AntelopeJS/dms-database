@@ -193,6 +193,7 @@ describe("[integration] browse routes: edits", () => {
       filter_schema: IS_SCHEMA,
       filter_instance: instance,
       filter_table: IS_ITEMS,
+      connection: "own",
     });
     const context = (instance: string, id: string | undefined) =>
       queryContext(
@@ -238,6 +239,7 @@ describe("[integration] browse routes: edits", () => {
           filter_instance: "is:alpha",
           filter_table: IS_ITEMS,
           id: "i2",
+          connection: "own",
         }),
         body,
       );
@@ -297,28 +299,39 @@ describe("[integration] table routes", () => {
 
   it("searches a schema's named instances and caps the answer", async () => {
     const controller = new DatabaseTablesController();
-    assert.deepEqual(await controller.instances(SCHEMA, undefined, undefined), {
-      instances: ["alpha", "Beta", "gamma-2", "gamma-10"],
-      total: 4,
-    });
-    assert.deepEqual(await controller.instances(SCHEMA, "GAMMA", undefined), {
-      instances: ["gamma-2", "gamma-10"],
-      total: 2,
-    });
-    assert.deepEqual(await controller.instances(SCHEMA, "", "2"), {
+    assert.deepEqual(
+      await controller.instances(USER, SCHEMA, undefined, undefined),
+      {
+        instances: ["alpha", "Beta", "gamma-2", "gamma-10"],
+        total: 4,
+      },
+    );
+    assert.deepEqual(
+      await controller.instances(USER, SCHEMA, "GAMMA", undefined),
+      {
+        instances: ["gamma-2", "gamma-10"],
+        total: 2,
+      },
+    );
+    assert.deepEqual(await controller.instances(USER, SCHEMA, "", "2"), {
       instances: ["alpha", "Beta"],
       total: 4,
     });
-    assert.deepEqual(await controller.instances(SCHEMA, undefined, "zero"), {
-      instances: ["alpha", "Beta", "gamma-2", "gamma-10"],
-      total: 4,
-    });
     assert.deepEqual(
-      await refusal(controller.instances(undefined, undefined, undefined)),
+      await controller.instances(USER, SCHEMA, undefined, "zero"),
+      {
+        instances: ["alpha", "Beta", "gamma-2", "gamma-10"],
+        total: 4,
+      },
+    );
+    assert.deepEqual(
+      await refusal(
+        controller.instances(USER, undefined, undefined, undefined),
+      ),
       { status: 400, message: "Missing 'schema'" },
     );
     assert.deepEqual(
-      await refusal(controller.instances("nope", undefined, undefined)),
+      await refusal(controller.instances(USER, "nope", undefined, undefined)),
       { status: 404, message: "Unknown schema nope" },
     );
   });

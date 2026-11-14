@@ -10,7 +10,9 @@ const SOURCE_ID = "dms-database";
  * The access `config.externalConnections` gives a connection: `"read-write"` only when its entry
  * says so, `"read"` for any other entry, and nothing for a connection it does not list.
  */
-function configuredAccess(connection: string): ConnectionAccess | undefined {
+export function configuredAccess(
+  connection: string,
+): ConnectionAccess | undefined {
   const connections = getModuleConfig().externalConnections ?? {};
   if (!Object.hasOwn(connections, connection)) {
     return undefined;

@@ -5,6 +5,7 @@ covers:
   - src/service/queryInspection.ts
   - src/utils/requestValidation.ts
   - frontend-vue/app/components/QueryConsole.vue
+  - frontend-vue/app/build/components/QueryConsoleBoard.vue
   - frontend-vue/app/components/QueryBuilderPanel.vue
   - frontend-vue/app/components/QueryResultPanel.vue
   - frontend-vue/app/build/query/completion.ts
