@@ -17,4 +17,22 @@ describe("the refusals of the connections, the Data browser's edits and the rela
     );
     assert.deepEqual(missing, []);
   });
+
+  it("keep the placeholder of the value each refusal sends in every locale, which a sentence dropping the database's name or the writer's reason gets wrong", () => {
+    const placeholders = [
+      [CONNECTION_REFUSALS.readOnlyConnection, "{connection}"],
+      [CONNECTION_REFUSALS.catalogTimedOut, "{connection}"],
+      [CONNECTION_REFUSALS.catalogRefused, "{connection}"],
+      [CONNECTION_REFUSALS.builderRefused, "{reason}"],
+    ] as const;
+    const missing = localeFiles().flatMap((file) =>
+      placeholders
+        .filter(
+          ([key, placeholder]) =>
+            !localeMessage(file, key.slice(1))?.includes(placeholder),
+        )
+        .map(([key, placeholder]) => `${file}: ${key} ${placeholder}`),
+    );
+    assert.deepEqual(missing, []);
+  });
 });
