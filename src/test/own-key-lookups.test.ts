@@ -96,7 +96,7 @@ describe("[integration] table summary of columns named like Object.prototype mem
   before(async () => {
     assert.equal(TABLES.length, 1);
     await RegisterSchema(SCHEMA);
-    const schema = Schema.get<{ things: OwnKeyThing }>(SCHEMA);
+    const schema = Schema.get(SCHEMA);
     assert.ok(schema, "the test schema is registered");
     await schema
       .instance()
@@ -114,11 +114,7 @@ describe("[integration] table summary of columns named like Object.prototype mem
   });
 
   after(async () => {
-    await Schema.get<{ things: OwnKeyThing }>(SCHEMA)
-      ?.instance()
-      .table("things")
-      .delete()
-      .run();
+    await Schema.get(SCHEMA)?.instance().table("things").delete().run();
   });
 
   it("lists every sampled column", async () => {

@@ -11,7 +11,13 @@ import {
   type JsonObject,
   type JsonValue,
 } from "../types/json";
-import { isBoolean, isFunction, isObject, isString } from "../utils/guards";
+import {
+  isBoolean,
+  isFunction,
+  isObject,
+  isRecord,
+  isString,
+} from "../utils/guards";
 
 type WatchEventType = "insert" | "update" | "delete";
 
@@ -141,7 +147,7 @@ function resolveEventTypes(
  * read with done and closes the server-side change stream.
  */
 function openFeed(schemaId: string, tableName: string): ChangeFeed {
-  const schema = Schema.get<Record<string, ChangeRow>>(schemaId);
+  const schema = Schema.get(schemaId);
   if (!schema) throw new Error(`unknown schema "${schemaId}"`);
   return schema.instance().table(tableName).changes().cursor();
 }
@@ -308,7 +314,10 @@ export const tableWatchTrigger: TriggerType<
     if (!schema) {
       throw new Error(`table-watch: unknown schema "${schemaId}"`);
     }
-    if (!schema.definition[tableName]) {
+    if (
+      !isRecord(schema.definition) ||
+      !Object.hasOwn(schema.definition, tableName)
+    ) {
       throw new Error(
         `table-watch: unknown table "${tableName}" in schema "${schemaId}"`,
       );

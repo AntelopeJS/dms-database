@@ -1,4 +1,5 @@
 import { Schema } from "@antelopejs/interface-database";
+import type { Schema as StagedSchema } from "@antelopejs/interface-database/staged-query";
 import type { DeepPartial } from "@antelopejs/interface-database/common";
 import {
   Index,
@@ -149,19 +150,19 @@ interface ShopTables {
 }
 
 async function seedTable<Name extends keyof ShopTables>(
-  schema: Schema<ShopTables>,
+  schema: StagedSchema<ShopTables, unknown>,
   region: string | undefined,
   table: Name,
   rows: DeepPartial<ShopTables[Name]>[],
 ) {
   const target = schema.instance(region).table(table);
-  if ((await target.count()) > 0) return;
+  if ((await target.count().run()) > 0) return;
   await target.insert(rows, { conflict: "update" }).run();
 }
 
 /** Fills each region of the shop once, on a database that has none of it. */
 export async function seedShop(): Promise<void> {
-  const schema = Schema.get<ShopTables>(SHOP_SCHEMA);
+  const schema: StagedSchema<ShopTables, unknown> | undefined = Schema.get(SHOP_SCHEMA);
   if (!schema) return;
   const now = Date.now();
   for (const region of REGIONS) {

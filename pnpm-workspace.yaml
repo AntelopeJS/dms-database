@@ -2,3 +2,5 @@ packages:
   - frontend-vue
 ignoredOptionalDependencies:
   - playwright-core
+allowBuilds:
+  lefthook: false

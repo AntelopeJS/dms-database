@@ -189,7 +189,7 @@ export class DatabaseBrowseController extends Controller(
     );
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
-    const row: unknown = await resolveTable(selection).get(id);
+    const row: unknown = await resolveTable(selection).get(id).run();
     assert(isRecord(row), 404, "Row not found");
     const items = await listRowReferences(
       selection.schema,
@@ -216,7 +216,7 @@ export class DatabaseBrowseController extends Controller(
     assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
     const id = idRaw;
     const table = resolveTable(selection);
-    const row: unknown = await table.get(id);
+    const row: unknown = await table.get(id).run();
     assert(isObject(row), 404, "Row not found");
     return row;
   }
@@ -248,7 +248,7 @@ export class DatabaseBrowseController extends Controller(
 
     const table = resolveTable(selection);
     const target = table.get(id);
-    const existing: unknown = await target;
+    const existing: unknown = await target.run();
     assert(isRecord(existing), 404, "Row not found");
     const primaryKey = getTablePrimaryKey(selection.schema, selection.table);
     const updates = buildEditUpdates(
@@ -259,7 +259,7 @@ export class DatabaseBrowseController extends Controller(
     if (Object.keys(updates).length > 0) {
       const changed = await target.update(updates).run();
       if (changed === 0) {
-        const persisted: unknown = await target;
+        const persisted: unknown = await target.run();
         assert(isObject(persisted), 404, "Row not found");
         return persisted;
       }

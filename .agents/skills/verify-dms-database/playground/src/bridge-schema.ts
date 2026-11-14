@@ -1,4 +1,5 @@
 import { Schema } from "@antelopejs/interface-database";
+import type { Schema as StagedSchema } from "@antelopejs/interface-database/staged-query";
 import { Field, RegisterSchema, RegisterTable, Relation, Table } from "@antelopejs/interface-database-decorators";
 import { Customer } from "./shop-schema";
 
@@ -93,14 +94,14 @@ interface QuirksTables {
 /** Registers the links, quirks and hollow schemas, and gives `members` one row whose column is named `constructor`. */
 export async function startBridgeSchemas(): Promise<void> {
   await RegisterSchema(LINKS_SCHEMA);
-  const links = Schema.get<LinksTables>(LINKS_SCHEMA);
+  const links: StagedSchema<LinksTables, unknown> | undefined = Schema.get(LINKS_SCHEMA);
   for (const tenant of TENANTS) await links?.createInstance(tenant).run().catch(() => undefined);
   await RegisterSchema(QUIRKS_SCHEMA);
   new Schema(HOLLOW_SCHEMA, {});
-  const schema = Schema.get<QuirksTables>(QUIRKS_SCHEMA);
+  const schema: StagedSchema<QuirksTables, unknown> | undefined = Schema.get(QUIRKS_SCHEMA);
   if (!schema) return;
   const members = schema.instance().table("members");
-  if ((await members.count()) > 0) return;
+  if ((await members.count().run()) > 0) return;
   const row: MemberRow = { _id: "member_1", ["constructor"]: "ctor value", note: "plain column" };
   await members.insert([row], { conflict: "update" }).run();
 }

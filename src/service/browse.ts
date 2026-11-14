@@ -106,7 +106,8 @@ export function resolveTable(selection: BrowseSelection) {
   const schema = Schema.get(selection.schema);
   assert(schema, 404, `Unknown schema: ${selection.schema}`);
   assert(
-    Object.hasOwn(schema.definition, selection.table),
+    isObject(schema.definition) &&
+      Object.hasOwn(schema.definition, selection.table),
     404,
     `Unknown table: ${selection.table}`,
   );
@@ -158,7 +159,10 @@ export async function fetchRows(query: BrowseQuery) {
   const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
   if (!hasRefine) {
     const sliced = sorted.slice(query.offset, query.limit);
-    const [results, total] = await Promise.all([sliced, table.count()]);
+    const [results, total] = await Promise.all([
+      sliced.run(),
+      table.count().run(),
+    ]);
     return {
       results,
       total,
@@ -180,7 +184,7 @@ export async function fetchRows(query: BrowseQuery) {
 
 export async function fetchTotal(selection: BrowseSelection): Promise<number> {
   const table = resolveTable(selection);
-  return table.count();
+  return table.count().run();
 }
 
 interface ColumnsMeta {
@@ -205,7 +209,7 @@ export async function fetchColumns(
   selection: BrowseSelection,
 ): Promise<ColumnsMeta> {
   const table = resolveTable(selection);
-  const sample: unknown[] = await table.slice(0, COLUMN_SAMPLE_SIZE);
+  const sample: unknown[] = await table.slice(0, COLUMN_SAMPLE_SIZE).run();
   const columns: string[] = [];
   const typeByColumn = new Map<string, string>();
   for (const row of sample) {
@@ -272,7 +276,6 @@ function gridTypeOf(descriptor: FieldDescriptor): string | undefined {
  * it in (so a number/boolean column is not silently turned into a string);
  * editability itself does not depend on the type.
  */
-// oxlint-disable-next-line anti-slop/no-unknown-parameters -- a sampled cell of the schemaless store holds arbitrary JSON, stored rows are never parsed on read, and this function is what reports its type
 function jsTypeOf(value: unknown): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";

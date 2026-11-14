@@ -63,7 +63,8 @@ async function countReferences({
         const field = row.key(relation.fromField);
         return relation.many ? field.includes(value) : field.eq(value);
       })
-      .count();
+      .count()
+      .run();
   } catch {
     return 0;
   }

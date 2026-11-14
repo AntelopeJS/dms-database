@@ -41,7 +41,7 @@ The module works without configuration. To show the database name on the Overvie
 ```ts fragment
 // antelope.config.ts
 "dms-database": {
-  source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.2.0 <1.0.0" },
+  source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.4.4 <0.5.0" },
   config: {
     driverLabel: "MongoDB 8.0",
     schemaLabels: {
@@ -57,15 +57,15 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 
 <!-- antelopejs-docs-compat:start -->
 
-| Package                                     | Supported         | Tested with |
-| ------------------------------------------- | ----------------- | ----------- |
-| `@antelopejs/interface-api`                 | `>=0.3.0 <1.0.0`  | `0.3.0`     |
-| `@antelopejs/interface-api-util`            | `>=0.3.0 <1.0.0`  | `0.3.0`     |
-| `@antelopejs/interface-core`                | `>=0.4.0 <1.0.0`  | `0.4.0`     |
-| `@antelopejs/interface-database`            | `>=0.3.1 <1.0.0`  | `0.3.1`     |
-| `@antelopejs/interface-database-decorators` | `>=0.3.1 <1.0.0`  | `0.4.0`     |
-| `@antelopejs/interface-dms`                 | `>=0.12.0 <1.0.0` | `0.13.3`    |
-| `@antelopejs/interface-dms-automation`      | `>=0.6.1 <1.0.0`  | `0.6.1`     |
+| Package                                     | Supported          | Tested with |
+| ------------------------------------------- | ------------------ | ----------- |
+| `@antelopejs/interface-api`                 | `>=0.3.3 <0.4.0`   | `0.3.3`     |
+| `@antelopejs/interface-api-util`            | `>=0.3.2 <0.4.0`   | `0.3.2`     |
+| `@antelopejs/interface-core`                | `>=0.5.1 <0.6.0`   | `0.5.1`     |
+| `@antelopejs/interface-database`            | `>=0.4.0 <0.5.0`   | `0.4.0`     |
+| `@antelopejs/interface-database-decorators` | `>=0.5.2 <0.6.0`   | `0.5.2`     |
+| `@antelopejs/interface-dms`                 | `>=0.14.0 <0.15.0` | `0.14.0`    |
+| `@antelopejs/interface-dms-automation`      | `>=0.6.2 <0.7.0`   | `0.6.2`     |
 
 <!-- antelopejs-docs-compat:end -->
 

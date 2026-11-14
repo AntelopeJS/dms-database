@@ -37,7 +37,7 @@ const plain = new Schema<{ rows: PlainRow }>(`${SCHEMA}-plain`, {
 });
 
 function orders() {
-  const schema = Schema.get<{ orders: BrowseColumnsOrder }>(SCHEMA);
+  const schema = Schema.get(SCHEMA);
   assert.ok(schema, "the test schema is registered");
   return schema.instance().table("orders");
 }

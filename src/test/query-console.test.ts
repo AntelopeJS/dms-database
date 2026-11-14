@@ -38,7 +38,7 @@ class ConsoleTag extends Table {
 const TABLES = [ConsoleTag];
 
 function schema() {
-  const registered = Schema.get<{ tags: ConsoleTag }>(SCHEMA);
+  const registered = Schema.get(SCHEMA);
   assert.ok(registered, "the test schema is registered");
   return registered;
 }
@@ -170,7 +170,7 @@ describe("[integration] query console", () => {
       language: "aql",
     });
     assert.equal(removal.rowCount, 3);
-    assert.equal(await tags(INSTANCE).count(), 1);
+    assert.equal(await tags(INSTANCE).count().run(), 1);
   });
 
   it("counts the rows a mutation answered when it answers no number", async () => {
@@ -254,7 +254,7 @@ describe("[integration] query console: malformed bodies", () => {
   });
 
   it("refuses a malformed predicate instead of writing every row", async () => {
-    const before = await tags(FORGED_INSTANCE).count();
+    const before = await tags(FORGED_INSTANCE).count().run();
     assert.ok(before > 0, "the table holds rows to protect");
     const kept = tags(FORGED_INSTANCE).filter((row) =>
       row.key("label").eq("kept"),
@@ -265,10 +265,11 @@ describe("[integration] query console: malformed bodies", () => {
         await assertRefused(withPredicate(encode(write), body));
       }
     }
-    assert.equal(await tags(FORGED_INSTANCE).count(), before);
+    assert.equal(await tags(FORGED_INSTANCE).count().run(), before);
     const overwritten = await tags(FORGED_INSTANCE)
       .filter((row) => row.key("label").eq("overwritten"))
-      .count();
+      .count()
+      .run();
     assert.equal(overwritten, 0);
   });
 });
