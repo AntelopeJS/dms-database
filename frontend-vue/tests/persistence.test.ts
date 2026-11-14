@@ -241,6 +241,35 @@ it('keeps a tab opened while the selection was unknown once the selection is kno
 	})
 })
 
+it('keeps a tab opened while the selection is unknown across a reload where it is still unknown, which a reader refusing a set of no known database gets wrong', () => {
+	setup()
+	let raw = ''
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () => raw || null,
+			setItem: (_key: string, value: string) => {
+				raw = value
+			},
+		},
+	})
+	const first = useDataBrowserTabs()
+	first.restore(undefined)
+	first.openTab('shop', '__DEFAULT__', 'orders', false)
+	setup()
+	const reloaded = useDataBrowserTabs()
+	reloaded.restore(undefined)
+	expect(reloaded.tabs.value.map((tab) => tab.id)).toEqual([
+		'shop::__DEFAULT__::orders',
+	])
+	setup()
+	const known = useDataBrowserTabs()
+	known.restore('own')
+	expect(known.tabs.value.map((tab) => tab.id)).toEqual([
+		'shop::__DEFAULT__::orders',
+	])
+	expect(JSON.parse(raw)).toMatchObject({ database: 'own' })
+})
+
 it('keeps the tabs when the selected database is unknown', () => {
 	setup()
 	storing({

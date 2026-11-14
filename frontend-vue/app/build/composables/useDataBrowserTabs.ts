@@ -75,8 +75,11 @@ export function forgetBrowserTabs(): void {
 }
 
 interface PersistedTabs {
-	/** The connection the tabs were opened on: another one may not hold their tables. */
-	database: string
+	/**
+	 * The connection the tabs were opened on: another one may not hold their
+	 * tables. Null when they were opened while the selection was unknown.
+	 */
+	database: string | null
 	tabs: BrowserTab[]
 	activeId: string | null
 }
@@ -89,7 +92,8 @@ function readPersisted(): PersistedTabs | null {
 		if (!raw) return null
 		const parsed = JSON.parse(raw) as PersistedTabs
 		const { database } = parsed
-		if (typeof database !== 'string' || !Array.isArray(parsed.tabs)) return null
+		if (typeof database !== 'string' && database !== null) return null
+		if (!Array.isArray(parsed.tabs)) return null
 		const tabs = parsed.tabs
 			.filter(
 				(tab) =>
@@ -377,7 +381,7 @@ export function useDataBrowserTabs() {
 			tabs.value = []
 			activeId.value = null
 		}
-		if (saved?.database === owner) {
+		if (saved && (saved.database === owner || saved.database === null)) {
 			tabs.value = saved.tabs
 			activeId.value = saved.activeId
 		} else if (saved) {
