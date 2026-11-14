@@ -63,7 +63,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-api-util`            | `>=0.3.0 <1.0.0`  | `0.3.0`     |
 | `@antelopejs/interface-core`                | `>=0.4.0 <1.0.0`  | `0.4.0`     |
 | `@antelopejs/interface-database`            | `>=0.3.1 <1.0.0`  | `0.3.1`     |
-| `@antelopejs/interface-database-decorators` | `>=0.2.1 <1.0.0`  | `0.2.1`     |
+| `@antelopejs/interface-database-decorators` | `>=0.3.1 <1.0.0`  | `0.4.0`     |
 | `@antelopejs/interface-dms`                 | `>=0.12.0 <1.0.0` | `0.12.0`    |
 | `@antelopejs/interface-dms-automation`      | `>=0.6.1 <1.0.0`  | `0.6.1`     |
 
