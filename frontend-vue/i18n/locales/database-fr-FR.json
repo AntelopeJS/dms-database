@@ -251,6 +251,7 @@
 			"own": "Base du projet",
 			"external": "Externe",
 			"engine_unknown": "Moteur inconnu",
+			"unknown": "Cette base ne fait plus partie des bases du projet. Rechargez la page pour voir la liste à jour.",
 			"switcher": {
 				"label": "Base de données",
 				"menu": "Choisir la base à parcourir",
@@ -265,6 +266,9 @@
 				"account_unverified": "Les droits d'écriture de ce compte n'ont pas pu être vérifiés.",
 				"failed": "L'accès à la base n'a pas pu être modifié.",
 				"refused": "La configuration du projet a refusé la modification : {reason}",
+				"not_development": "L'accès ne peut changer que lorsque le projet tourne en développement. Rechargez la page.",
+				"no_module_entry": "La console n'a pas trouvé son propre module dans la configuration du projet.",
+				"no_builder": "La configuration du projet n'a pas pu être écrite : aucun builder DMS ne tourne.",
 				"confirm": {
 					"title": "Autoriser les modifications de {name} ?",
 					"description": "{name} est la base en production de votre client. Les modifications enregistrées y sont écrites aussitôt, et le DMS ne peut pas les annuler.",

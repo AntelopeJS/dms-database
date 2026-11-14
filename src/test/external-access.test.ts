@@ -7,11 +7,8 @@ import {
 } from "../config";
 import { DatabaseConnectionsController } from "../routes/connections";
 import { DatabaseBrowseController } from "../routes/data";
-import {
-  READ_ONLY_ACCOUNT,
-  STALE_DATABASE,
-  writeAccess,
-} from "../service/connectionState";
+import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { STALE_DATABASE, writeAccess } from "../service/connectionState";
 import { refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 import { answerNextWrite, writerCalls } from "./writerCalls";
@@ -55,7 +52,7 @@ describe("[integration] external connections: changing access", () => {
     const before = writerCalls().length;
     assert.deepEqual(
       await refusal(controller.access(owner, "erp", { access: "read-write" })),
-      { status: 403, message: "Access can only change in development" },
+      { status: 403, message: CONNECTION_REFUSALS.notDevelopment },
     );
     assert.deepEqual(
       await refusal(controller.access(owner, "own", { access: "read" })),
@@ -73,7 +70,7 @@ describe("[integration] external connections: changing access", () => {
     const before = writerCalls().length;
     assert.deepEqual(await refusal(writeAccess("archive", "read-write")), {
       status: 409,
-      message: READ_ONLY_ACCOUNT,
+      message: CONNECTION_REFUSALS.readOnlyAccount,
     });
     assert.equal(writerCalls().length, before);
   });
@@ -184,7 +181,7 @@ describe("[integration] external connections: a refused access write", () => {
       {
         status: 409,
         body: {
-          message: "$dms_database.connections.access.refused",
+          message: CONNECTION_REFUSALS.builderRefused,
           params: {
             reason:
               "/modules/local/config is held in a variable; the configuration is spread",
@@ -199,8 +196,7 @@ describe("[integration] external connections: a refused access write", () => {
     answerNextWrite("absent");
     assert.deepEqual(await refusal(writeAccess("erp", "read-write")), {
       status: 503,
-      message:
-        "The project's configuration could not be written: the DMS builder runs in development",
+      message: CONNECTION_REFUSALS.noBuilder,
     });
     assert.equal(await accessOf("erp"), "read");
   });
