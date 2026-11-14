@@ -2,6 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { version as DMS_VERSION } from "@antelopejs/dms/package.json";
+import { version as DMS_AUTOMATION_VERSION } from "@antelopejs/dms-automation/package.json";
 import { defineConfig } from "@antelopejs/interface-core/config";
 import { MongoMemoryReplSet } from "mongodb-memory-server-core";
 import {
@@ -80,6 +81,13 @@ export default defineConfig({
     },
     mongodb: {
       source: { type: "local", path: "node_modules/@antelopejs/mongodb" },
+    },
+    "dms-automation": {
+      source: {
+        type: "package",
+        package: "@antelopejs/dms-automation",
+        version: DMS_AUTOMATION_VERSION,
+      },
     },
     "auth-jwt": {
       source: {
