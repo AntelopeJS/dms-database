@@ -81,11 +81,8 @@ interface PersistedTabs {
 	activeId: string | null
 }
 
-/**
- * The tabs this browser tab kept, when they were opened on the selected
- * database; any database's when the selection is unknown.
- */
-function readPersisted(selected: string | undefined): PersistedTabs | null {
+/** The tabs this browser tab kept, with the database they were opened on. */
+function readPersisted(): PersistedTabs | null {
 	if (typeof window === 'undefined') return null
 	try {
 		const raw = window.sessionStorage.getItem(STORAGE_KEY)
@@ -93,7 +90,6 @@ function readPersisted(selected: string | undefined): PersistedTabs | null {
 		const parsed = JSON.parse(raw) as PersistedTabs
 		const { database } = parsed
 		if (typeof database !== 'string' || !Array.isArray(parsed.tabs)) return null
-		if (selected !== undefined && database !== selected) return null
 		const tabs = parsed.tabs
 			.filter(
 				(tab) =>
@@ -359,48 +355,63 @@ export function useDataBrowserTabs() {
 		return true
 	}
 
+	/** Drops the grid state and staged edits of tabs that are gone; returns their ids. */
+	function release(gone: BrowserTab[]): string[] {
+		for (const tab of gone) {
+			grid.drop(tab.id)
+			staged.discard(tab.id)
+		}
+		return gone.map((tab) => tab.id)
+	}
+
+	/**
+	 * Makes `owner` the database of the tabs, open and saved: the tabs of
+	 * another known database are released, tabs of no known database are
+	 * claimed. Returns the ids released, so a URL that mirrors one of them is
+	 * cleared instead of opened.
+	 */
+	function settle(owner: string | null, saved: PersistedTabs | null) {
+		const dropped: string[] = []
+		if (database.value !== null && database.value !== owner) {
+			dropped.push(...release(tabs.value))
+			tabs.value = []
+			activeId.value = null
+		}
+		if (saved?.database === owner) {
+			tabs.value = saved.tabs
+			activeId.value = saved.activeId
+		} else if (saved) {
+			dropped.push(...release(saved.tabs))
+		}
+		database.value = owner
+		if (owner !== null && saved?.database !== owner) persist()
+		return new Set(dropped)
+	}
+
 	/**
 	 * Restores the tabs this browser tab kept on the selected database,
 	 * preview included, then lets the URL win for the active selection. Tabs
-	 * of another database, kept or still open, are dropped. Call once, from
-	 * the page's onMounted, with the selected connection's id, undefined when
-	 * the selection is unknown.
+	 * of another database, kept or still open, are dropped, and a URL that
+	 * mirrors one of them is cleared. Call once, from the page's onMounted,
+	 * with the selected connection's id, undefined when the selection is
+	 * unknown.
 	 */
 	function restore(selected: string | undefined) {
-		const persisted = readPersisted(selected)
-		const owner = persisted?.database ?? selected ?? database.value
-		if (persisted) {
-			tabs.value = persisted.tabs
-			activeId.value = persisted.activeId
-		} else if (owner !== database.value) {
-			dropAll()
-		}
-		database.value = owner
-		if (!persisted && owner !== null) persist()
+		const saved = readPersisted()
+		const dropped = settle(selected ?? saved?.database ?? database.value, saved)
+		const target = routeTable()
+		if (target && dropped.has(target.id)) return syncUrl()
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}
 
-	function dropAll() {
-		for (const tab of tabs.value) {
-			grid.drop(tab.id)
-			staged.discard(tab.id)
-		}
-		tabs.value = []
-		activeId.value = null
-	}
-
 	/**
-	 * Follows a selection the page learns once mounted (its connections read
-	 * again in the background): the tabs of the database it showed are
-	 * dropped, the saved ones and the table the URL names included.
+	 * Follows a selection the page learns once restored (its connections
+	 * read again in the background). Register it after restore().
 	 */
 	function follow(selected: string | undefined) {
 		if (selected === undefined || selected === database.value) return
-		dropAll()
-		database.value = selected
-		persist()
-		syncUrl()
+		if (settle(selected, null).size > 0) syncUrl()
 	}
 
 	return {

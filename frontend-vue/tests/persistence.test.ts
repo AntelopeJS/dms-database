@@ -181,6 +181,66 @@ it('drops the open tab, its saved set and its URL when the selection changes onc
 	expect(browser.openFromRoute()).toBe(false)
 })
 
+it('clears a URL that mirrors a tab of another database instead of opening it again on a reload', () => {
+	setup()
+	const route = reactive({
+		query: { schema: 'sales', table: 'orders', instance: 'eu' } as Record<
+			string,
+			string
+		>,
+	})
+	vi.stubGlobal('useDmsRoute', () => route)
+	vi.stubGlobal('useDmsRouter', () => ({
+		replace: ({ query }: { query: Record<string, string> }) => {
+			route.query = query
+		},
+	}))
+	let raw = JSON.stringify({
+		database: 'own',
+		tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
+		activeId: 'sales::eu::orders',
+	})
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () => raw,
+			setItem: (_key: string, value: string) => {
+				raw = value
+			},
+		},
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore('warehouse')
+	expect(browser.tabs.value).toEqual([])
+	expect(route.query).toEqual({})
+	expect(JSON.parse(raw)).toEqual({
+		database: 'warehouse',
+		tabs: [],
+		activeId: null,
+	})
+})
+
+it('keeps a tab opened while the selection was unknown once the selection is known, which a follow treating an unknown database as another one gets wrong', () => {
+	setup()
+	let raw = ''
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () => raw || null,
+			setItem: (_key: string, value: string) => {
+				raw = value
+			},
+		},
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore(undefined)
+	browser.openTab('shop', 'eu', 'orders', false)
+	browser.follow('own')
+	expect(browser.tabs.value.map((tab) => tab.id)).toEqual(['shop::eu::orders'])
+	expect(JSON.parse(raw)).toMatchObject({
+		database: 'own',
+		tabs: [expect.objectContaining({ id: 'shop::eu::orders' })],
+	})
+})
+
 it('keeps the tabs when the selected database is unknown', () => {
 	setup()
 	storing({

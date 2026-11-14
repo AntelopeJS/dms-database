@@ -33,11 +33,13 @@ const { tabs, activeTab, restore, follow, openTab, openFromRoute } =
 const staged = useStagedEdits()
 const route = useDmsRoute()
 
-onMounted(() => restore(selected.value?.id))
-watch(
-	() => selected.value?.id,
-	(id) => follow(id),
-)
+onMounted(() => {
+	restore(selected.value?.id)
+	watch(
+		() => selected.value?.id,
+		(id) => follow(id),
+	)
+})
 // A link from this page to another table (a relation) keeps the page mounted.
 watch(
 	() => route.query,

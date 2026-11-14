@@ -67,10 +67,11 @@ async function mountSwitcher(
 
 type Listener = () => void
 
+const PAGE_PATH = '/modules/database/data'
+
 /** A window and a document that record what the page listens for, and the reloads and navigations it makes. */
 function stubBrowser(visibility: 'visible' | 'hidden' = 'visible') {
 	const assign = vi.fn()
-	const reload = vi.fn()
 	const removeItem = vi.fn()
 	const listeners = new Map<string, Listener[]>()
 	const target = {
@@ -80,13 +81,12 @@ function stubBrowser(visibility: 'visible' | 'hidden' = 'visible') {
 	}
 	vi.stubGlobal('window', {
 		...target,
-		location: { assign, reload },
+		location: { assign, pathname: PAGE_PATH },
 		sessionStorage: { removeItem },
 	})
 	vi.stubGlobal('document', { ...target, visibilityState: visibility })
 	return {
 		assign,
-		reload,
 		removeItem,
 		fire: (type: string) => {
 			for (const listener of listeners.get(type) ?? []) listener()
@@ -273,12 +273,14 @@ describe('database switcher: another tab switched the database', () => {
 	const mountWithServer = (server: ReturnType<typeof serverSelecting>) =>
 		mountSwitcher(server.answers)
 
-	it('reloads when the window regains focus on another selection, which an implementation that only reads at load gets wrong', async () => {
+	it('reloads the page without its query when the window regains focus on another selection, which an implementation that only reads at load, or reloads the table the URL names, gets wrong', async () => {
 		const server = serverSelecting(OWN)
 		await mountWithServer(server)
 		server.select(WAREHOUSE)
 		browser.fire('focus')
-		await vi.waitFor(() => expect(browser.reload).toHaveBeenCalledOnce())
+		await vi.waitFor(() =>
+			expect(browser.assign).toHaveBeenCalledExactlyOnceWith(PAGE_PATH),
+		)
 		expect(browser.removeItem).toHaveBeenCalled()
 	})
 
@@ -287,7 +289,9 @@ describe('database switcher: another tab switched the database', () => {
 		await mountWithServer(server)
 		server.select(WAREHOUSE)
 		browser.fire('visibilitychange')
-		await vi.waitFor(() => expect(browser.reload).toHaveBeenCalledOnce())
+		await vi.waitFor(() =>
+			expect(browser.assign).toHaveBeenCalledExactlyOnceWith(PAGE_PATH),
+		)
 	})
 
 	it('does not reload when the selection is the one the page loaded with, which an implementation that reloads on every focus gets wrong', async () => {
@@ -297,7 +301,7 @@ describe('database switcher: another tab switched the database', () => {
 		browser.fire('focus')
 		await vi.waitFor(() => expect(page.reads.length).toBeGreaterThan(before))
 		await new Promise((resolve) => setTimeout(resolve, 0))
-		expect(browser.reload).not.toHaveBeenCalled()
+		expect(browser.assign).not.toHaveBeenCalled()
 	})
 })
 
