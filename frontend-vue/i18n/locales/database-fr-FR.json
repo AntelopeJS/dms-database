@@ -268,7 +268,7 @@
 				"refused": "La configuration du projet a refusé la modification : {reason}",
 				"not_development": "L'accès ne peut changer que lorsque le projet tourne en développement. Rechargez la page.",
 				"no_module_entry": "La console n'a pas trouvé son propre module dans la configuration du projet.",
-				"no_builder": "La configuration du projet n'a pas pu être écrite : aucun builder DMS ne tourne.",
+				"no_builder": "La configuration du projet n'a pas pu être écrite : le builder DMS n'a pas répondu.",
 				"confirm": {
 					"title": "Autoriser les modifications de {name} ?",
 					"description": "{name} est la base en production de votre client. Les modifications enregistrées y sont écrites aussitôt, et le DMS ne peut pas les annuler.",

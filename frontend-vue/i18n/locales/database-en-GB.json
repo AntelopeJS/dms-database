@@ -268,7 +268,7 @@
 				"refused": "The project's configuration refused the change: {reason}",
 				"not_development": "Access can only change while the project runs in development. Reload the page.",
 				"no_module_entry": "The console could not find its own module in the project's configuration.",
-				"no_builder": "The project's configuration could not be written: no DMS builder is running.",
+				"no_builder": "The project's configuration could not be written: the DMS builder did not answer.",
 				"confirm": {
 					"title": "Allow changes to {name}?",
 					"description": "{name} is your customer's live database. Changes you save are written to it at once, and the DMS cannot undo them.",
