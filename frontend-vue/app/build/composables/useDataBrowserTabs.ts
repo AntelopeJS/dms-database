@@ -373,11 +373,15 @@ export function useDataBrowserTabs() {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId
 		} else if (owner !== database.value) {
-			for (const tab of tabs.value) grid.drop(tab.id)
+			for (const tab of tabs.value) {
+				grid.drop(tab.id)
+				staged.discard(tab.id)
+			}
 			tabs.value = []
 			activeId.value = null
 		}
 		database.value = owner
+		if (!persisted && owner !== null) persist()
 		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { computed, reactive, ref } from 'vue'
 import { useDataBrowserTabs } from '../app/build/composables/useDataBrowserTabs'
+import { useStagedEdits } from '../app/build/data/stagedEdits'
 
 afterEach(() => vi.unstubAllGlobals())
 
@@ -105,6 +106,43 @@ it('drops the open tabs of another database when the page comes back to it witho
 	expect(after.tabs.value).toEqual([])
 	after.openTab('audit', 'us', 'events', false)
 	expect(after.tabs.value.map((tab) => tab.id)).toEqual(['audit::us::events'])
+})
+
+it('discards the staged edits of the open tabs it drops', () => {
+	setup()
+	const states = new Map<string, unknown>()
+	vi.stubGlobal('useDmsState', (key: string, init: () => unknown) => {
+		if (!states.has(key)) states.set(key, ref(init()))
+		return states.get(key)
+	})
+	storing({ database: 'own', tabs: [], activeId: null })
+	const before = useDataBrowserTabs()
+	before.restore('own')
+	before.openTab('shop', 'eu', 'orders', false)
+	useStagedEdits().stage('shop::eu::orders', {
+		rowId: 'r1',
+		field: 'total',
+		before: 1,
+		after: 999,
+	})
+	const after = useDataBrowserTabs()
+	after.restore('warehouse')
+	after.openTab('shop', 'eu', 'orders', false)
+	expect(useStagedEdits().list('shop::eu::orders')).toEqual([])
+})
+
+it('forgets the dropped set, so a load with an unknown selection does not reopen it', () => {
+	setup()
+	storing({
+		database: 'own',
+		tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
+		activeId: null,
+	})
+	useDataBrowserTabs().restore('warehouse')
+	setup()
+	const reloaded = useDataBrowserTabs()
+	reloaded.restore(undefined)
+	expect(reloaded.tabs.value).toEqual([])
 })
 
 it('keeps the tabs when the selected database is unknown', () => {
