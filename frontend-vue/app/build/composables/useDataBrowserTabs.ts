@@ -58,6 +58,7 @@ export interface BrowserTab {
 }
 
 const STORAGE_KEY = 'dms-database:data-browser:tabs'
+const DATABASE_STATE = 'dms-database-browser-database'
 const ACTIVATIONS_STATE = 'dms-database-browser-activations'
 
 function browserTabId(schema: string, instance: string, table: string): string {
@@ -74,17 +75,19 @@ export function forgetBrowserTabs(): void {
 }
 
 interface PersistedTabs {
+	/** The connection the tabs were opened on: another one may not hold their tables. */
+	database: string
 	tabs: BrowserTab[]
 	activeId: string | null
 }
 
-function readPersisted(): PersistedTabs | null {
+function readPersisted(database: string): PersistedTabs | null {
 	if (typeof window === 'undefined') return null
 	try {
 		const raw = window.sessionStorage.getItem(STORAGE_KEY)
 		if (!raw) return null
 		const parsed = JSON.parse(raw) as PersistedTabs
-		if (!Array.isArray(parsed.tabs)) return null
+		if (parsed.database !== database || !Array.isArray(parsed.tabs)) return null
 		const tabs = parsed.tabs
 			.filter(
 				(tab) =>
@@ -112,7 +115,7 @@ function readPersisted(): PersistedTabs | null {
 		const activeId = tabs.some((tab) => tab.id === parsed.activeId)
 			? parsed.activeId
 			: (tabs[0]?.id ?? null)
-		return { tabs, activeId }
+		return { database, tabs, activeId }
 	} catch {
 		return null
 	}
@@ -127,6 +130,7 @@ export function useDataBrowserTabs() {
 	// Counts the activations, a tab already active included: the sidebar
 	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
+	const database = useDmsState<string | null>(DATABASE_STATE, () => null)
 	const route = useDmsRoute()
 	const router = useDmsRouter()
 	// Captured at setup so closeTab can drop the closed tab's
@@ -147,7 +151,11 @@ export function useDataBrowserTabs() {
 		try {
 			window.sessionStorage.setItem(
 				STORAGE_KEY,
-				JSON.stringify({ tabs: tabs.value, activeId: activeId.value }),
+				JSON.stringify({
+					database: database.value,
+					tabs: tabs.value,
+					activeId: activeId.value,
+				}),
 			)
 		} catch {
 			// Quota/private-mode failures only cost tab restoration.
@@ -345,10 +353,15 @@ export function useDataBrowserTabs() {
 		return true
 	}
 
-	// Restore persisted tabs, preview included, then let the URL win for the
-	// active selection. Call once, from the page's onMounted.
-	function restore() {
-		const persisted = readPersisted()
+	/**
+	 * Restores the tabs this browser tab kept on the selected database,
+	 * preview included, then lets the URL win for the active selection. Tabs
+	 * kept on another database are dropped. Call once, from the page's
+	 * onMounted, with the selected connection's id.
+	 */
+	function restore(selected: string) {
+		database.value = selected
+		const persisted = readPersisted(selected)
 		if (persisted) {
 			tabs.value = persisted.tabs
 			activeId.value = persisted.activeId

@@ -3,7 +3,10 @@ import {
 	instanceBadge,
 	useDataBrowserTabs,
 } from '../build/composables/useDataBrowserTabs'
-import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
+import {
+	OWN_CONNECTION,
+	useDatabaseConnections,
+} from '../build/composables/useDatabaseConnections'
 import { provideReadOnlyReason } from '../build/data/readOnlyReason'
 import { useDatabaseSchemas } from '../build/composables/useDatabaseSchemas'
 import { formatDatabaseRelativeTime } from '../build/utils/relativeTime'
@@ -26,14 +29,14 @@ const {
 	error: schemasError,
 	refresh: refreshSchemas,
 } = useDatabaseSchemas()
-const { ready: connectionsRead } = useDatabaseConnections()
+const { ready: connectionsRead, selected } = useDatabaseConnections()
 provideReadOnlyReason()
 const { tabs, activeTab, restore, openTab, openFromRoute } =
 	useDataBrowserTabs()
 const staged = useStagedEdits()
 const route = useDmsRoute()
 
-onMounted(() => restore())
+onMounted(() => restore(selected.value?.id ?? OWN_CONNECTION))
 // A link from this page to another table (a relation) keeps the page mounted.
 watch(
 	() => route.query,

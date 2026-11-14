@@ -21,6 +21,7 @@ it('restores browser session tabs and persists a new permanent tab', () => {
 		sessionStorage: {
 			getItem: () =>
 				JSON.stringify({
+					database: 'own',
 					tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
 					activeId: null,
 				}),
@@ -28,7 +29,7 @@ it('restores browser session tabs and persists a new permanent tab', () => {
 		},
 	})
 	const browser = useDataBrowserTabs()
-	browser.restore()
+	browser.restore('own')
 	expect(browser.activeId.value).toBe('sales::eu::orders')
 	browser.openTab('audit', 'us', 'events', false)
 	expect(browser.tabs.value.map((tab) => tab.id)).toEqual([
@@ -40,6 +41,31 @@ it('restores browser session tabs and persists a new permanent tab', () => {
 	expect(JSON.parse(payload).activeId).toBe('audit::us::events')
 })
 
+it('drops the tabs kept on another database', () => {
+	setup()
+	const setItem = vi.fn()
+	vi.stubGlobal('window', {
+		sessionStorage: {
+			getItem: () =>
+				JSON.stringify({
+					database: 'warehouse',
+					tabs: [{ schema: 'sales', instance: 'eu', table: 'orders' }],
+					activeId: 'sales::eu::orders',
+				}),
+			setItem,
+		},
+	})
+	const browser = useDataBrowserTabs()
+	browser.restore('own')
+	expect(browser.tabs.value).toEqual([])
+	expect(browser.activeId.value).toBeNull()
+	browser.openTab('audit', 'us', 'events', false)
+	expect(JSON.parse(setItem.mock.lastCall![1])).toMatchObject({
+		database: 'own',
+		tabs: [expect.objectContaining({ id: 'audit::us::events' })],
+	})
+})
+
 it('retains usable tabs when session storage is unavailable', () => {
 	setup()
 	const deny = () => {
@@ -47,7 +73,7 @@ it('retains usable tabs when session storage is unavailable', () => {
 	}
 	vi.stubGlobal('window', { sessionStorage: { getItem: deny, setItem: deny } })
 	const browser = useDataBrowserTabs()
-	browser.restore()
+	browser.restore('own')
 	browser.openTab('sales', 'eu', 'orders', false)
 	expect(browser.activeId.value).toBe('sales::eu::orders')
 })
@@ -65,7 +91,7 @@ it('does not revisit an already selected deep link while restoring tabs', () => 
 		},
 	}))
 	const browser = useDataBrowserTabs()
-	browser.restore()
+	browser.restore('own')
 	expect(browser.activeId.value).toBe('sales::eu::orders')
 	expect(replace).not.toHaveBeenCalled()
 	browser.openTab('sales', 'us', 'orders', false)
@@ -90,6 +116,7 @@ it('restores the preview tab as a preview, the URL naming it included', () => {
 		sessionStorage: {
 			getItem: () =>
 				JSON.stringify({
+					database: 'own',
 					tabs: [
 						{ schema: 'sales', instance: 'eu', table: 'customers' },
 						{
@@ -105,7 +132,7 @@ it('restores the preview tab as a preview, the URL naming it included', () => {
 		},
 	})
 	const browser = useDataBrowserTabs()
-	browser.restore()
+	browser.restore('own')
 	expect(browser.activeId.value).toBe('sales::eu::orders')
 	expect(browser.tabs.value.map((tab) => tab.preview)).toEqual([false, true])
 	expect(replace).not.toHaveBeenCalled()
