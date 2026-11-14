@@ -39,3 +39,24 @@ export function lockedOnExternal(
     },
   ];
 }
+
+/**
+ * Leaves out a display block's links on an external database: each leads to a
+ * page it cannot serve.
+ *
+ * @param _permissions The caller's permissions, unread
+ * @param options The block's served options
+ * @param _permissionId The block's permission id, unread
+ * @param context The request
+ * @returns The options, without their links on an external database
+ */
+export async function linksHiddenOnExternal<T extends { actions?: unknown }>(
+  _permissions: Set<string>,
+  options: T,
+  _permissionId: string,
+  context: ComponentFilterContext,
+): Promise<T> {
+  return (await onExternal(context))
+    ? { ...options, actions: undefined }
+    : options;
+}

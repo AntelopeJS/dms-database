@@ -14,6 +14,9 @@ import { lockedOnExternal } from "./externalLock";
 /** The row placeholders the table view fills in a page target. */
 const TABLE_QUERY = "schema={{row.schema}}&table={{row.name}}";
 
+/** Offers a row action only on a table of the project's own database. */
+const OWN_DATABASE_ROW = { field: "external", equals: false } as const;
+
 const tables = TableView.fromSource({
   caption: "$dms_database.schemas.caption",
   fetchUrl: "/api/database/tables/source",
@@ -115,6 +118,7 @@ const tables = TableView.fromSource({
         label: "$dms_database.schemas.actions.query",
         icon: "i-ph-code",
         target: { type: "page", url: `${DATABASE_PATHS.query}?${TABLE_QUERY}` },
+        rule: OWN_DATABASE_ROW,
       },
       {
         label: "$dms_database.schemas.actions.diagram",
@@ -123,6 +127,7 @@ const tables = TableView.fromSource({
           type: "page",
           url: `${DATABASE_PATHS.diagram}?${TABLE_QUERY}`,
         },
+        rule: OWN_DATABASE_ROW,
       },
     ],
   },
