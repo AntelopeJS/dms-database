@@ -1,5 +1,5 @@
 import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { basename, join, relative } from "node:path";
 
 /**
  * Invariants over the module's sources that no component test can reach:
@@ -109,11 +109,11 @@ const pascalCase = (name: string): string =>
     .map((part) => `${part[0].toUpperCase()}${part.slice(1)}`)
     .join("");
 const componentFile = (file: string): string =>
-  pascalCase(file.slice(file.lastIndexOf("/") + 1, -".vue".length));
+  pascalCase(basename(file, ".vue"));
 
 const shipped = new Set([
   ...list(DMS_LAYERS, ".vue")
-    .filter((file) => /\/app\/(?:build\/)?components\//.test(file))
+    .filter((file) => /[\\/]app[\\/](?:build[\\/])?components[\\/]/.test(file))
     .map((file) => `Dms${componentFile(file)}`),
   ...[
     ...read(join(DMS_LAYERS, "..", "dms.frontend.ts")).matchAll(
