@@ -1,6 +1,7 @@
 import { strict as assert } from "node:assert";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseConnectionsController } from "../routes/connections";
+import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
 import { EXTERNAL_UNSUPPORTED } from "../service/connectionState";
 import { refusal } from "./refusal";
 
@@ -62,7 +63,7 @@ describe("[integration] external connections: listing and selection", () => {
       await refusal(
         controller.select(user("selecting-user"), { connection: "nope" }),
       ),
-      { status: 404, message: "Unknown connection: nope" },
+      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
     );
     assert.deepEqual(
       await refusal(controller.select(user("selecting-user"), {})),

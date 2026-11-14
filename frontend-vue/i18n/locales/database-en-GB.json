@@ -251,6 +251,7 @@
 			"own": "Project database",
 			"external": "External",
 			"engine_unknown": "Unknown engine",
+			"unknown": "This database is no longer one of the project's databases. Reload the page to see the current list.",
 			"switcher": {
 				"label": "Database",
 				"menu": "Choose the database to browse",
@@ -265,6 +266,9 @@
 				"account_unverified": "This account's write access could not be checked.",
 				"failed": "The access to the database could not be changed.",
 				"refused": "The project's configuration refused the change: {reason}",
+				"not_development": "Access can only change while the project runs in development. Reload the page.",
+				"no_module_entry": "The console could not find its own module in the project's configuration.",
+				"no_builder": "The project's configuration could not be written: the DMS builder did not answer.",
 				"confirm": {
 					"title": "Allow changes to {name}?",
 					"description": "{name} is your customer's live database. Changes you save are written to it at once, and the DMS cannot undo them.",

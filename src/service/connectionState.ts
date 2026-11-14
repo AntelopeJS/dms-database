@@ -12,6 +12,7 @@ import {
 import { setExternalConnections, withAccess } from "../config";
 import { configuredAccess } from "../connectionAccess";
 import { builderRefusalReason } from "./builderRefusal";
+import { CONNECTION_REFUSALS } from "./connectionRefusals";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import {
   listExternalIds,
@@ -53,10 +54,6 @@ const FEATURE_NAMES: Record<ConsoleFeature, string> = {
 /** Why an edit made on a database the user no longer browses is refused. */
 export const STALE_DATABASE =
   "The selected database changed in another tab: reload the page";
-
-/** What the account behind a connection may not do, in the words the dashboard shows. */
-export const READ_ONLY_ACCOUNT =
-  "This account can only read. Use an account with write access to allow changes.";
 
 /**
  * One database the console shows. The dashboard names the project's own
@@ -202,7 +199,7 @@ export async function selectConnection(
   assert(
     connection === OWN_CONNECTION || listExternalIds().includes(connection),
     404,
-    `Unknown connection: ${connection}`,
+    CONNECTION_REFUSALS.unknownConnection,
   );
   await GetModel(ConnectionSelectionModel).select(userId, connection);
 }
@@ -219,7 +216,7 @@ export async function changeAccess(
   access: ConnectionAccess,
 ): Promise<void> {
   assertExternal(connection);
-  assert(await accessEditable(), 403, "Access can only change in development");
+  assert(await accessEditable(), 403, CONNECTION_REFUSALS.notDevelopment);
   await writeAccess(connection, access);
 }
 
@@ -232,7 +229,7 @@ function assertExternal(connection: string): void {
   assert(
     listExternalIds().includes(connection),
     404,
-    `Unknown connection: ${connection}`,
+    CONNECTION_REFUSALS.unknownConnection,
   );
 }
 
@@ -264,10 +261,11 @@ async function writeAccessNow(
   assertExternal(connection);
   if (access === "read-write") {
     const { canWrite } = await summarizeExternal(connection);
-    assert(canWrite === true, 409, READ_ONLY_ACCOUNT);
+    assert(canWrite !== null, 409, CONNECTION_REFUSALS.unverifiedAccount);
+    assert(canWrite, 409, CONNECTION_REFUSALS.readOnlyAccount);
   }
   const moduleId = ownModuleId();
-  assert(moduleId, 503, "The console does not know its module entry");
+  assert(moduleId, 503, CONNECTION_REFUSALS.noModuleEntry);
   const next = withAccess(connection, access);
   const externalConnections = Object.fromEntries(
     Object.entries(next).map(([id, settings]) => [
@@ -278,14 +276,10 @@ async function writeAccessNow(
   const written = await ConfigureModule(moduleId, {
     config: { externalConnections },
   }).catch(() => undefined);
-  assert(
-    written !== undefined,
-    503,
-    "The project's configuration could not be written: the DMS builder runs in development",
-  );
+  assert(written !== undefined, 503, CONNECTION_REFUSALS.noBuilder);
   if (!written.ok) {
     throw new HTTPResult(409, {
-      message: "$dms_database.connections.access.refused",
+      message: CONNECTION_REFUSALS.builderRefused,
       params: { reason: builderRefusalReason(written.error) },
     });
   }
