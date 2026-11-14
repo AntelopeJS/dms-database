@@ -4,6 +4,9 @@ import { User } from "@antelopejs/interface-dms/auth/db";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import { linksHiddenOnExternal, lockedOnExternal } from "../pages/externalLock";
 import { DatabaseTablesController } from "../routes/tables";
+import type { Component } from "@antelopejs/interface-dms/component";
+import { DatabaseOverviewPage } from "../pages/overview";
+import { DatabaseSchemasPage } from "../pages/schemas";
 
 const EXTERNAL_USER = Object.assign(new User(), {
   _id: "external-links-external-user",
@@ -91,5 +94,53 @@ describe("[integration] a link in a page's body to a page an external database c
     assert.ok(own.length > 0, "the own database lists tables");
     assert.ok(external.every((row) => row.external));
     assert.ok(own.every((row) => !row.external));
+  });
+});
+
+async function childAt(root: Component, ...path: string[]): Promise<Component> {
+  let node = root;
+  for (const id of path) {
+    const info = await node.componentInfo;
+    const child = info.children?.find((entry) => entry.id === id);
+    assert.ok(child, `the block holds ${id}`);
+    node = child.component;
+  }
+  return node;
+}
+
+describe("[integration] the pages wire the external database's links", () => {
+  before(async () => {
+    await GetModel(ConnectionSelectionModel).select(EXTERNAL_USER._id, "erp");
+  });
+
+  it("filters the recent queries' console link out on an external database only", async () => {
+    const feed = await childAt(DatabaseOverviewPage.activity, "row", "recent");
+    const { options } = await feed.serialize();
+    const declared = feed.onFilterCallback;
+    assert.ok(declared, "the feed filters what it serves");
+    const filter = declared;
+    async function servesLinks(user: User): Promise<boolean> {
+      const served: unknown = await filter(new Set(), options, "feed", {
+        tenantId: "default",
+        user,
+      });
+      return JSON.stringify(served).includes('"actions"');
+    }
+    assert.equal(await servesLinks(OWN_USER), true);
+    assert.equal(await servesLinks(EXTERNAL_USER), false);
+  });
+
+  it("offers Query and Diagram only on a row the source marks as the own database's", async () => {
+    const { options } = await DatabaseSchemasPage.tables.serialize();
+    const rules = Object.fromEntries(
+      (options?.rowActions?.custom ?? []).map((action) => [
+        action.label,
+        action.rule,
+      ]),
+    );
+    const own = { field: "external", equals: false };
+    assert.deepEqual(rules["$dms_database.schemas.actions.query"], own);
+    assert.deepEqual(rules["$dms_database.schemas.actions.diagram"], own);
+    assert.equal(rules["$dms_database.schemas.actions.browse"], undefined);
   });
 });
