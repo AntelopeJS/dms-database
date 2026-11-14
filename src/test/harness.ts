@@ -1,7 +1,7 @@
-import { execFileSync } from "node:child_process";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { version as DMS_VERSION } from "@antelopejs/dms/package.json";
 import { defineConfig } from "@antelopejs/interface-core/config";
 import { MongoMemoryReplSet } from "mongodb-memory-server-core";
 
@@ -9,55 +9,6 @@ const API_PORT = 5023;
 const JWT_SECRET = "test-jwt-secret";
 const HTML_RENDER_SECRET = "test-html-render-secret";
 const MONGO_BINARY_VERSION = "8.0.8";
-const DMS_RANGE = ">=0.16.1 <1.0.0";
-
-/**
- * Orders two release versions (`major.minor.patch`, no prerelease).
- *
- * @param left A version
- * @param right Another version
- * @returns A negative number when `left` is older, positive when newer, 0 when equal
- */
-function compareVersions(left: string, right: string): number {
-  const a = left.split(".").map(Number);
-  const b = right.split(".").map(Number);
-  for (let index = 0; index < 3; index += 1) {
-    const difference = (a[index] ?? 0) - (b[index] ?? 0);
-    if (difference !== 0) return difference;
-  }
-  return 0;
-}
-
-/**
- * The newest published `@antelopejs/dms` in {@link DMS_RANGE}, read from the
- * registry. CI restores `.antelope/cache`, so there the loader gets this exact
- * version and never falls back to an older cached copy: an unreachable
- * registry fails the run instead. Local runs keep the range.
- *
- * @returns The version
- */
-function newestDms(): string {
-  const output = execFileSync(
-    "npm",
-    ["view", `@antelopejs/dms@${DMS_RANGE}`, "version", "--json"],
-    {
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"],
-    },
-  );
-  const parsed: unknown = JSON.parse(output);
-  const versions = (Array.isArray(parsed) ? parsed : [parsed]).filter(
-    (value): value is string => typeof value === "string",
-  );
-  const newest = versions.reduce<string | undefined>(
-    (best, version) =>
-      best === undefined || compareVersions(version, best) > 0 ? version : best,
-    undefined,
-  );
-  if (newest === undefined)
-    throw new Error(`no @antelopejs/dms version matches ${DMS_RANGE}`);
-  return newest;
-}
 
 let mongod: MongoMemoryReplSet;
 let storageDir: string;
@@ -88,7 +39,7 @@ export default defineConfig({
         : {
             type: "package",
             package: "@antelopejs/dms",
-            version: process.env.CI ? newestDms() : DMS_RANGE,
+            version: DMS_VERSION,
           },
       config: {
         /**
