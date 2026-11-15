@@ -41,6 +41,19 @@ function databaseConfig(): DatabaseConfig {
 }
 
 /**
+ * `@antelopejs/dms-automation`, loaded only while `VERIFY_DATABASE_AUTOMATION`
+ * is set, so every other journey runs the module without it.
+ */
+function automationModules() {
+  if (!process.env.VERIFY_DATABASE_AUTOMATION) return {};
+  return {
+    "dms-automation": {
+      source: { type: "local", path: "../../../../node_modules/@antelopejs/dms-automation" },
+    },
+  };
+}
+
+/**
  * The repository's playground with the ports, origins, secrets and mail
  * `dms-control` sets for a run, a fixture module (`app`) and the module under
  * verification built from the checkout.
@@ -55,6 +68,7 @@ export default defineConfig({
       source: { type: "local", path: "../../../.." },
       config: databaseConfig(),
     },
+    ...automationModules(),
     dms: {
       source: {
         type: "package",

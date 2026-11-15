@@ -45,14 +45,22 @@ type TableWatchOutput = {
 
 type ChangeRow = WriteDocument;
 
+/** The instance tag the store adds to every row it reads: not a column of the table. */
+const INSTANCE_TAG_FIELD = "_instance";
+
 function rowOf(value: JsonValue | undefined): JsonObject | null {
-  return value !== undefined && isJsonObjectValue(value) ? value : null;
+  if (value === undefined || !isJsonObjectValue(value)) return null;
+  return Object.fromEntries(
+    Object.entries(value).filter(([key]) => key !== INSTANCE_TAG_FIELD),
+  );
 }
 
 /**
  * The two rows of a change as JSON: the form the run stores its payload in and
  * a re-run reads back (a date becomes its ISO string), so a run sees what its
- * re-run sees. A row the change does not carry is null.
+ * re-run sees. A row the change does not carry is null. The rows leave out the
+ * instance tag, as the Data browser does on one instance: the watch reads the
+ * default instance only.
  */
 export function jsonRows(
   change: Changes<ChangeRow>,
