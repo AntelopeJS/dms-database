@@ -29,17 +29,17 @@ A query that inserts, updates, replaces or deletes never runs straight away: a d
 
 - Query console, any query that changes data.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" guard
+pnpm e2e:run specs/guard.spec.ts
 ```
 
 ## Gotchas
 
 - The guard is client-side: `POST /query/execute` runs a write without a dry run, which is how the journeys add rows between the dry run and the confirmation.
 - A replace on a missing row (`get("x").replace`) counts 0 rows and still asks for the name, like every write.
-- A replace on a selection of several rows announces them all (`Replace 3 rows`) but changes one: `@antelopejs/mongodb` 1.6.2 runs it as `findOneAndReplace`, while the Database interface documents "Replace documents of this selection" and the module's dry run counts the whole selection. `a-replace-on-a-selection-changes-every-row-the-dry-run-announced` fails until the driver or the count is settled; the other replace journey asserts only what holds today (the dialog, the name, at least the picked row). Draft: `~/.cache/campaign/issues/dms-database-guard-replace-selection-one-row.md`.
+- A replace on a selection of several rows announces them all (`Replace 3 rows`) but changes one: `@antelopejs/mongodb` 1.6.2 runs it as `findOneAndReplace`, while the Database interface documents "Replace documents of this selection" and the module's dry run counts the whole selection. `a-replace-on-a-selection-changes-every-row-the-dry-run-announced` fails until the driver or the count is settled, so its `fails` field makes it an expected failure of the suite; the other replace journey asserts only what holds today (the dialog, the name, at least the picked row). Draft: `~/.cache/campaign/issues/dms-database-guard-replace-selection-one-row.md`.
 
 ## Coverage
 

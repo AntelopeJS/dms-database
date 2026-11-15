@@ -25,10 +25,10 @@ What the module picks up from the rest of the project (registered schemas, their
 
 - A module calls `RegisterSchema` and declares tables; a notification or row action links to a console page.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" extending
+pnpm e2e:run specs/extending.spec.ts
 ```
 
 ## Gotchas

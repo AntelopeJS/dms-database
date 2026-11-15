@@ -28,10 +28,10 @@ The pages and the module's API answer to the platform owner only, and the module
 
 - Modules catalog, tile Database; `/modules/database/*`.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" access
+pnpm e2e:run specs/access.spec.ts
 ```
 
 ## Gotchas

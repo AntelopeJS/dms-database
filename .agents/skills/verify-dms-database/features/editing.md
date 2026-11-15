@@ -45,10 +45,10 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 
 - Data browser: double-click a cell or press `Enter` on it, `Ctrl S` to review and save; the row drawer (`Space`) edits a row's fields.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" editing
+pnpm e2e:run specs/editing.spec.ts
 ```
 
 ## Gotchas
@@ -57,7 +57,7 @@ dms-control journey "$RUN" editing
 - The Undo window is measured from the click on Save; the journey polls for the button and asserts the 9.9 to 11.5 second range.
 - Row identities: a cell is found by the text of the row's `_id` cell and the column's header; unsorted rows are in stored order.
 - A write that fails is injected with `page.route` in the browser (HTTP 500 for one row's PUT); a deleted row is deleted through the query console's route.
-- `playground/src/browse-fixtures.ts` adds two rows to `vault.accounts` (the stored form of a hashed, an encrypted and a localized column), imported from `playground/src/index.ts`.
+- `e2e/playground/src/browse-fixtures.ts` adds two rows to `vault.accounts` (the stored form of a hashed, an encrypted and a localized column), imported from `e2e/playground/src/index.ts`.
 - `src/service/stagedSerialization.ts` and `frontend-vue/app/build/utils/stagedSerialization.ts` are the query console's wire format; the journeys use them to read rows back (`query-wire.mjs` encodes the same way) and to delete and insert rows.
 
 ## Coverage
