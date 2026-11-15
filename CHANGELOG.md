@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.5.3
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.2...v0.5.3)
+
+### 🩹 Fixes
+
+- **automation:** Drive the table watch end to end and leave the instance tag out of its rows ([#193](https://github.com/AntelopeJS/dms-database/pull/193))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.5.2
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.1...v0.5.2)
