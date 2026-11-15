@@ -1,12 +1,6 @@
 <script setup lang="ts">
-import {
-	type RelationsByTable,
-	useCatalogReferences,
-} from '../composables/useCatalogReferences'
-import {
-	isExternal,
-	useDatabaseConnections,
-} from '../composables/useDatabaseConnections'
+import { useCatalogReferences } from '../composables/useCatalogReferences'
+import { useDatabaseConnections } from '../composables/useDatabaseConnections'
 import { useDatabaseSchemas } from '../composables/useDatabaseSchemas'
 import { useDiagramDrag } from '../composables/useDiagramDrag'
 import { useDiagramNotes } from '../composables/useDiagramNotes'
@@ -72,7 +66,7 @@ const toast = useToast()
 const { schemas, isLoading: schemasLoading } = useDatabaseSchemas()
 const { selected } = useDatabaseConnections()
 const persistence = useDiagramPersistence(() => selected.value?.id)
-const readReferences = useCatalogReferences()
+const catalog = useCatalogReferences()
 const { open: openDrawer } = useDrawer()
 
 const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null)
@@ -121,24 +115,9 @@ const schemaId = computed<string | null>(() => {
 		return asked
 	return schemas.value[0]?.id ?? null
 })
-/**
- * The foreign keys an external database's catalog reports for the loaded
- * schema, by table; null on the project's own database, whose schema declares
- * its relations.
- */
-const catalogRelations = shallowRef<RelationsByTable | null>(null)
-const schema = computed(() => {
-	const declared = schemas.value.find((s) => s.id === schemaId.value) ?? null
-	const relations = catalogRelations.value
-	if (!declared || !relations) return declared
-	return {
-		...declared,
-		tables: declared.tables.map((table) => ({
-			...table,
-			relations: relations[table.name] ?? [],
-		})),
-	}
-})
+const schema = computed(() =>
+	catalog.apply(schemas.value.find((s) => s.id === schemaId.value) ?? null),
+)
 const schemaItems = computed(() =>
 	schemas.value.map((s) => ({ label: s.id, value: s.id, icon: 'i-ph-stack' })),
 )
@@ -341,19 +320,16 @@ async function load(id: string) {
 	sync = owner
 	await leaving
 	if (sync !== owner) return
-	const connection = selected.value
 	const [stored, relations] = await Promise.all([
 		persistence.readDiagram(id).catch(() => null),
-		isExternal(connection)
-			? readReferences(connection.id, id).catch(() => undefined)
-			: null,
+		catalog.read(selected.value, id),
 	])
 	if (sync !== owner) return
 	if (relations === undefined)
 		warn(t('dms_database.diagram.references_failed', { schema: id }))
 	state.positions = stored?.positions ?? {}
 	state.notes = stored?.notes.map(noteFromStored) ?? []
-	catalogRelations.value = relations === undefined ? {} : relations
+	catalog.keep(relations)
 	expanded.value = expandedBySchema.get(id) ?? new Set()
 	layoutBasis.value = currentLayoutBasis()
 	owner.reset(state)
