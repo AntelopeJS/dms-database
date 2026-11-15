@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.5.2
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.1...v0.5.2)
+
+### 💅 Refactors
+
+- **diagram:** Save a layout with one conflict insert on mongodb 1.8.2 ([#191](https://github.com/AntelopeJS/dms-database/pull/191))
+
+### 📦 Build
+
+- **deps:** Accept @antelopejs/interface-database-catalog 0.1 ([#192](https://github.com/AntelopeJS/dms-database/pull/192))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli ([@Upd4ting](http://github.com/Upd4ting))
+
 ## v0.5.1
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.0...v0.5.1)
