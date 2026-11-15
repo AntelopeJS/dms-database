@@ -4,12 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@antelopejs/mongodb': file:.tgz-deps/antelopejs-mongodb-57fa2a9.tgz
-  '@antelopejs/mongodb>@antelopejs/interface-core': 0.5.1
-  '@antelopejs/mongodb>@antelopejs/interface-database': 0.4.1
-  '@antelopejs/mongodb>@antelopejs/interface-database-catalog': 0.1.0
-
 importers:
 
   .:

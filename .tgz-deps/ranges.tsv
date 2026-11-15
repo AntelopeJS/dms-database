@@ -1,5 +1,0 @@
-@antelopejs/mongodb	package.json	devDependencies	~1.8.4
-@antelopejs/mongodb	package.json	pnpm.overrides	
-@antelopejs/mongodb>@antelopejs/interface-core	package.json	pnpm.overrides	
-@antelopejs/mongodb>@antelopejs/interface-database	package.json	pnpm.overrides	
-@antelopejs/mongodb>@antelopejs/interface-database-catalog	package.json	pnpm.overrides	
