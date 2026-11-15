@@ -156,7 +156,10 @@ export const journeys = [
     id: "results-over-1000-rows-are-cut-at-1000",
     title: "a run returns at most 1,000 rows: exactly 1,000 are all shown, 1,001 are cut with the total named, and the JSON view and the CSV export hold the 1,000 returned rows",
     entryPoint: "/modules/database/query, metrics.readings (1,250 rows)",
-    fails: "open question: the CSV header expects the _instance tag last, and on @antelopejs/mongodb 1.8.6 it comes second; no doc page fixes the order",
+    knownFailures: {
+      "a header and 1,000 rows": "open question: the CSV puts the _instance tag second on @antelopejs/mongodb 1.8.6, and no doc page fixes the order",
+      "the first and the last row": "open question: the CSV puts the _instance tag second on @antelopejs/mongodb 1.8.6, and no doc page fixes the order",
+    },
     async run(/** @type {Ctx} */ ctx) {
       const tab = await openConsole(ctx);
       await runSource(tab, 'schemas.metrics.instance().table("readings").orderBy("seq").slice(0, 1000)');

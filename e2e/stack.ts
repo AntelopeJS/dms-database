@@ -330,6 +330,7 @@ class WorkerStack implements Stack {
   #mongo: MongoMemoryReplSet | undefined;
   #backend: Child | undefined;
   #dashboard: Child | undefined;
+  #stopped = false;
 
   constructor(worker: number, logs: string, ports: readonly [number, number]) {
     [this.#apiPort, this.#webPort] = ports;
@@ -380,6 +381,7 @@ class WorkerStack implements Stack {
   }
 
   async stop(): Promise<void> {
+    this.#stopped = true;
     await Promise.all([this.#backend?.stop(), this.#dashboard?.stop()]);
     await this.#mongo?.stop({ doCleanup: true, force: true });
     this.#mongo = undefined;
@@ -391,11 +393,22 @@ class WorkerStack implements Stack {
     return `e2e_${this.#worker}_${this.#databases}`;
   }
 
+  #refuseAfterStop(): void {
+    if (this.#stopped)
+      throw new Error("the stack stopped; nothing starts after a stop");
+  }
+
   async #start(): Promise<void> {
-    this.#mongo ??= await MongoMemoryReplSet.create({
-      replSet: { count: 1 },
-      binary: { version: MONGO_VERSION },
-    });
+    this.#refuseAfterStop();
+    if (this.#mongo === undefined) {
+      const mongo = await MongoMemoryReplSet.create({
+        replSet: { count: 1 },
+        binary: { version: MONGO_VERSION },
+      });
+      if (this.#stopped) await mongo.stop({ doCleanup: true, force: true });
+      this.#refuseAfterStop();
+      this.#mongo = mongo;
+    }
     this.#starts += 1;
     const backend = new Child(
       "the backend",
@@ -408,6 +421,7 @@ class WorkerStack implements Stack {
     );
     this.#backend = backend;
     await backend.ready(`${this.apiUrl}/api/onboarding/informations`);
+    this.#refuseAfterStop();
     if (this.#dashboard === undefined || this.#dashboard.lost() !== null) {
       this.#dashboard = new Child(
         "the dashboard",

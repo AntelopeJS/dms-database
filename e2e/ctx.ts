@@ -39,8 +39,9 @@ export interface ApiRequest {
 /**
  * A scripted journey, one Playwright test named by its `id`. It starts on a new database with the administrator
  * onboarded, unless `database` is `"shared"` (the stack is left as it is) or `onboard` is `false`. `backend: "dev"`
- * runs its backend in development mode, `tag` is the Playwright tag that selects it, and `fails` names the product
- * finding that makes it fail today, which marks it an expected failure.
+ * runs its backend in development mode, and `tag` is the Playwright tag that selects it. `knownFailures` maps the
+ * name of each check that fails today to the finding that makes it fail: that check is annotated instead of failing
+ * the test, and fails it once it passes, while every other check of the journey still counts.
  */
 export interface Journey {
   readonly id: string;
@@ -50,7 +51,7 @@ export interface Journey {
   readonly onboard?: boolean;
   readonly backend?: string;
   readonly tag?: string;
-  readonly fails?: string;
+  readonly knownFailures?: Readonly<Record<string, string>>;
   run(ctx: Ctx): Promise<void>;
 }
 
@@ -135,10 +136,16 @@ class JourneyCtx implements Ctx {
   readonly #accounts = new Map<string, Account>();
   readonly #tokens = new Map<string, string>();
   readonly #contexts = new Map<string, BrowserContext>();
+  readonly #knownFailures: ReadonlyMap<string, string>;
 
-  constructor(stack: Stack, browser: Browser) {
+  constructor(
+    stack: Stack,
+    browser: Browser,
+    knownFailures: ReadonlyMap<string, string>,
+  ) {
     this.#stack = stack;
     this.#browser = browser;
+    this.#knownFailures = knownFailures;
   }
 
   get backendEnv(): Env {
@@ -158,9 +165,27 @@ class JourneyCtx implements Ctx {
       const settled = await Promise.all(
         checks.map((check) => Promise.resolve(check)),
       );
-      for (const check of settled)
-        expect.soft(check.pass, `${check.name}: ${check.detail}`).toBe(true);
-      return settled.every((check) => check.pass);
+      let passed = true;
+      for (const check of settled) {
+        const finding = this.#knownFailures.get(check.name);
+        if (finding === undefined) {
+          expect.soft(check.pass, `${check.name}: ${check.detail}`).toBe(true);
+          passed &&= check.pass;
+        } else if (check.pass) {
+          expect
+            .soft(
+              check.pass,
+              `${check.name} passes now: remove it from knownFailures`,
+            )
+            .toBe(false);
+        } else {
+          test.info().annotations.push({
+            type: "known failure",
+            description: `${check.name}: ${finding} (seen: ${check.detail})`,
+          });
+        }
+      }
+      return passed;
     });
     if (!passed && options.critical === true)
       throw new Error(`critical step "${label}" failed`);
@@ -268,7 +293,11 @@ export async function openCtx(
   browser: Browser,
   journey: Journey,
 ): Promise<JourneyCtx> {
-  const ctx = new JourneyCtx(stack, browser);
+  const ctx = new JourneyCtx(
+    stack,
+    browser,
+    new Map(Object.entries(journey.knownFailures ?? {})),
+  );
   if (journey.database === "shared") return ctx;
   if (journey.database !== undefined)
     throw new Error(

@@ -12,7 +12,7 @@ export default defineConfig({
   testDir: "specs",
   fullyParallel: true,
   workers: 1,
-  retries: CI ? 1 : 0,
+  retries: 0,
   forbidOnly: CI,
   timeout: 15 * MINUTE,
   reporter: CI

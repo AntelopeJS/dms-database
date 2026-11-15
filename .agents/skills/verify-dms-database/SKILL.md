@@ -71,7 +71,7 @@ $C down "$RUN"
 
 1. **Run every feature whose `covers:` globs the diff touches, plus the smoke journey.** `plan` prints that list as `run`.
 2. **Unmapped surface fails the verdict.** User-facing code is `src/**`, `frontend-vue/**`, `skills/**` and `package.json`, tests and tool configs excluded (`verify.config.ts`). `plan` lists the unmapped surfaces of the diff.
-3. **Every registered journey of a feature in `run` must have run and passed.** Read it from the Playwright report of the spec runs: no test failed, was flaky or did not run. A known finding is an expected failure (its journey's `fails` names it, and the feature file's Gotchas describe it): it passes the run while the product still fails it, and fails it once the product changes.
+3. **Every registered journey of a feature in `run` must have run and passed.** Read it from the Playwright report of the spec runs: no test failed, was flaky or did not run. A known finding is a check its journey's `knownFailures` names, with the finding the feature file's Gotchas describe: the check is annotated `known failure` while the product still fails it, and fails the test once it passes. Every other check of that journey still counts.
 4. **Docs.** Judge every `docs:` page of each touched feature against what the journeys showed.
 5. **Formal checks.** [`formal-table-watch`](../formal-table-watch/SKILL.md) covers the table-watch trigger (`src/automation/tableWatch.ts`): `$C formal "$RUN"` runs it when the diff touches its files. Its two recorded findings fail a verdict only when the diff changes the covered behaviour.
 6. **One-way doors.** The section comes right after the result line and is mandatory. `$C doors` prints the `One-way-door:` line for the diff.

@@ -9,7 +9,9 @@ export const columnsGetAndTables = {
   id: "columns-get-and-tables-answer-what-the-grid-needs",
   title: "browse/columns answers the sampled columns, their runtime types and the primary key; get answers a row by id; tables answers every table of the schema with its row count in the picked instance",
   entryPoint: "GET /api/database/browse/columns, get, tables",
-  fails: "open question: browse/columns expects the _instance tag last, and on @antelopejs/mongodb 1.8.6 it comes after created_at; no doc page fixes the order",
+  knownFailures: {
+    "the orders columns: the declared ones in declaration order, then the sampled ones in stored order, the instance tag last": "open question: browse/columns puts the _instance tag after created_at on @antelopejs/mongodb 1.8.6, and no doc page fixes the order",
+  },
   async run(/** @type {Ctx} */ ctx) {
     const columns = await browse(ctx, "the columns of eu's orders", "columns", "shop.orders", { filter_instance: "is:eu" });
     const customerColumns = await browse(ctx, "the columns of customers", "columns", "shop.customers", { filter_instance: "is:eu" });

@@ -177,7 +177,10 @@ export const journeys = [
   },
   {
     id: "a-replace-on-a-selection-changes-every-row-the-dry-run-announced",
-    fails: "product finding: a replace on a selection changes one row while the dry run announces them all (draft dms-database-guard-replace-selection-one-row)",
+    knownFailures: {
+      "all three rows hold the replacement": "product finding: a replace on a selection changes one row while the dry run announces them all (draft dms-database-guard-replace-selection-one-row)",
+      "the result counts the three rows it announced": "product finding: a replace on a selection changes one row while the dry run announces them all (draft dms-database-guard-replace-selection-one-row)",
+    },
     title: "the confirmation of a replace on a selection of three rows announces 3 rows, and Confirm must replace all three and report 3 changed; fails today: the driver replaces one document (product finding, draft dms-database-guard-replace-selection-one-row)",
     entryPoint: "/modules/database/query, POST /api/database/query/dry-run and /execute",
     async run(/** @type {Ctx} */ ctx) {

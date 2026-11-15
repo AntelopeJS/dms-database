@@ -80,6 +80,7 @@ pnpm e2e:run specs/data.spec.ts
 - The playground's `shop` schema has the products of the default instance and of eu and us, with the orders, customers and order items of eu and us only; `metrics.readings` has 1,250 rows; `vault.accounts` has two rows written by `e2e/playground/src/browse-fixtures.ts`.
 - Unsorted rows come in stored order, which is not the order of the ids: journeys sort by a column or take the order from the API.
 - Single-instance rows carry `_instance` on MongoDB; the grid hides the column outside All instances.
+- Known failure, open question: `columns-get-and-tables-answer-what-the-grid-needs` expects `browse/columns` to list the `_instance` tag last; on `@antelopejs/mongodb` 1.8.6 it comes after `created_at`, and no doc page fixes the order.
 - A journey that needs a failing server injects the failure with a page route (`page.route`) in the browser; the product code is untouched.
 - The drawer's J and K and the Previous and Next buttons are the DMS row header's, driven with the focus in the drawer.
 

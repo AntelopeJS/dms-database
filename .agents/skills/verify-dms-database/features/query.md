@@ -56,6 +56,7 @@ pnpm e2e:run specs/query.spec.ts
 
 - The editor is CodeMirror: `fill` sets its text and `Control+Enter` runs it. Chips insert at the cursor, so a chip test starts from New.
 - Row search of the library, writes and the confirmation are the `guard` and `library` features.
+- Known failure, open question: `results-over-1000-rows-are-cut-at-1000` expects the `_instance` tag as the last CSV column; on `@antelopejs/mongodb` 1.8.6 it comes second, and no doc page fixes the order.
 
 ## Coverage
 

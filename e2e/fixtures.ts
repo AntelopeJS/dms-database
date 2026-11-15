@@ -35,12 +35,12 @@ const test = base.extend<TestFixtures, WorkerFixtures>({
       return ctx;
     });
     await Promise.all(opened.map((ctx) => ctx.close()));
-    if (testInfo.status === testInfo.expectedStatus) return;
+    const lost = stack.lost();
+    if (lost === null && testInfo.status === testInfo.expectedStatus) return;
     await testInfo.attach("backend.log", {
       body: stack.backendLog(),
       contentType: "text/plain",
     });
-    const lost = stack.lost();
     if (lost !== null)
       throw new Error(
         `${lost} during the journey; the backend log is attached`,
@@ -50,8 +50,7 @@ const test = base.extend<TestFixtures, WorkerFixtures>({
 
 /**
  * Registers a feature's journeys under a `describe` named after the feature: one test per journey, named by its id so
- * `-g <id>` selects it, with its title and entry point as annotations, its `tag` as the Playwright tag, and `fails`
- * as the reason of an expected failure.
+ * `-g <id>` selects it, with its title and entry point as annotations and its `tag` as the Playwright tag.
  */
 export function defineJourneys(
   feature: string,
@@ -68,7 +67,6 @@ export function defineJourneys(
         { type: "entry point", description: journey.entryPoint },
       ];
       test(journey.id, { tag: journey.tag, annotation }, async ({ open }) => {
-        test.fail(journey.fails !== undefined, journey.fails);
         await journey.run(await open(journey));
       });
     }
