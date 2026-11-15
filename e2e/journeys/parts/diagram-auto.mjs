@@ -145,7 +145,7 @@ export const arrangement = {
     await ctx.verify("folded height", [check("an unfolded table is laid out at its folded height, as when folded", Object.keys(firstPositions).every((name) => near(unfoldedRun[name], firstPositions[name], 0.5)), [unfoldedRun, firstPositions])]);
     await tab.click({ role: "button", name: "Discard" });
 
-    const note = await db(ctx, "put a note where the group would go", "POST", "/diagram/notes", { body: { schemaName: "vault", text: "keep clear", x: 0, y: 0, width: 220, height: 140 } });
+    const note = await db(ctx, "put a note where the group would go", "POST", "/diagram/notes?connection=own", { body: { schemaName: "vault", text: "keep clear", x: 0, y: 0, width: 220, height: 140 } });
     await putLayout(ctx, "vault", { wide_records: { x: 3000, y: 3000 } });
     await openDiagram(ctx, "?schema=vault", tab);
     const clear = await tables(tab);

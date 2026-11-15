@@ -17,6 +17,10 @@ import {
   DiagramNoteModel,
   noteConnection,
 } from "../db";
+import {
+  CONNECTION_REFUSALS,
+  connectionRefusal,
+} from "../service/connectionRefusals";
 import { resolveSelectedDatabase } from "../service/connectionState";
 import {
   isJsonContainer,
@@ -122,6 +126,24 @@ async function selectedConnection(user: User): Promise<string> {
 }
 
 /**
+ * The connection a write is for: the one the page loaded with, refused once
+ * another tab switched the user's database, so a stale page never writes its
+ * layout or its notes into another database's diagram.
+ */
+async function writtenConnection(user: User, asked: string): Promise<string> {
+  const connection = await selectedConnection(user);
+  if (asked !== connection) {
+    throw connectionRefusal(
+      409,
+      CONNECTION_REFUSALS.staleDatabase,
+      connection,
+      "warning",
+    );
+  }
+  return connection;
+}
+
+/**
  * A note of the database the user browses: a note of another database is
  * not found here.
  */
@@ -162,10 +184,12 @@ export class DatabaseDiagramController extends Controller(
   @Put("/layout/:schema")
   async putLayout(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("schema", "param") schema: unknown,
     @JSONBody() body: LayoutBody,
   ): Promise<SuccessResponse> {
-    const connection = await selectedConnection(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(schema);
     const raw = body?.positions;
     assert(isJsonValue(raw), 400, "Expected positions object");
@@ -192,9 +216,11 @@ export class DatabaseDiagramController extends Controller(
   @Post("/notes")
   async createNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @JSONBody() body: NoteCreateBody,
   ): Promise<NoteWire> {
-    const connection = await selectedConnection(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     const schemaName = body?.schemaName;
     assertNonEmptyString(schemaName);
     const rawText = body?.text;
@@ -234,10 +260,12 @@ export class DatabaseDiagramController extends Controller(
   @Put("/notes/:id")
   async updateNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("id", "param") id: unknown,
     @JSONBody() body: NoteUpdateBody,
   ): Promise<NoteWire> {
-    const connection = await selectedConnection(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(id);
     await noteOf(connection, id);
     const noteModel = GetModel(DiagramNoteModel);
@@ -272,9 +300,11 @@ export class DatabaseDiagramController extends Controller(
   @Delete("/notes/:id")
   async deleteNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("id", "param") id: unknown,
   ): Promise<SuccessResponse> {
-    const connection = await selectedConnection(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(id);
     await noteOf(connection, id);
     await GetModel(DiagramNoteModel).delete(id);

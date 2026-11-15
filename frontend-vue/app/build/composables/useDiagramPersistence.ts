@@ -44,8 +44,15 @@ const BASE = '/api/database/diagram'
 // canvas shows the error and its "Try again" instead of "Saving…" forever.
 const REQUEST_TIMEOUT_MS = 15_000
 
-export function useDiagramPersistence() {
+/**
+ * Reads and writes the stored diagrams.
+ *
+ * @param connection The database this page loaded with: a write names it,
+ * and the server refuses it once another tab selected another database.
+ */
+export function useDiagramPersistence(connection: () => string | undefined) {
 	const { $authFetch } = useAuthFetch()
+	const written = () => ({ connection: connection() })
 
 	// The schema whose diagram is read: in the browser only, when the canvas
 	// asks, since it draws and edits a working copy of it.
@@ -98,6 +105,7 @@ export function useDiagramPersistence() {
 			`${BASE}/layout/${encodeURIComponent(schema)}`,
 			{
 				method: 'PUT',
+				query: written(),
 				body: { positions },
 				timeout: REQUEST_TIMEOUT_MS,
 			},
@@ -107,6 +115,7 @@ export function useDiagramPersistence() {
 	async function createNote(payload: DiagramNoteCreate): Promise<DiagramNote> {
 		return $authFetch<DiagramNote>(`${BASE}/notes`, {
 			method: 'POST',
+			query: written(),
 			body: payload,
 			timeout: REQUEST_TIMEOUT_MS,
 		})
@@ -118,6 +127,7 @@ export function useDiagramPersistence() {
 	): Promise<DiagramNote> {
 		return $authFetch<DiagramNote>(`${BASE}/notes/${encodeURIComponent(id)}`, {
 			method: 'PUT',
+			query: written(),
 			body: patch,
 			timeout: REQUEST_TIMEOUT_MS,
 		})
@@ -126,7 +136,7 @@ export function useDiagramPersistence() {
 	async function deleteNote(id: string): Promise<void> {
 		await $authFetch<{ success: boolean }>(
 			`${BASE}/notes/${encodeURIComponent(id)}`,
-			{ method: 'DELETE', timeout: REQUEST_TIMEOUT_MS },
+			{ method: 'DELETE', query: written(), timeout: REQUEST_TIMEOUT_MS },
 		)
 	}
 

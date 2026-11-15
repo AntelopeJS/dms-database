@@ -297,34 +297,42 @@ describe("[integration] what the selected external database refuses", () => {
   });
 });
 
-describe("[integration] the diagram of the selected external database", () => {
-  withSelection();
+const NOTE = { schemaName: EXTERNAL, x: 0, y: 0, width: 200, height: 80 };
 
-  const NOTE = { schemaName: EXTERNAL, x: 0, y: 0, width: 200, height: 80 };
-
-  async function clearDiagrams(): Promise<void> {
-    const layouts = GetModel(DiagramLayoutModel);
-    const notes = GetModel(DiagramNoteModel);
-    for (const connection of [OWN_CONNECTION, EXTERNAL]) {
-      const layout = await layouts.getFor(connection, EXTERNAL);
-      if (layout) await layouts.delete(layout._id);
-      for (const note of await notes.listFor(connection, EXTERNAL))
-        await notes.delete(note._id);
-    }
+async function clearDiagrams(): Promise<void> {
+  const layouts = GetModel(DiagramLayoutModel);
+  const notes = GetModel(DiagramNoteModel);
+  for (const connection of [OWN_CONNECTION, EXTERNAL]) {
+    const layout = await layouts.getFor(connection, EXTERNAL);
+    if (layout) await layouts.delete(layout._id);
+    for (const note of await notes.listFor(connection, EXTERNAL))
+      await notes.delete(note._id);
   }
+}
 
-  before(clearDiagrams);
+/** Every test of the external diagram starts with no layout and no note for the schema. */
+function withSelectionAndCleanDiagrams(): void {
+  withSelection();
+  beforeEach(clearDiagrams);
   after(clearDiagrams);
+}
+
+describe("[integration] the diagram of the selected external database", () => {
+  withSelectionAndCleanDiagrams();
 
   it("keeps the layout of the external schema apart from the own schema of its name", async () => {
     const diagram = new DatabaseDiagramController();
     const own = { customers: { x: 1, y: 2 } };
     const external = { customers: { x: 30, y: 40 } };
-    await diagram.putLayout(OWN_USER, EXTERNAL, { positions: own });
+    await diagram.putLayout(OWN_USER, OWN_CONNECTION, EXTERNAL, {
+      positions: own,
+    });
     assert.deepEqual(await diagram.getLayout(EXTERNAL_USER, EXTERNAL), {
       positions: {},
     });
-    await diagram.putLayout(EXTERNAL_USER, EXTERNAL, { positions: external });
+    await diagram.putLayout(EXTERNAL_USER, EXTERNAL, EXTERNAL, {
+      positions: external,
+    });
     assert.deepEqual(await diagram.getLayout(EXTERNAL_USER, EXTERNAL), {
       positions: external,
     });
@@ -335,11 +343,11 @@ describe("[integration] the diagram of the selected external database", () => {
 
   it("lists, edits and deletes a note on the database it was written on only", async () => {
     const diagram = new DatabaseDiagramController();
-    const ownNote = await diagram.createNote(OWN_USER, {
+    const ownNote = await diagram.createNote(OWN_USER, OWN_CONNECTION, {
       ...NOTE,
       text: "own",
     });
-    const externalNote = await diagram.createNote(EXTERNAL_USER, {
+    const externalNote = await diagram.createNote(EXTERNAL_USER, EXTERNAL, {
       ...NOTE,
       text: "external",
     });
@@ -349,20 +357,106 @@ describe("[integration] the diagram of the selected external database", () => {
     assert.deepEqual(await texts(EXTERNAL_USER), ["external"]);
     const notFound = { status: 404, message: "Note not found" };
     assert.deepEqual(
-      await refusal(diagram.updateNote(OWN_USER, externalNote.id, { x: 5 })),
+      await refusal(
+        diagram.updateNote(OWN_USER, OWN_CONNECTION, externalNote.id, { x: 5 }),
+      ),
       notFound,
     );
     assert.deepEqual(
-      await refusal(diagram.deleteNote(EXTERNAL_USER, ownNote.id)),
+      await refusal(diagram.deleteNote(EXTERNAL_USER, EXTERNAL, ownNote.id)),
       notFound,
     );
     assert.equal(
-      (await diagram.updateNote(EXTERNAL_USER, externalNote.id, { x: 5 })).x,
+      (
+        await diagram.updateNote(EXTERNAL_USER, EXTERNAL, externalNote.id, {
+          x: 5,
+        })
+      ).x,
       5,
     );
-    await diagram.deleteNote(EXTERNAL_USER, externalNote.id);
+    await diagram.deleteNote(EXTERNAL_USER, EXTERNAL, externalNote.id);
     assert.deepEqual(await texts(EXTERNAL_USER), []);
     assert.deepEqual(await texts(OWN_USER), ["own"]);
+  });
+});
+
+describe("[integration] the stored diagrams of the own and the external database", () => {
+  withSelectionAndCleanDiagrams();
+
+  it("reads a layout and a note written before external databases had a diagram as the own database's", async () => {
+    const now = new Date();
+    await GetModel(DiagramLayoutModel).insert({
+      _id: EXTERNAL,
+      schemaName: EXTERNAL,
+      positions: JSON.stringify({ customers: { x: 5, y: 6 } }),
+      updatedAt: now,
+    });
+    const [legacyId] = await GetModel(DiagramNoteModel).insert({
+      ...NOTE,
+      text: "legacy",
+      createdAt: now,
+      updatedAt: now,
+    });
+    assert.ok(legacyId, "the legacy note is stored");
+    const diagram = new DatabaseDiagramController();
+    const texts = async (user: User) =>
+      (await diagram.listNotes(user, EXTERNAL)).items.map(({ text }) => text);
+    assert.deepEqual(await diagram.getLayout(OWN_USER, EXTERNAL), {
+      positions: { customers: { x: 5, y: 6 } },
+    });
+    assert.deepEqual(await diagram.getLayout(EXTERNAL_USER, EXTERNAL), {
+      positions: {},
+    });
+    assert.deepEqual(await texts(OWN_USER), ["legacy"]);
+    assert.deepEqual(await texts(EXTERNAL_USER), []);
+    assert.equal(
+      (
+        await diagram.updateNote(OWN_USER, OWN_CONNECTION, legacyId, {
+          text: "kept",
+        })
+      ).text,
+      "kept",
+    );
+    await diagram.deleteNote(OWN_USER, OWN_CONNECTION, legacyId);
+    assert.deepEqual(await texts(OWN_USER), []);
+  });
+
+  it("refuses a write from a page loaded on another database than the one now selected", async () => {
+    const diagram = new DatabaseDiagramController();
+    const stale = {
+      status: 409,
+      body: {
+        message: CONNECTION_REFUSALS.staleDatabase,
+        params: { connection: EXTERNAL },
+        severity: "warning",
+      },
+    };
+    assert.deepEqual(
+      await keyedRefusal(
+        diagram.putLayout(EXTERNAL_USER, OWN_CONNECTION, EXTERNAL, {
+          positions: { customers: { x: 1, y: 1 } },
+        }),
+      ),
+      stale,
+    );
+    assert.deepEqual(
+      await keyedRefusal(
+        diagram.createNote(EXTERNAL_USER, OWN_CONNECTION, NOTE),
+      ),
+      stale,
+    );
+    assert.deepEqual(await diagram.getLayout(OWN_USER, EXTERNAL), {
+      positions: {},
+    });
+    assert.deepEqual((await diagram.listNotes(OWN_USER, EXTERNAL)).items, []);
+    assert.deepEqual(
+      await refusal(
+        diagram.putLayout(EXTERNAL_USER, undefined, EXTERNAL, {
+          positions: {},
+        }),
+      ),
+      { status: 400, message: "Expected non-empty string" },
+    );
   });
 
   it("reads the references of the external schema's tables from its catalog", async () => {

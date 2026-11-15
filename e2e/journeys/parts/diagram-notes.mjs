@@ -71,8 +71,8 @@ export const editing = {
   title: "a double-click turns a note into a field holding its text, Escape saves the new text, the trash button and the Delete key remove a note from the canvas and the schema",
   entryPoint: "/modules/database/diagram notes",
   async run(ctx) {
-    const first = await db(ctx, "create the first note", "POST", "/diagram/notes", { body: { schemaName: "shop", text: "restock", x: 1200, y: 40, width: 220, height: 140 } });
-    const second = await db(ctx, "create the second note", "POST", "/diagram/notes", { body: { schemaName: "shop", text: "reorder", x: 1200, y: 260, width: 220, height: 140 } });
+    const first = await db(ctx, "create the first note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", text: "restock", x: 1200, y: 40, width: 220, height: 140 } });
+    const second = await db(ctx, "create the second note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", text: "reorder", x: 1200, y: 260, width: 220, height: 140 } });
     const tab = await openDiagram(ctx, "?schema=shop");
     const note = { id: `note::${text(first.body, "id")}` };
     const fresh = { id: `note::${text(second.body, "id")}` };
@@ -104,8 +104,8 @@ export const sharedNotes = {
   title: "a note created through the API appears on that schema's diagram only, in a second tab and after a reload, with its text, and a note written in one tab shows in the other after a reload",
   entryPoint: "/modules/database/diagram notes",
   async run(ctx) {
-    await db(ctx, "create a shop note", "POST", "/diagram/notes", { body: { schemaName: "shop", text: "from the API", x: 1200, y: 40, width: 220, height: 140 } });
-    await db(ctx, "create a vault note", "POST", "/diagram/notes", { body: { schemaName: "vault", text: "vault only", x: 1200, y: 40, width: 220, height: 140 } });
+    await db(ctx, "create a shop note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", text: "from the API", x: 1200, y: 40, width: 220, height: 140 } });
+    await db(ctx, "create a vault note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "vault", text: "vault only", x: 1200, y: 40, width: 220, height: 140 } });
     const tab = await openDiagram(ctx, "?schema=shop");
     const shop = await notesOnCanvas(tab);
     const other = await openDiagram(ctx, "?schema=vault", tab);

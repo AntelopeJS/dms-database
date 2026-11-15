@@ -70,8 +70,8 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
 const { schemas, isLoading: schemasLoading } = useDatabaseSchemas()
-const persistence = useDiagramPersistence()
 const { selected } = useDatabaseConnections()
+const persistence = useDiagramPersistence(() => selected.value?.id)
 const readReferences = useCatalogReferences()
 const { open: openDrawer } = useDrawer()
 
@@ -345,16 +345,15 @@ async function load(id: string) {
 	const [stored, relations] = await Promise.all([
 		persistence.readDiagram(id).catch(() => null),
 		isExternal(connection)
-			? readReferences(connection.id, id).catch(() => {
-					warn(t('dms_database.diagram.references_failed', { schema: id }))
-					return {}
-				})
+			? readReferences(connection.id, id).catch(() => undefined)
 			: null,
 	])
 	if (sync !== owner) return
+	if (relations === undefined)
+		warn(t('dms_database.diagram.references_failed', { schema: id }))
 	state.positions = stored?.positions ?? {}
 	state.notes = stored?.notes.map(noteFromStored) ?? []
-	catalogRelations.value = relations
+	catalogRelations.value = relations === undefined ? {} : relations
 	expanded.value = expandedBySchema.get(id) ?? new Set()
 	layoutBasis.value = currentLayoutBasis()
 	owner.reset(state)

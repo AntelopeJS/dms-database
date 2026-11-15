@@ -13,19 +13,19 @@ export const layoutApi = {
   entryPoint: "GET/PUT /api/database/diagram/layout/:schema",
   async run(ctx) {
     const empty = await savedLayout(ctx, "shop", "read the layout before any save");
-    const put = await db(ctx, "save the shop layout", "PUT", "/diagram/layout/shop", { body: { positions: { orders: { x: 10.5, y: -3 }, customers: { x: 400, y: 20 } } } });
+    const put = await db(ctx, "save the shop layout", "PUT", "/diagram/layout/shop?connection=own", { body: { positions: { orders: { x: 10.5, y: -3 }, customers: { x: 400, y: 20 } } } });
     const first = await savedLayout(ctx, "shop");
-    const replaced = await db(ctx, "save another shop layout", "PUT", "/diagram/layout/shop", { body: { positions: { products: { x: 1, y: 2 } } } });
+    const replaced = await db(ctx, "save another shop layout", "PUT", "/diagram/layout/shop?connection=own", { body: { positions: { products: { x: 1, y: 2 } } } });
     const second = await savedLayout(ctx, "shop");
-    await db(ctx, "save the vault layout", "PUT", "/diagram/layout/vault", { body: { positions: { accounts: { x: 7, y: 8 } } } });
+    await db(ctx, "save the vault layout", "PUT", "/diagram/layout/vault?connection=own", { body: { positions: { accounts: { x: 7, y: 8 } } } });
     const vault = await savedLayout(ctx, "vault");
     const shopAgain = await savedLayout(ctx, "shop");
     const unknown = await savedLayout(ctx, "no-such-schema", "read the layout of an unknown schema");
-    const missing = await db(ctx, "save without positions", "PUT", "/diagram/layout/shop", { body: {} });
-    const text1 = await db(ctx, "save a text position", "PUT", "/diagram/layout/shop", { body: { positions: { orders: { x: "a", y: 1 } } } });
-    const missingY = await db(ctx, "save a position without y", "PUT", "/diagram/layout/shop", { body: { positions: { orders: { x: 1 } } } });
+    const missing = await db(ctx, "save without positions", "PUT", "/diagram/layout/shop?connection=own", { body: {} });
+    const text1 = await db(ctx, "save a text position", "PUT", "/diagram/layout/shop?connection=own", { body: { positions: { orders: { x: "a", y: 1 } } } });
+    const missingY = await db(ctx, "save a position without y", "PUT", "/diagram/layout/shop?connection=own", { body: { positions: { orders: { x: 1 } } } });
     const afterRefusals = await savedLayout(ctx, "shop", "read the layout after the refusals");
-    const cleared = await db(ctx, "save an empty layout", "PUT", "/diagram/layout/shop", { body: { positions: {} } });
+    const cleared = await db(ctx, "save an empty layout", "PUT", "/diagram/layout/shop?connection=own", { body: { positions: {} } });
     const none = await savedLayout(ctx, "shop", "read the emptied layout");
     await ctx.verify("the layout routes", [
       check("a schema without a save reads no position", Object.keys(empty).length === 0, empty),
@@ -49,15 +49,15 @@ export const notesApi = {
   title: "notes are created with a position and size, listed by schema, updated in part and deleted, each schema keeping its own",
   entryPoint: "GET/POST /api/database/diagram/notes, PUT/DELETE /notes/:id",
   async run(ctx) {
-    const created = await db(ctx, "create a note", "POST", "/diagram/notes", { body: NOTE });
+    const created = await db(ctx, "create a note", "POST", "/diagram/notes?connection=own", { body: NOTE });
     const id = text(created.body, "id");
-    const other = await db(ctx, "create a vault note", "POST", "/diagram/notes", { body: { schemaName: "vault", x: 1, y: 2, width: 3, height: 4 } });
+    const other = await db(ctx, "create a vault note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "vault", x: 1, y: 2, width: 3, height: 4 } });
     const shopNotes = await savedNotes(ctx, "shop");
     const vaultNotes = await savedNotes(ctx, "vault");
-    const updated = await db(ctx, "move and write the note", "PUT", `/diagram/notes/${id}`, { body: { text: "done", x: 99 } });
-    const colored = await db(ctx, "color the note", "PUT", `/diagram/notes/${id}`, { body: { color: "warning" } });
+    const updated = await db(ctx, "move and write the note", "PUT", `/diagram/notes/${id}?connection=own`, { body: { text: "done", x: 99 } });
+    const colored = await db(ctx, "color the note", "PUT", `/diagram/notes/${id}?connection=own`, { body: { color: "warning" } });
     const reread = await savedNotes(ctx, "shop");
-    const removed = await db(ctx, "delete the note", "DELETE", `/diagram/notes/${id}`);
+    const removed = await db(ctx, "delete the note", "DELETE", `/diagram/notes/${id}?connection=own`);
     const afterDelete = await savedNotes(ctx, "shop");
     const vaultStill = await savedNotes(ctx, "vault");
     const note = shopNotes[0];
@@ -70,7 +70,7 @@ export const notesApi = {
       check("an update moves updatedAt forward", Date.parse(text(updated.body, "updatedAt")) >= Date.parse(text(created.body, "updatedAt")), updated.body),
       check("the list reads the update back", text(reread[0], "text") === "done" && pick(reread[0], "x") === 99 && pick(reread[0], "color") === "warning", reread),
       check("a delete answers success and removes only that note", pick(removed.body, "success") === true && afterDelete.length === 0 && vaultStill.length === 1, [afterDelete, vaultStill]),
-      check("a deleted note cannot be deleted again", (await db(ctx, "delete it again", "DELETE", `/diagram/notes/${id}`)).status === 404, id),
+      check("a deleted note cannot be deleted again", (await db(ctx, "delete it again", "DELETE", `/diagram/notes/${id}?connection=own`)).status === 404, id),
     ]);
   },
 };
@@ -109,13 +109,13 @@ export const notesRefusals = {
   title: "a note without a schema, width or height, or with a coordinate that is not a number, is refused 400, listing needs a schema, and updating or deleting an unknown note is refused 404 and stores nothing",
   entryPoint: "POST/PUT/DELETE /api/database/diagram/notes",
   async run(ctx) {
-    const created = await db(ctx, "create a note", "POST", "/diagram/notes", { body: NOTE });
+    const created = await db(ctx, "create a note", "POST", "/diagram/notes?connection=own", { body: NOTE });
     const id = text(created.body, "id");
-    const noHeight = await db(ctx, "create a note without height", "POST", "/diagram/notes", { body: { schemaName: "shop", x: 1, y: 2, width: 3 } });
-    const noSchema = await db(ctx, "create a note without schema", "POST", "/diagram/notes", { body: { x: 1, y: 2, width: 3, height: 4 } });
-    const nanX = await db(ctx, "update with a text coordinate", "PUT", `/diagram/notes/${id}`, { body: { x: "far" } });
-    const unknownPut = await db(ctx, "update an unknown note", "PUT", "/diagram/notes/nope", { body: { text: "x" } });
-    const unknownDelete = await db(ctx, "delete an unknown note", "DELETE", "/diagram/notes/nope");
+    const noHeight = await db(ctx, "create a note without height", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", x: 1, y: 2, width: 3 } });
+    const noSchema = await db(ctx, "create a note without schema", "POST", "/diagram/notes?connection=own", { body: { x: 1, y: 2, width: 3, height: 4 } });
+    const nanX = await db(ctx, "update with a text coordinate", "PUT", `/diagram/notes/${id}?connection=own`, { body: { x: "far" } });
+    const unknownPut = await db(ctx, "update an unknown note", "PUT", "/diagram/notes/nope?connection=own", { body: { text: "x" } });
+    const unknownDelete = await db(ctx, "delete an unknown note", "DELETE", "/diagram/notes/nope?connection=own");
     const withoutSchema = await db(ctx, "list without a schema", "GET", "/diagram/notes");
     const kept = await savedNotes(ctx, "shop");
     await ctx.verify("the notes refusals", [

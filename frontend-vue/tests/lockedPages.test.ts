@@ -57,7 +57,8 @@ describe('diagram page', () => {
 	})
 
 	it('reads no catalog on the project database, whose schema declares its relations', async () => {
-		expect(await diagramReads(OWN)).not.toContain(REFERENCES_URL)
+		const urls = await diagramReads(OWN)
+		expect(urls.filter((url) => url.endsWith('/references'))).toEqual([])
 	})
 })
 

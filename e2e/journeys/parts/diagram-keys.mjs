@@ -95,7 +95,7 @@ export const findKey = {
   title: "F on the canvas puts the focus in 'Find a table or a column', and an f typed into a note stays in the note",
   entryPoint: "/modules/database/diagram F",
   async run(ctx) {
-    const created = await db(ctx, "create a note", "POST", "/diagram/notes", { body: { schemaName: "shop", text: "", x: 1200, y: 40, width: 220, height: 140 } });
+    const created = await db(ctx, "create a note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", text: "", x: 1200, y: 40, width: 220, height: 140 } });
     const tab = await openDiagram(ctx, "?schema=shop");
     const active = () => tab.page.evaluate(() => `${document.activeElement?.tagName}:${document.activeElement?.getAttribute("aria-label") ?? ""}`);
     await focusPane(tab);
@@ -235,7 +235,7 @@ export const restart = {
       }
       return {};
     })();
-    await db(ctx, "add a note", "POST", "/diagram/notes", { body: { schemaName: "shop", text: "kept over a restart", x: 1200, y: 60, width: 220, height: 140 } });
+    await db(ctx, "add a note", "POST", "/diagram/notes?connection=own", { body: { schemaName: "shop", text: "kept over a restart", x: 1200, y: 60, width: 220, height: 140 } });
     await ctx.restartBackend();
     const again = await ctx.tab();
     await again.signIn("admin");

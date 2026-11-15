@@ -43,7 +43,7 @@ function backend({ url }: BackendRead): unknown {
 describe('reads on demand', () => {
 	it("the diagram reads a schema's layout and notes when the canvas asks, each time", async () => {
 		layoutVersion = 0
-		const browser = inBrowser(useDiagramPersistence, backend)
+		const browser = inBrowser(() => useDiagramPersistence(() => 'own'), backend)
 		expect(browser.reads).toEqual([])
 		const first = await browser.value.readDiagram('shop')
 		expect(first).toEqual({
@@ -62,7 +62,7 @@ describe('reads on demand', () => {
 	})
 
 	it('the diagram says so when its layout cannot be read', async () => {
-		const browser = inBrowser(useDiagramPersistence, backend)
+		const browser = inBrowser(() => useDiagramPersistence(() => 'own'), backend)
 		await expect(browser.value.readDiagram('broken')).rejects.toMatchObject({
 			statusCode: 503,
 		})
