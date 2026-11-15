@@ -48,6 +48,7 @@ dms-control journey "$RUN" extending
 | Table watch trigger: config, output (type, old and new rows without the instance tag) | fourth journey |
 | Table watch trigger: one node, reconnect once | Not driven: the run has one backend, and a journey cannot break its change stream |
 | On a standalone MongoDB activation fails with "$changeStream is only supported on replica sets" | Not driven: the run's `mongod` is a replica set |
+| On a collection that records no pre-images activation fails with the store's `collMod` sentence | Not driven: the playground's collections are created by the driver, with pre-images; `src/test/table-watch-feed.test.ts` checks it |
 | Supported extension boundary: root barrel exports exist, no subclassing contract | Not driven: a statement of non-support has no observable effect |
 | Frontend components `DmsDatabase*` are for the module's own pages | The five pages render in their features |
 | FAQ: a missing table needs `RegisterSchema` and `@RegisterTable` | `schemas` feature lists registered tables |

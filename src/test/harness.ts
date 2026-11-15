@@ -14,6 +14,7 @@ import {
   rootUri,
   seedExternalDatabases,
 } from "./externalDatabases";
+import { OWN_DATABASE_NAME, OWN_DATABASE_URL_VARIABLE } from "./ownDatabase";
 
 const API_PORT = 5023;
 const JWT_SECRET = "test-jwt-secret";
@@ -140,12 +141,13 @@ export default defineConfig({
       });
       storageDir = await mkdtemp(join(tmpdir(), "dms-database-test-storage-"));
       await seedExternalDatabases(mongod.getUri());
+      process.env[OWN_DATABASE_URL_VARIABLE] = rootUri(mongod.getUri());
       return {
         modules: {
           mongodb: {
             config: {
               url: rootUri(mongod.getUri()),
-              database: "dms-database-test",
+              database: OWN_DATABASE_NAME,
             },
           },
           ...externalModuleConfigs(mongod.getUri()),

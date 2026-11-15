@@ -2,12 +2,18 @@ import { strict as assert } from "node:assert";
 import { setTimeout as delay } from "node:timers/promises";
 import { Schema } from "@antelopejs/interface-database";
 import { tableWatchTrigger } from "../automation/tableWatch";
+import { withOwnDatabase } from "./ownDatabase";
 
 type Emitted = Parameters<Parameters<typeof tableWatchTrigger.activate>[1]>[0];
 
 const SCHEMA = "table-watch-feed";
 const schema = new Schema<{ rows: { _id: string; name: string } }>(SCHEMA, {
   rows: { fields: { _id: "string", name: "string" }, indexes: {} },
+});
+
+const UNRECORDED = "table-watch-unrecorded";
+const unrecorded = new Schema<{ rows: { _id: string } }>(UNRECORDED, {
+  rows: { fields: { _id: "string" }, indexes: {} },
 });
 
 async function until(events: Emitted[], count: number): Promise<void> {
@@ -51,5 +57,25 @@ describe("[integration] the table watch", function () {
       await tableWatchTrigger.deactivate(handle);
       await schema.destroyInstance("other").run();
     }
+  });
+
+  it("fails its activation with the store's refusal on a collection that records no pre-images", async () => {
+    await unrecorded.instance().table("rows").insert({ _id: "seed" }).run();
+    const collection = `${UNRECORDED}__rows`;
+    await withOwnDatabase((db) =>
+      db.command({
+        collMod: collection,
+        changeStreamPreAndPostImages: { enabled: false },
+      }),
+    );
+    await assert.rejects(
+      tableWatchTrigger.activate(
+        { schema: UNRECORDED, table: "rows" },
+        () => undefined,
+      ),
+      {
+        message: `table-watch: cannot open change feed on ${UNRECORDED}.rows: changes() of one instance needs change stream pre-images, which collection ${collection} does not record, so the feed would miss its updates and deletes: enable them with db.runCommand({ collMod: "${collection}", changeStreamPreAndPostImages: { enabled: true } })`,
+      },
+    );
   });
 });
