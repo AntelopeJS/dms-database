@@ -24,7 +24,7 @@ export interface ColumnKinds {
 }
 
 /** A condition on a value the database reads, built from proxies, never run in this process. */
-export type ProxyTest = (value: ValueProxy<unknown>) => ValueProxy<boolean>;
+type ProxyTest = (value: ValueProxy<unknown>) => ValueProxy<boolean>;
 
 /** The answer of a filter no row can satisfy. */
 export const NO_ROW = Symbol("no row matches");
@@ -52,11 +52,14 @@ export function readFilterMode(name: string): FilterMode | undefined {
 type KindFilters = Record<FilterMode, (text: string) => RowMatch>;
 
 /**
- * `text` as a regular expression that matches only that text. `(?i)` makes a
- * database fold Unicode case, which `downcase` does not.
+ * A pattern that matches `text` as a case-insensitive substring. Every regex
+ * metacharacter is escaped, and so is a null character, which MongoDB refuses
+ * in a pattern. `(?i)` makes a database fold Unicode case, which `downcase`
+ * does not.
  */
 function containsPattern(text: string): string {
-  return `(?i)${text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&")}`;
+  const escaped = text.replace(/[\\^$.*+?()[\]{}|/]/g, "\\$&");
+  return `(?i)${escaped.replaceAll("\0", "\\x00")}`;
 }
 
 function anyOf(tests: readonly RowMatch[]): RowMatch {

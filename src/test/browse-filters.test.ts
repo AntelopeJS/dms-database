@@ -116,6 +116,11 @@ const CASES: FilterCase[] = [
     ids: ["r6"],
   },
   {
+    name: "reads a null character of a search as text, which a pattern holding it would make the database refuse",
+    query: { search: "a\u0000b" },
+    ids: [],
+  },
+  {
     name: "matches the exact text with is, which a substring would not",
     query: { filter_segment: "is:a.b" },
     ids: ["r1"],
