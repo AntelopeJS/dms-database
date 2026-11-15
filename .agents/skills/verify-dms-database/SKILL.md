@@ -5,7 +5,7 @@ description: "Drive the AntelopeJS dms-database module (the Database console: Ov
 
 # Verify dms-database
 
-The scripted journeys are a Playwright suite in the repository's `e2e/` folder: `e2e/journeys/<feature>.mjs` holds a feature's journeys, `e2e/specs/<feature>.spec.ts` registers them, and every pull request runs the ones tagged `@smoke` in CI. You choose which features to run, judge what they show, and look at the product yourself with `dms-control`; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `e2e/journeys/<feature>.mjs`, describe it in its feature file, and run its spec.
+The scripted journeys are a Playwright suite in the repository's `e2e/` folder: `e2e/journeys/<feature>.mjs` holds a feature's journeys, `e2e/specs/<feature>.spec.ts` registers them, and CI runs the ones tagged `@smoke` on the full tier and every journey on the nightly tier. You choose which features to run, judge what they show, and look at the product yourself with `dms-control`; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `e2e/journeys/<feature>.mjs`, describe it in its feature file, and run its spec.
 
 `dms-control` is the bin of `@antelopejs/dms`, a devDependency of this repository. Run it with Node 24 after `pnpm install`:
 

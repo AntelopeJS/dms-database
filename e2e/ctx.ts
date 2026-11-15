@@ -10,7 +10,7 @@ import {
   type Env,
   newPassword,
   type Stack,
-  stringField,
+  hasAccessToken,
 } from "./stack.ts";
 import { CONTEXT_OPTIONS, Tab } from "./tab.ts";
 
@@ -88,11 +88,6 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const PAGE_TIMEOUT_MS = 30_000;
 const UNAUTHORIZED = 401;
 
-function describeError(error: unknown): string {
-  if (!(error instanceof Error)) return String(error);
-  return error.cause === undefined ? String(error) : String(error.cause);
-}
-
 async function send(
   url: string,
   request: ApiRequest,
@@ -118,7 +113,9 @@ async function send(
       return { status: response.status, body: text, error: null };
     }
   } catch (error) {
-    return { status: null, body: null, error: describeError(error) };
+    const cause =
+      error instanceof Error && error.cause !== undefined ? error.cause : error;
+    return { status: null, body: null, error: String(cause) };
   }
 }
 
@@ -273,7 +270,9 @@ class JourneyCtx implements Ctx {
       },
       undefined,
     );
-    const token = stringField(answer.body, "access_token");
+    const token = hasAccessToken(answer.body)
+      ? answer.body.access_token
+      : undefined;
     if (
       answer.status !== null &&
       answer.status >= 200 &&

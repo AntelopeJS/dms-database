@@ -277,7 +277,7 @@ function inheritedEnv(): NodeJS.ProcessEnv {
 
 async function postJson(
   url: string,
-  body: unknown,
+  body: Readonly<Record<string, string>>,
 ): Promise<{ status: number; body: unknown }> {
   const response = await fetch(url, {
     method: "POST",
@@ -302,11 +302,15 @@ function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null;
 }
 
-/** The string an own field of a JSON answer holds, or `undefined`. */
-export function stringField(value: unknown, key: string): string | undefined {
-  if (!isObject(value) || !Object.hasOwn(value, key)) return undefined;
-  const found: unknown = Object.getOwnPropertyDescriptor(value, key)?.value;
-  return isText(found) ? found : undefined;
+/** Whether a JSON answer holds an own `access_token` string, as `POST /api/auth/login` answers. */
+export function hasAccessToken(
+  value: unknown,
+): value is { readonly access_token: string } {
+  return (
+    isObject(value) &&
+    Object.hasOwn(value, "access_token") &&
+    isText(Object.getOwnPropertyDescriptor(value, "access_token")?.value)
+  );
 }
 
 class WorkerStack implements Stack {
@@ -496,7 +500,9 @@ class WorkerStack implements Stack {
       email,
       password,
     });
-    const token = stringField(login.body, "access_token");
+    const token = hasAccessToken(login.body)
+      ? login.body.access_token
+      : undefined;
     if (login.status !== 200 || token === undefined)
       throw new Error(
         `the administrator's login answered ${login.status}: ${JSON.stringify(login.body)}`,
