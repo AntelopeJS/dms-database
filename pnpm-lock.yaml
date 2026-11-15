@@ -4,6 +4,12 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+overrides:
+  '@antelopejs/mongodb': file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz
+  '@antelopejs/mongodb>@antelopejs/interface-core': 0.5.1
+  '@antelopejs/mongodb>@antelopejs/interface-database': 0.4.1
+  '@antelopejs/mongodb>@antelopejs/interface-database-catalog': 0.1.0
+
 importers:
 
   .:
@@ -46,8 +52,8 @@ importers:
         specifier: '>=0.8.0 <0.9.0'
         version: 0.8.0(@antelopejs/interface-api-util@0.3.2(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database-decorators@0.5.2(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.1(@antelopejs/interface-core@0.5.1)))(@antelopejs/interface-database@0.4.1(@antelopejs/interface-core@0.5.1))
       '@antelopejs/mongodb':
-        specifier: ~1.8.4
-        version: 1.8.5(socks@2.8.8)
+        specifier: file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz
+        version: file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz(socks@2.8.8)
       '@antelopejs/tooling-configs':
         specifier: '>=0.7.4 <0.8.0'
         version: 0.7.4(knip@6.34.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))
@@ -234,8 +240,9 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/mongodb@1.8.5':
-    resolution: {integrity: sha512-yG8PX6ADi2SuuyYD5nJjCpkpA46DrlWcliShYXVmnHbHhfBSfMKlRXVrVa6GfAmMvLLf3Q3DoAbvKCZ8nepAYw==}
+  '@antelopejs/mongodb@file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz':
+    resolution: {integrity: sha512-0vUwr4Rr8kOmJrk3mM4x2gvVcjBsMA1w2BVjKQMLA6vTYbotnZvB/8dxA36c0TDvrZ0wJ5m8uodUQWo1JGiZ9A==, tarball: file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz}
+    version: 1.8.5
 
   '@antelopejs/tooling-configs@0.7.4':
     resolution: {integrity: sha512-/iLJFMB/RcOyRr9Mp5cqcQve8J1LFx6BbSsZs8MndE++Ua7hOtXYbiBZKocp7XtzMDibxFpJW7zOqiNS7LhN/g==}
@@ -3426,7 +3433,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/mongodb@1.8.5(socks@2.8.8)':
+  '@antelopejs/mongodb@file:.tgz-deps/antelopejs-mongodb-b9676fb.tgz(socks@2.8.8)':
     dependencies:
       '@antelopejs/interface-core': 0.5.1
       '@antelopejs/interface-database': 0.4.1(@antelopejs/interface-core@0.5.1)
