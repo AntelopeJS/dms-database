@@ -122,9 +122,7 @@ async function send(
 }
 
 /** The backend mode a journey asks for; anything but `"dev"` or none is a mistake in the journey. */
-export function backendMode(
-  journey: Pick<Journey, "id" | "backend">,
-): BackendMode {
+function backendMode(journey: Pick<Journey, "id" | "backend">): BackendMode {
   if (journey.backend === undefined) return "production";
   if (journey.backend === "dev") return "dev";
   throw new Error(

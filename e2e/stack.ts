@@ -135,6 +135,9 @@ class Child {
       this.#exit =
         signal === null ? `exit code ${String(code)}` : `signal ${signal}`;
     });
+    this.#process.once("error", (error) => {
+      this.#exit ??= `spawn failed: ${error.message}`;
+    });
   }
 
   /** How it ended without a stop, or `null` while it runs or after a stop. */
