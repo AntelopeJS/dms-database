@@ -14,6 +14,7 @@ import {
   type Table,
 } from "@antelopejs/interface-database-decorators";
 import { getModuleConfig } from "../config";
+import type { StoredCell } from "../types/stored";
 import {
   isBoolean,
   isFiniteNumber,
@@ -180,7 +181,7 @@ function refineSampled(seen?: FieldDescriptor, next?: FieldDescriptor) {
   return untyped && arrayOf(next)?.element ? next : (seen ?? next);
 }
 
-function inferFieldType(value: unknown): FieldDescriptor | undefined {
+function inferFieldType(value: StoredCell): FieldDescriptor | undefined {
   if (value === null || value === undefined) return undefined;
   if (value instanceof Date) return { kind: "date" };
   if (Array.isArray(value)) return inferArrayType(value);
