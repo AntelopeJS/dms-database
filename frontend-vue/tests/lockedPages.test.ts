@@ -51,9 +51,7 @@ describe('diagram page', () => {
 	}
 
 	it('opens on an external database and reads the references its catalog reports', async () => {
-		await vi.waitFor(async () =>
-			expect(await diagramReads(WAREHOUSE)).toContain(REFERENCES_URL),
-		)
+		expect(await diagramReads(WAREHOUSE)).toContain(REFERENCES_URL)
 	})
 
 	it('reads no catalog on the project database, whose schema declares its relations', async () => {
