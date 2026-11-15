@@ -1,57 +1,34 @@
 name: Release
 
 on:
+  push:
+    branches: [next]
   workflow_dispatch:
     inputs:
       release-version:
-        description: Exact version to release
+        description: Stable version to release, set by the release train
         required: false
         type: string
-      channel:
-        description: npm distribution channel
-        required: true
-        default: latest
-        type: choice
-        options:
-          - latest
-          - next
+      release-commit:
+        description: Commit SHA to release, set by the release train
+        required: false
+        type: string
+      dependency-ranges:
+        description: JSON object of stable ranges that replace preview pins, set by the release train
+        required: false
+        default: "{}"
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
 jobs:
-  validate:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Validate release source and package metadata
-        env:
-          CHANNEL: ${{ inputs.channel }}
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-        run: |
-          case "$CHANNEL" in
-            latest) release_branch=$DEFAULT_BRANCH ;;
-            next) release_branch=next ;;
-            *) exit 1 ;;
-          esac
-          test "$GITHUB_REF" = "refs/heads/$release_branch"
-          node -e '
-            const pkg = require("./package.json");
-            const assert = require("node:assert");
-            assert.strictEqual(pkg.name, "@antelopejs/dms-database");
-            assert.strictEqual(pkg.repository?.url, "git+https://github.com/AntelopeJS/dms-database.git");
-            assert.strictEqual(pkg.publishConfig?.access, "public");
-            assert.strictEqual(pkg.publishConfig?.provenance, true);
-            assert.strictEqual(pkg.publishConfig?.registry, "https://registry.npmjs.org/");
-          '
-
   release:
-    needs: validate
-    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@492c1f55e32fa1b7bd2c5a65a1714498930d9e20
+    uses: AntelopeJS/.github/.github/workflows/release-npm-public.yml@v2
     with:
-      channel: ${{ inputs.channel }}
       release-version: ${{ inputs.release-version }}
+      release-commit: ${{ inputs.release-commit }}
+      dependency-ranges: ${{ inputs.dependency-ranges }}
     secrets:
       RELEASE_GITHUB_TOKEN: ${{ secrets.RELEASE_GITHUB_TOKEN }}

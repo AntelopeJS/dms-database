@@ -193,14 +193,14 @@ async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
   return names;
 }
 
-function isRow(value: unknown): value is ExecuteResult["rows"][number] {
+function isRow(value: QueryAnswer): value is ExecuteResult["rows"][number] {
   return isObject(value) && !Array.isArray(value);
 }
 
 /** A value a query answers that the console shows as a one-column row. */
 type ScalarAnswer = string | number | boolean | null;
 
-function isScalarAnswer(value: unknown): value is ScalarAnswer {
+function isScalarAnswer(value: QueryAnswer): value is ScalarAnswer {
   return (
     value === null || isString(value) || isNumber(value) || isBoolean(value)
   );
@@ -212,17 +212,17 @@ function isScalarAnswer(value: unknown): value is ScalarAnswer {
  * list entry) has no JSON form, so its row is empty, as `JSON.stringify`
  * already sends a symbol, a function or `undefined`.
  */
-function rowOf(entry: unknown): ExecuteResult["rows"][number] {
+function rowOf(entry: QueryAnswer): ExecuteResult["rows"][number] {
   if (isRow(entry)) return entry;
   if (isList(entry) || isScalarAnswer(entry)) return { value: entry };
   return {};
 }
 
-function isList(value: unknown): value is unknown[] {
+function isList(value: QueryAnswer): value is QueryAnswer[] {
   return Array.isArray(value);
 }
 
-function normaliseRows(raw: unknown): ExecuteResult["rows"] {
+function normaliseRows(raw: QueryAnswer): ExecuteResult["rows"] {
   if (isList(raw)) return raw.map((entry) => rowOf(entry));
   if (isRow(raw)) return [raw];
   if (isScalarAnswer(raw)) return [{ value: raw }];
@@ -255,6 +255,9 @@ interface ExecuteBodyParsed {
   language: QueryLanguage;
   root: Query<unknown>;
 }
+
+/** What running the console's query answers, or one entry of an answered list: the query declares no result type. */
+type QueryAnswer = Awaited<ReturnType<ExecuteBodyParsed["root"]["run"]>>;
 
 function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   const query = body?.query;
@@ -290,7 +293,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const historyModel = GetModel(QueryHistoryModel);
     const executedAt = new Date();
     const startedAt = Date.now();
-    let raw: unknown;
+    let raw: QueryAnswer;
     try {
       const unknownTarget = await describeUnknownQueryTarget(
         readQueryTarget(root),

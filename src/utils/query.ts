@@ -3,6 +3,7 @@ import {
   type InstanceId,
 } from "@antelopejs/interface-database";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
+import type { StoredCell } from "../types/stored";
 import {
   isBigInt,
   isBoolean,
@@ -99,7 +100,7 @@ export function applyFilterToList<T extends object>(
  * cell on a browse request, which has no catch of its own, so a search is not
  * answered with a 500.
  */
-export function cellToText(value: unknown): string {
+export function cellToText(value: StoredCell): string {
   if (value === null || value === undefined) return "";
   if (isString(value)) return value;
   if (isNumber(value) || isBoolean(value)) return value.toString();
