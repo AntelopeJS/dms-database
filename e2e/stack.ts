@@ -92,6 +92,7 @@ const DROPPED_PREFIXES = [
   "DMS_",
   "MONGO_",
   "VERIFY_DATABASE_",
+  "FORCE_COLOR",
 ];
 const BACKEND_ARGS: Readonly<Record<BackendMode, readonly string[]>> = {
   production: ["project", "start", "-e", ENVIRONMENT, "--refresh-config"],
