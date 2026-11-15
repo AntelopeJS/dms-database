@@ -6,6 +6,7 @@ import {
   type JsonObject,
   type JsonValue,
 } from "../types/json";
+import type { StoredRow } from "../types/stored";
 import { isBoolean, isObject, isRecord } from "../utils/guards";
 import { cellToText } from "../utils/query";
 import { type BrowseSelection, fetchColumns, resolveTable } from "./browse";
@@ -42,9 +43,6 @@ function normalizeJsonValue(
 
 /** Sentinel: the field must not be written (protected, unchanged, or invalid). */
 const SKIP_FIELD = Symbol("skip");
-
-/** The stored row as a table of its own columns: a column may be named like an `Object.prototype` member. */
-type StoredRow = ReadonlyMap<string, unknown>;
 
 type EditValue = JsonValue | Date | typeof SKIP_FIELD;
 

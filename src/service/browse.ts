@@ -9,6 +9,7 @@ import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { hasInstances } from "./introspect";
+import type { StoredCell } from "../types/stored";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import {
   isBigInt,
@@ -447,7 +448,7 @@ function gridTypeOf(descriptor: FieldDescriptor): string | undefined {
  * it in (so a number/boolean column is not silently turned into a string);
  * editability itself does not depend on the type.
  */
-function jsTypeOf(value: unknown): string {
+function jsTypeOf(value: StoredCell): string {
   if (value === null) return "null";
   if (value === undefined) return "undefined";
   if (value instanceof Date) return "date";
