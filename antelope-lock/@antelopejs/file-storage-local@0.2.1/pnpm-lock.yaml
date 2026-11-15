@@ -20,7 +20,7 @@ importers:
     devDependencies:
       '@antelopejs/core':
         specifier: ^1.21.0
-        version: 1.23.2
+        version: 1.24.1
       '@antelopejs/tooling-configs':
         specifier: ^0.5.1
         version: 0.5.8(eslint-plugin-perfectionist@5.13.0(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))(knip@6.45.1)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2007))
@@ -63,8 +63,8 @@ importers:
 
 packages:
 
-  '@antelopejs/core@1.23.2':
-    resolution: {integrity: sha512-fRuZSSSQs2fhLInrBoZRI7oxgHSZO10pMLsbMSfw093ceWRETnd7Uiq2a/MWCxRy4+Q5XAs8gZO84rJPdITtaw==}
+  '@antelopejs/core@1.24.1':
+    resolution: {integrity: sha512-M26zvwOE2VNQCjGl24K8fs8MwO8nXz5u8+fQG52kgJGKO/apVNrgdeXiQfZidQj0uS6xsis94lJSicF2ySIIUw==}
     engines: {node: ^20.19.0 || >=22.12.0}
     hasBin: true
 
@@ -2473,7 +2473,7 @@ packages:
 
 snapshots:
 
-  '@antelopejs/core@1.23.2':
+  '@antelopejs/core@1.24.1':
     dependencies:
       '@antelopejs/interface-core': 0.5.1
       '@clack/prompts': 1.9.0
