@@ -4,3 +4,5 @@ ignoredOptionalDependencies:
   - playwright-core
 allowBuilds:
   lefthook: false
+minimumReleaseAgeExclude:
+  - "@antelopejs/interface-*"

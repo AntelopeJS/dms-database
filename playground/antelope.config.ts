@@ -22,7 +22,7 @@ function playgroundDatabase(kind: string): PlaygroundDatabase {
           source: {
             type: "package",
             package: "@antelopejs/mongodb",
-            version: "^1.6.2",
+            version: "~1.8.4",
           },
           config: {
             url: process.env.MONGO_URL ?? "mongodb://localhost:27017",
@@ -39,7 +39,7 @@ function playgroundDatabase(kind: string): PlaygroundDatabase {
           source: {
             type: "package",
             package: "@antelopejs/postgres",
-            version: ">=0.2.5 <1.0.0",
+            version: ">=0.4.2 <0.5.0",
           },
           config: {
             url:
