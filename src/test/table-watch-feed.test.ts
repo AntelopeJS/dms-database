@@ -19,18 +19,22 @@ async function until(events: Emitted[], count: number): Promise<void> {
 describe("[integration] the table watch", function () {
   this.timeout(30_000);
 
-  it("hands its run the insert, update and delete of a row", async () => {
+  it("hands its run the insert, update and delete of a row of the default instance, and nothing of another instance", async () => {
     const events: Emitted[] = [];
     const handle = await tableWatchTrigger.activate(
       { schema: SCHEMA, table: "rows" },
       (event) => events.push(event),
     );
     try {
+      const other = schema.instance("other").table("rows");
+      await other.insert({ _id: "o1", name: "elsewhere" }).run();
+      await other.get("o1").delete().run();
       const table = schema.instance().table("rows");
       await table.insert({ _id: "r1", name: "first" }).run();
       await table.get("r1").update({ name: "second" }).run();
       await table.get("r1").delete().run();
       await until(events, 3);
+      await delay(500);
       assert.deepEqual(
         events.map(({ type, old, new: row }) => ({ type, old, new: row })),
         [
@@ -45,6 +49,7 @@ describe("[integration] the table watch", function () {
       );
     } finally {
       await tableWatchTrigger.deactivate(handle);
+      await schema.destroyInstance("other").run();
     }
   });
 });
