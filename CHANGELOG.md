@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.5.4
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.3...v0.5.4)
+
+### 📦 Build
+
+- Move to the next model with @antelopejs/tooling-configs 0.8 ([#196](https://github.com/AntelopeJS/dms-database/pull/196))
+
+### ✅ Tests
+
+- **e2e:** Run the verify skill's journeys as a Playwright suite in CI ([#195](https://github.com/AntelopeJS/dms-database/pull/195))
+
+### 🤖 CI
+
+- Remove the nightly modules-update workflow ([#194](https://github.com/AntelopeJS/dms-database/pull/194))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.5.3
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.2...v0.5.3)
