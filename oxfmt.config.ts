@@ -1,10 +1,6 @@
 import { antelopeFmtPreset } from "@antelopejs/tooling-configs/oxc/fmt";
 
-/**
- * Prettier owns `frontend-vue` and the Vue files; Markdown is not formatted. The journeys, their helpers and the
- * playground moved from the verify skill keep its one-line layout: at 80 columns a journey outgrows the lint's file
- * and function length limits.
- */
+/** Prettier owns `frontend-vue` and the Vue files; Markdown, the journeys, their helpers and the e2e playground are not formatted. */
 export default antelopeFmtPreset({
   ignorePatterns: [
     "frontend-vue/**",

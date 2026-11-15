@@ -66,7 +66,6 @@ export interface Wait {
   readonly not?: boolean;
 }
 
-/** The locator of a target: `within` first, then `getByRole` with `name` and `exact`, then `nth`. */
 function locate(page: Page, target: Target): Locator {
   const scope = target.within
     ? page
@@ -83,7 +82,6 @@ function locate(page: Page, target: Target): Locator {
   return target.nth === undefined ? found : found.nth(target.nth);
 }
 
-/** How a target reads in a step or a check, such as `button "Invite"`. */
 function describeTarget(
   target: Target | NonNullable<Target["within"]>,
 ): string {
@@ -102,8 +100,7 @@ function flatten(text: string): string {
     : flat;
 }
 
-/** Whether `condition` held in the page within the action timeout; a page where it never holds is left to what follows. */
-function reached(page: Page, condition: string): Promise<boolean> {
+function holdsWithinTimeout(page: Page, condition: string): Promise<boolean> {
   return page
     .waitForFunction(condition, undefined, {
       polling: HYDRATION_POLL_MS,
@@ -132,7 +129,7 @@ async function settle(page: Page, act: () => Promise<void>): Promise<string[]> {
       .waitForLoadState("load", { timeout: NAVIGATION_TIMEOUT_MS })
       .catch(() => undefined);
     const [hydrated] = await Promise.all([
-      reached(page, HYDRATED),
+      holdsWithinTimeout(page, HYDRATED),
       delay(SETTLE_MS),
     ]);
     return hydrated ? [] : networkChanged;
@@ -267,7 +264,7 @@ export class Tab {
           throw new Error(
             `${account} signs in and leaves /auth: still at ${left.detail}`,
           );
-        await reached(this.page, LANDED);
+        await holdsWithinTimeout(this.page, LANDED);
       },
       { box: true },
     );
@@ -364,7 +361,7 @@ export class Tab {
     return test.step(
       `${this.#label} ${label}`,
       async () => {
-        if (!loads) await reached(this.page, HYDRATED);
+        if (!loads) await holdsWithinTimeout(this.page, HYDRATED);
         const failed = await settle(this.page, run);
         if (loads && failed.length > 0) await settle(this.page, run);
       },
