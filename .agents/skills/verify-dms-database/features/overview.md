@@ -34,15 +34,15 @@ The landing page of the module: whether the database answers, what it holds and 
 
 - Modules › Database, or `/modules/database/overview`.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" overview
+pnpm e2e:run specs/overview.spec.ts
 ```
 
 ## Gotchas
 
-- Queries for the feed are run through the console's execute route with the staged wire format (`tableQuery` in `database.mjs`).
+- Queries for the feed are run through the console's execute route with the staged wire format (`tableQuery` in `e2e/database.mjs`).
 
 ## Coverage
 

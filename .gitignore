@@ -367,6 +367,14 @@ $RECYCLE.BIN/
 
 # Antelope
 .antelope
+
+# The Playwright suite's results, reports and merged shard reports
+e2e/test-results
+e2e/playwright-report
+e2e/blob-report
+# The agent bridge a development-mode backend writes into the playground it runs
+e2e/playground/.mcp.json
+e2e/playground/.codex
 # The production frontend workspace `ajs dms build` writes into a project
 .dms-frontend
 

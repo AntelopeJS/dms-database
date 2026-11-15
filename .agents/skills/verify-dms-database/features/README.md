@@ -1,6 +1,6 @@
 # Feature map
 
-One file per feature. `covers:` lists the source globs it owns, `docs:` the pages a verdict judges, and `journeys/<feature>.mjs` its journeys. `dms-control map` checks that every user-facing file is covered and that every feature has its journeys and existing docs pages. Each file ends with a Coverage table: every documented behaviour either names the journey that asserts it or says why it is not driven.
+One file per feature. `covers:` lists the source globs it owns, `docs:` the pages a verdict judges, and `e2e/journeys/<feature>.mjs` its journeys, which `e2e/specs/<feature>.spec.ts` registers with the Playwright suite. `dms-control map` checks that every user-facing file is covered and that every docs page exists; it no longer finds the journeys, which left the skill. Each file ends with a Coverage table: every documented behaviour either names the journey that asserts it or says why it is not driven.
 
 | Feature | What the user does | Journeys |
 |---|---|---|

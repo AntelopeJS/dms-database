@@ -1,0 +1,28 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "checkJs": false,
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["node"],
+    "composite": false,
+    "incremental": false,
+    "declaration": false,
+    "sourceMap": false,
+    "noEmit": true
+  },
+  "include": ["**/*.ts", "**/*.mjs"],
+  "exclude": [
+    "playground/node_modules",
+    "playground/dist",
+    "playground/.antelope",
+    "playground/.dms-frontend",
+    "playwright-report",
+    "test-results",
+    "blob-report"
+  ]
+}

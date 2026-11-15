@@ -30,10 +30,10 @@ What a project installs from the registry: the module with its build, its Vue da
 
 - `ajs project modules add @antelopejs/dms-database` installs the tarball; nothing is driven in a browser.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" package
+pnpm e2e:run specs/package.spec.ts
 ```
 
 ## Gotchas

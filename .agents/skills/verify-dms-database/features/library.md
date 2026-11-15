@@ -30,10 +30,10 @@ The history, saved and team queries beside the console.
 
 - Query console, the library on the left: History, Saved, Team.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" library
+pnpm e2e:run specs/library.spec.ts
 ```
 
 ## Gotchas
