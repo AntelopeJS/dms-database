@@ -314,6 +314,16 @@ const METRIC_CASES: MetricCase[] = [
     ids: ["m1"],
   },
   {
+    name: "matches no row for a hexadecimal spelling, which Number() would read as 42",
+    query: { filter_stock: "is:0x2a" },
+    ids: [],
+  },
+  {
+    name: "matches no row for an exponent spelling, which Number() would read as 42",
+    query: { filter_stock: "is:4.2e1" },
+    ids: [],
+  },
+  {
     name: "matches no row for a number filter that is not a number",
     query: { filter_stock: "contains:4x" },
     ids: [],

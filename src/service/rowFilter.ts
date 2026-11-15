@@ -92,11 +92,13 @@ const TEXT_FILTERS: KindFilters = {
     cell.cast<string>().match(containsPattern(text)),
 };
 
+/** A number as the grid writes it: an optional sign, digits, and an optional decimal part. */
+const DECIMAL_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+
 function wholeNumber(text: string): RowMatch {
   const trimmed = text.trim();
-  const wanted = Number(trimmed);
-  if (trimmed === "" || !Number.isFinite(wanted)) return NO_ROW;
-  return equalToAny([wanted]);
+  if (!DECIMAL_NUMBER.test(trimmed)) return NO_ROW;
+  return equalToAny([Number(trimmed)]);
 }
 
 const NUMBER_FILTERS: KindFilters = {
