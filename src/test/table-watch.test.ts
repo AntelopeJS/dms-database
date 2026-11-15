@@ -26,6 +26,17 @@ describe("the rows a table watch hands its run", () => {
     );
   });
 
+  it("leave out the instance tag the store reads with each row", () => {
+    assert.deepEqual(
+      jsonRows({
+        changeType: "modified",
+        oldValue: { _id: "r3", _instance: null, name: "before" },
+        newValue: { _id: "r3", _instance: null, name: "after" },
+      }),
+      { old: { _id: "r3", name: "before" }, new: { _id: "r3", name: "after" } },
+    );
+  });
+
   it("are null where the change carries none", () => {
     assert.deepEqual(
       jsonRows({ changeType: "added", newValue: { _id: "r2" } }),
