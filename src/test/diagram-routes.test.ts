@@ -8,6 +8,8 @@ import { refusal } from "./refusal";
 
 const SCHEMA_NAME = "diagram-routes-shop";
 const OTHER_SCHEMA_NAME = "diagram-routes-other";
+const RACED_SCHEMAS = 50;
+const SAVES_PER_SCHEMA = 8;
 const USER = Object.assign(new User(), { _id: "diagram-routes-user" });
 
 type NoteBody = Parameters<DatabaseDiagramController["createNote"]>[1];
@@ -114,20 +116,29 @@ describe("[integration] diagram layout routes", () => {
     });
   });
 
-  it("keeps one layout row when two saves of a schema race", async () => {
+  it("keeps one layout row when saves of a new schema race", async () => {
     const controller = new DatabaseDiagramController();
-    const save = (x: number) =>
-      controller.putLayout(USER, OTHER_SCHEMA_NAME, {
-        positions: { orders: { x, y: 0 } },
-      });
     const layouts = GetModel(DiagramLayoutModel);
+    const schemas = Array.from(
+      { length: RACED_SCHEMAS },
+      (_, index) => `${OTHER_SCHEMA_NAME}-${index}`,
+    );
+    const saveAll = (schema: string) =>
+      Promise.all(
+        Array.from({ length: SAVES_PER_SCHEMA }, (_, x) =>
+          controller.putLayout(USER, schema, {
+            positions: { orders: { x, y: 0 } },
+          }),
+        ),
+      );
     try {
-      await Promise.all([save(1), save(2)]);
-      const rows = await layouts.getBy("schemaName", OTHER_SCHEMA_NAME);
-      assert.equal(rows.length, 1);
+      await Promise.all(schemas.map(saveAll));
+      for (const schema of schemas)
+        assert.equal((await layouts.getBy("schemaName", schema)).length, 1);
     } finally {
-      for (const row of await layouts.getBy("schemaName", OTHER_SCHEMA_NAME))
-        await layouts.delete(row._id);
+      for (const schema of schemas)
+        for (const row of await layouts.getBy("schemaName", schema))
+          await layouts.delete(row._id);
     }
   });
 
