@@ -132,10 +132,19 @@ const FILTERS_BY_KIND = new Map<string, KindFilters>([
 /** The kind of a column nobody sampled, such as an empty table's primary key. */
 const UNSAMPLED_KIND = "undefined";
 
+/** What a database reads a column name with as a path to a nested field. */
+const NESTED_FIELD_SEPARATOR = ".";
+
+/**
+ * The filters a column takes, or undefined when a filter cannot compare it:
+ * its kind has none, or its name holds a dot, which the query cannot name as
+ * one field.
+ */
 function filtersOf(
   { types }: ColumnKinds,
   column: string,
 ): KindFilters | undefined {
+  if (column.includes(NESTED_FIELD_SEPARATOR)) return undefined;
   const kind = Object.hasOwn(types, column) ? types[column] : UNSAMPLED_KIND;
   return FILTERS_BY_KIND.get(kind);
 }
@@ -163,6 +172,11 @@ export function buildRowFilter(
   filters: readonly ColumnFilter[],
 ): RowMatch | undefined {
   const parts = filters.map(({ field, mode, value }) => {
+    assert(
+      !field.includes(NESTED_FIELD_SEPARATOR),
+      400,
+      `Cannot filter column ${field}: the database reads a dot in a column name as a nested field`,
+    );
     const kind = filtersOf(meta, field);
     assert(
       kind,

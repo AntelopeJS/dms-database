@@ -209,6 +209,7 @@ interface Metric {
   stock: number;
   active: boolean;
   meta: { tag: string };
+  "unit.price": string;
 }
 const metrics = new Schema<{ metrics: Metric }>(METRICS_SCHEMA, {
   metrics: {
@@ -228,11 +229,40 @@ const METRICS: Metric[] = [
     stock: 42,
     active: true,
     meta: { tag: "needle" },
+    "unit.price": "cheap",
   },
-  { _id: "m2", label: "four", stock: 4, active: false, meta: { tag: "y" } },
-  { _id: "m3", label: "many", stock: 420, active: true, meta: { tag: "y" } },
-  { _id: "m4", label: "none", stock: 0, active: false, meta: { tag: "y" } },
-  { _id: "m5", label: "owed", stock: -1.5, active: false, meta: { tag: "y" } },
+  {
+    _id: "m2",
+    label: "four",
+    stock: 4,
+    active: false,
+    meta: { tag: "y" },
+    "unit.price": "dear",
+  },
+  {
+    _id: "m3",
+    label: "many",
+    stock: 420,
+    active: true,
+    meta: { tag: "y" },
+    "unit.price": "dear",
+  },
+  {
+    _id: "m4",
+    label: "none",
+    stock: 0,
+    active: false,
+    meta: { tag: "y" },
+    "unit.price": "dear",
+  },
+  {
+    _id: "m5",
+    label: "owed",
+    stock: -1.5,
+    active: false,
+    meta: { tag: "y" },
+    "unit.price": "dear",
+  },
 ];
 
 async function readMetrics(query: Record<string, string>) {
@@ -359,5 +389,14 @@ describe("[integration] a filter on number, true or false and object columns", (
     );
     assert.equal(status, 400);
     assert.match(message, /\bmeta\b/);
+  });
+
+  it("refuses a filter on a column whose name holds a dot, which a query reading it as a nested field would answer with no row", async () => {
+    const { status, message } = await refusal(
+      readMetrics({ "filter_unit.price": "is:cheap" }),
+    );
+    assert.equal(status, 400);
+    assert.match(message, /unit\.price/);
+    assert.match(message, /nested field/);
   });
 });
