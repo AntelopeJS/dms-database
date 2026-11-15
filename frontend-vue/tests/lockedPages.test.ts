@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { browserMount } from './fixtures/serverRender'
 import {
 	CONNECTIONS_URL,
@@ -21,22 +21,43 @@ async function mount(
 	return page
 }
 
-describe('diagram page on an external database', () => {
-	it('shows the locked state with the lock icon and the reason, and reads nothing but the selection', async () => {
-		const page = await mount(SchemaDiagram)
-		expect(page.text()).toContain(LOCKED)
-		expect(page.text()).toContain('icon="i-ph-lock"')
-		expect(page.text()).toContain('dms_database.connections.locked.reason')
-		expect(page.reads.map((read) => read.url)).toEqual([CONNECTIONS_URL])
-		expect(page.errors).toEqual([])
-	})
+describe('diagram page', () => {
+	const SCHEMAS = {
+		schemas: [{ id: 'public', options: {}, tables: [], instances: [] }],
+	}
+	const REFERENCES_URL =
+		'/api/database/connections/warehouse/schemas/public/references'
 
-	it('is locked by what the connection lists, not by being external', async () => {
-		const page = await mount(
+	async function diagramReads(selected: typeof OWN) {
+		const page = browserMount(
 			SchemaDiagram,
-			connectionsState({ ...WAREHOUSE, unsupported: ['queryConsole'] }),
+			connectionsBackend(connectionsState(selected), {
+				others: (read) =>
+					read.url === '/api/database/schemas'
+						? SCHEMAS
+						: read.url === REFERENCES_URL
+							? { tables: {} }
+							: { positions: {}, items: [] },
+			}),
+		)
+		await page.shown
+		await vi.waitFor(() =>
+			expect(page.reads.map((read) => read.url)).toContain(
+				'/api/database/diagram/layout/public',
+			),
 		)
 		expect(page.text()).not.toContain(LOCKED)
+		return page.reads.map((read) => read.url)
+	}
+
+	it('opens on an external database and reads the references its catalog reports', async () => {
+		await vi.waitFor(async () =>
+			expect(await diagramReads(WAREHOUSE)).toContain(REFERENCES_URL),
+		)
+	})
+
+	it('reads no catalog on the project database, whose schema declares its relations', async () => {
+		expect(await diagramReads(OWN)).not.toContain(REFERENCES_URL)
 	})
 })
 
@@ -50,10 +71,10 @@ describe('query console page on an external database', () => {
 		expect(page.errors).toEqual([])
 	})
 
-	it('stays open when only the diagram is listed as unsupported', async () => {
+	it('stays open when only the instances are listed as unsupported', async () => {
 		const page = await mount(
 			QueryConsole,
-			connectionsState({ ...WAREHOUSE, unsupported: ['diagram'] }),
+			connectionsState({ ...WAREHOUSE, unsupported: ['instances'] }),
 		)
 		expect(page.text()).not.toContain(LOCKED)
 		expect(page.reads.map((read) => read.url)).toContain(

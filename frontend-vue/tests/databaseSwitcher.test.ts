@@ -323,14 +323,10 @@ describe('database switcher widget', () => {
 describe('database switcher: locked pages', () => {
 	const lockedIds = () => menuLocks.value.map((entry) => entry.fullId).sort()
 
-	it('locks the Diagram and Query console entries while an external database is selected, which a switcher leaving the sidebar open gets wrong', async () => {
+	it('locks the Query console entry and leaves the Diagram open while an external database is selected, which a switcher leaving the sidebar open gets wrong', async () => {
 		await mountSwitcher(connectionsBackend(connectionsState(WAREHOUSE)))
-		expect(lockedIds()).toEqual([
-			'page/modules/database/diagram',
-			'page/modules/database/query',
-		])
+		expect(lockedIds()).toEqual(['page/modules/database/query'])
 		expect(menuLocks.value.map((entry) => entry.reason)).toEqual([
-			'$dms_database.connections.locked.reason',
 			'$dms_database.connections.locked.reason',
 		])
 	})

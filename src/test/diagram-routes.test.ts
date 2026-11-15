@@ -3,6 +3,7 @@ import { GetModel } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DiagramLayoutModel, DiagramNoteModel } from "../db";
 import { DatabaseDiagramController } from "../routes/diagram";
+import { OWN_CONNECTION } from "../types/constants";
 import type { JsonValue } from "../types/json";
 import { refusal } from "./refusal";
 
@@ -24,9 +25,15 @@ const NOTE: NoteBody = {
 
 async function clearAll(): Promise<void> {
   for (const schemaName of [SCHEMA_NAME, OTHER_SCHEMA_NAME]) {
-    const notes = await GetModel(DiagramNoteModel).listBySchema(schemaName);
+    const notes = await GetModel(DiagramNoteModel).listFor(
+      OWN_CONNECTION,
+      schemaName,
+    );
     for (const note of notes) await GetModel(DiagramNoteModel).delete(note._id);
-    const layout = await GetModel(DiagramLayoutModel).getBySchema(schemaName);
+    const layout = await GetModel(DiagramLayoutModel).getFor(
+      OWN_CONNECTION,
+      schemaName,
+    );
     if (layout) await GetModel(DiagramLayoutModel).delete(layout._id);
   }
 }

@@ -25,7 +25,7 @@ export const WAREHOUSE: DatabaseConnection = {
 	engine: 'postgres',
 	access: 'read',
 	canWrite: true,
-	unsupported: ['diagram', 'queryConsole', 'instances', 'rowReferences'],
+	unsupported: ['queryConsole', 'instances', 'rowReferences'],
 }
 
 /** The state the API answers while `selected` is browsed. */

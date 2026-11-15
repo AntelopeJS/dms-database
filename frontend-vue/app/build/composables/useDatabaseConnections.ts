@@ -2,7 +2,6 @@ import { reloadForSelection } from './reloadForSelection'
 
 /** A part of the console an external database cannot serve. */
 export type ConnectionFeature =
-	| 'diagram'
 	| 'queryConsole'
 	| 'instances'
 	| 'rowReferences'

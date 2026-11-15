@@ -2,7 +2,9 @@ import { strict as assert } from "node:assert";
 import { Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { User } from "@antelopejs/interface-dms/auth/db";
+import { DiagramLayoutModel, DiagramNoteModel } from "../db";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
+import { DatabaseConnectionsController } from "../routes/connections";
 import { QueryHistoryModel } from "../db/models/query_history.model";
 import { DatabaseBrowseController } from "../routes/data";
 import { DatabaseDiagramController } from "../routes/diagram";
@@ -12,6 +14,7 @@ import { DatabaseQueryController } from "../routes/query";
 import { DatabaseSchemasController } from "../routes/schemas";
 import { DatabaseTablesController } from "../routes/tables";
 import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { OWN_CONNECTION } from "../types/constants";
 import { keyedRefusal, refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
@@ -255,7 +258,7 @@ describe("[integration] what the selected external database refuses", () => {
     assert.deepEqual((await browseList(EXTERNAL_USER)).results, EXTERNAL_ROWS);
   });
 
-  it("refuses the query console, the diagram and a row's references on the external database", async () => {
+  it("refuses the query console and a row's references on the external database", async () => {
     const query = encode(ownErp.instance().table("customers"));
     const queries = new DatabaseQueryController();
     const consoleRefusal = {
@@ -276,19 +279,6 @@ describe("[integration] what the selected external database refuses", () => {
       await refusal(queries.dryRun(EXTERNAL_USER, { query })),
       consoleRefusal,
     );
-    const diagram = new DatabaseDiagramController();
-    const diagramRefusal = {
-      status: 409,
-      message: "The diagram is not available on an external database",
-    };
-    assert.deepEqual(
-      await refusal(diagram.getLayout(EXTERNAL_USER, EXTERNAL)),
-      diagramRefusal,
-    );
-    assert.deepEqual(
-      await refusal(diagram.listNotes(EXTERNAL_USER, EXTERNAL)),
-      diagramRefusal,
-    );
     assert.deepEqual(
       await refusal(
         new DatabaseBrowseController().references(
@@ -303,6 +293,86 @@ describe("[integration] what the selected external database refuses", () => {
         status: 409,
         message: "A row's references is not available on an external database",
       },
+    );
+  });
+});
+
+describe("[integration] the diagram of the selected external database", () => {
+  withSelection();
+
+  const NOTE = { schemaName: EXTERNAL, x: 0, y: 0, width: 200, height: 80 };
+
+  async function clearDiagrams(): Promise<void> {
+    const layouts = GetModel(DiagramLayoutModel);
+    const notes = GetModel(DiagramNoteModel);
+    for (const connection of [OWN_CONNECTION, EXTERNAL]) {
+      const layout = await layouts.getFor(connection, EXTERNAL);
+      if (layout) await layouts.delete(layout._id);
+      for (const note of await notes.listFor(connection, EXTERNAL))
+        await notes.delete(note._id);
+    }
+  }
+
+  before(clearDiagrams);
+  after(clearDiagrams);
+
+  it("keeps the layout of the external schema apart from the own schema of its name", async () => {
+    const diagram = new DatabaseDiagramController();
+    const own = { customers: { x: 1, y: 2 } };
+    const external = { customers: { x: 30, y: 40 } };
+    await diagram.putLayout(OWN_USER, EXTERNAL, { positions: own });
+    assert.deepEqual(await diagram.getLayout(EXTERNAL_USER, EXTERNAL), {
+      positions: {},
+    });
+    await diagram.putLayout(EXTERNAL_USER, EXTERNAL, { positions: external });
+    assert.deepEqual(await diagram.getLayout(EXTERNAL_USER, EXTERNAL), {
+      positions: external,
+    });
+    assert.deepEqual(await diagram.getLayout(OWN_USER, EXTERNAL), {
+      positions: own,
+    });
+  });
+
+  it("lists, edits and deletes a note on the database it was written on only", async () => {
+    const diagram = new DatabaseDiagramController();
+    const ownNote = await diagram.createNote(OWN_USER, {
+      ...NOTE,
+      text: "own",
+    });
+    const externalNote = await diagram.createNote(EXTERNAL_USER, {
+      ...NOTE,
+      text: "external",
+    });
+    const texts = async (user: User) =>
+      (await diagram.listNotes(user, EXTERNAL)).items.map(({ text }) => text);
+    assert.deepEqual(await texts(OWN_USER), ["own"]);
+    assert.deepEqual(await texts(EXTERNAL_USER), ["external"]);
+    const notFound = { status: 404, message: "Note not found" };
+    assert.deepEqual(
+      await refusal(diagram.updateNote(OWN_USER, externalNote.id, { x: 5 })),
+      notFound,
+    );
+    assert.deepEqual(
+      await refusal(diagram.deleteNote(EXTERNAL_USER, ownNote.id)),
+      notFound,
+    );
+    assert.equal(
+      (await diagram.updateNote(EXTERNAL_USER, externalNote.id, { x: 5 })).x,
+      5,
+    );
+    await diagram.deleteNote(EXTERNAL_USER, externalNote.id);
+    assert.deepEqual(await texts(EXTERNAL_USER), []);
+    assert.deepEqual(await texts(OWN_USER), ["own"]);
+  });
+
+  it("reads the references of the external schema's tables from its catalog", async () => {
+    assert.deepEqual(
+      await new DatabaseConnectionsController().references(
+        EXTERNAL_USER,
+        EXTERNAL,
+        EXTERNAL,
+      ),
+      { tables: { customers: [] } },
     );
   });
 });

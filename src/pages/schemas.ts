@@ -9,7 +9,6 @@ import {
 import { PageController, RegisterPage } from "@antelopejs/interface-dms/page";
 import { DATABASE_MODULE_ID, DATABASE_PATHS, exploreSection } from "../module";
 import { addSchemaFilters } from "../service/schemaFilters";
-import { lockedOnExternal } from "./externalLock";
 
 /** The row placeholders the table view fills in a page target. */
 const TABLE_QUERY = "schema={{row.schema}}&table={{row.name}}";
@@ -127,7 +126,6 @@ const tables = TableView.fromSource({
           type: "page",
           url: `${DATABASE_PATHS.diagram}?${TABLE_QUERY}`,
         },
-        rule: OWN_DATABASE_ROW,
       },
     ],
   },
@@ -176,14 +174,14 @@ export class DatabaseSchemasPage extends PageController(
   },
   DefaultLayout({
     headerActions: [
-      ...lockedOnExternal({
+      {
         id: "open-diagram",
         label: "$dms_database.diagram.title",
         icon: "i-ph-graph",
         variant: ButtonVariant.outline,
         color: "neutral",
         target: { type: "page", url: DATABASE_PATHS.diagram },
-      }),
+      },
     ],
   }),
 ) {

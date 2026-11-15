@@ -319,6 +319,7 @@
 				"schema": "Schéma {schema} introuvable",
 				"table": "Table {table} introuvable dans {schema}"
 			},
+			"references_failed": "La base n'a pas indiqué les références de {schema} : le diagramme montre ses tables sans elles.",
 			"large": "{count} tables : sélectionnez-en une et isolez-la pour lire ses relations.",
 			"save": {
 				"idle": "Disposition enregistrée",
