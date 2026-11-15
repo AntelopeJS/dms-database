@@ -1,6 +1,6 @@
 import { check, db, list, pick, text } from "../../database.mjs";
 import { putLayout, positionsOf } from "./diagram-layout.mjs";
-import { byName, layoutUntil, near, openDiagram, savedLayout, tables, toggleFold } from "./diagram-page.mjs";
+import { byName, layoutUntil, near, notesOnCanvas, openDiagram, ready, savedLayout, savedNotes, tables, toggleFold } from "./diagram-page.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
 /** @typedef {import("../../database.mjs").Tab} Tab */
@@ -101,6 +101,51 @@ export const preview = {
     await ctx.verify("one table placed", [
       check("one table moved reads in the singular", single.startsWith("Previewing auto layout. 1 table moved."), single),
       check("Escape discards the preview", (await previewGone(tab)) && near(byName(await tables(tab), "customers"), { x: 1500, y: 1500 }, 0.5), "preview bar"),
+    ]);
+  },
+};
+
+/** @type {JourneyDef} */
+export const whileLoading = {
+  id: "auto-layout-and-note-wait-until-the-picked-schema-has-loaded",
+  title: "while a schema picked in the Schema picker reads its layout and notes, Auto layout and Note are disabled and N adds nothing, so once the read lands no preview holds the previous schema's tables and no stray note is drawn or saved",
+  entryPoint: "/modules/database/diagram Schema picker",
+  async run(ctx) {
+    await putLayout(ctx, "shop", SCRAMBLED);
+    const notesBefore = await savedNotes(ctx, "shop");
+    const tab = await openDiagram(ctx, "?schema=vault");
+    /** @type {() => void} */
+    let release = () => {};
+    const held = new Promise((resolve) => {
+      release = () => resolve(undefined);
+    });
+    const shopRead = /\/api\/database\/diagram\/(layout\/shop|notes\?schema=shop)/;
+    await tab.page.route(shopRead, async (route) => {
+      await held;
+      await route.continue();
+    });
+    await tab.click({ role: "combobox", name: "Schema" });
+    await tab.page.getByRole("option", { name: "shop", exact: true }).click();
+    await tab.page.waitForTimeout(500);
+    const autoLayout = tab.page.getByRole("button", { name: "Auto layout" });
+    const whileHeld = [await tab.enabled({ role: "button", name: "Auto layout" }, { disabled: true }), await tab.enabled({ role: "button", name: "Note", exact: true }, { disabled: true })];
+    await autoLayout.click({ force: true, timeout: 2000 }).catch(() => undefined);
+    await tab.page.keyboard.press("n");
+    await tab.page.waitForTimeout(300);
+    release();
+    await ready(tab);
+    await tab.page.unroute(shopRead);
+    await tab.page.waitForTimeout(2500);
+    const shown = positionsOf(await tables(tab));
+    await ctx.verify("a click during the load", [
+      ...whileHeld,
+      check("no auto layout preview is left once shop has loaded", await previewGone(tab), "preview bar"),
+      check("shop is drawn at its own layout", Object.entries(SCRAMBLED).every(([name, point]) => near(shown[name], point, 0.5)), shown),
+      check("N during the load drew no note", (await notesOnCanvas(tab)).length === notesBefore.length, await notesOnCanvas(tab)),
+      check("shop's saved layout holds only shop tables", JSON.stringify(await savedLayout(ctx, "shop")) === JSON.stringify(SCRAMBLED), "layout"),
+      check("shop's saved notes are unchanged", (await savedNotes(ctx, "shop")).length === notesBefore.length, "notes"),
+      tab.enabled({ role: "button", name: "Auto layout" }),
+      tab.enabled({ role: "button", name: "Note", exact: true }),
     ]);
   },
 };
