@@ -161,13 +161,13 @@ const refresh = {
     const tab = await signedIn(ctx);
     await openTable(tab, "shop", "products", "eu");
     await settle(() => columnValues(tab, "name"), (values) => values.includes("Desk lamp"));
-    const written = await db(ctx, "another writer renames the lamp", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=eu_sku_lamp", { body: { name: "Reading lamp" } });
+    const written = await db(ctx, "another writer renames the lamp", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=eu_sku_lamp&connection=own", { body: { name: "Reading lamp" } });
     await tab.page.waitForTimeout(1500);
     const stale = await columnValues(tab, "name");
     await tab.page.getByRole("cell", { name: "eu_sku_lamp", exact: true }).click();
     await tab.press("r");
     const afterR = await settle(() => columnValues(tab, "name"), (values) => values.includes("Reading lamp"));
-    const second = await db(ctx, "another writer renames it again", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=eu_sku_lamp", { body: { name: "Floor lamp" } });
+    const second = await db(ctx, "another writer renames it again", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=eu_sku_lamp&connection=own", { body: { name: "Floor lamp" } });
     await tab.click({ role: "button", name: "Refresh (R)" });
     const afterButton = await settle(() => columnValues(tab, "name"), (values) => values.includes("Floor lamp"));
     await tab.press("Control+/");

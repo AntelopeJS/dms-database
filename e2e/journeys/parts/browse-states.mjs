@@ -139,7 +139,7 @@ const allInstances = {
     const noEditor = await tab.visible({ role: "textbox", name: /^Value of/ }, { hidden: true, timeoutMs: 3_000 });
     await tab.page.locator("tbody tr").nth(1).locator("td").nth(2).dblclick();
     const noEditorDouble = await tab.visible({ role: "textbox", name: /^Value of/ }, { hidden: true, timeoutMs: 3_000 });
-    const refused = await db(ctx, "edit across all instances", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:customers&filter_instance=is:__CROSS_INSTANCE__&id=eu_cus_001", { body: { company: "Hacked" } });
+    const refused = await db(ctx, "edit across all instances", "PUT", "/browse/edit?filter_schema=is:shop&filter_table=is:customers&filter_instance=is:__CROSS_INSTANCE__&id=eu_cus_001&connection=own", { body: { company: "Hacked" } });
     const after = await browse(ctx, "the customer", "get", "shop.customers", { filter_instance: "is:eu", id: "eu_cus_001" });
     await ctx.verify("the read-only view", [
       check("the instance column is hidden in a single instance and shown in All instances", !euColumns.includes("_instance") && columns.includes("_instance"), [euColumns, columns]),

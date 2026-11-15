@@ -14,7 +14,7 @@ import { savedNotice, saveStaged, typeInto } from "./edit.mjs";
  * @returns {Promise<void>}
  */
 async function elsewhere(ctx, id, body) {
-  await db(ctx, `another writer changes ${id}`, "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=${id}`, { body });
+  await db(ctx, `another writer changes ${id}`, "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:products&filter_instance=is:eu&id=${id}&connection=own`, { body });
 }
 
 /**

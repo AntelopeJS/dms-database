@@ -126,7 +126,7 @@ const typedValues = {
  * @returns {Promise<import("../../database.mjs").Answer>} The answer
  */
 function putOrder(ctx, label, id, body) {
-  const selection = "filter_schema=is:shop&filter_table=is:orders&filter_instance=is:eu";
+  const selection = "filter_schema=is:shop&filter_table=is:orders&filter_instance=is:eu&connection=own";
   return db(ctx, label, "PUT", `/browse/edit?${selection}${id ? `&id=${id}` : ""}`, { body });
 }
 
@@ -138,7 +138,7 @@ function putOrder(ctx, label, id, body) {
  */
 async function refusals(ctx) {
   const id = "eu_ord_10405";
-  const everywhere = await db(ctx, "across every instance", "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:orders&filter_instance=is:__CROSS_INSTANCE__&id=${id}`, { body: { channel: "everywhere" } });
+  const everywhere = await db(ctx, "across every instance", "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:orders&filter_instance=is:__CROSS_INSTANCE__&id=${id}&connection=own`, { body: { channel: "everywhere" } });
   const noId = await putOrder(ctx, "no id", "", { total: 1 });
   const array = await putOrder(ctx, "an array body", id, [1, 2]);
   const missing = await putOrder(ctx, "a missing row", "nope", { total: 1 });
