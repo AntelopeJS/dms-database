@@ -15,7 +15,6 @@ import {
 
 const FILTER_MODE_SEPARATOR = ":";
 const FILTER_MODE_IS = "is";
-const FILTER_MODE_CONTAINS = "contains";
 
 export interface ParsedFilter {
   mode: string;
@@ -64,41 +63,15 @@ export function decodeInstanceFilter(
   return value;
 }
 
-const FILTER_PREDICATES = new Map([
-  [FILTER_MODE_IS, (cell: string, value: string) => cell === value],
-  [
-    FILTER_MODE_CONTAINS,
-    (cell: string, value: string) =>
-      cell.toLowerCase().includes(value.toLowerCase()),
-  ],
-]);
-
-export function applyFilterToList<T extends object>(
-  rows: T[],
-  field: string,
-  rawFilter: string,
-): T[] {
-  const parsed = parseFilter(rawFilter);
-  if (!parsed) return rows;
-  const predicate = FILTER_PREDICATES.get(parsed.mode);
-  if (!predicate) return rows;
-  return rows.filter((row) =>
-    predicate(
-      String(Object.getOwnPropertyDescriptor(row, field)?.value ?? ""),
-      parsed.value,
-    ),
-  );
-}
-
 /**
- * Cells hold arbitrary JSON. `String()` on an object yields "[object Object]",
- * which makes every object cell match the same search and compare as equal;
- * the JSON form keeps the content. A bigint, a symbol or a function, which
- * JSON does not encode, reads as its own `toString()`. An object JSON cannot
- * encode (a cycle, a nested bigint, a `toJSON` that throws or gives nothing)
- * reads as empty, as does a function whose `toString` throws: this runs per
- * cell on a browse request, which has no catch of its own, so a search is not
- * answered with a 500.
+ * A stored cell as text, for a row edit to compare with the text a client
+ * sends. Cells hold arbitrary JSON. `String()` on an object yields
+ * "[object Object]", which makes every object cell compare as equal; the JSON
+ * form keeps the content. A bigint, a symbol or a function, which JSON does
+ * not encode, reads as its own `toString()`. An object JSON cannot encode (a
+ * cycle, a nested bigint, a `toJSON` that throws or gives nothing) reads as
+ * empty, as does a function whose `toString` throws: an edit request has no
+ * catch of its own, so such a cell is not answered with a 500.
  */
 export function cellToText(value: StoredCell): string {
   if (value === null || value === undefined) return "";

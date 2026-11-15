@@ -4,20 +4,21 @@ import { User } from "@antelopejs/interface-dms/auth/db";
 import { getModuleConfig, setModuleConfig } from "../config";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import { DatabaseBrowseController } from "../routes/data";
-import { EXTERNAL_SCAN_CAP } from "../service/browse";
 import { resolveDatabase } from "../service/connections";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
-import { isRecord } from "../utils/guards";
 import { refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 
 const USER = Object.assign(new User(), { _id: "external-bounds-user" });
 const CUSTOMERS = { filter_schema: "is:erp", filter_table: "is:customers" };
-const FILLER = Array.from({ length: EXTERNAL_SCAN_CAP + 1 }, (_, index) => ({
+const FILLER_ROWS = 10_001;
+const FILLER = Array.from({ length: FILLER_ROWS }, (_, index) => ({
   _id: `filler-${String(index).padStart(6, "0")}`,
   name: "Filler",
   segment: "filler",
 }));
+const NEEDLE = { _id: "zz-needle", name: "Needle", segment: "needle" };
+const SEEDED_ROWS = 2;
 
 function customers() {
   const table = resolveDatabase("erp")
@@ -32,10 +33,12 @@ function customers() {
 const browse = new DatabaseBrowseController();
 const original = getModuleConfig();
 
-describe("[integration] an external database's pages are bounded", () => {
+describe("[integration] an external database's filters run in its query", () => {
   before(async () => {
     await GetModel(ConnectionSelectionModel).select(USER._id, "erp");
-    await customers().insert(FILLER).run();
+    await customers()
+      .insert([...FILLER, NEEDLE])
+      .run();
   });
 
   after(async () => {
@@ -43,28 +46,56 @@ describe("[integration] an external database's pages are bounded", () => {
       .filter((row) => row.key("segment").eq("filler"))
       .delete()
       .run();
+    await customers()
+      .filter((row) => row.key("_id").eq(NEEDLE._id))
+      .delete()
+      .run();
     setModuleConfig(original);
   });
 
-  it("reads at most the scan cap for a search, and says the page is capped, which a scan of the whole table would not", async () => {
+  it("finds a match past the first 10,000 rows, which a scan that stops at 10,000 rows would not", async () => {
     const page = await browse.list(
       USER,
-      queryContext({ ...CUSTOMERS, search: "Grace" }),
+      queryContext({ ...CUSTOMERS, search: "needle" }),
     );
-    assert.ok(isRecord(page));
-    assert.equal(page.capped, true);
-    assert.ok(Array.isArray(page.results));
-    assert.ok(page.total !== undefined);
+    assert.deepEqual(
+      page.results.map<unknown>((row) => row._id),
+      [NEEDLE._id],
+    );
+    assert.equal(page.total, 1);
   });
 
-  it("stops the count at the scan cap, which an exact count of a large table would not", async () => {
+  it("counts every match of a column filter, which a count that stops at 10,000 rows would not", async () => {
+    const page = await browse.list(
+      USER,
+      queryContext({ ...CUSTOMERS, filter_segment: "contains:filler" }),
+    );
+    assert.equal(page.total, FILLER_ROWS);
+  });
+
+  it("reads a page past the first 10,000 matches", async () => {
+    const page = await browse.list(
+      USER,
+      queryContext({
+        ...CUSTOMERS,
+        filter_segment: "contains:filler",
+        offset: "10000",
+        limit: "5",
+      }),
+    );
+    assert.deepEqual(
+      page.results.map<unknown>((row) => row._id),
+      [FILLER[FILLER_ROWS - 1]?._id],
+    );
+  });
+
+  it("counts every row of the table, which a count that stops at 10,000 rows would not", async () => {
+    const exact = FILLER_ROWS + SEEDED_ROWS + 1;
     const page = await browse.list(USER, queryContext(CUSTOMERS));
-    assert.ok(isRecord(page));
-    assert.equal(page.total, EXTERNAL_SCAN_CAP);
-    assert.equal(page.capped, true);
+    assert.equal(page.total, exact);
     assert.deepEqual(
       await browse.count(USER, "is:erp", undefined, "is:customers"),
-      { total: EXTERNAL_SCAN_CAP },
+      { total: exact },
     );
   });
 });
