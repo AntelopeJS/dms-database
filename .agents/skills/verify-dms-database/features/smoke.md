@@ -19,8 +19,8 @@ The fixed journey every verdict runs, whatever the diff touches: the introductio
 
 - Modules › Database, `/modules/database/overview`.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" smoke
+pnpm e2e:run specs/smoke.spec.ts
 ```

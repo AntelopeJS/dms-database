@@ -58,10 +58,10 @@ The Schemas page lists every table the loaded modules register, with the rows co
 
 - Modules › Database › Schemas (`/modules/database/schemas`); `?scope=&instance=&q=&has=` filter, `?record=<schema>::<table>` opens an inspector.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" schemas
+pnpm e2e:run specs/schemas.spec.ts
 ```
 
 ## Gotchas

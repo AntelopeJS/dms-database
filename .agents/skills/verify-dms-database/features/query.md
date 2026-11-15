@@ -46,10 +46,10 @@ The Query console, run and read side: write AQL, run it, read the result.
 
 - Modules › Database › Query console, `/modules/database/query`.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" query
+pnpm e2e:run specs/query.spec.ts
 ```
 
 ## Gotchas

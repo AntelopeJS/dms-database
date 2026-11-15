@@ -69,15 +69,15 @@ The Data browser's read side: the schema and instance pickers with the row count
 
 - Sidebar: Database › Data browser, or `/modules/database/data`; from the Schemas page's Browse data, the diagram and the overview through `?schema=<schema>&table=<table>[&instance=<name>|all]`.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" data
+pnpm e2e:run specs/data.spec.ts
 ```
 
 ## Gotchas
 
-- The playground's `shop` schema has the products of the default instance and of eu and us, with the orders, customers and order items of eu and us only; `metrics.readings` has 1,250 rows; `vault.accounts` has two rows written by `playground/src/browse-fixtures.ts`.
+- The playground's `shop` schema has the products of the default instance and of eu and us, with the orders, customers and order items of eu and us only; `metrics.readings` has 1,250 rows; `vault.accounts` has two rows written by `e2e/playground/src/browse-fixtures.ts`.
 - Unsorted rows come in stored order, which is not the order of the ids: journeys sort by a column or take the order from the API.
 - Single-instance rows carry `_instance` on MongoDB; the grid hides the column outside All instances.
 - A journey that needs a failing server injects the failure with a page route (`page.route`) in the browser; the product code is untouched.

@@ -22,10 +22,10 @@ The `schemaLabels` option and the built-in patterns that badge schemas.
 
 - `config` block of the `dms-database` entry; the badge shows on the Overview's schema cards and in the pickers.
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" config
+pnpm e2e:run specs/config.spec.ts
 ```
 
 ## Gotchas

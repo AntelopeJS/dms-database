@@ -60,15 +60,15 @@ The Diagram page draws the tables of one schema and the relations between them, 
 
 - Modules › Database › Diagram, or Show in diagram from a table (`?schema=&table=`).
 
-## Driving it with dms-control
+## Driving it
 
 ```bash
-dms-control journey "$RUN" diagram
+pnpm e2e:run specs/diagram.spec.ts
 ```
 
 ## Gotchas
 
-- The playground adds `links` (cross-schema relation, 12, 13 and 14 column tables, named instances), `quirks` (a column named `constructor`) and `hollow` (no table), from `playground/src/bridge-schema.ts`, imported from `index.ts`.
+- The playground adds `links` (cross-schema relation, 12, 13 and 14 column tables, named instances), `quirks` (a column named `constructor`) and `hollow` (no table), from `e2e/playground/src/bridge-schema.ts`, imported from `index.ts`.
 - Icons are inline sprites; journeys compare them with the legend's by sprite id.
 - In focus mode the selection bar lies over the chip, so the journey presses the chip through its click handler.
 - The auto layout of `vault` is pinned to exact positions at a 1440 by 900 viewport.
