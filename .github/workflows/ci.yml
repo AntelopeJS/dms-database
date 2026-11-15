@@ -1,15 +1,13 @@
 name: ci
 
 on:
-  push:
-    branches:
-      - main
-  # No branch filter: the lint wave stacks pull requests on top of each other,
-  # and a filter on `main` left every intermediate step ungated -- only the
-  # secret scanner ran.
   pull_request:
-
-  workflow_dispatch: null
+    types: [opened, synchronize, reopened, ready_for_review]
+  push:
+    branches: [next]
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
 permissions:
   contents: read
 
@@ -24,7 +22,7 @@ concurrency:
 # protection knows.
 jobs:
   ci:
-    uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v1
+    uses: AntelopeJS/.github/.github/workflows/ci-node.yml@v2
     with:
       docs-files: |
         README.md
@@ -32,7 +30,6 @@ jobs:
       docs-typescript-project: docs/tsconfig.json
       renovate-sync: false
       test-job: true
-      windows: true
       # The modules `ajs module test` downloads and installs. The harness
       # names each by exact version, so a restored copy of another version
       # is downloaded again.
@@ -40,11 +37,86 @@ jobs:
     permissions:
       contents: read
 
+  # ci-node.yml exposes no outputs, so this copies its tier rule for the jobs
+  # declared here: tests on a ready pull request that touches more than docs,
+  # on a push to next and in the nightly, Windows in the nightly only.
+  select:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      tier: ${{ steps.tier.outputs.tier }}
+      tests: ${{ steps.tier.outputs.tests }}
+      os: ${{ steps.tier.outputs.os }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          fetch-depth: 2
+          persist-credentials: false
+      - name: Pick the tier from the event, the target branch and the draft flag
+        id: tier
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REPOSITORY: ${{ github.repository }}
+          BASE_REF: ${{ github.base_ref }}
+          HEAD_REF: ${{ github.head_ref }}
+          HEAD_REPOSITORY: ${{ github.event.pull_request.head.repo.full_name }}
+          DRAFT: ${{ github.event.pull_request.draft }}
+        run: |
+          case "$EVENT" in
+            pull_request)
+              if [[ "$BASE_REF" == "$DEFAULT_BRANCH" && "$HEAD_REPOSITORY" == "$REPOSITORY" && "$HEAD_REF" =~ ^(next|develop)$ ]]; then
+                tier=none
+              elif [[ "$DRAFT" == true ]]; then
+                tier=draft
+              elif [[ "$BASE_REF" == "$DEFAULT_BRANCH" ]]; then
+                tier=full
+              else
+                tier=fast
+              fi
+              ;;
+            push)
+              if [[ "$REF_NAME" == "$DEFAULT_BRANCH" ]]; then tier=none; else tier=full; fi
+              ;;
+            schedule) tier=nightly ;;
+            *) tier=full ;;
+          esac
+
+          tests=true
+          case "$tier" in
+            none | draft) tests=false ;;
+            fast)
+              tests=false
+              while IFS= read -r file; do
+                case "$file" in
+                  README.md | docs/*) ;;
+                  *) tests=true ;;
+                esac
+              done < <(git diff --name-only --no-renames HEAD^1 HEAD)
+              ;;
+          esac
+
+          os='["ubuntu-latest"]'
+          if [[ "$tier" == nightly ]]; then
+            os='["ubuntu-latest","windows-latest"]'
+          fi
+
+          {
+            echo "tier=${tier}"
+            echo "tests=${tests}"
+            echo "os=${os}"
+          } >> "$GITHUB_OUTPUT"
+          echo "Tier \`${tier}\`: tests ${tests}, runners ${os}" >> "$GITHUB_STEP_SUMMARY"
+
   frontend:
+    needs: select
+    if: needs.select.outputs.tests == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(needs.select.outputs.os) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -78,10 +150,12 @@ jobs:
       - run: pnpm test:frontend
 
   formal-table-watch:
+    needs: select
+    if: needs.select.outputs.tests == 'true'
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        os: ${{ fromJSON(needs.select.outputs.os) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -119,19 +193,25 @@ jobs:
       - run: node .agents/skills/formal-table-watch/check.mjs
 
   # The job name the branch protection requires; it passes only when every
-  # job above passed.
+  # job above passed or the tier skipped it. A draft pull request fails it, so
+  # merge-when-green cannot merge on the draft run.
   ubuntu:
     if: always()
-    needs: [ci, frontend, formal-table-watch]
+    needs: [select, ci, frontend, formal-table-watch]
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
-      - run: |
-          echo '${{ toJSON(needs) }}'
-          [ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || contains(needs.*.result, 'skipped') }}" = "false" ]
+      - if: >-
+          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.tests == 'true' && (needs.frontend.result == 'skipped' || needs.formal-table-watch.result == 'skipped'))
+        run: exit 1
+      - if: needs.select.outputs.tier == 'draft'
+        run: |
+          echo "::error::Draft pull request: only lint and typecheck ran. Mark it ready for review to run the tests."
+          exit 1
   renovate-sync:
     if: >-
       github.event_name == 'pull_request' && startsWith(github.head_ref, 'renovate/') && github.event.pull_request.head.repo.full_name == github.repository
     permissions:
       contents: write
       actions: write
-    uses: AntelopeJS/.github/.github/workflows/ci-renovate-sync.yml@v1
+    uses: AntelopeJS/.github/.github/workflows/ci-renovate-sync.yml@v2
