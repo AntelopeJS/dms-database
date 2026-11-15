@@ -26,7 +26,7 @@ RUN=$($C up --prepare --base origin/main)   # installs, builds, starts; prints t
 
 - the checkout is laid out again under `$RUN/root`, every sibling linked, and the playground copied without `node_modules`, so the run's build and `.antelope/` are its own;
 - the API and the dashboard get free ports from the kernel, and `HOME` is `$RUN/home`;
-- a `mongod` the run owns serves `verify_<run>` databases (a standalone server, not a replica set);
+- a `mongod` the run owns serves `verify_<run>` databases, as the only member of a replica set, so change streams work;
 - the backend runs `ajs project start -e docs`, the dashboard `ajs dms start -e docs -b <api>`.
 
 The playground (`playground/src`) registers the schemas the journeys read: `demo` (posts, comments, tags), `shop` (customers, products, orders, order_items, with the `eu` and `us` instances), `vault` (accounts with hashed, encrypted and localized columns, a 17-column table, related tables), `metrics` (`readings` with 1,250 rows and an empty `empty_log`) and eight schemas named for the built-in labels (`app-site`, `core`, `global`, `staging-eu`, `reviews`, `production`, `billing`, `tenant-acme`). Its fixture controller makes a member with a role of given permissions (`POST /verify-database/member`).
@@ -87,7 +87,7 @@ Write `$RUN/evidence/judgement.json` (`doors`, `docs`, `notVerified`, `attention
 List these under `notVerified` in the judgement of every verdict:
 
 - the Overview's unreachable-database state (Unavailable, Last error, Check again): a journey cannot stop and restart the run's `mongod` (draft `dms-control-stop-database`);
-- the Table watch trigger (`database.table-watch`), its configuration, output and the replica-set failure: it needs `@antelopejs/dms-automation` and a change feed, and `dms-control` starts a standalone `mongod` (draft `dms-control-mongo-replica-set`);
+- the Table watch trigger's failure on a standalone MongoDB and its one reconnect: the run's `mongod` is a replica set, and a journey cannot break its change stream;
 - the Overview's empty schema-cards state: the DMS registers its own schemas, so the list is never empty;
 - history rows written before runs recorded a status, and the Yesterday group of the history: a journey cannot write a legacy row or age a run;
 - the Diagram's name order of the tables without relations: `frontend-vue/tests/diagramLayout.test.ts` checks it, no journey does (see the diagram feature);

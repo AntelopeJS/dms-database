@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { guarded } from "../guard.mjs";
 import { check, db, isRow, list, pick, text } from "../database.mjs";
+import { tableWatchJourney } from "./parts/table-watch.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
 
@@ -79,4 +80,5 @@ export const journeys = guarded([
       ]);
     },
   },
+  tableWatchJourney,
 ]);

@@ -19,6 +19,7 @@ What the module picks up from the rest of the project (registered schemas, their
 - `a-registered-schema-shows-its-tables-columns-indexes-relations-and-modifiers`: introspection of declared tables, instances and modifiers.
 - `deep-links-open-the-documented-pages-on-the-table`: the four links of the Link to the console table, with `instance=<name>` and `instance=all`.
 - `without-the-automation-module-the-trigger-registration-is-a-silent-no-op`: a quiet start without `@antelopejs/dms-automation`.
+- `the-table-watch-hands-a-procedure-each-insert-update-and-delete`: with the automation module loaded (`VERIFY_DATABASE_AUTOMATION`, on a `dev` backend), a procedure on a Table watch runs on each write of the default instance and not on a write of another instance.
 
 ## How to get to it (user POV)
 
@@ -33,6 +34,7 @@ dms-control journey "$RUN" extending
 ## Gotchas
 
 - The Schemas, Diagram, Data and Query features drive the pages behind the links in depth; this feature checks that each link lands on the right table.
+- The table-watch journey adds a module to the playground, which a production backend refuses (its build fixes the module set), so it asks for a `dev` backend (`backend: "dev"`).
 
 ## Coverage
 
@@ -43,8 +45,9 @@ dms-control journey "$RUN" extending
 | Hashed, localized, encrypted columns carry a modifier badge | first journey (API), Schemas feature (badge) |
 | Deep links with `instance=<name>` and `instance=all` | second journey |
 | Without the automation module the registration is a silent no-op | third journey |
-| Table watch trigger: config, output, one node, reconnect once | Not driven: it needs `@antelopejs/dms-automation` and a change feed; `dms-control` starts a standalone mongod (draft `dms-control-mongo-replica-set`) |
-| On a standalone MongoDB activation fails with "$changeStream is only supported on replica sets" | Not driven, same reason |
+| Table watch trigger: config, output (type, old and new rows without the instance tag) | fourth journey |
+| Table watch trigger: one node, reconnect once | Not driven: the run has one backend, and a journey cannot break its change stream |
+| On a standalone MongoDB activation fails with "$changeStream is only supported on replica sets" | Not driven: the run's `mongod` is a replica set |
 | Supported extension boundary: root barrel exports exist, no subclassing contract | Not driven: a statement of non-support has no observable effect |
 | Frontend components `DmsDatabase*` are for the module's own pages | The five pages render in their features |
 | FAQ: a missing table needs `RegisterSchema` and `@RegisterTable` | `schemas` feature lists registered tables |
