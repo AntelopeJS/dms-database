@@ -62,8 +62,8 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-api`                 | `>=0.3.3 <0.4.0`   | `0.3.3`     |
 | `@antelopejs/interface-api-util`            | `>=0.3.2 <0.4.0`   | `0.3.2`     |
 | `@antelopejs/interface-core`                | `>=0.5.1 <0.6.0`   | `0.5.1`     |
-| `@antelopejs/interface-database`            | `>=0.4.0 <0.5.0`   | `0.4.0`     |
-| `@antelopejs/interface-database-catalog`    | `>=0.0.4 <0.1.0`   | `0.0.4`     |
+| `@antelopejs/interface-database`            | `>=0.4.0 <0.5.0`   | `0.4.1`     |
+| `@antelopejs/interface-database-catalog`    | `>=0.1.0 <0.2.0`   | `0.1.0`     |
 | `@antelopejs/interface-database-decorators` | `>=0.5.2 <0.6.0`   | `0.5.2`     |
 | `@antelopejs/interface-dms`                 | `>=0.14.0 <0.15.0` | `0.14.0`    |
 | `@antelopejs/interface-dms-automation`      | `>=0.7.0 <0.8.0`   | `0.7.0`     |
@@ -117,8 +117,7 @@ This module installs into [AntelopeJS DMS](https://github.com/AntelopeJS/dms), t
 
 | Module                                                           | What it adds                                                                             |
 | ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| [`dms-builder`](https://github.com/AntelopeJS/dms-builder)       | Edit pages, tables and data sources by clicking, as TypeScript that compiles             |
-| [`dms-ai`](https://github.com/AntelopeJS/dms-ai)                 | An assistant chat in the dashboard, on your own Claude Code or Codex                     |
+| [`dms-assistant`](https://github.com/AntelopeJS/dms-assistant)   | An assistant chat in the dashboard and its onboarding, on your own Claude Code or Codex  |
 | [`dms-database`](https://github.com/AntelopeJS/dms-database)     | Schemas, relation diagrams, a data browser and a query console                           |
 | [`dms-api`](https://github.com/AntelopeJS/dms-api)               | API health, request logs, per-route statistics and a request tester                      |
 | [`dms-automation`](https://github.com/AntelopeJS/dms-automation) | Node-graph automations on schedules, webhooks and DMS events, with a trace for every run |
