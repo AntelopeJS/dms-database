@@ -46,8 +46,8 @@ importers:
         specifier: '>=0.8.0 <0.9.0'
         version: 0.8.0(@antelopejs/interface-api-util@0.3.2(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database-decorators@0.5.2(@antelopejs/interface-api@0.3.3(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.0(@antelopejs/interface-core@0.5.1)))(@antelopejs/interface-database@0.4.0(@antelopejs/interface-core@0.5.1))
       '@antelopejs/mongodb':
-        specifier: ~1.8.1
-        version: 1.8.1(socks@2.8.8)
+        specifier: ~1.8.2
+        version: 1.8.2(socks@2.8.8)
       '@antelopejs/tooling-configs':
         specifier: '>=0.7.1 <0.8.0'
         version: 0.7.1(knip@6.34.0)(oxfmt@0.66.0)(oxlint@1.81.0(oxlint-tsgolint@7.0.2001))
@@ -233,8 +233,8 @@ packages:
     peerDependencies:
       '@antelopejs/interface-core': '>=0.2.4 <1.0.0'
 
-  '@antelopejs/mongodb@1.8.1':
-    resolution: {integrity: sha512-t+ycKbo+ApDw05+sPZzKel20JLY+dcxiZjOZmr2irJnC9oQXizIBhoXrePtej4de1qPmWWZ74OHPZKNTjbnd3w==}
+  '@antelopejs/mongodb@1.8.2':
+    resolution: {integrity: sha512-fhIUmMqG6H798KJPry75rGuSDt0uSWYKME9mmz/FUdoGY0xvLcnlA4EroG1d8zqCC8vJmTU+F31gMrsBBcxeXw==}
 
   '@antelopejs/tooling-configs@0.7.1':
     resolution: {integrity: sha512-X/mr/nQEgmFI2dMr3ThMS7HcPaU1amsTU/RNfEnQv46+l7au8cv7unpypCZ0BggnfJHjpk2QG2CTOOllpwj3cw==}
@@ -3296,7 +3296,7 @@ snapshots:
       - supports-color
     optional: true
 
-  '@antelopejs/mongodb@1.8.1(socks@2.8.8)':
+  '@antelopejs/mongodb@1.8.2(socks@2.8.8)':
     dependencies:
       '@antelopejs/interface-core': 0.5.1
       '@antelopejs/interface-database': 0.4.0(@antelopejs/interface-core@0.5.1)
