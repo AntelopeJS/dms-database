@@ -263,15 +263,21 @@ interface RunAnswer {
 }
 
 /**
- * Runs the console's query. A read stream answers at most one row past
- * {@link MAX_RESULT_ROWS}, so the database never hands over a whole table.
+ * Runs the console's query. A read stream is read from its cursor and closed
+ * one row past {@link MAX_RESULT_ROWS}, so the console never takes a whole
+ * table; the query itself is unchanged, so ties keep the order a full run
+ * gives them, which a `slice` sorted by the database would not.
  */
 async function runQuery(
   root: Query<unknown>,
   mutation: boolean,
 ): Promise<RunAnswer> {
   if (mutation || !(root instanceof Stream)) return { raw: await root.run() };
-  const raw = await root.slice(0, MAX_RESULT_ROWS + 1).run();
+  const raw: QueryAnswer[] = [];
+  for await (const row of root.cursor()) {
+    raw.push(row);
+    if (raw.length > MAX_RESULT_ROWS) break;
+  }
   if (raw.length <= MAX_RESULT_ROWS) return { raw };
   return { raw, total: await root.count().run() };
 }

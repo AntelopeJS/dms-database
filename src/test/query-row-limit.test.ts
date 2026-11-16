@@ -54,10 +54,15 @@ async function answerBefore(query: ConsoleQuery) {
   };
 }
 
-/** The console's answer, and the most rows one database run handed back while it answered. */
+/** The console's answer, and the most rows one run or one cursor handed it while it answered. */
 async function answerNow(query: ConsoleQuery) {
   const originalRun = Object.getOwnPropertyDescriptor(Query.prototype, "run");
+  const originalCursor = Object.getOwnPropertyDescriptor(
+    Query.prototype,
+    "cursor",
+  );
   assert.ok(originalRun);
+  assert.ok(originalCursor);
   let mostRowsRead = 0;
   Query.prototype.run = async function () {
     Object.defineProperty(this, "run", originalRun);
@@ -65,6 +70,15 @@ async function answerNow(query: ConsoleQuery) {
     if (Array.isArray(answer))
       mostRowsRead = Math.max(mostRowsRead, answer.length);
     return answer;
+  };
+  Query.prototype.cursor = async function* () {
+    Object.defineProperty(this, "cursor", originalCursor);
+    let read = 0;
+    for await (const row of this.cursor()) {
+      read += 1;
+      mostRowsRead = Math.max(mostRowsRead, read);
+      yield row;
+    }
   };
   try {
     const { rows, rowCount, truncated } =
@@ -76,6 +90,7 @@ async function answerNow(query: ConsoleQuery) {
     return { answer: { rows, rowCount, truncated }, mostRowsRead };
   } finally {
     Object.defineProperty(Query.prototype, "run", originalRun);
+    Object.defineProperty(Query.prototype, "cursor", originalCursor);
   }
 }
 
@@ -84,6 +99,11 @@ const QUERIES: [string, () => ConsoleQuery][] = [
   ["a sort with ties", () => items().orderBy("rank")],
   ["a descending sort with ties", () => items().orderBy("rank", "desc")],
   ["a sort on a unique key", () => items().orderBy("_id", "desc")],
+  ["a sort with ties on a field with no index", () => items().orderBy("label")],
+  [
+    "a sort with ties after a slice",
+    () => items().slice(0, ROWS).orderBy("rank"),
+  ],
   [
     "a filter over the cap",
     () => items().filter((row) => row.key("rank").ne(0)),
