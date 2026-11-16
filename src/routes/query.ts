@@ -9,7 +9,7 @@ import {
   Put,
 } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
-import { Query } from "@antelopejs/interface-database";
+import { Query, Stream } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import { type User, UserModel } from "@antelopejs/interface-dms/auth/db";
@@ -182,15 +182,12 @@ function toSavedWire(row: SavedQueryRow): SavedQuery {
  * account leaves its shared queries unnamed.
  */
 async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
-  const users = GetModel(UserModel);
-  const names = new Map<string, string>();
-  for (const userId of new Set(userIds)) {
-    try {
-      const user = await users.get(userId);
-      if (user?.name) names.set(userId, user.name);
-    } catch {}
-  }
-  return names;
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Map();
+  const users = await GetModel(UserModel).getBy("_id", ...ids);
+  return new Map(
+    users.flatMap((user) => (user.name ? [[user._id, user.name]] : [])),
+  );
 }
 
 function isRow(value: QueryAnswer): value is ExecuteResult["rows"][number] {
@@ -259,6 +256,26 @@ interface ExecuteBodyParsed {
 /** What running the console's query answers, or one entry of an answered list: the query declares no result type. */
 type QueryAnswer = Awaited<ReturnType<ExecuteBodyParsed["root"]["run"]>>;
 
+interface RunAnswer {
+  raw: QueryAnswer;
+  /** The rows a read stream holds, counted in the database when it holds more than the console sends. */
+  total?: number;
+}
+
+/**
+ * Runs the console's query. A read stream answers at most one row past
+ * {@link MAX_RESULT_ROWS}, so the database never hands over a whole table.
+ */
+async function runQuery(
+  root: Query<unknown>,
+  mutation: boolean,
+): Promise<RunAnswer> {
+  if (mutation || !(root instanceof Stream)) return { raw: await root.run() };
+  const raw = await root.slice(0, MAX_RESULT_ROWS + 1).run();
+  if (raw.length <= MAX_RESULT_ROWS) return { raw };
+  return { raw, total: await root.count().run() };
+}
+
 function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   const query = body?.query;
   assert(isJsonObject(query), 400, "Expected query to be an object");
@@ -293,13 +310,13 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     const historyModel = GetModel(QueryHistoryModel);
     const executedAt = new Date();
     const startedAt = Date.now();
-    let raw: QueryAnswer;
+    let answer: RunAnswer;
     try {
       const unknownTarget = await describeUnknownQueryTarget(
         readQueryTarget(root),
       );
       if (unknownTarget) throw new Error(unknownTarget);
-      raw = await root.run();
+      answer = await runQuery(root, mutation);
     } catch (error) {
       const message =
         (error instanceof Error ? error.message : String(error)) ||
@@ -320,10 +337,11 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
       throw runFailure(message, durationMs);
     }
     const durationMs = Date.now() - startedAt;
+    const { raw, total } = answer;
     const rows = normaliseRows(raw);
     const rowCount = affectedRows(
       isFiniteNumber(raw) ? raw : undefined,
-      rows.length,
+      total ?? rows.length,
       mutation,
     );
 
