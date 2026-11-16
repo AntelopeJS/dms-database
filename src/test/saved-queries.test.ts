@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { HTTPResult } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
-import { User } from "@antelopejs/interface-dms/auth/db";
+import { User, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel, SavedQueryModel } from "../db";
 import { DatabaseQueryController } from "../routes/query";
 import { bodyText, refusal } from "./refusal";
@@ -11,6 +11,7 @@ import { encode } from "./stagedWire";
 const SCHEMA = "saved-queries-qa";
 const OWNER = Object.assign(new User(), { _id: "saved-queries-owner" });
 const PEER = Object.assign(new User(), { _id: "saved-queries-peer" });
+const UNNAMED = Object.assign(new User(), { _id: "saved-queries-unnamed" });
 
 const schema = new Schema<{ items: { _id: string; name: string } }>(SCHEMA, {
   items: { fields: { _id: "string", name: "string" }, indexes: {} },
@@ -29,7 +30,7 @@ const SAVE: SaveBody = {
 };
 
 async function clearAll(): Promise<void> {
-  for (const user of [OWNER, PEER]) {
+  for (const user of [OWNER, PEER, UNNAMED]) {
     for (const row of await GetModel(SavedQueryModel).listForUser(user._id)) {
       await GetModel(SavedQueryModel).delete(row._id);
     }
@@ -92,6 +93,37 @@ describe("[integration] saved queries", () => {
       (await controller.listSaved(PEER, "anything else")).items.length,
       0,
     );
+  });
+
+  it("names each sharer that has an account", async () => {
+    const users = GetModel(UserModel);
+    await users.insert([
+      { _id: OWNER._id, name: "Ada Owner" },
+      { _id: PEER._id, name: "Pat Peer" },
+    ]);
+    try {
+      const controller = new DatabaseQueryController();
+      const shares = [OWNER, OWNER, PEER, UNNAMED];
+      for (const user of shares) {
+        await controller.createSaved(user, { ...SAVE, shared: true });
+      }
+      const listed = await controller.listSaved(PEER, "shared");
+      const names = new Map<string, string | undefined>([
+        [OWNER._id, "Ada Owner"],
+        [PEER._id, "Pat Peer"],
+        [UNNAMED._id, undefined],
+      ]);
+      assert.deepEqual(
+        new Set(listed.items.map((item) => item.userId)),
+        new Set(names.keys()),
+      );
+      for (const item of listed.items) {
+        assert.equal(item.ownerName, names.get(item.userId), item.userId);
+      }
+    } finally {
+      await users.delete(OWNER._id);
+      await users.delete(PEER._id);
+    }
   });
 });
 

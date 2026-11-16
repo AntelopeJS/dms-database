@@ -32,10 +32,6 @@
 
 `pnpm knip` checks dependencies only. `pnpm knip:all` also reports unused files and exports; confirm each finding before you remove it.
 
-## Orb
-
-`.agents/setup` belongs to the guardrail pack. The playground's MongoDB install and build live in `.agents/playground`, which the `dms-backend` service runs before it starts.
-
 <!-- antelopejs-guardrails:start -->
 <!-- Managed by @antelopejs/tooling-configs. `antelopejs-sync` rewrites everything between these markers; write repository-specific guidance outside them. -->
 
