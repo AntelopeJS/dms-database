@@ -1,6 +1,6 @@
 {
   "name": "@antelopejs/dms-database",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Database console for the AntelopeJS DMS: schemas, relation diagrams, a data browser and an AQL query console.",
   "keywords": [
     "admin",
@@ -58,6 +58,7 @@
     "prepack": "pnpm run build",
     "knip": "knip --dependencies",
     "knip:all": "knip",
+    "formal:access-write-back": "pnpm run build && DMS_PREBUILT=1 ajs module test . -f dist/test/access-write-back.property.test.js",
     "test:layer": "pnpm --dir frontend-vue test",
     "test:frontend": "ajs dms verify-source --layer node_modules/@antelopejs/dms/frontend-vue --module frontend-vue",
     "prepare": "if [ -e .git ] && command -v git >/dev/null 2>&1 && command -v lefthook >/dev/null 2>&1 && GIT_DIR=.git GIT_WORK_TREE=. git rev-parse --git-dir >/dev/null 2>&1; then GIT_DIR=.git GIT_WORK_TREE=. lefthook install; fi",
@@ -92,6 +93,7 @@
     "@types/node": "^24.0.0",
     "@types/semver": "^7.8.0",
     "chai": "^6.2.2",
+    "fast-check": "^4.10.2",
     "knip": "^6.34.0",
     "lefthook": "^2.2.2",
     "mocha": "^12.0.0",
