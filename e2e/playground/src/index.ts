@@ -2,6 +2,7 @@ import { RegisterSchema } from "@antelopejs/interface-database-decorators";
 import "./demo-schema";
 import { startBridgeSchemas } from "./bridge-schema";
 import { seedBrowseFixtures } from "./browse-fixtures";
+import "./erp-fixture";
 import "./fixture";
 import { MODS_SCHEMA } from "./mods-schema";
 import { LABEL_SCHEMAS } from "./labels-schema";
