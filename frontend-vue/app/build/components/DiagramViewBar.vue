@@ -1,7 +1,7 @@
 <script setup lang="ts">
 defineProps<{
 	zoomPercent: string
-	isEmpty: boolean
+	noteDisabled: boolean
 }>()
 
 const panMode = defineModel<boolean>('panMode', { required: true })
@@ -93,7 +93,7 @@ const { t } = useI18n()
 				variant="ghost"
 				icon="i-ph-note-pencil"
 				:label="t('dms_database.diagram.toolbar.note')"
-				:disabled="isEmpty"
+				:disabled="noteDisabled"
 				@click="emit('addNote')"
 			/>
 		</UTooltip>
