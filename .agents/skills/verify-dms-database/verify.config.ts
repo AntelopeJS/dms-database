@@ -100,6 +100,15 @@ const config: VerifyConfig = {
       passing: /(?<=^holds +(?:\w+, )*)(\w+)(?=,| \()/gm,
       behaviour: { kind: "emit" },
     },
+    {
+      name: "formal-access-write-back",
+      covers: ["src/service/connectionState.ts", "src/config.ts"],
+      files: [".agents/skills/formal-access-write-back/**", "src/test/access-write-back.property.test.ts", "test-fixtures/dms-builder-stub/**"],
+      command: ["pnpm", "run", "formal:access-write-back"],
+      violation: null,
+      passing: null,
+      behaviour: { kind: "emit" },
+    },
   ],
 };
 
