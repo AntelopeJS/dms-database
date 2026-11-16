@@ -108,7 +108,7 @@ export const preview = {
 /** @type {JourneyDef} */
 export const whileLoading = {
   id: "auto-layout-and-note-wait-until-the-picked-schema-has-loaded",
-  title: "while a schema picked in the Schema picker reads its layout and notes, Auto layout and Note are disabled and N adds nothing, so once the read lands no preview holds the previous schema's tables and no stray note is drawn or saved",
+  title: "while a schema picked in the Schema picker reads its layout and notes, Auto layout and Note are disabled and N adds nothing, so once the read lands no preview holds the previous schema's tables, no stray note is drawn or saved and Undo has nothing to bring back",
   entryPoint: "/modules/database/diagram Schema picker",
   async run(ctx) {
     await putLayout(ctx, "shop", SCRAMBLED);
@@ -144,6 +144,7 @@ export const whileLoading = {
       check("N during the load drew no note", (await notesOnCanvas(tab)).length === notesBefore.length, await notesOnCanvas(tab)),
       check("shop's saved layout holds only shop tables", JSON.stringify(await savedLayout(ctx, "shop")) === JSON.stringify(SCRAMBLED), "layout"),
       check("shop's saved notes are unchanged", (await savedNotes(ctx, "shop")).length === notesBefore.length, "notes"),
+      tab.enabled({ role: "button", name: "Undo" }, { disabled: true }),
       tab.enabled({ role: "button", name: "Auto layout" }),
       tab.enabled({ role: "button", name: "Note", exact: true }),
     ]);
