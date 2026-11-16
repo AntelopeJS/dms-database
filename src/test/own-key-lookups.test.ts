@@ -12,8 +12,8 @@ import { describeUnknownQueryTarget } from "../service/queryInspection";
 import { buildEditUpdates } from "../service/rowEdit";
 import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
-import { applyFilterToList } from "../utils/query";
 import { refusal } from "./refusal";
+import { queryContext } from "./requestContext";
 
 /**
  * Names a client, a column, a table or a modifier can carry that
@@ -29,32 +29,76 @@ const PROTOTYPE_NAMES = [
   "toLocaleString",
 ];
 
-describe("filter modes named like Object.prototype members", () => {
-  const rows = [{ a: "foo" }, { a: "bar" }, { a: null }];
+const FILTER_SCHEMA = "own-key-lookups-filters";
+const filterSchema = new Schema<{ rows: Record<string, string> }>(
+  FILTER_SCHEMA,
+  { rows: { fields: { _id: "string", a: "string" }, indexes: {} } },
+);
+
+async function listFilterRows(query: Record<string, string>) {
+  const answer = await new DatabaseBrowseController().list(
+    new User(),
+    queryContext({
+      filter_schema: `is:${FILTER_SCHEMA}`,
+      filter_table: "is:rows",
+      sortKey: "_id",
+      ...query,
+    }),
+  );
+  return answer.results.map<unknown>((row) => row._id);
+}
+
+describe("[integration] filters of names that Object.prototype also answers to", () => {
+  before(async () => {
+    await filterSchema
+      .instance()
+      .table("rows")
+      .insert([
+        Object.fromEntries([
+          ["_id", "f1"],
+          ["a", "foo"],
+          ["constructor", "kept"],
+        ]),
+        Object.fromEntries([
+          ["_id", "f2"],
+          ["a", "bar"],
+          ["constructor", "other"],
+        ]),
+        { _id: "f3" },
+      ])
+      .run();
+  });
+
+  after(async () => {
+    await filterSchema.instance().table("rows").delete().run();
+  });
 
   for (const name of [...PROTOTYPE_NAMES, "__proto__"]) {
-    it(`ignores the mode '${name}' like any unknown mode`, () => {
-      assert.deepEqual(applyFilterToList(rows, "a", `${name}:foo`), rows);
-    });
-  }
-});
-
-describe("filter columns named like Object.prototype members", () => {
-  const rows = [{ a: "foo" }, { a: "bar" }];
-
-  for (const name of PROTOTYPE_NAMES) {
-    it(`reads the absent column '${name}' as empty`, () => {
-      assert.deepEqual(applyFilterToList(rows, name, "contains:function"), []);
-      assert.deepEqual(applyFilterToList(rows, name, "is:"), rows);
+    it(`ignores the mode '${name}' like any unknown mode`, async () => {
+      assert.deepEqual(await listFilterRows({ filter_a: `${name}:foo` }), [
+        "f1",
+        "f2",
+        "f3",
+      ]);
     });
   }
 
-  it("reads an own column named like a prototype member", () => {
-    const own = [{ constructor: "kept" }, { constructor: "other" }];
-    assert.deepEqual(applyFilterToList(own, "constructor", "is:kept"), [
-      own[0],
+  it("filters an own column named like a prototype member in the query", async () => {
+    assert.deepEqual(await listFilterRows({ filter_constructor: "is:kept" }), [
+      "f1",
     ]);
   });
+
+  for (const name of PROTOTYPE_NAMES.filter((name) => name !== "constructor")) {
+    it(`refuses a filter on the absent column '${name}'`, async () => {
+      assert.deepEqual(
+        await refusal(
+          listFilterRows({ [`filter_${name}`]: "contains:function" }),
+        ),
+        { status: 400, message: `Unknown column: ${name}` },
+      );
+    });
+  }
 });
 
 describe("edits of fields named like Object.prototype members", () => {

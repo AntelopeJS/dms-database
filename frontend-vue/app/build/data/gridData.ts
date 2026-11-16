@@ -10,15 +10,10 @@ export interface ColumnsResponse {
 	primaryKey: string | null
 }
 
-/** The rows a search or a column filter reads on an external database. */
-export const EXTERNAL_SCAN_CAP = 10_000
-
 export interface ListResponse {
 	results: Record<string, unknown>[]
 	total: number
 	primaryKey: string | null
-	/** The rows or the total cover only part of an external table. */
-	capped: boolean
 }
 
 /**
@@ -51,7 +46,6 @@ export function gridDataOf(
 		rows: list.results ?? [],
 		total: list.total ?? 0,
 		primaryKey,
-		capped: list.capped ?? false,
 	}
 }
 

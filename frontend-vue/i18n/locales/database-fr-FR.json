@@ -152,8 +152,6 @@
 				"close_keep": "Continuer"
 			},
 			"grid": {
-				"count_capped": "Le décompte s’arrête à {count} lignes",
-				"capped": "Correspondances parmi les {count} premières lignes",
 				"rows": "{count} ligne | {count} lignes",
 				"search": "Chercher dans les lignes",
 				"refresh": "Actualiser (R)",
