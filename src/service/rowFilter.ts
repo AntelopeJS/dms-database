@@ -92,13 +92,17 @@ const TEXT_FILTERS: KindFilters = {
     cell.cast<string>().match(containsPattern(text)),
 };
 
-/** A number as the grid writes it: an optional sign, digits, and an optional decimal part. */
-const DECIMAL_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/;
+/**
+ * A number as the grid writes it: an optional sign, digits, an optional
+ * decimal part and an optional exponent (`1e+21`), but no `0x` prefix.
+ */
+const DECIMAL_NUMBER = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
 
 function wholeNumber(text: string): RowMatch {
   const trimmed = text.trim();
-  if (!DECIMAL_NUMBER.test(trimmed)) return NO_ROW;
-  return equalToAny([Number(trimmed)]);
+  const wanted = Number(trimmed);
+  if (!DECIMAL_NUMBER.test(trimmed) || !Number.isFinite(wanted)) return NO_ROW;
+  return equalToAny([wanted]);
 }
 
 const NUMBER_FILTERS: KindFilters = {
@@ -138,15 +142,22 @@ const UNSAMPLED_KIND = "undefined";
 const NESTED_FIELD_SEPARATOR = ".";
 
 /**
+ * Whether a query names the column as one field: a database reads a dot in
+ * the name as a path to a nested field, and refuses an empty name.
+ */
+function namesOneField(column: string): boolean {
+  return column !== "" && !column.includes(NESTED_FIELD_SEPARATOR);
+}
+
+/**
  * The filters a column takes, or undefined when a filter cannot compare it:
- * its kind has none, or its name holds a dot, which the query cannot name as
- * one field.
+ * its kind has none, or the query cannot name it as one field.
  */
 function filtersOf(
   { types }: ColumnKinds,
   column: string,
 ): KindFilters | undefined {
-  if (column.includes(NESTED_FIELD_SEPARATOR)) return undefined;
+  if (!namesOneField(column)) return undefined;
   const kind = Object.hasOwn(types, column) ? types[column] : UNSAMPLED_KIND;
   return FILTERS_BY_KIND.get(kind);
 }
@@ -175,9 +186,9 @@ export function buildRowFilter(
 ): RowMatch | undefined {
   const parts = filters.map(({ field, mode, value }) => {
     assert(
-      !field.includes(NESTED_FIELD_SEPARATOR),
+      namesOneField(field),
       400,
-      `Cannot filter column ${field}: the database reads a dot in a column name as a nested field`,
+      `Cannot filter column ${field}: the database reads an empty column name, or a dot in one, as a nested field`,
     );
     const kind = filtersOf(meta, field);
     assert(

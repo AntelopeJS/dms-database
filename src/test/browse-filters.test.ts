@@ -207,9 +207,10 @@ interface Metric {
   _id: string;
   label: string;
   stock: number;
-  active: boolean;
   meta: { tag: string };
-  "unit.price": string;
+  "unit.price"?: string;
+  ""?: string;
+  active?: boolean;
 }
 const metrics = new Schema<{ metrics: Metric }>(METRICS_SCHEMA, {
   metrics: {
@@ -230,6 +231,7 @@ const METRICS: Metric[] = [
     active: true,
     meta: { tag: "needle" },
     "unit.price": "cheap",
+    "": "unnamed",
   },
   {
     _id: "m2",
@@ -263,6 +265,7 @@ const METRICS: Metric[] = [
     meta: { tag: "y" },
     "unit.price": "dear",
   },
+  { _id: "m6", label: "endless", stock: Infinity, meta: { tag: "y" } },
 ];
 
 async function readMetrics(query: Record<string, string>) {
@@ -319,8 +322,13 @@ const METRIC_CASES: MetricCase[] = [
     ids: [],
   },
   {
-    name: "matches no row for an exponent spelling, which Number() would read as 42",
+    name: "reads an exponent spelling, which the grid shows for a large number, which a digits-only pattern would refuse",
     query: { filter_stock: "is:4.2e1" },
+    ids: ["m1"],
+  },
+  {
+    name: "matches no row for a number too large to read, which Number() reads as Infinity",
+    query: { filter_stock: `is:1${"0".repeat(400)}` },
     ids: [],
   },
   {
@@ -369,7 +377,7 @@ const METRIC_CASES: MetricCase[] = [
     ids: [],
   },
   {
-    name: "searches the other columns of a table that has an object column",
+    name: "searches the other columns of a table that has an object column and a column with an empty name, which a condition on the empty name would make the database refuse",
     query: { search: "forty" },
     ids: ["m1"],
   },
