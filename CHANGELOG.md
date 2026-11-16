@@ -1,5 +1,29 @@
 # Changelog
 
+## v0.5.5
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.4...v0.5.5)
+
+### 🔥 Performance
+
+- **query:** Stop reading a console query at 1,001 rows ([#206](https://github.com/AntelopeJS/dms-database/pull/206))
+
+### 🩹 Fixes
+
+- **diagram:** Disable Auto layout and Note until the schema has loaded ([#202](https://github.com/AntelopeJS/dms-database/pull/202))
+
+### 🏡 Chore
+
+- Remove the Amp Orb section and scripts ([#199](https://github.com/AntelopeJS/dms-database/pull/199))
+
+### ✅ Tests
+
+- Add a formal target for the access write-back and a journey for external databases ([#204](https://github.com/AntelopeJS/dms-database/pull/204))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.5.4
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.3...v0.5.4)
