@@ -16,6 +16,7 @@ One file per feature. `covers:` lists the source globs it owns, `docs:` the page
 | [guard](guard.md) |  # Guard | a-delete-names-its-operation-target-and-rows-and-waits-for-the-table-name, every-write-names-its-operation-and-counts-the-rows-it-would-touch, confirming-a-single-row-update-needs-the-table-name-as-the-docs-say, a-confirmed-write-acts-on-the-data-of-that-moment, a-read-query-runs-straight-away |
 | [library](library.md) |  # Library | history-keeps-your-last-500-runs-newest-first, history-records-failures-and-writes-with-their-status, history-is-searchable-and-clearing-it-keeps-the-saved-queries, a-saved-query-needs-a-name-and-can-be-edited-and-deleted, a-shared-query-reaches-the-team-and-only-its-author-changes-it, history-belongs-to-its-user-and-a-link-restores-a-run, the-library-survives-a-backend-restart |
 | [extending](extending.md) |  # Extending | a-registered-schema-shows-its-tables-columns-indexes-relations-and-modifiers, deep-links-open-the-documented-pages-on-the-table, without-the-automation-module-the-trigger-registration-is-a-silent-no-op |
+| [external](external.md) |  # External | an-external-database-is-picked-browsed-edited-and-left, an-external-database-refuses-what-it-cannot-serve-with-sentences |
 | [package](package.md) |  # Package | the-tarball-holds-what-its-manifest-names, both-locales-hold-the-same-texts, ranges-match-the-compatibility-table |
 
 The smoke journey runs on every verdict.
