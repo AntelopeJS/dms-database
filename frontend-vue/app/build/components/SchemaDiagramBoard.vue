@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { useCatalogReferences } from '../composables/useCatalogReferences'
+import { useDatabaseConnections } from '../composables/useDatabaseConnections'
 import { useDatabaseSchemas } from '../composables/useDatabaseSchemas'
 import { useDiagramDrag } from '../composables/useDiagramDrag'
 import { useDiagramNotes } from '../composables/useDiagramNotes'
@@ -62,7 +64,9 @@ const route = useDmsRoute()
 const router = useDmsRouter()
 const toast = useToast()
 const { schemas, isLoading: schemasLoading } = useDatabaseSchemas()
-const persistence = useDiagramPersistence()
+const { selected } = useDatabaseConnections()
+const persistence = useDiagramPersistence(() => selected.value?.id)
+const catalog = useCatalogReferences()
 const { open: openDrawer } = useDrawer()
 
 const canvas = shallowRef<ShallowUnwrapRef<VueFlowStore> | null>(null)
@@ -111,8 +115,8 @@ const schemaId = computed<string | null>(() => {
 		return asked
 	return schemas.value[0]?.id ?? null
 })
-const schema = computed(
-	() => schemas.value.find((s) => s.id === schemaId.value) ?? null,
+const schema = computed(() =>
+	catalog.apply(schemas.value.find((s) => s.id === schemaId.value) ?? null),
 )
 const schemaItems = computed(() =>
 	schemas.value.map((s) => ({ label: s.id, value: s.id, icon: 'i-ph-stack' })),
@@ -316,16 +320,16 @@ async function load(id: string) {
 	sync = owner
 	await leaving
 	if (sync !== owner) return
-	try {
-		const stored = await persistence.readDiagram(id)
-		if (sync !== owner) return
-		state.positions = stored.positions
-		state.notes = stored.notes.map(noteFromStored)
-	} catch {
-		if (sync !== owner) return
-		state.positions = {}
-		state.notes = []
-	}
+	const [stored, relations] = await Promise.all([
+		persistence.readDiagram(id).catch(() => null),
+		catalog.read(selected.value, id),
+	])
+	if (sync !== owner) return
+	if (relations === undefined)
+		warn(t('dms_database.diagram.references_failed', { schema: id }))
+	state.positions = stored?.positions ?? {}
+	state.notes = stored?.notes.map(noteFromStored) ?? []
+	catalog.keep(relations)
 	expanded.value = expandedBySchema.get(id) ?? new Set()
 	layoutBasis.value = currentLayoutBasis()
 	owner.reset(state)

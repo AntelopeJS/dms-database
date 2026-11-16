@@ -130,7 +130,7 @@ describe("[integration] the pages wire the external database's links", () => {
     assert.equal(await servesLinks(EXTERNAL_USER), false);
   });
 
-  it("offers Query and Diagram only on a row the source marks as the own database's", async () => {
+  it("offers Query only on a row the source marks as the own database's, and Diagram on every row", async () => {
     const { options } = await DatabaseSchemasPage.tables.serialize();
     const rules = Object.fromEntries(
       (options?.rowActions?.custom ?? []).map((action) => [
@@ -140,7 +140,7 @@ describe("[integration] the pages wire the external database's links", () => {
     );
     const own = { field: "external", equals: false };
     assert.deepEqual(rules["$dms_database.schemas.actions.query"], own);
-    assert.deepEqual(rules["$dms_database.schemas.actions.diagram"], own);
+    assert.equal(rules["$dms_database.schemas.actions.diagram"], undefined);
     assert.equal(rules["$dms_database.schemas.actions.browse"], undefined);
   });
 });

@@ -1,5 +1,8 @@
 export const SCHEMA_NAME = "dms-database";
 
+/** The connection id of the project's own database. */
+export const OWN_CONNECTION = "own";
+
 export const MAX_HISTORY_PER_USER = 500;
 
 export const CROSS_INSTANCE_SENTINEL = "__CROSS_INSTANCE__";

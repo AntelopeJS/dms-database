@@ -3,12 +3,18 @@ import { assert } from "@antelopejs/interface-api-util";
 import {
   CROSS_INSTANCE,
   type InstanceId,
-  type Stream,
 } from "@antelopejs/interface-database";
 import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { hasInstances } from "./introspect";
+import {
+  buildRowFilter,
+  type ColumnFilter,
+  NO_ROW,
+  type RowMatch,
+  readFilterMode,
+} from "./rowFilter";
 import type { StoredCell } from "../types/stored";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import {
@@ -21,11 +27,10 @@ import {
   isSymbol,
 } from "../utils/guards";
 import {
-  applyFilterToList,
-  cellToText,
   clamp,
   decodeInstanceFilter,
   normalizeSortDirection,
+  parseFilter,
   parseInteger,
   type SortDirection,
   unwrapIsFilter,
@@ -36,12 +41,6 @@ export const DEFAULT_LIMIT = 25;
 /** The most rows a page holds. */
 export const MAX_LIMIT = 200;
 
-/**
- * The most rows a search or a column filter reads on an external database,
- * and the most rows its exact count reads. A customer's table can be large,
- * and the filter runs in this process, not in the database.
- */
-export const EXTERNAL_SCAN_CAP = 10_000;
 /** The longest a page of an external database's rows may take, in milliseconds. */
 export const EXTERNAL_PAGE_DEADLINE_MS = 10_000;
 
@@ -66,13 +65,6 @@ export interface BrowseSelection {
   table: string;
 }
 
-export interface ColumnFilter {
-  /** Column accessor key. */
-  field: string;
-  /** Raw `<mode>:<value>` token, decoded by parseFilter (modes: is, contains). */
-  raw: string;
-}
-
 export interface BrowseQuery extends BrowseSelection {
   offset: number;
   limit: number;
@@ -83,25 +75,22 @@ export interface BrowseQuery extends BrowseSelection {
 }
 
 /**
- * Free-text search across every cell of a row (case-insensitive substring),
- * mirroring what the table view's search box implies.
+ * Reads every `filter_<col>` query parameter that is not a selection filter
+ * as a `<mode>:<value>` token. A token with no mode compares with `is`, and a
+ * token whose mode is not one the console knows is dropped.
  */
-function searchRows<Row extends object>(rows: Row[], search: string): Row[] {
-  const needle = search.toLowerCase();
-  return rows.filter((row) =>
-    Object.values(row).some((value) =>
-      cellToText(value).toLowerCase().includes(needle),
-    ),
-  );
-}
-
-/** Read every `filter_<col>` query parameter that is not a selection filter. */
 export function readColumnFilters(ctx: RequestContext): ColumnFilter[] {
   const filters: ColumnFilter[] = [];
-  for (const [key, value] of ctx.url.searchParams) {
+  for (const [key, token] of ctx.url.searchParams) {
     if (!key.startsWith("filter_") || SELECTION_FILTER_KEYS.has(key)) continue;
-    if (!value) continue;
-    filters.push({ field: key.slice("filter_".length), raw: value });
+    const parsed = parseFilter(token);
+    const mode = parsed && readFilterMode(parsed.mode);
+    if (!parsed || !mode) continue;
+    filters.push({
+      field: key.slice("filter_".length),
+      mode,
+      value: parsed.value,
+    });
   }
   return filters;
 }
@@ -182,96 +171,52 @@ export function resolveTable(db: Database, selection: BrowseSelection) {
 }
 
 /**
- * Streams the selection to count exactly while retaining only this page.
- * Arbitrary JSON stringification and Unicode matching must retain JS
- * semantics. With a deadline, the scan stops when it passes it, and the page
- * says it was cut short.
- */
-async function refinePage<Row extends object>(
-  sorted: Stream<Row>,
-  query: BrowseQuery,
-  deadline?: number,
-) {
-  const results: Row[] = [];
-  let total = 0;
-  let capped = false;
-  for await (const row of sorted) {
-    if (deadline !== undefined && Date.now() > deadline) {
-      capped = true;
-      break;
-    }
-    let matches = [row];
-    for (const filter of query.columnFilters) {
-      matches = applyFilterToList(matches, filter.field, filter.raw);
-    }
-    if (query.search) matches = searchRows(matches, query.search);
-    if (matches.length === 0) continue;
-    if (total >= query.offset && results.length < query.limit)
-      results.push(row);
-    total++;
-  }
-  return { results, total, capped };
-}
-
-/**
- * Refuses a sort on a column the table neither declares nor shows in its
- * rows: the column name goes to the database as it is.
+ * Refuses a sort or a filter on a column the table neither declares nor shows
+ * in its rows: the column name goes to the database as it is.
  *
- * @param db The database read
- * @param selection The table
+ * @param meta The table's columns
+ * @param primaryKey The table's primary key
  * @param column The column asked for
  */
-async function assertKnownColumn(
-  db: Database,
-  selection: BrowseSelection,
+function assertKnownColumn(
+  meta: ColumnsMeta,
+  primaryKey: string | undefined,
   column: string,
-): Promise<void> {
-  const { columns } = await fetchColumns(db, selection);
+): void {
   assert(
-    columns.includes(column) ||
-      column === db.primaryKey(selection.schema, selection.table),
+    meta.columns.includes(column) || column === primaryKey,
     400,
     `Unknown column: ${column}`,
   );
 }
 
 /**
- * A page of an external database's rows, bounded: a search or a column
- * filter reads at most {@link EXTERNAL_SCAN_CAP} rows, the count stops there
- * too, and the page gives up after {@link EXTERNAL_PAGE_DEADLINE_MS}. `capped`
- * says the rows or the total cover only part of the table.
+ * Refuses a sort key or a column filter that names a column the table does
+ * not have, then reads the search and the column filters as one condition on
+ * a row. The columns are read once, and only when the page names one.
  */
-async function fetchExternalPage<Row extends object>(
-  table: Stream<Row>,
-  sorted: Stream<Row>,
+async function resolvePageFilter(
+  db: Database,
   query: BrowseQuery,
-) {
-  const deadline = Date.now() + EXTERNAL_PAGE_DEADLINE_MS;
-  const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
-  const page = hasRefine
-    ? refinePage(sorted.slice(0, EXTERNAL_SCAN_CAP), query, deadline).then(
-        async (refined) => ({
-          ...refined,
-          capped:
-            refined.capped ||
-            (await table
-              .slice(0, EXTERNAL_SCAN_CAP + 1)
-              .count()
-              .run()) > EXTERNAL_SCAN_CAP,
-        }),
-      )
-    : Promise.all([
-        sorted.slice(query.offset, query.limit).run(),
-        table
-          .slice(0, EXTERNAL_SCAN_CAP + 1)
-          .count()
-          .run(),
-      ]).then(([results, counted]) => ({
-        results,
-        total: Math.min(counted, EXTERNAL_SCAN_CAP),
-        capped: counted > EXTERNAL_SCAN_CAP,
-      }));
-  const answer = await withDeadline(page, EXTERNAL_PAGE_DEADLINE_MS);
+  primaryKey: string | undefined,
+): Promise<RowMatch | undefined> {
+  if (!query.sortKey && !query.search && query.columnFilters.length === 0) {
+    return undefined;
+  }
+  const meta = await fetchColumns(db, query);
+  if (query.sortKey) assertKnownColumn(meta, primaryKey, query.sortKey);
+  for (const { field } of query.columnFilters) {
+    assertKnownColumn(meta, primaryKey, field);
+  }
+  return buildRowFilter(meta, query.search, query.columnFilters);
+}
+
+/**
+ * Waits for an external database's answer, at most
+ * {@link EXTERNAL_PAGE_DEADLINE_MS}, and refuses with a 504 after that.
+ */
+async function answerInTime<T>(work: Promise<T>): Promise<T> {
+  const answer = await withDeadline(work, EXTERNAL_PAGE_DEADLINE_MS);
   assert(
     answer !== TIMED_OUT,
     504,
@@ -281,62 +226,45 @@ async function fetchExternalPage<Row extends object>(
 }
 
 /**
- * Without a search or a column filter the store handles ordering, pagination
- * and the count. With no sort picked, rows follow the primary key ascending,
- * whatever the direction: a store returns unordered rows in its own order,
- * which an update can change, so offset pages would move an edited row or
- * repeat and skip rows. The primary key is surfaced so the data browser knows
- * which column identifies a row when the user edits it.
+ * A page of rows and the exact number of rows that match. The search and the
+ * column filters run in the database's query, on the project's own database
+ * and on an external one, and the total is the database's count of the
+ * filtered rows. A search or a filter no row can satisfy answers an empty page
+ * without querying the rows. With no sort picked, rows follow the primary key
+ * ascending, whatever the direction: a store returns unordered rows in its own
+ * order, which an update can change, so offset pages would move an edited row
+ * or repeat and skip rows. The primary key is surfaced so the data browser
+ * knows which column identifies a row when the user edits it. An external
+ * database that does not answer within {@link EXTERNAL_PAGE_DEADLINE_MS} is
+ * refused with a 504.
  */
 export async function fetchRows(db: Database, query: BrowseQuery) {
   const table = resolveTable(db, query);
   const primaryKey = db.primaryKey(query.schema, query.table);
-  if (query.sortKey) await assertKnownColumn(db, query, query.sortKey);
+  const page = { offset: query.offset, limit: query.limit, primaryKey };
+  const filter = await resolvePageFilter(db, query, primaryKey);
+  if (filter === NO_ROW) return { results: [], total: 0, ...page };
+  const refined = filter ? table.filter(filter) : table;
   const sorted = query.sortKey
-    ? table.orderBy(query.sortKey, query.sortDirection)
+    ? refined.orderBy(query.sortKey, query.sortDirection)
     : primaryKey
-      ? table.orderBy(primaryKey)
-      : table;
-  if (!hasInstances(db)) {
-    return {
-      ...(await fetchExternalPage(table, sorted, query)),
-      offset: query.offset,
-      limit: query.limit,
-      primaryKey,
-    };
-  }
-
-  const hasRefine = Boolean(query.search) || query.columnFilters.length > 0;
-  if (!hasRefine) {
-    const sliced = sorted.slice(query.offset, query.limit);
-    const [results, total] = await Promise.all([
-      sliced.run(),
-      table.count().run(),
-    ]);
-    return {
-      results,
-      total,
-      offset: query.offset,
-      limit: query.limit,
-      primaryKey,
-      capped: false,
-    };
-  }
-
-  const { results, total } = await refinePage(sorted, query);
-  return {
-    results,
-    total,
-    offset: query.offset,
-    limit: query.limit,
-    primaryKey,
-    capped: false,
-  };
+      ? refined.orderBy(primaryKey)
+      : refined;
+  const answered = Promise.all([
+    sorted.slice(query.offset, query.limit).run(),
+    refined.count().run(),
+  ]);
+  const [results, total] = await (hasInstances(db)
+    ? answered
+    : answerInTime(answered));
+  return { results, total, ...page };
 }
 
 /**
- * The rows of a table. On an external database, which has no instances,
- * "every instance" is its default one, as the table inspector asks for it.
+ * The exact number of rows of a table. On an external database, which has no
+ * instances, "every instance" is its default one, as the table inspector asks
+ * for it, and the count is refused with a 504 when the database does not
+ * answer within {@link EXTERNAL_PAGE_DEADLINE_MS}.
  */
 export async function fetchTotal(
   db: Database,
@@ -349,11 +277,7 @@ export async function fetchTotal(
       ? { ...selection, instance: undefined }
       : selection,
   );
-  const counted = await table
-    .slice(0, EXTERNAL_SCAN_CAP + 1)
-    .count()
-    .run();
-  return Math.min(counted, EXTERNAL_SCAN_CAP);
+  return answerInTime(table.count().run());
 }
 
 interface ColumnsMeta {

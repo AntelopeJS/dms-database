@@ -35,8 +35,8 @@ export interface TableSourceRow {
   relations: string[];
   modifiers: string[];
   /**
-   * The table lives in an external database, which the query console and the
-   * diagram cannot open: its row hides the actions leading there.
+   * The table lives in an external database, which the query console cannot
+   * open: its row hides the action leading there.
    */
   external: boolean;
 }

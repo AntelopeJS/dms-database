@@ -24,6 +24,10 @@ import {
   CONNECTION_REFUSALS,
   connectionRefusal,
 } from "../service/connectionRefusals";
+import {
+  referencesByTable,
+  type RelationsByTable,
+} from "../service/catalogReferences";
 import { resolveCatalog } from "../service/connections";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import type { JsonValue } from "../types/json";
@@ -156,5 +160,29 @@ export class DatabaseConnectionsController extends Controller(
     );
     assert(description, 404, `Unknown relation: ${relation}`);
     return description;
+  }
+
+  /**
+   * The foreign keys the catalog reports out of each relation of a schema,
+   * as the relation declarations the diagram draws.
+   */
+  @Get("/:connection/schemas/:schema/references")
+  async references(
+    @AuthRawUser() _user: User,
+    @Parameter("connection", "param") connection: unknown,
+    @Parameter("schema", "param") schema: unknown,
+  ): Promise<{ tables: RelationsByTable }> {
+    assertNonEmptyString(connection);
+    assert(isNonEmptyString(schema), 400, "Missing schema");
+    const catalog = resolveCatalog(connection);
+    const listed = await readCatalog(connection, () => catalog.ListRelations());
+    const names = listed
+      .filter((summary) => summary.schema === schema)
+      .map(({ name }) => `${schema}.${name}`);
+    const described =
+      names.length === 0
+        ? []
+        : await readCatalog(connection, () => catalog.DescribeRelations(names));
+    return { tables: referencesByTable(described, listed) };
   }
 }

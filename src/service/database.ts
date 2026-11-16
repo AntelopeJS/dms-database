@@ -4,10 +4,10 @@ import {
   getTablesForSchema,
   type Table,
 } from "@antelopejs/interface-database-decorators";
+import { OWN_CONNECTION } from "../types/constants";
 import { getTablePrimaryKey } from "./introspect";
 
-/** The connection id of the project's own database. */
-export const OWN_CONNECTION = "own";
+export { OWN_CONNECTION };
 
 /**
  * A database the console reads and writes through one `interface-database`

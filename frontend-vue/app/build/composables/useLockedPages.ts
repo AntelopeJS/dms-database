@@ -10,7 +10,6 @@ const LOCKABLE_PAGES: ReadonlyArray<{
 	path: string
 	feature: ConnectionFeature
 }> = [
-	{ path: '/modules/database/diagram', feature: 'diagram' },
 	{ path: '/modules/database/query', feature: 'queryConsole' },
 ]
 
