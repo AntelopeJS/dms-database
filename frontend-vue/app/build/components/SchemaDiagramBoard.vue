@@ -390,7 +390,7 @@ const movedCount = computed(() => {
 })
 
 function startAutoLayout() {
-	if (!fullLayout.value || preview.value) return
+	if (!editable.value || !fullLayout.value || preview.value) return
 	preview.value = {
 		from: clonePositions(state.positions),
 		basis: layoutBasis.value,
@@ -513,7 +513,7 @@ function always(run: () => unknown): () => boolean {
 
 const COMMANDS: Record<DiagramCommand, () => boolean> = {
 	search: always(() => searchBar.value?.focus()),
-	note: always(() => !isEmpty.value && addNote()),
+	note: always(() => editable.value && addNote()),
 	select: always(() => (panMode.value = false)),
 	pan: always(() => (panMode.value = true)),
 	fit: always(fitAll),
@@ -544,6 +544,7 @@ const edgeTypes = markRaw({ [RELATION_EDGE_TYPE]: DiagramRelationEdge })
 const isEmpty = computed(
 	() => loaded.value && (schema.value?.tables.length ?? 0) === 0,
 )
+const editable = computed(() => loaded.value && !isEmpty.value)
 const isLarge = computed(
 	() =>
 		!focusId.value && (schema.value?.tables.length ?? 0) > LARGE_SCHEMA_TABLES,
@@ -609,7 +610,7 @@ const isLarge = computed(
 							:saved-label="savedLabel"
 							:can-undo="canUndo"
 							:can-redo="canRedo"
-							:auto-layout-disabled="Boolean(preview) || isEmpty"
+							:auto-layout-disabled="!editable || Boolean(preview)"
 							@save-now="saveNow"
 							@undo="undo"
 							@redo="redo"
@@ -640,7 +641,7 @@ const isLarge = computed(
 						<DiagramViewBar
 							v-model:pan-mode="panMode"
 							:zoom-percent="zoomPercent"
-							:is-empty="isEmpty"
+							:note-disabled="!editable"
 							@zoom-out="canvas?.zoomOut()"
 							@reset-zoom="canvas?.zoomTo(RESET_ZOOM)"
 							@zoom-in="canvas?.zoomIn()"
