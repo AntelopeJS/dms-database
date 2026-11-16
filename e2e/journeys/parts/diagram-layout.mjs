@@ -24,7 +24,7 @@ export function positionsOf(drawn) {
  * @returns {Promise<void>}
  */
 export async function putLayout(ctx, schema, positions) {
-  await db(ctx, `save the ${schema} layout`, "PUT", `/diagram/layout/${schema}`, { body: { positions } });
+  await db(ctx, `save the ${schema} layout`, "PUT", `/diagram/layout/${schema}?connection=own`, { body: { positions } });
 }
 
 /** @type {JourneyDef} */

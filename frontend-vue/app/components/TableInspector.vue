@@ -373,7 +373,6 @@ async function copyName() {
 					:label="t('dms_database.inspector.actions.query')"
 				/>
 				<UButton
-					v-if="!lacks('diagram')"
 					:to="tableLink('diagram', address)"
 					@click="emit('success')"
 					icon="i-ph-graph"

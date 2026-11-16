@@ -319,6 +319,7 @@
 				"schema": "Schema {schema} not found",
 				"table": "Table {table} not found in {schema}"
 			},
+			"references_failed": "The database did not report the references of {schema}: the diagram shows its tables without them.",
 			"large": "{count} tables: select one and focus on it to read its relations.",
 			"save": {
 				"idle": "Layout saved",

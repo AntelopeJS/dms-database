@@ -14,6 +14,14 @@ export class DiagramNote extends Table {
   @Field("string")
   declare schemaName: string;
 
+  /**
+   * The connection of the database the schema belongs to. Rows written before
+   * external databases had a diagram have none: they belong to the project's
+   * own database.
+   */
+  @Field("string")
+  declare connection?: string;
+
   @Field("string")
   declare text: string;
 

@@ -11,11 +11,17 @@ import { assert } from "@antelopejs/interface-api-util";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
-import { DiagramLayoutModel, type DiagramNote, DiagramNoteModel } from "../db";
 import {
-  assertSupported,
-  resolveSelectedDatabase,
-} from "../service/connectionState";
+  DiagramLayoutModel,
+  type DiagramNote,
+  DiagramNoteModel,
+  noteConnection,
+} from "../db";
+import {
+  CONNECTION_REFUSALS,
+  connectionRefusal,
+} from "../service/connectionRefusals";
+import { resolveSelectedDatabase } from "../service/connectionState";
 import {
   isJsonContainer,
   isJsonObjectValue,
@@ -114,9 +120,41 @@ function toNoteWire(row: DiagramNote): NoteWire {
   };
 }
 
-/** Refuses the diagram while the user browses an external database. */
-async function assertDiagramAvailable(user: User): Promise<void> {
-  assertSupported(await resolveSelectedDatabase(user._id), "diagram");
+/** The connection of the database the user browses, whose diagram a request reads. */
+async function selectedConnection(user: User): Promise<string> {
+  return (await resolveSelectedDatabase(user._id)).connection;
+}
+
+/**
+ * The connection a write is for: the one the page loaded with, refused once
+ * another tab switched the user's database, so a stale page never writes its
+ * layout or its notes into another database's diagram.
+ */
+async function writtenConnection(user: User, asked: string): Promise<string> {
+  const connection = await selectedConnection(user);
+  if (asked !== connection) {
+    throw connectionRefusal(
+      409,
+      CONNECTION_REFUSALS.staleDatabase,
+      connection,
+      "warning",
+    );
+  }
+  return connection;
+}
+
+/**
+ * A note of the database the user browses: a note of another database is
+ * not found here.
+ */
+async function noteOf(connection: string, id: string): Promise<DiagramNote> {
+  const note = await GetModel(DiagramNoteModel).get(id);
+  assert(
+    note !== undefined && noteConnection(note) === connection,
+    404,
+    "Note not found",
+  );
+  return note;
 }
 
 @AuthOwnerOnly()
@@ -128,10 +166,10 @@ export class DatabaseDiagramController extends Controller(
     @AuthRawUser() user: User,
     @Parameter("schema", "param") schema: unknown,
   ): Promise<LayoutResponse> {
-    await assertDiagramAvailable(user);
+    const connection = await selectedConnection(user);
     assertNonEmptyString(schema);
     const layoutModel = GetModel(DiagramLayoutModel);
-    const row = await layoutModel.getBySchema(schema);
+    const row = await layoutModel.getFor(connection, schema);
     if (!row) return { positions: {} };
     try {
       const parsed: unknown = JSON.parse(row.positions);
@@ -146,16 +184,18 @@ export class DatabaseDiagramController extends Controller(
   @Put("/layout/:schema")
   async putLayout(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("schema", "param") schema: unknown,
     @JSONBody() body: LayoutBody,
   ): Promise<SuccessResponse> {
-    await assertDiagramAvailable(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(schema);
     const raw = body?.positions;
     assert(isJsonValue(raw), 400, "Expected positions object");
     const positions = asPositions(raw);
     const layoutModel = GetModel(DiagramLayoutModel);
-    await layoutModel.upsertForSchema(schema, positions);
+    await layoutModel.upsertFor(connection, schema, positions);
     return { success: true };
   }
 
@@ -164,10 +204,10 @@ export class DatabaseDiagramController extends Controller(
     @AuthRawUser() user: User,
     @Parameter("schema", "query") schema: unknown,
   ): Promise<ListResult<NoteWire>> {
-    await assertDiagramAvailable(user);
+    const connection = await selectedConnection(user);
     assertNonEmptyString(schema);
     const noteModel = GetModel(DiagramNoteModel);
-    const rows = await noteModel.listBySchema(schema);
+    const rows = await noteModel.listFor(connection, schema);
     return {
       items: rows.map((r) => toNoteWire(r)),
     };
@@ -176,9 +216,11 @@ export class DatabaseDiagramController extends Controller(
   @Post("/notes")
   async createNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @JSONBody() body: NoteCreateBody,
   ): Promise<NoteWire> {
-    await assertDiagramAvailable(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     const schemaName = body?.schemaName;
     assertNonEmptyString(schemaName);
     const rawText = body?.text;
@@ -198,6 +240,7 @@ export class DatabaseDiagramController extends Controller(
     const now = new Date();
     const ids = await noteModel.insert({
       schemaName,
+      connection,
       text,
       x,
       y,
@@ -217,14 +260,15 @@ export class DatabaseDiagramController extends Controller(
   @Put("/notes/:id")
   async updateNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("id", "param") id: unknown,
     @JSONBody() body: NoteUpdateBody,
   ): Promise<NoteWire> {
-    await assertDiagramAvailable(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(id);
+    await noteOf(connection, id);
     const noteModel = GetModel(DiagramNoteModel);
-    const existing = await noteModel.get(id);
-    assert(existing !== undefined, 404, "Note not found");
 
     const patch: Partial<DiagramNote> = { updatedAt: new Date() };
     const { text, x, y, width, height, color }: NoteUpdateBody = body ?? {};
@@ -256,14 +300,14 @@ export class DatabaseDiagramController extends Controller(
   @Delete("/notes/:id")
   async deleteNote(
     @AuthRawUser() user: User,
+    @Parameter("connection", "query") asked: unknown,
     @Parameter("id", "param") id: unknown,
   ): Promise<SuccessResponse> {
-    await assertDiagramAvailable(user);
+    assertNonEmptyString(asked);
+    const connection = await writtenConnection(user, asked);
     assertNonEmptyString(id);
-    const noteModel = GetModel(DiagramNoteModel);
-    const existing = await noteModel.get(id);
-    assert(existing !== undefined, 404, "Note not found");
-    await noteModel.delete(id);
+    await noteOf(connection, id);
+    await GetModel(DiagramNoteModel).delete(id);
     return { success: true };
   }
 }

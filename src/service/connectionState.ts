@@ -26,14 +26,13 @@ import { TIMED_OUT, withDeadline } from "../utils/deadline";
 /**
  * The console's features an external database does not offer: the console
  * neither migrates nor alters a database it does not own, its tables have no
- * instances, and the diagram, the query console and a row's references read
- * the project's own schemas.
+ * instances, and the query console and a row's references read the project's
+ * own schemas.
  */
 export const EXTERNAL_UNSUPPORTED = [
   "migrations",
   "schemaEdits",
   "indexes",
-  "diagram",
   "queryConsole",
   "instances",
   "rowReferences",
@@ -45,7 +44,6 @@ const FEATURE_NAMES: Record<ConsoleFeature, string> = {
   migrations: "Migrations",
   schemaEdits: "Schema edits",
   indexes: "Indexes",
-  diagram: "The diagram",
   queryConsole: "The query console",
   instances: "Instances",
   rowReferences: "A row's references",

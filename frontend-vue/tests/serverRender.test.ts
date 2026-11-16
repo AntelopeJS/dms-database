@@ -250,7 +250,7 @@ describe('server render: every read is handed to the browser', () => {
 		expect(menuLocks.value).toEqual([])
 	})
 
-	it('table inspector on an external database: offers neither the query console nor the diagram, which an inspector linking to locked pages would not', async () => {
+	it('table inspector on an external database: offers the diagram and not the query console, which an inspector linking to a locked page would not', async () => {
 		const external = connectionsState(WAREHOUSE)
 		const page = await serverRender(
 			TableInspector,
@@ -264,7 +264,7 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('dms_database.inspector.actions.browse')
 		expect(page.html).not.toContain('dms_database.inspector.actions.query')
-		expect(page.html).not.toContain('dms_database.inspector.actions.diagram')
+		expect(page.html).toContain('dms_database.inspector.actions.diagram')
 	})
 
 	it('table inspector: counts instances on the project database only, which an inspector reading 1 instance on an external database gets wrong', async () => {
