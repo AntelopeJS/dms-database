@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.6.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.5...v0.6.0)
+
+### 🚀 Enhancements
+
+- **diagram:** Show the diagram of an external database ([#200](https://github.com/AntelopeJS/dms-database/pull/200))
+
+### 🔥 Performance
+
+- **browse:** Run searches and column filters in the database query ([#201](https://github.com/AntelopeJS/dms-database/pull/201))
+
+### 🩹 Fixes
+
+- **e2e:** Run the playgrounds on dms 0.21 ([#211](https://github.com/AntelopeJS/dms-database/pull/211))
+
+### 📦 Build
+
+- Accept interface-dms-builder 0.6 without SampleDatabaseRows ([#209](https://github.com/AntelopeJS/dms-database/pull/209))
+- **deps:** Require dms 0.21 and interface-dms-builder 0.6 ([#213](https://github.com/AntelopeJS/dms-database/pull/213))
+
+### 🤖 CI
+
+- Pick the tier with the shared ci-tier action ([#208](https://github.com/AntelopeJS/dms-database/pull/208))
+
+#### ⚠️ Breaking Changes
+
+- **deps:** Require dms 0.21 and interface-dms-builder 0.6 ([#213](https://github.com/AntelopeJS/dms-database/pull/213))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.5.5
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.4...v0.5.5)
