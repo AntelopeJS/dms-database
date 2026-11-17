@@ -85,7 +85,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/dms",
-        version: ">=0.16.1 <1.0.0",
+        version: ">=0.21.0 <0.22.0",
       },
       config: {
         homepage: "/modules/database/overview",

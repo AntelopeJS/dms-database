@@ -65,13 +65,13 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-database`            | `>=0.4.0 <0.5.0`   | `0.4.1`     |
 | `@antelopejs/interface-database-catalog`    | `>=0.1.0 <0.2.0`   | `0.1.0`     |
 | `@antelopejs/interface-database-decorators` | `>=0.5.2 <0.6.0`   | `0.5.2`     |
-| `@antelopejs/interface-dms`                 | `>=0.14.0 <0.15.0` | `0.14.0`    |
-| `@antelopejs/interface-dms-automation`      | `>=0.7.0 <0.8.0`   | `0.7.0`     |
-| `@antelopejs/interface-dms-builder`         | `>=0.5.1 <0.6.0`   | `0.5.1`     |
+| `@antelopejs/interface-dms`                 | `>=0.14.4 <0.15.0` | `0.14.4`    |
+| `@antelopejs/interface-dms-automation`      | `>=0.7.1 <0.8.0`   | `0.7.1`     |
+| `@antelopejs/interface-dms-builder`         | `>=0.6.0 <0.7.0`   | `0.6.0`     |
 
 <!-- antelopejs-docs-compat:end -->
 
-The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range above, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range, and an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb`.
+The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range above, and DMS 0.21 or later, the first release that provides `@antelopejs/interface-dms-builder` 0.6, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range, and an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb`.
 
 ## Documentation
 
