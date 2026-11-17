@@ -6,7 +6,7 @@
   "main": "index.js",
   "dependencies": {
     "@antelopejs/interface-core": ">=0.5.1 <0.6.0",
-    "@antelopejs/interface-dms-builder": ">=0.5.1 <0.6.0"
+    "@antelopejs/interface-dms-builder": "0.5.3-next.970.g324d668"
   },
   "antelopeJs": {
     "implements": [
