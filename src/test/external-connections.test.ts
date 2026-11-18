@@ -26,6 +26,7 @@ describe("[integration] external connections: listing and selection", () => {
           access: "read-write",
           canWrite: true,
           unsupported: [],
+          missing: [],
         },
         {
           id: "erp",
@@ -35,6 +36,7 @@ describe("[integration] external connections: listing and selection", () => {
           access: "read",
           canWrite: true,
           unsupported,
+          missing: [],
         },
         {
           id: "archive",
@@ -44,9 +46,30 @@ describe("[integration] external connections: listing and selection", () => {
           access: "read",
           canWrite: false,
           unsupported,
+          missing: [],
         },
+        ...["shop", "ledger", "legacy", "blank"].map((id) => ({
+          id,
+          kind: "external",
+          label: id === "shop" ? "erp" : id,
+          engine: id === "shop" ? "mongodb" : null,
+          access: id === "ledger" ? "read-write" : "read",
+          canWrite: id === "shop" ? true : null,
+          unsupported,
+          missing: id === "shop" ? ["database"] : ["database", "catalog"],
+        })),
       ],
     });
+  });
+
+  it("refuses to select a connection that is declared but not registered, which an implementation that selects any listed id gets wrong", async () => {
+    assert.deepEqual(
+      await refusal(
+        controller.select(user("half-user"), { connection: "shop" }),
+      ),
+      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+    );
+    assert.equal((await controller.list(user("half-user"))).selected, "own");
   });
 
   it("keeps each user's selection apart, and refuses a connection that does not exist", async () => {
