@@ -41,15 +41,26 @@ export function nameOf(connection: DatabaseConnection, t: Translate): string {
 	return connection.id === OWN_CONNECTION ? t(`${KEYS}.own`) : connection.label
 }
 
-/** What a database is: its engine, or what stands in for it when the catalog did not say. */
-export function subtitleOf(
-	connection: DatabaseConnection,
-	t: Translate,
-): string {
+function engineOf(connection: DatabaseConnection, t: Translate): string {
 	if (connection.engine) return connection.engine
 	return connection.kind === 'own'
 		? t(`${KEYS}.switcher.own_subtitle`)
 		: t(`${KEYS}.engine_unknown`)
+}
+
+/**
+ * What a database is: its engine, or what stands in for it when the catalog did not say, then the
+ * database the connection is on when its name differs from the connection's.
+ */
+export function subtitleOf(
+	connection: DatabaseConnection,
+	t: Translate,
+): string {
+	const engine = engineOf(connection, t)
+	const { database } = connection
+	return database && database !== nameOf(connection, t)
+		? `${engine} · ${database}`
+		: engine
 }
 
 function missingNames(missing: MissingBinding[], t: Translate): string {

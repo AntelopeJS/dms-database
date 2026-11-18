@@ -56,13 +56,15 @@ const FEATURE_NAMES: Record<ConsoleFeature, string> = {
 
 /**
  * One database the console shows. The dashboard names the project's own
- * database from its locale; an external one is labelled by the database its
- * catalog reports, else by its connection id.
+ * database from its locale; an external one is labelled by its connection
+ * id, the name the project configuration and the builder give it.
  */
 export interface ConnectionSummary {
   id: string;
   kind: "own" | "external";
   label: string;
+  /** The database the catalog reports the connection is on; `null` for the own database and when the catalog refuses. */
+  database: string | null;
   /** The engine the catalog reports; `null` for the own database and when the catalog refuses. */
   engine: string | null;
   /** What the project lets the console do; always `"read-write"` on the own database. */
@@ -128,7 +130,8 @@ async function summarizeCatalog(
   return {
     id,
     kind: "external",
-    label: info?.database || id,
+    label: id,
+    database: info?.database || null,
     engine: info?.engine ?? null,
     access: configuredAccess(id) ?? "read",
     canWrite: relations ? relations.some(grantsWrite) : null,
@@ -150,6 +153,7 @@ async function summarizeUnregistered({
       id,
       kind: "external",
       label: id,
+      database: null,
       engine: null,
       access: configuredAccess(id) ?? "read",
       canWrite: null,
@@ -164,6 +168,7 @@ const OWN_SUMMARY: ConnectionSummary = {
   id: OWN_CONNECTION,
   kind: "own",
   label: OWN_CONNECTION,
+  database: null,
   engine: null,
   access: "read-write",
   canWrite: true,

@@ -42,6 +42,18 @@ describe('database options', () => {
 		expect(options[3]?.unavailable).toContain('missing_catalog')
 	})
 
+	it('describes an external database by its engine and the database it is on, which a subtitle naming the engine alone leaves out', () => {
+		const sameName = { ...WAREHOUSE, database: 'Warehouse' }
+		const unknown = { ...WAREHOUSE, engine: null, database: null }
+		const options = databaseOptions([OWN, WAREHOUSE, sameName, unknown], 'own', t)
+		expect(options.map((option) => option.subtitle)).toEqual([
+			'mongodb',
+			'postgres · warehouse_prod',
+			'postgres',
+			'dms_database.connections.engine_unknown',
+		])
+	})
+
 	it('marks only the selected database as current', () => {
 		const options = databaseOptions([OWN, WAREHOUSE], 'warehouse', t)
 		expect(options.map((option) => option.current)).toEqual([false, true])

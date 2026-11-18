@@ -18,6 +18,8 @@ export interface DatabaseConnection {
 	id: string
 	kind: 'own' | 'external'
 	label: string
+	/** The database the catalog says the connection is on; null for the project's own and when the catalog did not answer. */
+	database: string | null
 	engine: string | null
 	access: ConnectionAccess
 	/** Null when the catalog could not tell whether the account may write. */

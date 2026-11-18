@@ -22,6 +22,7 @@ describe("[integration] external connections: listing and selection", () => {
           id: "own",
           kind: "own",
           label: "own",
+          database: null,
           engine: null,
           access: "read-write",
           canWrite: true,
@@ -32,6 +33,7 @@ describe("[integration] external connections: listing and selection", () => {
           id: "erp",
           kind: "external",
           label: "erp",
+          database: "erp",
           engine: "mongodb",
           access: "read",
           canWrite: true,
@@ -42,6 +44,7 @@ describe("[integration] external connections: listing and selection", () => {
           id: "archive",
           kind: "external",
           label: "archive",
+          database: "archive",
           engine: "mongodb",
           access: "read",
           canWrite: false,
@@ -51,7 +54,8 @@ describe("[integration] external connections: listing and selection", () => {
         ...["shop", "ledger", "legacy", "blank"].map((id) => ({
           id,
           kind: "external",
-          label: id === "shop" ? "erp" : id,
+          label: id,
+          database: id === "shop" ? "erp" : null,
           engine: id === "shop" ? "mongodb" : null,
           access: id === "ledger" ? "read-write" : "read",
           canWrite: id === "shop" ? true : null,
@@ -93,7 +97,9 @@ describe("[integration] external connections: listing and selection", () => {
       { status: 400, message: "Expected { connection: string }" },
     );
   });
+});
 
+describe("[integration] external connections: relations", () => {
   it("describes an external relation from the connection's catalog", async () => {
     const reader = user("relations-user");
     const { items } = await controller.relations(reader, "erp");

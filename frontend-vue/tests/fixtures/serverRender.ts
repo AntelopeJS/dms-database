@@ -45,6 +45,7 @@ const OWN_DATABASE_ONLY = {
 			id: 'own',
 			kind: 'own',
 			label: 'own',
+			database: null,
 			engine: null,
 			access: 'read-write',
 			canWrite: true,
