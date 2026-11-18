@@ -49,6 +49,7 @@ const OWN_DATABASE_ONLY = {
 			access: 'read-write',
 			canWrite: true,
 			unsupported: [],
+			missing: [],
 		},
 	],
 }
@@ -216,6 +217,7 @@ const UI_COMPONENTS = [
 	'UProgress',
 	'USelect',
 	'USelectMenu',
+	'USeparator',
 	'USkeleton',
 	'USlideover',
 	'UTabs',

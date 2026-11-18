@@ -23,30 +23,33 @@ import {
 } from '../app/build/composables/registerDatabaseSwitcher'
 
 const ONBOARDING = Symbol.for('dms-assistant:onboarding')
-const MENU = (props: Record<string, unknown>) =>
-	props['data-stub'] === 'UDropdownMenu'
 
-interface MenuItem {
-	label?: string
-	description?: string
-	external?: boolean
-	checked?: boolean
-	onSelect?: () => void
-}
-
-/** The menu with the `item-trailing` slot of each item drawn, which the stub of the library leaves out. */
-const MenuStub = defineComponent({
-	props: { items: { type: Array, default: () => [] } },
+/** The popover with its `content` slot drawn, which the library's stub leaves out. */
+const PopoverStub = defineComponent({
 	setup:
-		(props, { slots }) =>
+		(_, { slots }) =>
 		() =>
-			h('div', { 'data-stub': 'UDropdownMenu', items: props.items }, [
+			h('div', { 'data-stub': 'UPopover' }, [
 				slots.default?.(),
-				...props.items
-					.flat()
-					.map((item) => h('div', {}, slots['item-trailing']?.({ item }))),
+				slots.content?.(),
 			]),
 })
+
+type Props = Record<string, unknown>
+type Mounted = ReturnType<typeof browserMount>
+
+const rowOf = (page: Mounted, id: string): Props | undefined =>
+	page.find((props) => props['data-database-option'] === id)
+
+/** What picking a row does: the handler of its button. */
+function pickRow(page: Mounted, id: string): void {
+	const click = rowOf(page, id)?.onClick
+	if (typeof click !== 'function') throw new Error(`no row for ${id}`)
+	click()
+}
+
+const connectEntry = (page: Mounted): Props | undefined =>
+	page.find((props) => props.icon === 'i-ph-plus')
 
 async function mountSwitcher(
 	backend = connectionsBackend(connectionsState(OWN)),
@@ -55,14 +58,12 @@ async function mountSwitcher(
 ) {
 	const page = browserMount(DatabaseSwitcher, backend, props, {
 		provide,
-		components: { UDropdownMenu: MenuStub },
+		components: { UPopover: PopoverStub },
 	})
 	await page.shown
 	await vi.waitFor(() => expect(page.reads).not.toHaveLength(0))
 	await new Promise((resolve) => setTimeout(resolve, 0))
-	const groups = page.find(MENU)?.items
-	const items: MenuItem[] = Array.isArray(groups) ? groups.flat() : []
-	return { page, items }
+	return { page }
 }
 
 type Listener = () => void
@@ -108,43 +109,83 @@ afterEach(() => {
 
 describe('database switcher menu', () => {
 	it('names the project database from the locale, which an implementation showing its API label gets wrong', async () => {
-		const { items, page } = await mountSwitcher()
-		expect(items.map((item) => item.label)).toEqual([
-			'dms_database.connections.own',
-			'Warehouse',
-		])
+		const { page } = await mountSwitcher()
+		expect(page.text()).toContain('dms_database.connections.own')
+		expect(page.text()).toContain('Warehouse')
 		expect(page.text()).not.toContain('legacy-label')
 		expect(page.errors).toEqual([])
 	})
 
-	it('gives an external database its engine and the External badge, and the project database neither', async () => {
-		const { items, page } = await mountSwitcher()
-		expect(items.map((item) => item.description)).toEqual([
-			'mongodb',
-			'postgres',
-		])
-		expect(items.map((item) => item.external)).toEqual([false, true])
-		const badges = page.text().match(/dms_database\.connections\.external/g)
-		expect(badges).toHaveLength(1)
+	it('gives each database a row of its own, in the order the API lists them', async () => {
+		const { page } = await mountSwitcher()
+		expect(rowOf(page, 'own')).toBeDefined()
+		expect(rowOf(page, 'warehouse')).toBeDefined()
+		expect(rowOf(page, 'nope')).toBeUndefined()
 	})
 
-	it('checks the selected database, which a menu that always checks the first gets wrong', async () => {
-		const { items } = await mountSwitcher(
+	it('shows the engine of each database under its name, and the project database the locale subtitle when the catalog names none', async () => {
+		const { page } = await mountSwitcher(
+			connectionsBackend(
+				connectionsState(OWN, {
+					connections: [{ ...OWN, engine: null }, WAREHOUSE],
+				}),
+			),
+		)
+		expect(page.text()).toContain('postgres')
+		expect(page.text()).toContain(
+			'dms_database.connections.switcher.own_subtitle',
+		)
+	})
+
+	it('badges an external database with its access and the project database with none, which a badge on every row gets wrong', async () => {
+		const { page } = await mountSwitcher()
+		const readOnly = 'dms_database.connections.switcher.access_read'
+		expect(
+			page.text().match(new RegExp(`label="${readOnly}"`, 'g')),
+		).toHaveLength(1)
+		expect(page.text()).not.toContain('access_read_write')
+	})
+
+	it('badges an external database that may be written as Read & write', async () => {
+		const writable = { ...WAREHOUSE, access: 'read-write' as const }
+		const { page } = await mountSwitcher(
+			connectionsBackend(
+				connectionsState(OWN, { connections: [OWN, writable] }),
+			),
+		)
+		expect(page.text()).toContain(
+			'label="dms_database.connections.switcher.access_read_write"',
+		)
+		expect(page.text()).not.toContain(
+			'label="dms_database.connections.switcher.access_read"',
+		)
+	})
+
+	it('marks the selected database as current, which a list that always marks the first gets wrong', async () => {
+		const { page } = await mountSwitcher(
 			connectionsBackend(connectionsState(WAREHOUSE)),
 		)
-		expect(items.map((item) => item.checked)).toEqual([false, true])
+		expect(rowOf(page, 'own')?.['aria-current']).toBeUndefined()
+		expect(rowOf(page, 'warehouse')?.['aria-current']).toBe('true')
+		expect(page.text()).toContain('i-ph-check')
 	})
 
 	it('shows only the icon on the collapsed rail, and the name beside it otherwise', async () => {
 		const expanded = await mountSwitcher()
-		expect(expanded.page.text()).toContain(
-			'label="dms_database.connections.own"',
-		)
+		expect(
+			expanded.page.find((props) => 'data-database-trigger-name' in props),
+		).toBeDefined()
 		const collapsed = await mountSwitcher(undefined, { collapsed: true })
-		expect(collapsed.page.text()).not.toContain(
-			'label="dms_database.connections.own"',
-		)
-		expect(collapsed.page.text()).toContain('aria-label="')
+		expect(
+			collapsed.page.find((props) => 'data-database-trigger-name' in props),
+		).toBeUndefined()
+		expect(
+			collapsed.page.find(
+				(props) =>
+					props['aria-label'] ===
+					'dms_database.connections.switcher.label: dms_database.connections.own',
+			),
+		).toBeDefined()
 	})
 
 	it('shows nothing while no database is listed', async () => {
@@ -155,41 +196,76 @@ describe('database switcher menu', () => {
 	})
 })
 
+describe('database switcher: a database the project did not fully register', () => {
+	const SHOP: DatabaseConnection = {
+		...WAREHOUSE,
+		id: 'shop',
+		label: 'shop',
+		missing: ['database'],
+	}
+
+	it('lists it as a row that cannot be picked, with the reason and the Not registered badge, which a list leaving it out gets wrong', async () => {
+		const { page } = await mountSwitcher(
+			connectionsBackend(connectionsState(OWN, { connections: [OWN, SHOP] })),
+		)
+		const row = rowOf(page, 'shop')
+		expect(row?.disabled).toBe(true)
+		expect(String(row?.title)).toContain('unregistered_hint')
+		expect(String(row?.title)).toContain('missing_database')
+		expect(page.text()).toContain(
+			'label="dms_database.connections.switcher.unregistered"',
+		)
+		expect(page.text()).not.toContain('access_read')
+	})
+
+	it('stores nothing when its row is activated anyway, which an implementation that relies on the disabled attribute alone gets wrong', async () => {
+		const { page } = await mountSwitcher(
+			connectionsBackend(connectionsState(OWN, { connections: [OWN, SHOP] })),
+		)
+		expect(rowOf(page, 'own')?.disabled).toBe(false)
+		pickRow(page, 'shop')
+		await new Promise((resolve) => setTimeout(resolve, 0))
+		expect(connectionWrites(page.reads)).toEqual([])
+		expect(browser.assign).not.toHaveBeenCalled()
+	})
+})
+
 describe('database switcher: connect a database', () => {
 	const CONNECT = 'dms_database.connections.switcher.connect'
 
 	it('hides the entry when dms-assistant provides nothing', async () => {
-		const { items } = await mountSwitcher()
-		expect(items.map((item) => item.label)).not.toContain(CONNECT)
+		const { page } = await mountSwitcher()
+		expect(connectEntry(page)).toBeUndefined()
+		expect(page.text()).not.toContain(CONNECT)
 	})
 
 	it('hides the entry while the assistant is not available', async () => {
-		const { items } = await mountSwitcher(undefined, {}, [
+		const { page } = await mountSwitcher(undefined, {}, [
 			[ONBOARDING, { isAvailable: false, open: vi.fn() }],
 		])
-		expect(items.map((item) => item.label)).not.toContain(CONNECT)
+		expect(connectEntry(page)).toBeUndefined()
 	})
 
 	it('opens the connect step of the assistant when the entry is picked', async () => {
 		const open = vi.fn()
-		const { items } = await mountSwitcher(undefined, {}, [
+		const { page } = await mountSwitcher(undefined, {}, [
 			[ONBOARDING, { isAvailable: true, open }],
 		])
-		const entry = items.find((item) => item.label === CONNECT)
-		expect(entry).toBeDefined()
-		entry?.onSelect?.()
+		const click = connectEntry(page)?.onClick
+		expect(click).toBeTypeOf('function')
+		if (typeof click === 'function') click()
 		expect(open).toHaveBeenCalledExactlyOnceWith('connect-database')
 	})
 })
 
 describe('database switcher: picking a database', () => {
 	it('stores the choice, drops the tabs of the database left, and reads the page again', async () => {
-		const { items, page } = await mountSwitcher(
+		const { page } = await mountSwitcher(
 			connectionsBackend(connectionsState(OWN), {
 				answer: () => connectionsState(WAREHOUSE),
 			}),
 		)
-		items.find((item) => item.label === 'Warehouse')?.onSelect?.()
+		pickRow(page, 'warehouse')
 		await vi.waitFor(() => expect(browser.assign).toHaveBeenCalledOnce())
 		expect(connectionWrites(page.reads)).toEqual([
 			{
@@ -204,14 +280,14 @@ describe('database switcher: picking a database', () => {
 	})
 
 	it('stays on the page when the server refuses the choice', async () => {
-		const { items, page } = await mountSwitcher(
+		const { page } = await mountSwitcher(
 			connectionsBackend(connectionsState(OWN), {
 				answer: () => {
 					throw new Error('refused')
 				},
 			}),
 		)
-		items.find((item) => item.label === 'Warehouse')?.onSelect?.()
+		pickRow(page, 'warehouse')
 		await vi.waitFor(() => expect(connectionWrites(page.reads)).toHaveLength(1))
 		await Promise.resolve()
 		expect(browser.assign).not.toHaveBeenCalled()
@@ -219,10 +295,8 @@ describe('database switcher: picking a database', () => {
 	})
 
 	it('does nothing when the selected database is picked again', async () => {
-		const { items, page } = await mountSwitcher()
-		items
-			.find((item) => item.label === 'dms_database.connections.own')
-			?.onSelect?.()
+		const { page } = await mountSwitcher()
+		pickRow(page, 'own')
 		await Promise.resolve()
 		expect(connectionWrites(page.reads)).toEqual([])
 		expect(browser.assign).not.toHaveBeenCalled()
@@ -231,12 +305,12 @@ describe('database switcher: picking a database', () => {
 	it('stores nothing and stays when the user declines to lose unsaved edits, which an implementation that stores first and leaves on the browser prompt gets wrong', async () => {
 		const prompt = vi.fn(async () => false)
 		registerUnsavedChanges({ isDirty: () => true }, prompt)
-		const { items, page } = await mountSwitcher(
+		const { page } = await mountSwitcher(
 			connectionsBackend(connectionsState(OWN), {
 				answer: () => connectionsState(WAREHOUSE),
 			}),
 		)
-		items.find((item) => item.label === 'Warehouse')?.onSelect?.()
+		pickRow(page, 'warehouse')
 		await vi.waitFor(() => expect(prompt).toHaveBeenCalledOnce())
 		await new Promise((resolve) => setTimeout(resolve, 0))
 		expect(connectionWrites(page.reads)).toEqual([])
@@ -246,12 +320,12 @@ describe('database switcher: picking a database', () => {
 
 	it('stores the choice and reloads without asking again once the user accepts to lose them', async () => {
 		registerUnsavedChanges({ isDirty: () => true }, async () => true)
-		const { items, page } = await mountSwitcher(
+		const { page } = await mountSwitcher(
 			connectionsBackend(connectionsState(OWN), {
 				answer: () => connectionsState(WAREHOUSE),
 			}),
 		)
-		items.find((item) => item.label === 'Warehouse')?.onSelect?.()
+		pickRow(page, 'warehouse')
 		await vi.waitFor(() => expect(browser.assign).toHaveBeenCalledOnce())
 		expect(connectionWrites(page.reads)).toHaveLength(1)
 		expect(hasUnsavedChanges()).toBe(false)

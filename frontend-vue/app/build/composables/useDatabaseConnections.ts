@@ -11,6 +11,9 @@ export type ConnectionFeature =
 
 export type ConnectionAccess = 'read' | 'read-write'
 
+/** A binding the project lacks for a connection it declares on the dms-database entry. */
+export type MissingBinding = 'database' | 'catalog'
+
 export interface DatabaseConnection {
 	id: string
 	kind: 'own' | 'external'
@@ -20,6 +23,8 @@ export interface DatabaseConnection {
 	/** Null when the catalog could not tell whether the account may write. */
 	canWrite: boolean | null
 	unsupported: ConnectionFeature[]
+	/** The bindings still to register; the console lists the connection but cannot browse it while any is missing. */
+	missing: MissingBinding[]
 }
 
 export interface ConnectionsState {
@@ -43,6 +48,11 @@ export function isExternal(
 	connection: DatabaseConnection | undefined,
 ): connection is DatabaseConnection {
 	return connection?.kind === 'external'
+}
+
+/** Whether the console can browse the connection: it has every binding it needs. */
+export function isBrowsable(connection: DatabaseConnection): boolean {
+	return connection.missing.length === 0
 }
 
 /** Whether the connection lists the feature as one it cannot serve. */
