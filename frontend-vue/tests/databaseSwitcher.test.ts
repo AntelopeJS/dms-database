@@ -137,28 +137,41 @@ describe('database switcher menu', () => {
 		)
 	})
 
-	it('badges an external database with its access and the project database with none, which a badge on every row gets wrong', async () => {
-		const { page } = await mountSwitcher()
-		const readOnly = 'dms_database.connections.switcher.access_read'
-		expect(
-			page.text().match(new RegExp(`label="${readOnly}"`, 'g')),
-		).toHaveLength(1)
-		expect(page.text()).not.toContain('access_read_write')
+	it('badges an external database as External, in the list and on the trigger, and the project database with none, which a badge on every row gets wrong', async () => {
+		const { page } = await mountSwitcher(
+			connectionsBackend(connectionsState(WAREHOUSE)),
+		)
+		const external = 'UBadge" label="dms_database.connections.external"'
+		expect(page.text().split(external)).toHaveLength(3)
+		expect(page.text()).not.toContain('color="neutral"')
+		const own = await mountSwitcher()
+		expect(own.page.text().split(external)).toHaveLength(2)
 	})
 
-	it('badges an external database that may be written as Read & write', async () => {
+	it('shows the access in the subtitle as an icon and a text, never in a badge', async () => {
+		const { page } = await mountSwitcher()
+		expect(page.text()).toContain('i-ph-lock-simple')
+		expect(page.text()).toContain(
+			'dms_database.connections.switcher.access_read',
+		)
+		expect(page.text()).not.toContain(
+			'label="dms_database.connections.switcher.access_read"',
+		)
+		expect(page.text()).not.toContain('i-ph-pencil-simple')
+	})
+
+	it('shows an external database that may be written as Read & write', async () => {
 		const writable = { ...WAREHOUSE, access: 'read-write' as const }
 		const { page } = await mountSwitcher(
 			connectionsBackend(
 				connectionsState(OWN, { connections: [OWN, writable] }),
 			),
 		)
+		expect(page.text()).toContain('i-ph-pencil-simple')
 		expect(page.text()).toContain(
-			'label="dms_database.connections.switcher.access_read_write"',
+			'dms_database.connections.switcher.access_read_write',
 		)
-		expect(page.text()).not.toContain(
-			'label="dms_database.connections.switcher.access_read"',
-		)
+		expect(page.text()).not.toContain('i-ph-lock-simple')
 	})
 
 	it('marks the selected database as current, which a list that always marks the first gets wrong', async () => {
@@ -216,6 +229,7 @@ describe('database switcher: a database the project did not fully register', () 
 			'label="dms_database.connections.switcher.unregistered"',
 		)
 		expect(page.text()).not.toContain('access_read')
+		expect(page.text()).not.toContain('UBadge" label="dms_database.connections.external')
 	})
 
 	it('stores nothing when its row is activated anyway, which an implementation that relies on the disabled attribute alone gets wrong', async () => {

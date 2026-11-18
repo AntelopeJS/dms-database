@@ -9,12 +9,15 @@ import {
 	type PublicOnboarding,
 } from '../build/data/assistantOnboarding'
 import {
+	accessOf,
+	badgeOf,
 	databaseOptions,
 	focusTarget,
 	iconOf,
 	nameOf,
 	subtitleOf,
 } from '../build/data/databaseOptions'
+import DatabaseSubtitle from '../build/components/DatabaseSubtitle.vue'
 import DatabaseSwitcherRow from '../build/components/DatabaseSwitcherRow.vue'
 
 const props = defineProps<{ collapsed?: boolean }>()
@@ -38,6 +41,12 @@ const selectedName = computed(() =>
 )
 const triggerCaption = computed(() =>
 	selected.value ? subtitleOf(selected.value, t) : t(`${KEYS}.label`),
+)
+const triggerBadge = computed(() =>
+	selected.value ? badgeOf(selected.value, t) : null,
+)
+const triggerAccess = computed(() =>
+	selected.value ? accessOf(selected.value, t) : null,
 )
 const triggerLabel = computed(() => selectedName.value || t(`${KEYS}.label`))
 const triggerIcon = computed(() => iconOf(selected.value))
@@ -83,7 +92,7 @@ function connect() {
 </script>
 
 <template>
-	<div v-if="connections.length > 0" class="px-2 pb-2" data-database-switcher>
+	<div v-if="connections.length > 0" class="pb-2" data-database-switcher>
 		<UPopover v-model:open="isOpen" :content="popoverPlacement">
 			<UTooltip
 				:text="`${t(`${KEYS}.label`)}: ${selectedName}`"
@@ -110,16 +119,26 @@ function connect() {
 					</span>
 					<template v-if="!collapsed">
 						<span class="flex min-w-0 flex-1 flex-col leading-[1.25]">
-							<span
-								class="text-primary truncate font-mono text-[10px] uppercase tracking-[0.08em]"
-							>
-								{{ triggerCaption }}
-							</span>
-							<span
-								class="text-highlighted truncate text-[13.5px] font-semibold tracking-[-0.01em]"
-								data-database-trigger-name
-							>
-								{{ triggerLabel }}
+							<DatabaseSubtitle
+								:text="triggerCaption"
+								:access="triggerAccess"
+								class="text-primary font-mono text-[10px] uppercase tracking-[0.08em]"
+							/>
+							<span class="flex min-w-0 items-center gap-1.5">
+								<span
+									class="text-highlighted min-w-0 truncate text-[13.5px] font-semibold tracking-[-0.01em]"
+									data-database-trigger-name
+								>
+									{{ triggerLabel }}
+								</span>
+								<UBadge
+									v-if="triggerBadge"
+									:label="triggerBadge.label"
+									:color="triggerBadge.tone"
+									variant="subtle"
+									size="sm"
+									class="shrink-0"
+								/>
 							</span>
 						</span>
 						<UIcon

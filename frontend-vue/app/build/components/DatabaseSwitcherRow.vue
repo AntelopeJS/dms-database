@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DatabaseOption } from '../data/databaseOptions'
+import DatabaseSubtitle from './DatabaseSubtitle.vue'
 
 defineProps<{
 	option: DatabaseOption
@@ -37,24 +38,28 @@ const { t } = useI18n()
 			<UIcon :name="option.icon" class="size-4" />
 		</span>
 		<span class="flex min-w-0 flex-1 flex-col">
-			<span class="text-highlighted truncate font-medium">
-				{{ option.name }}
+			<span class="flex min-w-0 items-center gap-1.5">
+				<span class="text-highlighted min-w-0 truncate font-medium">
+					{{ option.name }}
+				</span>
+				<UBadge
+					v-if="option.badge"
+					:label="option.badge.label"
+					:color="option.badge.tone"
+					variant="subtle"
+					size="sm"
+					class="shrink-0"
+				/>
 			</span>
-			<span class="text-muted truncate font-mono text-[11.5px]">
-				{{ option.subtitle }}
-			</span>
+			<DatabaseSubtitle
+				:text="option.subtitle"
+				:access="option.access"
+				class="text-muted font-mono text-[11.5px]"
+			/>
 			<span v-if="option.unavailable" class="sr-only">
 				{{ option.unavailable }}
 			</span>
 		</span>
-		<UBadge
-			v-if="option.badge"
-			:label="option.badge.label"
-			:color="option.badge.tone"
-			variant="subtle"
-			size="sm"
-			class="shrink-0"
-		/>
 		<UIcon
 			v-if="isSwitching"
 			name="i-ph-spinner-gap"

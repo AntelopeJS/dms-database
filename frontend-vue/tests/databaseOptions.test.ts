@@ -14,20 +14,18 @@ describe('database options', () => {
 		])
 	})
 
-	it('gives the project database no badge, an external one its access, and an unregistered one the reason it cannot be picked', () => {
+	it('gives the project database no badge, an external one the External badge, and an unregistered one the reason it cannot be picked', () => {
 		const shop = { ...WAREHOUSE, id: 'shop', missing: ['catalog' as const] }
 		const writable = { ...WAREHOUSE, id: 'wh', access: 'read-write' as const }
 		const options = databaseOptions([OWN, WAREHOUSE, writable, shop], 'own', t)
+		const external = {
+			label: 'dms_database.connections.external',
+			tone: 'warning',
+		}
 		expect(options.map((option) => option.badge)).toEqual([
 			null,
-			{
-				label: 'dms_database.connections.switcher.access_read',
-				tone: 'neutral',
-			},
-			{
-				label: 'dms_database.connections.switcher.access_read_write',
-				tone: 'primary',
-			},
+			external,
+			external,
 			{
 				label: 'dms_database.connections.switcher.unregistered',
 				tone: 'warning',
@@ -40,6 +38,24 @@ describe('database options', () => {
 			false,
 		])
 		expect(options[3]?.unavailable).toContain('missing_catalog')
+	})
+
+	it('puts the access in the subtitle of a browsable external database only, which a badge or an access on every row gets wrong', () => {
+		const shop = { ...WAREHOUSE, id: 'shop', missing: ['catalog' as const] }
+		const writable = { ...WAREHOUSE, id: 'wh', access: 'read-write' as const }
+		const options = databaseOptions([OWN, WAREHOUSE, writable, shop], 'own', t)
+		expect(options.map((option) => option.access)).toEqual([
+			null,
+			{
+				label: 'dms_database.connections.switcher.access_read',
+				icon: 'i-ph-lock-simple',
+			},
+			{
+				label: 'dms_database.connections.switcher.access_read_write',
+				icon: 'i-ph-pencil-simple',
+			},
+			null,
+		])
 	})
 
 	it('describes an external database by its engine and the database it is on, which a subtitle naming the engine alone leaves out', () => {

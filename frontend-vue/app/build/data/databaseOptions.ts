@@ -8,10 +8,16 @@ import {
 /** Translates a message key of the module, with its parameters. */
 export type Translate = (key: string, params?: Record<string, string>) => string
 
-/** The small tag after a database's name: what the project lets the console do on it, or why it cannot be browsed. */
+/** The small tag after a database's name: that it is external, or why it cannot be browsed. */
 export interface DatabaseBadge {
 	label: string
-	tone: 'neutral' | 'primary' | 'warning'
+	tone: 'warning'
+}
+
+/** What the project lets the console do on a database, as the discreet part of its subtitle. */
+export interface DatabaseAccess {
+	label: string
+	icon: string
 }
 
 /** One row of the database switcher, as it is drawn. */
@@ -23,6 +29,8 @@ export interface DatabaseOption {
 	external: boolean
 	current: boolean
 	badge: DatabaseBadge | null
+	/** The access the console has, null when the database is not browsable or is the project's own. */
+	access: DatabaseAccess | null
 	/** Why the row cannot be picked; null when it can. */
 	unavailable: string | null
 }
@@ -69,16 +77,29 @@ function missingNames(missing: MissingBinding[], t: Translate): string {
 		.join(', ')
 }
 
-function badgeOf(
+/** The tag of an external database: that it is one, or that it is not registered. */
+export function badgeOf(
 	connection: DatabaseConnection,
 	t: Translate,
 ): DatabaseBadge | null {
 	if (connection.kind === 'own') return null
-	if (!isBrowsable(connection))
-		return { label: t(`${KEYS}.switcher.unregistered`), tone: 'warning' }
+	return {
+		label: t(
+			`${KEYS}.${isBrowsable(connection) ? 'external' : 'switcher.unregistered'}`,
+		),
+		tone: 'warning',
+	}
+}
+
+/** The access of a browsable external database. */
+export function accessOf(
+	connection: DatabaseConnection,
+	t: Translate,
+): DatabaseAccess | null {
+	if (connection.kind === 'own' || !isBrowsable(connection)) return null
 	return connection.access === 'read-write'
-		? { label: t(`${KEYS}.switcher.access_read_write`), tone: 'primary' }
-		: { label: t(`${KEYS}.switcher.access_read`), tone: 'neutral' }
+		? { label: t(`${KEYS}.switcher.access_read_write`), icon: 'i-ph-pencil-simple' }
+		: { label: t(`${KEYS}.switcher.access_read`), icon: 'i-ph-lock-simple' }
 }
 
 /**
@@ -101,6 +122,7 @@ export function databaseOptions(
 		external: connection.kind === 'external',
 		current: connection.id === selectedId,
 		badge: badgeOf(connection, t),
+		access: accessOf(connection, t),
 		unavailable: isBrowsable(connection)
 			? null
 			: t(`${KEYS}.switcher.unregistered_hint`, {

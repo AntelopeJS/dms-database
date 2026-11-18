@@ -72,7 +72,7 @@ async function switching(ctx, tab) {
   await tab.goto(DATA_PAGE);
   const menu = await pickDatabase(tab, "Project database", ERP);
   await ctx.verify("the switcher", [
-    check("the menu lists the project database and erp with its engine and its Read only badge", /Project database\s+This project\s+erp\s+mongodb\s+Read only/i.test(menu), menu),
+    check("the menu lists the project database and erp with its engine, its Read only access and its External badge", /Project database\s+This project\s+erp\s+mongodb\s*·\s*Read only\s+External/i.test(menu), menu),
     check("the sidebar entry of the Diagram is locked with its reason", (await lockedEntry(tab, "Diagram")) === true, "Diagram"),
     check("the sidebar entry of the Query console is locked with its reason", (await lockedEntry(tab, "Query console")) === true, "Query console"),
   ]);
