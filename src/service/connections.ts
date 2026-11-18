@@ -13,6 +13,11 @@ import type {
 } from "@antelopejs/interface-database-catalog";
 import { getModuleConfig } from "../config";
 import { isFunction, isObject } from "../utils/guards";
+import {
+  defineCatalogSchemas,
+  ensureCatalogSchemas,
+  type SchemaRegistry,
+} from "./catalogSchemas";
 import { CONNECTION_REFUSALS } from "./connectionRefusals";
 import {
   type Database,
@@ -26,7 +31,7 @@ const CATALOG_INTERFACE = "@antelopejs/interface-database-catalog";
 
 /** The `interface-database` exports a named binding gives the console. */
 interface DatabaseBinding {
-  Schema: { list(): ReadonlyMap<string, Schema> };
+  Schema: SchemaRegistry<Schema>;
 }
 
 /** The `interface-database-catalog` exports a named binding gives the console. */
@@ -174,14 +179,25 @@ function assertExternal(connection: string): void {
   );
 }
 
-/** The database a connection id names: `own`, or an external connection. */
-export function resolveDatabase(connection: string): Database {
+/**
+ * The database a connection id names: `own`, or an external connection, its
+ * schemas no module defines yet defined from its catalog.
+ */
+export async function resolveDatabase(connection: string): Promise<Database> {
   if (connection === OWN_CONNECTION) return OWN_DATABASE;
   assertExternal(connection);
   const binding = loadBinding(
     DATABASE_INTERFACE,
     connection,
     isDatabaseBinding,
+  );
+  await ensureCatalogSchemas(connection, () =>
+    defineCatalogSchemas(
+      connection,
+      binding.Schema,
+      resolveCatalog(connection),
+      asOwnModule,
+    ),
   );
   return externalDatabase(connection, () => binding.Schema.list());
 }
