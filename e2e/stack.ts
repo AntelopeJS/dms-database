@@ -11,7 +11,7 @@ import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import { dirname, join, resolve } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
-import { MongoClient } from "mongodb";
+import { type Db, MongoClient } from "mongodb";
 import { MongoMemoryReplSet } from "mongodb-memory-server-core";
 
 /** The backend's environment overlay: the `VERIFY_DATABASE_*` options a journey restarts the backend with. */
@@ -58,6 +58,12 @@ export interface Stack {
   reset(precondition: Precondition): Promise<Session | undefined>;
   /** Stops and starts the backend on the same database; `env` replaces the overlay, which stays as it is without one. */
   restartBackend(env?: Env): Promise<void>;
+  /** Runs `use` on the database the backend reads, through a client of its own that closes after `use`. */
+  withDatabase<T>(use: (database: Db) => Promise<T>): Promise<T>;
+  /** Stops the MongoDB replica set and keeps its data; the backend keeps running and finds no database. */
+  stopDatabase(): Promise<void>;
+  /** Starts the replica set {@link Stack.stopDatabase} stopped, on the same port and data. */
+  startDatabase(): Promise<void>;
   /** The log of the backend's latest start. */
   backendLog(): string;
   /** How a process of the stack stopped without being asked to, or `null` while every one runs. */
@@ -374,6 +380,31 @@ class WorkerStack implements Stack {
     await this.#start();
   }
 
+  async withDatabase<T>(use: (database: Db) => Promise<T>): Promise<T> {
+    if (this.#mongo === undefined || this.#database === undefined)
+      throw new Error("no database yet: the journey has not started a backend");
+    const client = new MongoClient(this.#mongo.getUri());
+    try {
+      return await use(client.db(this.#database));
+    } finally {
+      await client.close();
+    }
+  }
+
+  async stopDatabase(): Promise<void> {
+    if (this.#mongo === undefined)
+      throw new Error("no database yet: the journey has not started a backend");
+    await this.#mongo.stop({ doCleanup: false, force: false });
+  }
+
+  async startDatabase(): Promise<void> {
+    this.#refuseAfterStop();
+    if (this.#mongo === undefined)
+      throw new Error("no database yet: the journey has not started a backend");
+    await this.#mongo.start();
+    await this.#mongo.waitUntilRunning();
+  }
+
   backendLog(): string {
     return this.#backend === undefined
       ? ""
@@ -412,6 +443,8 @@ class WorkerStack implements Stack {
       if (this.#stopped) await mongo.stop({ doCleanup: true, force: true });
       this.#refuseAfterStop();
       this.#mongo = mongo;
+    } else if (this.#mongo.state === "stopped") {
+      await this.startDatabase();
     }
     this.#starts += 1;
     const backend = new Child(

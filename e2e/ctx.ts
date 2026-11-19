@@ -12,6 +12,7 @@ import {
   type Stack,
   hasAccessToken,
 } from "./stack.ts";
+import type { Db } from "mongodb";
 import { CONTEXT_OPTIONS, Tab } from "./tab.ts";
 
 /** One observation of a step: what is checked, whether it holds and what was seen. */
@@ -72,6 +73,12 @@ export interface Ctx {
   api(label: string, request: ApiRequest): Promise<Answer>;
   /** Stops and starts the backend on the same database; `env` replaces the overlay, kept as it is without one. */
   restartBackend(env?: Env): Promise<void>;
+  /** A boxed step: `use` on the database the backend reads, for state no route writes (an aged or a legacy row). */
+  database<T>(label: string, use: (database: Db) => Promise<T>): Promise<T>;
+  /** Stops MongoDB under the running backend, keeping its data; a later reset or {@link Ctx.startDatabase} brings it back. */
+  stopDatabase(): Promise<void>;
+  /** Starts MongoDB again on the same port and data. */
+  startDatabase(): Promise<void>;
   /** The overlay the running backend started with. */
   readonly backendEnv: Env;
   /** The checkout, for the journeys that pack the module or read its files. */
@@ -226,6 +233,24 @@ class JourneyCtx implements Ctx {
       () => this.#stack.restartBackend(env),
       { box: true },
     );
+  }
+
+  database<T>(label: string, use: (database: Db) => Promise<T>): Promise<T> {
+    return test.step(`database ${label}`, () => this.#stack.withDatabase(use), {
+      box: true,
+    });
+  }
+
+  async stopDatabase(): Promise<void> {
+    await test.step("stop MongoDB", () => this.#stack.stopDatabase(), {
+      box: true,
+    });
+  }
+
+  async startDatabase(): Promise<void> {
+    await test.step("start MongoDB", () => this.#stack.startDatabase(), {
+      box: true,
+    });
   }
 
   backendLog(): string {
