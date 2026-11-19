@@ -43,13 +43,13 @@ The Data browser's read side: the schema and instance pickers with the row count
 
 ## Sub-features
 
-- `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`: `tables/instances` sorted, searched without case, cut to the limit with the total, and its 400 and 404.
-- `list-clamps-the-page-and-orders-the-rows`: `browse/list` answers 25 rows by default, clamps `limit` to 1..200 (199, 200, 201 driven) and `offset` to 0, sorts descending only for the word `desc`, and answers the exact total.
-- `list-filters-search-and-counts-follow-the-wire-tokens`: `filter_<column>` with `is:`, `contains:` (a substring on text, the whole value on a number), a bare value, an unknown mode and an empty value; search across the text and number cells; both combined; the totals.
-- `the-selection-decodes-schema-table-and-instance`: `filter_schema`, `filter_table` and `filter_instance` (default, empty, named, `__CROSS_INSTANCE__`, `contains:`), the 400 and 404 refusals, and the `_instance` tag.
-- `columns-get-and-tables-answer-what-the-grid-needs`: `browse/columns` (declared columns in declaration order, then sampled ones; runtime types; primary key), `browse/get` and `browse/tables` with the counts of the default instance, of eu, and across all instances.
-- `references-count-the-rows-pointing-at-a-row`: `browse/references` counts per relation column, in the same instance, for one and many relations, and refuses all instances, a missing id and a missing row.
-- `the-browse-api-answers-the-platform-owner-only`: anonymous 401, a member 403, on every browse route and on the edit route, nothing written.
+- `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`: `tables/instances` sorted, searched without case, cut to the limit with the total, and its 400 and 404. Integration test in `src/test/data.journeys.test.ts`.
+- `list-clamps-the-page-and-orders-the-rows`: `browse/list` answers 25 rows by default, clamps `limit` to 1..200 (199, 200, 201 driven) and `offset` to 0, sorts descending only for the word `desc`, and answers the exact total. Integration test in `src/test/data.journeys.test.ts`.
+- `list-filters-search-and-counts-follow-the-wire-tokens`: `filter_<column>` with `is:`, `contains:` (a substring on text, the whole value on a number), a bare value, an unknown mode and an empty value; search across the text and number cells; both combined; the totals. Integration test in `src/test/data.journeys.test.ts`.
+- `the-selection-decodes-schema-table-and-instance`: `filter_schema`, `filter_table` and `filter_instance` (default, empty, named, `__CROSS_INSTANCE__`, `contains:`), the 400 and 404 refusals, and the `_instance` tag. Integration test in `src/test/data-reads.journeys.test.ts`.
+- `columns-get-and-tables-answer-what-the-grid-needs`: `browse/columns` (declared columns in declaration order, then sampled ones; runtime types; primary key), `browse/get` and `browse/tables` with the counts of the default instance, of eu, and across all instances. Integration test in `src/test/data-reads.journeys.test.ts`.
+- `references-count-the-rows-pointing-at-a-row`: `browse/references` counts per relation column, in the same instance, for one and many relations, and refuses all instances, a missing id and a missing row. Integration test in `src/test/data-reads.journeys.test.ts`.
+- `the-browse-api-answers-the-platform-owner-only`: anonymous 401, a member 403, on every browse route and on the edit route, nothing written. Integration test in `src/test/data.journeys.test.ts`.
 - `the-sidebar-counts-each-table-in-the-picked-instance`: the pickers, the counts of default, eu, us and All instances, the footer naming the instance, `T` focusing the table search, `Esc`, the no-match text and the counts that cannot be read.
 - `tables-open-as-preview-tabs-and-are-kept-on-demand`: italic preview tab, replaced by the next table; kept by a double-click in the list, the pin button, a double-click on the tab or a Ctrl-click; the hint line; closing; reload; the URL.
 - `links-open-the-table-in-the-instance-they-name`: `?schema=&table=`, `instance=eu`, `instance=us`, `instance=all`, a schema alone, and Open in query console for each.
@@ -76,12 +76,20 @@ The Data browser's read side: the schema and instance pickers with the row count
 pnpm e2e:run specs/data.spec.ts
 ```
 
+The journeys marked integration test run in `pnpm test`; one file alone after `pnpm run build`:
+
+```bash
+pnpm exec ajs module test . -f dist/test/data-reads.journeys.test.js
+pnpm exec ajs module test . -f dist/test/data.journeys.test.js
+```
+
 ## Gotchas
 
 - The playground's `shop` schema has the products of the default instance and of eu and us, with the orders, customers and order items of eu and us only; `metrics.readings` has 1,250 rows; `vault.accounts` has two rows written by `e2e/playground/src/browse-fixtures.ts`.
 - Unsorted rows come in stored order, which is not the order of the ids: journeys sort by a column or take the order from the API.
 - Single-instance rows carry `_instance` on MongoDB; the grid hides the column outside All instances.
-- Known failure, open question: `columns-get-and-tables-answer-what-the-grid-needs` expects `browse/columns` to list the `_instance` tag last; on `@antelopejs/mongodb` 1.8.6 it comes after `created_at`, and no doc page fixes the order.
+- `columns-get-and-tables-answer-what-the-grid-needs` expects `browse/columns` to list the `_instance` tag last. The e2e run on `@antelopejs/mongodb` 1.8.6 put it after `created_at`; the integration test passes on 1.8.11, the version the harness loads.
+- The integration tests of the browse API seed their own copy of the playground's `shop`, `metrics` and `demo` data (`src/test/dataJourneys.ts`), under schema names of their own.
 - A journey that needs a failing server injects the failure with a page route (`page.route`) in the browser; the product code is untouched.
 - The drawer's J and K and the Previous and Next buttons are the DMS row header's, driven with the focus in the drawer.
 

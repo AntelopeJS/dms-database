@@ -13,9 +13,9 @@ The `schemaLabels` option and the built-in patterns that badge schemas.
 
 ## Sub-features
 
-- `built-in-patterns-label-schemas-by-the-start-of-their-id`: with no configuration, app, core, global, staging, reviews and production schemas get their label and tone; others get none.
-- `an-exact-key-beats-a-pattern-which-beats-a-built-in-label`: the resolution order, and that the first matching `*` key wins.
-- `a-glob-key-matches-the-whole-schema-id`: a `*` key labels a schema only when it covers the whole id, from its first to its last character.
+- `built-in-patterns-label-schemas-by-the-start-of-their-id`: with no configuration, app, core, global, staging, reviews and production schemas get their label and tone; others get none. Integration test in `src/test/config.journeys.test.ts`.
+- `an-exact-key-beats-a-pattern-which-beats-a-built-in-label`: the resolution order, and that the first matching `*` key wins. Integration test in `src/test/config.journeys.test.ts`.
+- `a-glob-key-matches-the-whole-schema-id`: a `*` key labels a schema only when it covers the whole id, from its first to its last character. Integration test in `src/test/config.journeys.test.ts`.
 - `a-label-takes-each-of-the-seven-tones`: each tone, the primary default, and that options are read at start.
 
 ## How to get to it (user POV)
@@ -28,8 +28,15 @@ The `schemaLabels` option and the built-in patterns that badge schemas.
 pnpm e2e:run specs/config.spec.ts
 ```
 
+The journeys marked integration test run in `pnpm test`; one file alone after `pnpm run build`:
+
+```bash
+pnpm exec ajs module test . -f dist/test/config.journeys.test.js
+```
+
 ## Gotchas
 
+- The integration tests read the `schemaLabels` the test harness sets (`src/test/schemaLabelConfig.ts`), whose keys match only their own schemas; the built-in journey removes the option with `setModuleConfig` for its run.
 - `withConfig` restarts the backend with `VERIFY_DATABASE_SCHEMA_LABELS` (`key:Label:tone;...`) and again without it.
 
 ## Coverage
