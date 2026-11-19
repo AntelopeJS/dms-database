@@ -5,15 +5,25 @@ covers:
   - src/pages/externalLock.ts
   - src/service/builderRefusal.ts
   - src/service/catalog.ts
+  - src/service/catalogReferences.ts
+  - src/service/catalogSchemas.ts
   - src/service/connectionRefusals.ts
   - src/service/connectionState.ts
   - src/service/connections.ts
+  - src/service/database.ts
   - src/utils/deadline.ts
   - frontend-vue/app/components/DatabaseSwitcher.vue
+  - frontend-vue/app/build/components/DatabaseSubtitle.vue
+  - frontend-vue/app/build/components/DatabaseSwitcherRow.vue
   - frontend-vue/app/build/components/DataBrowserAccessBar.vue
   - frontend-vue/app/build/components/FeatureLocked.vue
+  - frontend-vue/app/build/composables/registerDatabaseSwitcher.ts
   - frontend-vue/app/build/composables/reloadForSelection.ts
   - frontend-vue/app/build/composables/useDatabaseConnections.ts
+  - frontend-vue/app/build/composables/useGridAccess.ts
+  - frontend-vue/app/build/data/assistantOnboarding.ts
+  - frontend-vue/app/build/data/databaseOptions.ts
+  - frontend-vue/app/build/data/readOnlyReason.ts
   - frontend-vue/app/build/composables/useLockedPages.ts
   - frontend-vue/app/build/composables/useSelectionRecheck.ts
 docs:
