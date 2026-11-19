@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { SessionModel, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { DEFAULT_TENANT_ID } from "@antelopejs/interface-dms/constants";
+import { RoleModel, TenantMemberModel } from "@antelopejs/interface-dms/db";
 import type { JsonValue } from "../types/json";
 
 /** An owner signed in to the test DMS: the bearer token its requests send, and how to sign out. */
@@ -20,10 +21,46 @@ export function createMemberSession(email: string): Promise<OwnerSession> {
   return createSession(email, false);
 }
 
+/**
+ * Creates a member of the default tenant whose role grants `permissions`, each stored with the ids it sits under
+ * (`modules.database.work` also grants `modules` and `modules.database`), as the DMS roles editor stores them.
+ */
+export async function createMemberWithRole(
+  email: string,
+  permissions: readonly string[],
+): Promise<OwnerSession> {
+  const { userId, ...session } = await createSession(email, false);
+  const roles = GetModel(RoleModel, DEFAULT_TENANT_ID);
+  const members = GetModel(TenantMemberModel, DEFAULT_TENANT_ID);
+  const granted = permissions.flatMap((id) =>
+    id
+      .split(".")
+      .map((_, index, segments) => segments.slice(0, index + 1).join(".")),
+  );
+  const [roleId] = await roles.insert({
+    name: `${email} role`,
+    permissions: [...new Set(granted)],
+  });
+  const [memberId] = await members.insert({
+    userId,
+    roleIds: roleId === undefined ? [] : [roleId],
+    isTenantOwner: false,
+    invitedBy: null,
+  });
+  return {
+    token: session.token,
+    async remove() {
+      if (memberId !== undefined) await members.delete(memberId);
+      if (roleId !== undefined) await roles.delete(roleId);
+      await session.remove();
+    },
+  };
+}
+
 async function createSession(
   email: string,
   owner: boolean,
-): Promise<OwnerSession> {
+): Promise<OwnerSession & { userId: string }> {
   const users = GetModel(UserModel);
   const sessions = GetModel(SessionModel);
   const now = new Date();
@@ -79,6 +116,7 @@ async function createSession(
     .update(unsigned)
     .digest("base64url");
   return {
+    userId,
     token: `${unsigned}.${signature}`,
     async remove() {
       await sessions.delete(sessionId);
