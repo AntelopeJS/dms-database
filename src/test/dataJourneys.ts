@@ -260,6 +260,8 @@ async function unseed(): Promise<void> {
   }
 }
 
+const SEED_TIMEOUT_MS = 60_000;
+
 /** The browse API as the owner of a seeded data fixture calls it. */
 export interface DataApi {
   /** Calls a browse route on `schema.table` (or `schema`), with `params` after the selection. */
@@ -280,7 +282,8 @@ export interface DataApi {
  */
 export function withDataFixture(email: string): () => DataApi {
   let owner: OwnerSession | undefined;
-  before(async () => {
+  before(async function () {
+    this.timeout(SEED_TIMEOUT_MS);
     await seed();
     owner = await createOwnerSession(email);
   });
