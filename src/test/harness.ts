@@ -15,6 +15,7 @@ import {
   seedExternalDatabases,
 } from "./externalDatabases";
 import { OWN_DATABASE_NAME, OWN_DATABASE_URL_VARIABLE } from "./ownDatabase";
+import { SCHEMA_LABELS } from "./schemaLabelConfig";
 
 const API_PORT = 5023;
 const JWT_SECRET = "test-jwt-secret";
@@ -41,6 +42,7 @@ export default defineConfig({
         installCommand: process.env.DMS_PREBUILT ? [] : ["pnpm build"],
       },
       config: {
+        schemaLabels: SCHEMA_LABELS,
         externalConnections: {
           ledger: { access: "read-write" },
           legacy: { access: "read" },
