@@ -62,7 +62,10 @@ export interface Stack {
   withDatabase<T>(use: (database: Db) => Promise<T>): Promise<T>;
   /** Stops the MongoDB replica set and keeps its data; the backend keeps running and finds no database. */
   stopDatabase(): Promise<void>;
-  /** Starts the replica set {@link Stack.stopDatabase} stopped, on the same port and data. */
+  /**
+   * Starts the replica set {@link Stack.stopDatabase} stopped, on the same port and data; a start the node refuses
+   * while it is still applying its configuration runs again, up to five times.
+   */
   startDatabase(): Promise<void>;
   /** The log of the backend's latest start. */
   backendLog(): string;
@@ -80,6 +83,8 @@ const MONGO_VERSION = "8.0.8";
 const READY_TIMEOUT_MS = 180_000;
 const STOP_GRACE_MS = 10_000;
 const POLL_MS = 250;
+const RESTART_ATTEMPTS = 5;
+const RESTART_RETRY_MS = 1_000;
 const LOG_TAIL = 2_000;
 const SECRET_BYTES = 32;
 const PASSWORD_BYTES = 9;
@@ -401,7 +406,15 @@ class WorkerStack implements Stack {
     this.#refuseAfterStop();
     if (this.#mongo === undefined)
       throw new Error("no database yet: the journey has not started a backend");
-    await this.#mongo.start();
+    for (let attempt = 1; ; attempt += 1) {
+      try {
+        await this.#mongo.start();
+        break;
+      } catch (error) {
+        if (attempt === RESTART_ATTEMPTS) throw error;
+        await delay(RESTART_RETRY_MS);
+      }
+    }
     await this.#mongo.waitUntilRunning();
   }
 

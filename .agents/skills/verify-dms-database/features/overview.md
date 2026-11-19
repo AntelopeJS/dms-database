@@ -28,6 +28,7 @@ The landing page of the module: whether the database answers, what it holds and 
 - `schema-cards-list-every-schema-largest-first`: one card per schema, largest first, with instances, tables, rows and relations; a card opens Schemas filtered.
 - `largest-tables-rank-the-default-instances-by-rows`: five tables, biggest first, default instances only, each linking to the Data browser.
 - `recent-queries-list-your-last-five-runs`: empty state, then the last five runs, newest first, failed flagged, each linking to its run.
+- `an-unreachable-database-shows-unavailable-and-check-again-recovers`: the journey stops MongoDB under the running backend; the card turns to Unavailable with Last error and Check again, then Check again shows Healthy once MongoDB is back. Known failure: the health route answers 500 after about 30 s, not `down` within the 3 s probe deadline.
 - `the-header-buttons-lead-to-the-working-pages`: Open query console and Browse data.
 
 ## How to get to it (user POV)
@@ -42,6 +43,7 @@ pnpm e2e:run specs/overview.spec.ts
 
 ## Gotchas
 
+- With MongoDB stopped, the page learns of it at its next 30 s probe, and the health route takes about 30 s (the driver's server selection timeout) to answer 500: expect Unavailable 60 to 120 s after `ctx.stopDatabase()`. Check again is disabled while a request runs.
 - Queries for the feed are run through the console's execute route with the staged wire format (`tableQuery` in `e2e/database.mjs`).
 
 ## Coverage
@@ -56,5 +58,5 @@ pnpm e2e:run specs/overview.spec.ts
 | Overview: Largest tables, default instances | `largest-tables-rank-the-default-instances-by-rows` |
 | Overview: Recent queries, Query console link | `recent-queries-list-your-last-five-runs` |
 | Overview: header buttons | `the-header-buttons-lead-to-the-working-pages` |
-| Overview: unreachable database ("Unavailable", Check again) | Not driven: a journey cannot stop and restart the run's mongod (draft `dms-control-stop-database`) |
+| Overview: unreachable database ("Unavailable", Check again) | `an-unreachable-database-shows-unavailable-and-check-again-recovers` |
 | Overview: empty schema cards state | Not driven: the DMS registers its own schemas, so the list is never empty |
