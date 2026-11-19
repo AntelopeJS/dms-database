@@ -4,7 +4,7 @@
   "private": true,
   "main": "dist/index.js",
   "dependencies": {
-    "@antelopejs/interface-database": ">=0.4.3 <0.5.0"
+    "@antelopejs/interface-database": ">=0.4.0 <0.5.0"
   },
   "antelopeJs": {
     "baseUrl": "dist"

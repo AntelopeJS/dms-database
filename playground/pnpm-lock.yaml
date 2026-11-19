@@ -12,22 +12,22 @@ importers:
         specifier: '>=0.21.2 <0.22.0'
         version: 0.21.2(@antelopejs/core@1.24.5)(bare-buffer@3.7.1)(typescript@6.0.3)
       '@antelopejs/interface-api':
-        specifier: '>=0.3.4 <0.4.0'
+        specifier: '>=0.3.3 <0.4.0'
         version: 0.3.4(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-api-util':
-        specifier: '>=0.3.3 <0.4.0'
+        specifier: '>=0.3.2 <0.4.0'
         version: 0.3.3(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-core':
         specifier: '>=0.5.1 <0.6.0'
         version: 0.5.1
       '@antelopejs/interface-data-api':
-        specifier: '>=0.8.2 <0.9.0'
+        specifier: '>=0.8.0 <0.9.0'
         version: 0.8.2(@antelopejs/interface-api-util@0.3.3(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database-decorators@0.5.4(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1)))(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1))
       '@antelopejs/interface-database':
-        specifier: '>=0.4.3 <0.5.0'
+        specifier: '>=0.4.0 <0.5.0'
         version: 0.4.3(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-database-decorators':
-        specifier: '>=0.5.4 <0.6.0'
+        specifier: '>=0.5.2 <0.6.0'
         version: 0.5.4(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1))
     devDependencies:
       '@antelopejs/core':

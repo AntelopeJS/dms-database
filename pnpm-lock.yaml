@@ -9,25 +9,25 @@ importers:
   .:
     dependencies:
       '@antelopejs/interface-api':
-        specifier: '>=0.3.4 <0.4.0'
+        specifier: '>=0.3.3 <0.4.0'
         version: 0.3.4(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-api-util':
-        specifier: '>=0.3.3 <0.4.0'
+        specifier: '>=0.3.2 <0.4.0'
         version: 0.3.3(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-core':
         specifier: '>=0.5.1 <0.6.0'
         version: 0.5.1
       '@antelopejs/interface-database':
-        specifier: '>=0.4.3 <0.5.0'
+        specifier: '>=0.4.0 <0.5.0'
         version: 0.4.3(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-database-catalog':
         specifier: '>=0.1.0 <0.2.0'
         version: 0.1.0(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-database-decorators':
-        specifier: '>=0.5.4 <0.6.0'
+        specifier: '>=0.5.2 <0.6.0'
         version: 0.5.4(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1))
       '@antelopejs/interface-dms':
-        specifier: '>=0.14.5 <0.15.0'
+        specifier: '>=0.14.4 <0.15.0'
         version: 0.14.5(ce8e1d8666f7dcd9fc81ddb7783b2ef4)
     devDependencies:
       '@antelopejs/core':
@@ -43,7 +43,7 @@ importers:
         specifier: '>=0.11.8 <0.12.0'
         version: 0.11.8(@antelopejs/core@1.24.5)
       '@antelopejs/interface-data-api':
-        specifier: '>=0.8.2 <0.9.0'
+        specifier: '>=0.8.0 <0.9.0'
         version: 0.8.2(@antelopejs/interface-api-util@0.3.3(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database-decorators@0.5.4(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.1))(@antelopejs/interface-core@0.5.1)(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1)))(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.1))
       '@antelopejs/mongodb':
         specifier: ~1.8.11
@@ -110,7 +110,7 @@ importers:
         version: 6.0.3
     optionalDependencies:
       '@antelopejs/interface-dms-automation':
-        specifier: '>=0.7.2 <0.8.0'
+        specifier: '>=0.7.1 <0.8.0'
         version: 0.7.2(@antelopejs/interface-core@0.5.1)
       '@antelopejs/interface-dms-builder':
         specifier: '>=0.6.0 <0.7.0'

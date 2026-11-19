@@ -5,7 +5,7 @@
   "description": "The tables module the connect flow writes for the external erp database of the verification playground.",
   "main": "index.js",
   "dependencies": {
-    "@antelopejs/interface-database": ">=0.4.3 <0.5.0"
+    "@antelopejs/interface-database": ">=0.4.0 <0.5.0"
   },
   "antelopeJs": {}
 }
