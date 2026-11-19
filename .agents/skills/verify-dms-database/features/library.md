@@ -23,6 +23,8 @@ The history, saved and team queries beside the console.
 - `a-saved-query-needs-a-name-and-can-be-edited-and-deleted`: Ctrl+S, the name rule, description, restore, edit, delete.
 - `a-shared-query-reaches-the-team-and-only-its-author-changes-it`: Team tab, 404 for a teammate's edit or delete.
 - `history-belongs-to-its-user-and-a-link-restores-a-run`: per-user history and the `?history=` link.
+- `history-groups-runs-by-day-with-yesterday-and-older-dates`: runs aged through `ctx.database` list under Today, Yesterday and an older day's date, in that order.
+- `a-history-row-without-a-status-reads-as-ok`: a row written without status, mutation or error reads as a successful run (design Q26), in the API and in the library.
 - `the-library-survives-a-backend-restart`: persistence.
 - `clear-history-empties-only-your-own-runs`: two owners, each clearing leaves the other's runs.
 
@@ -38,6 +40,7 @@ pnpm e2e:run specs/library.spec.ts
 
 ## Gotchas
 
+- The history collection is the one named like `query_history` in the backend's database; `parts/library-legacy.mjs` finds it, then ages rows with `updateMany` on `executedAt` and writes a legacy row with `insertOne`.
 - The 500-run journey makes 503 requests, so it takes about a minute.
 - A teammate is a second owner (`member(ctx, name, [], true)`): the routes are owner-only, so a plain member sees nothing.
 
@@ -46,12 +49,12 @@ pnpm e2e:run specs/library.spec.ts
 | Documented behaviour | Journey and check |
 |---|---|
 | History: your last 500 runs | `history-keeps-your-last-500-runs-newest-first` |
-| History: grouped by day, searchable | `history-records-failures-and-writes-with-their-status` (Today), `history-is-searchable-and-clearing-it-keeps-the-saved-queries` (search). Yesterday group: Not driven, a run cannot be aged |
+| History: grouped by day, searchable | `history-records-failures-and-writes-with-their-status` (Today), `history-is-searchable-and-clearing-it-keeps-the-saved-queries` (search). Yesterday and older-day groups: `history-groups-runs-by-day-with-yesterday-and-older-dates` |
 | Clear history empties it | `history-is-searchable-and-clearing-it-keeps-the-saved-queries` |
 | Saved: the queries you saved (Ctrl S), with a name and a description | `a-saved-query-needs-a-name-and-can-be-edited-and-deleted` |
 | Team: shared queries; teammates run them; only the author edits or deletes (README, FAQ) | `a-shared-query-reaches-the-team-and-only-its-author-changes-it` |
 | FAQ: only you see your saved queries unless you tick Share with team | same journey (the private query is not in Team) |
-| History records failures; old rows without status read as ok (design Q26) | failures: `history-records-failures-and-writes-with-their-status`; old rows: Not driven, the journeys cannot write a legacy row into the module's table |
+| History records failures; old rows without status read as ok (design Q26) | failures: `history-records-failures-and-writes-with-their-status`; old rows: `a-history-row-without-a-status-reads-as-ok` |
 | Persistence in the module's own schema | `the-library-survives-a-backend-restart` |
 | Clear history empties it (yours only; per-user, two users) | 5.query-console.md:60 | `clear-history-empties-only-your-own-runs` |
 | The 500 runs are kept per user | 5.query-console.md:60 | `history-keeps-your-last-500-runs-newest-first` (a teammate's runs survive the owner's 503) |

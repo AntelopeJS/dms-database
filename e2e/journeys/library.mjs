@@ -1,6 +1,7 @@
 import { check, db, list, member, pick, runQuery, tableQuery, text } from "../database.mjs";
 import { flat, openConsole } from "./parts/console.mjs";
 import { HISTORY_LIMIT, SLICE, TAGS_QUERY, TAGS_SOURCE, history, save } from "./parts/library-kit.mjs";
+import { legacyJourneys } from "./parts/library-legacy.mjs";
 import { savedJourneys } from "./parts/library-saved.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
@@ -127,4 +128,4 @@ const historyJourneys = [
 ];
 
 /** History, saved queries and team queries. */
-export const journeys = [...historyJourneys, ...savedJourneys];
+export const journeys = [...historyJourneys, ...legacyJourneys, ...savedJourneys];
