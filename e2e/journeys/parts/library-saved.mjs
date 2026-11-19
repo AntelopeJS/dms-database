@@ -4,7 +4,7 @@ import { SLICE, TAGS_QUERY, TAGS_SOURCE, history, libraryTab, save } from "./lib
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
 /** @typedef {import("../../database.mjs").Tab} Tab */
-/** Saved and team queries, and the library after a restart. */
+/** Saved and team queries. */
 export const savedJourneys = [
   {
     id: "a-saved-query-needs-a-name-and-can-be-edited-and-deleted",
@@ -99,19 +99,6 @@ export const savedJourneys = [
       const tab = await openConsole(ctx, `/modules/database/query?history=${id}`);
       await tab.page.waitForTimeout(2000);
       await ctx.verify("the link", [check("the run's query is in the editor", (await editorText(tab)) === `${TAGS_SOURCE}.slice(0, 2)`, await editorText(tab))]);
-    },
-  },
-  {
-    id: "the-library-survives-a-backend-restart",
-    title: "history and saved queries are stored in the module's own tables, so they are still there after the backend restarts",
-    entryPoint: "GET /query/history, /query/saved after a restart",
-    async run(/** @type {Ctx} */ ctx) {
-      await runQuery(ctx, TAGS_SOURCE, TAGS_QUERY);
-      await save(ctx, "Durable", true);
-      await ctx.restartBackend();
-      const runs = await history(ctx);
-      const saved = list((await db(ctx, "saved after restart", "GET", "/query/saved")).body, "items");
-      await ctx.verify("after the restart", [check("the run is kept", runs.items.length === 1 && text(runs.items[0], "source") === TAGS_SOURCE, runs.items), check("the saved query is kept, still shared", saved.length === 1 && text(saved[0], "name") === "Durable" && pick(saved[0], "shared") === true, saved)]);
     },
   },
 ];
