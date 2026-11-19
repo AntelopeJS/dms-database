@@ -38,6 +38,7 @@ The Query console, run and read side: write AQL, run it, read the result.
 - `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes`: the Chart view, its default axes and the X picker.
 - `open-in-data-browser-opens-the-target-table-or-the-row`: the result's header link and each row's link.
 - `format-strips-trailing-spaces-and-blank-lines`: Format removes trailing spaces and surrounding blank lines.
+- `a-link-opens-the-console-on-the-table-in-the-instance-it-names`: `/query?schema=&table=` with no instance, `instance=eu` and `instance=all`: the prefilled query, the link leaving the URL, and Run.
 - `copy-as-json-puts-the-returned-rows-on-the-clipboard`: Copy as JSON and its notice.
 - `an-export-of-uneven-rows-keeps-every-key-in-csv-and-json`: first row lacking keys later rows have.
 - `csv-quotes-a-comma-a-quote-and-a-line-break-so-the-cell-reads-back`: CSV quoting round trip.
@@ -73,6 +74,7 @@ pnpm e2e:run specs/query.spec.ts
 | Chart: the first numeric column | `the-chart-plots-the-first-numeric-column-with-pickers-for-both-axes` |
 | Server returns at most 1,000 rows; truncated results say so | `results-over-1000-rows-are-cut-at-1000` |
 | Open in data browser opens the target table | `open-in-data-browser-opens-the-target-table-or-the-row` |
+| `/modules/database/query?schema=&table=` opens the console on that table (docs/5.extending.md:78) | `a-link-opens-the-console-on-the-table-in-the-instance-it-names` ; the link's landing is also checked by `deep-links-open-the-documented-pages-on-the-table` |
 | Copy as JSON | `copy-as-json-puts-the-returned-rows-on-the-clipboard` |
 | Failures name the problem (Q29b) | `a-failed-query-says-what-failed-and-offers-the-nearest-name` |
 | Export CSV holds the same returned rows, whatever keys they have | 5.query-console.md:34 | `an-export-of-uneven-rows-keeps-every-key-in-csv-and-json` |

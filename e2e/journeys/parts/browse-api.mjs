@@ -66,27 +66,25 @@ const listFiltersAndSearch = {
     const search = await browse(ctx, "search BAND-3", "list", "metrics.readings", { search: "BAND-3", limit: 1 });
     const searchId = await browse(ctx, "search an id", "list", "metrics.readings", { search: "R_0042" });
     const searchNumber = await browse(ctx, "search a number", "list", "metrics.readings", { search: "1250", limit: 5 });
-    const both = await browse(ctx, "search and filter", "list", "metrics.readings", { search: "band-1", filter_seq: "contains:5", limit: 1 });
+    const both = await browse(ctx, "search and filter", "list", "metrics.readings", { search: "band-1", filter_seq: "contains:6", limit: 5 });
+    const bothApart = await browse(ctx, "a search and a filter no row satisfies together", "list", "metrics.readings", { search: "band-2", filter_seq: "contains:6", limit: 5 });
     const twoFilters = await browse(ctx, "two filters", "list", "metrics.readings", { filter_band: "is:band-1", filter_seq: "is:1", limit: 5 });
     const sortedFiltered = await browse(ctx, "a filter sorted descending", "list", "metrics.readings", { filter_band: "is:band-2", sortKey: "seq", sortDirection: "desc", limit: 2 });
     const none = await browse(ctx, "no match", "list", "metrics.readings", { search: "zzz-no-such-text" });
-    const seqsContaining12 = Array.from({ length: 1250 }, (_, index) => String(index + 1)).filter((seq) => seq.includes("12")).length;
-    const bandOne = Array.from({ length: 1250 }, (_, index) => index).filter((index) => index % 5 === 0).length;
-    const bandOneWith5 = Array.from({ length: 1250 }, (_, index) => index).filter((index) => index % 5 === 0 && String(index + 1).includes("5")).length;
     await ctx.verify("the filter grammar", [
       check("is:band-1 matches 250 rows, all of band-1", pick(is.body, "total") === 250 && rowsOf(is).length === 200 && rowsOf(is).every((row) => row.band === "band-1"), [pick(is.body, "total"), rowsOf(is).length]),
       check("a bare value is an exact match", pick(bare.body, "total") === 250, pick(bare.body, "total")),
       check("is: is case-sensitive: BAND-1 matches nothing", pick(upperIs.body, "total") === 0, pick(upperIs.body, "total")),
       check("contains: ignores case: AND-2 matches the 250 rows of band-2", pick(contains.body, "total") === 250, pick(contains.body, "total")),
-      check("a number cell is compared as its text: is:100 finds one row", pick(seqIs.body, "total") === 1 && rowsOf(seqIs)[0]?.seq === 100, [pick(seqIs.body, "total"), rowsOf(seqIs)[0]?.seq]),
-      check(`contains:12 finds the ${seqsContaining12} seq values holding 12`, pick(seqContains.body, "total") === seqsContaining12, [pick(seqContains.body, "total"), seqsContaining12]),
+      check("a number cell is compared as a whole value: is:100 finds one row", pick(seqIs.body, "total") === 1 && rowsOf(seqIs)[0]?.seq === 100, [pick(seqIs.body, "total"), rowsOf(seqIs)[0]?.seq]),
+      check("contains: on a number column compares the whole value: contains:12 finds seq 12, not 120 or 1200", pick(seqContains.body, "total") === 1 && rowsOf(seqContains)[0]?.seq === 12, [pick(seqContains.body, "total"), rowsOf(seqContains).map((row) => row.seq)]),
       check("an unknown mode filters nothing", pick(unknownMode.body, "total") === 1250, pick(unknownMode.body, "total")),
       check("an empty value filters nothing", pick(empty.body, "total") === 1250, pick(empty.body, "total")),
       check("only the first colon splits the mode: contains:band-1:x matches nothing", pick(colon.body, "total") === 0, pick(colon.body, "total")),
       check("search ignores case and counts 250 rows", pick(search.body, "total") === 250, pick(search.body, "total")),
       check("search reads the id cell too: R_0042 finds r_0042", pick(searchId.body, "total") === 1 && rowsOf(searchId)[0]?._id === "r_0042", [pick(searchId.body, "total"), rowsOf(searchId)[0]?._id]),
-      check("search reads number cells as text: 1250 finds the seq 1250 row", rowsOf(searchNumber).some((row) => row.seq === 1250), ids(rowsOf(searchNumber))),
-      check(`search and a filter combine: ${bandOneWith5} rows`, pick(both.body, "total") === bandOneWith5 && bandOneWith5 < bandOne, [pick(both.body, "total"), bandOneWith5]),
+      check("search compares a number cell as a whole value: 1250 finds the seq 1250 row", rowsOf(searchNumber).some((row) => row.seq === 1250), ids(rowsOf(searchNumber))),
+      check("search and a filter combine: band-1 and contains:6 find seq 6, band-2 and contains:6 find nothing", pick(both.body, "total") === 1 && rowsOf(both)[0]?.seq === 6 && pick(bothApart.body, "total") === 0, [pick(both.body, "total"), rowsOf(both).map((row) => row.seq), pick(bothApart.body, "total")]),
       check("two filters both apply", pick(twoFilters.body, "total") === 1 && rowsOf(twoFilters)[0]?.seq === 1, [pick(twoFilters.body, "total"), rowsOf(twoFilters).map((row) => row.seq)]),
       check("a filtered page sorts descending by seq", show(rowsOf(sortedFiltered).map((row) => row.seq)) === "[1247,1242]", rowsOf(sortedFiltered).map((row) => row.seq)),
       check("no match answers no row and a total of 0", rowsOf(none).length === 0 && pick(none.body, "total") === 0, [rowsOf(none).length, pick(none.body, "total")]),

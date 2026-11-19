@@ -1,5 +1,6 @@
 import { check, db, list, text } from "../database.mjs";
 import { extraJourneys } from "./parts/query-extra.mjs";
+import { linkJourneys } from "./parts/query-link.mjs";
 import { chooseView, editorText, exportCsv, flat, openConsole, resultText, runSource } from "./parts/console.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
@@ -193,4 +194,5 @@ export const journeys = [
     },
   },
   ...extraJourneys,
+  ...linkJourneys,
 ];

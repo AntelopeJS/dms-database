@@ -5,7 +5,7 @@ description: "Drive the AntelopeJS dms-database module (the Database console: Ov
 
 # Verify dms-database
 
-The scripted journeys are a Playwright suite in the repository's `e2e/` folder: `e2e/journeys/<feature>.mjs` holds a feature's journeys, `e2e/specs/<feature>.spec.ts` registers them, and CI runs the ones tagged `@smoke` on the full tier and every journey on the nightly tier. You choose which features to run, judge what they show, and look at the product yourself with `dms-control`; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `e2e/journeys/<feature>.mjs`, describe it in its feature file, and run its spec.
+The scripted journeys are a Playwright suite in the repository's `e2e/` folder: `e2e/journeys/<feature>.mjs` holds a feature's journeys, `e2e/specs/<feature>.spec.ts` registers them, and CI runs the ones tagged `@smoke` on a pull request and every journey in the merge queue and the nightly. You choose which features to run, judge what they show, and look at the product yourself with `dms-control`; you never write a multi-step shell recipe. When a journey you need does not exist, add it to `e2e/journeys/<feature>.mjs`, describe it in its feature file, and run its spec.
 
 `dms-control` is the bin of `@antelopejs/dms`, a devDependency of this repository. Run it with Node 24 after `pnpm install`:
 
@@ -55,7 +55,7 @@ pnpm exec playwright show-trace e2e/test-results/<test>/trace.zip
 - A journey starts on an empty database with the administrator onboarded and the backend restarted on it, so configuration switches are gone and the playground has seeded its schemas again. It reads every mutation back through a second view: the API, a reload, another tab, another account, or a backend restart.
 - `withConfig(ctx, { VERIFY_DATABASE_*: … }, body)` restarts the backend with module options set (`DRIVER_LABEL`, `SCHEMA_LABELS`; see `e2e/playground/antelope.config.ts`) and restarts it again without them.
 - To look at the product yourself, drive the run `up` started: `$C onboard "$RUN"`, `$C browser "$RUN" login`, `goto --path`, `snapshot`, `click --role --name`, `fill`, `press`, `screenshot`, `$C api "$RUN" <method> <path> [--as anon] [--body <json>]`, `$C reset "$RUN"`. Each writes its evidence under `$RUN/evidence/`.
-- `dms-control map`, `journey` and `verdict` read the journeys from this folder, which no longer holds them, so they do not work for this skill; `plan` and `doors` do.
+- `dms-control map`, `journey` and `verdict` read the journeys from this folder, which no longer holds them, so they do not work for this skill; `plan` and `doors` do. `src/test/feature-map.test.ts` in `pnpm test` does what `map` checked.
 
 ## Evidence
 
@@ -90,12 +90,9 @@ Report the verdict in your own reply: the result line, the one-way doors, the sp
 
 List these as not verified in every verdict:
 
-- the Overview's unreachable-database state (Unavailable, Last error, Check again): a journey cannot stop and restart the suite's MongoDB (draft `dms-control-stop-database`);
 - the Table watch trigger's failure on a standalone MongoDB and its one reconnect: the suite's MongoDB is a replica set, and a journey cannot break its change stream;
 - the Overview's empty schema-cards state: the DMS registers its own schemas, so the list is never empty;
-- history rows written before runs recorded a status, and the Yesterday group of the history: a journey cannot write a legacy row or age a run;
 - the Diagram's name order of the tables without relations: `frontend-vue/tests/diagramLayout.test.ts` checks it, no journey does (see the diagram feature);
-- the column completion of the console, Format, the Chart view and "Open in data browser" of a result row, until a journey drives them (listed in the query feature's coverage table);
 - the supported extension boundary (root barrel exports, no subclassing contract): a statement of non-support has no observable effect;
 - the role editor hiding one block per role: pages stay owner-only, so a hidden block has no effect an owner can see.
 

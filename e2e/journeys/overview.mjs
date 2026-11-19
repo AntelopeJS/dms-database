@@ -176,6 +176,64 @@ export const journeys = [
     },
   },
   {
+    id: "an-unreachable-database-shows-unavailable-and-check-again-recovers",
+    title: "when the database stops answering, the Connection card turns to Unavailable with the last error and a Check again button, the backend keeps running, and Check again shows Healthy once the database is back",
+    entryPoint: "/modules/database/overview, GET /api/database/health",
+    knownFailures: {
+      "the health route answers status down within 10 s of the request": "with MongoDB stopped, GET /api/database/health answers 500 after the driver's 30 s server selection timeout, not status down with the probe's error within the 3 s probe deadline: the totals read after the probe throw, so the card's Last error reads No answer",
+    },
+    async run(/** @type {Ctx} */ ctx) {
+      const tab = await overviewTab(ctx);
+      const checkAgain = { role: "button", name: "Check again" };
+      await ctx.verify("the card starts healthy", [tab.shows(/Healthy/), tab.visible(checkAgain, { hidden: true }), tab.shows(/Unavailable/, { not: true })]);
+      /** @type {{ status: number, body: unknown, ms: number }[]} */
+      const probes = [];
+      /** @type {Map<unknown, number>} */
+      const started = new Map();
+      tab.page.on("request", (request) => {
+        if (request.url().endsWith("/api/database/health")) started.set(request, Date.now());
+      });
+      tab.page.on("response", (response) => {
+        const begun = started.get(response.request());
+        if (begun === undefined) return;
+        const answered = (/** @type {unknown} */ body) => probes.push({ status: response.status(), body, ms: Date.now() - begun });
+        void response.json().then(answered, () => answered(null));
+      });
+      await ctx.stopDatabase();
+      await ctx.verify("the page's own probe finds the database gone", [tab.shows(/Unavailable/, { timeoutMs: 150_000 })], { critical: true });
+      await ctx.verify("the card reads Unavailable", [
+        tab.shows(/Last error\s+\S/i),
+        tab.shows(/Next probe\s+30\s*s/i),
+        tab.visible(checkAgain),
+        tab.shows(/Probe latency/i, { not: true }),
+        tab.shows(/Healthy/, { not: true }),
+      ]);
+      const first = probes[0];
+      await ctx.verify("the probe's answer", [check("the health route answers status down within 10 s of the request", first !== undefined && first.status === 200 && pick(first.body, "status") === "down" && first.ms < 10_000, first)]);
+      await ctx.startDatabase();
+      const button = tab.page.getByRole("button", { name: "Check again" });
+      const deadline = Date.now() + 240_000;
+      let healthy = false;
+      while (!healthy && Date.now() < deadline) {
+        if (await button.isEnabled().catch(() => false)) {
+          await tab.click(checkAgain);
+          healthy = (await tab.shows(/Healthy/, { timeoutMs: 45_000 })).pass;
+        } else {
+          await tab.page.waitForTimeout(500);
+          healthy = (await tab.shows(/Healthy/, { timeoutMs: 1 })).pass;
+        }
+      }
+      const health = await db(ctx, "health after the database came back", "GET", "/health");
+      await ctx.verify("Check again recovers", [
+        check("the card shows Healthy after Check again", healthy, healthy),
+        tab.shows(/Probe latency\s+\d+\s*ms/i),
+        tab.visible(checkAgain, { hidden: true }),
+        tab.shows(/Unavailable/, { not: true }),
+        check("the backend answers the health route and reports ok", health.status === 200 && pick(health.body, "status") === "ok", [health.status, pick(health.body, "status")]),
+      ]);
+    },
+  },
+  {
     id: "the-header-buttons-lead-to-the-working-pages",
     title: "Open query console and Browse data lead to the Query console and the Data browser",
     entryPoint: "/modules/database/overview header actions",

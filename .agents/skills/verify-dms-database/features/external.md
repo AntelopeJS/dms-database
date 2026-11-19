@@ -5,15 +5,25 @@ covers:
   - src/pages/externalLock.ts
   - src/service/builderRefusal.ts
   - src/service/catalog.ts
+  - src/service/catalogReferences.ts
+  - src/service/catalogSchemas.ts
   - src/service/connectionRefusals.ts
   - src/service/connectionState.ts
   - src/service/connections.ts
+  - src/service/database.ts
   - src/utils/deadline.ts
   - frontend-vue/app/components/DatabaseSwitcher.vue
+  - frontend-vue/app/build/components/DatabaseSubtitle.vue
+  - frontend-vue/app/build/components/DatabaseSwitcherRow.vue
   - frontend-vue/app/build/components/DataBrowserAccessBar.vue
   - frontend-vue/app/build/components/FeatureLocked.vue
+  - frontend-vue/app/build/composables/registerDatabaseSwitcher.ts
   - frontend-vue/app/build/composables/reloadForSelection.ts
   - frontend-vue/app/build/composables/useDatabaseConnections.ts
+  - frontend-vue/app/build/composables/useGridAccess.ts
+  - frontend-vue/app/build/data/assistantOnboarding.ts
+  - frontend-vue/app/build/data/databaseOptions.ts
+  - frontend-vue/app/build/data/readOnlyReason.ts
   - frontend-vue/app/build/composables/useLockedPages.ts
   - frontend-vue/app/build/composables/useSelectionRecheck.ts
 docs:
@@ -27,8 +37,8 @@ The databases a project connects to but does not own: the switcher, the Overview
 
 ## Sub-features
 
-- `an-external-database-is-picked-browsed-edited-and-left`: `erp` is listed next to the project database, picked in the switcher, browsed (rows, inspector, sample row, locked links), refused a save while its access is read, switched to read & write and saved, then left for the project database, whose tabs and recents follow it.
-- `an-external-database-refuses-what-it-cannot-serve-with-sentences`: the locked Diagram and Query console, the routes that answer 409, a stale tab, a project file the writer cannot rewrite, and the API's refusals of an unknown database and a bad body.
+- `an-external-database-is-picked-browsed-edited-and-left`: `erp` is listed next to the project database, picked in the switcher, browsed (rows, inspector, sample row, the Diagram link open, the Query console link locked), refused a save while its access is read, switched to read & write and saved, then left for the project database, whose tabs and recents follow it.
+- `an-external-database-refuses-what-it-cannot-serve-with-sentences`: the drawn Diagram with a layout of its own and the locked Query console, the routes that answer 409, a stale tab, a project file the writer cannot rewrite, and the API's refusals of an unknown database and a bad body.
 
 ## How to get to it (user POV)
 
@@ -53,7 +63,7 @@ pnpm e2e:run specs/external.spec.ts
 | Documented behaviour | Journey and check |
 |---|---|
 | The switcher lists the project database, then each external one with its engine and the External badge | `an-external-database-is-picked-browsed-edited-and-left` (the console lists erp, the switcher) |
-| Overview, Schemas, Data browser read it; Diagram and Query console are locked; no instances | the same journey (the Data browser, Schemas and the inspector, the Overview) and `an-external-database-refuses-what-it-cannot-serve-with-sentences` (the locked pages) |
+| Overview, Schemas, Diagram and Data browser read it; the Query console is locked; no instances | the same journey (the Data browser, Schemas and the inspector, the Overview) and `an-external-database-refuses-what-it-cannot-serve-with-sentences` (the locked and the drawn pages) |
 | Rows edit only when the access is `read-write`; a refusal says so | `an-external-database-is-picked-browsed-edited-and-left` (a save while the access is read, a save while read-write) |
 | The bar changes the access in development; turning on asks once, turning off asks nothing | the same journey (the confirmation, the access switch, a save while read-write) |
 | An edit on a stale tab is refused | `an-external-database-refuses-what-it-cannot-serve-with-sentences` (a stale tab) |

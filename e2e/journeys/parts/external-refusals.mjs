@@ -39,13 +39,20 @@ async function connectionRoutes(ctx) {
 async function unservedRoutes(ctx) {
   await db(ctx, "pick erp", "PUT", "/connections/selected", { body: { connection: ERP } });
   const readOnly = await db(ctx, "edit while read", "PUT", `/browse/edit?${SELECTION}&connection=${ERP}`, { body: { name: "X" } });
-  const diagram = await db(ctx, "diagram", "GET", "/diagram/layout/erp");
+  const diagram = await db(ctx, "diagram layout", "GET", "/diagram/layout/erp");
+  const drawn = await db(ctx, "save the erp layout", "PUT", `/diagram/layout/erp?connection=${ERP}`, { body: { positions: { customers: { x: 5, y: 6 } } } });
+  const drawnBack = await db(ctx, "read the erp layout", "GET", "/diagram/layout/erp");
+  await db(ctx, "pick the project database", "PUT", "/connections/selected", { body: { connection: "own" } });
+  const ownLayout = await db(ctx, "the project database's layout of a schema named erp", "GET", "/diagram/layout/erp");
+  await db(ctx, "pick erp again", "PUT", "/connections/selected", { body: { connection: ERP } });
+  await db(ctx, "clear the erp layout", "PUT", `/diagram/layout/erp?connection=${ERP}`, { body: { positions: {} } });
   const execute = await db(ctx, "query", "POST", "/query/execute", { body: { query: tableQuery("erp", "customers"), source: "x", language: "aql" } });
   const references = await db(ctx, "references", "GET", `/browse/references?${SELECTION}`);
   const stored = await storedCustomer(ctx);
   await ctx.verify("the routes answer for an external database", [
     check("a write while the access is read answers 403 with its key and the database", readOnly.status === 403 && pick(readOnly.body, "message") === "$dms_database.data.save.read_only_access" && pick(readOnly.body, "params", "connection") === ERP, show(readOnly)),
-    check("the diagram answers 409 and names itself", diagram.status === 409 && diagram.body === "The diagram is not available on an external database", show(diagram)),
+    check("the diagram is served: its layout answers 200", diagram.status === 200 && show(pick(diagram.body, "positions")) === "{}", show(diagram)),
+    check("the layout of an external database's schema is its own: saved on erp it reads back there and not on the project database's schema of the same name", drawn.status === 200 && show(pick(drawnBack.body, "positions")) === '{"customers":{"x":5,"y":6}}' && show(pick(ownLayout.body, "positions")) === "{}", [show(drawnBack), show(ownLayout)]),
     check("the query console answers 409 and names itself", execute.status === 409 && execute.body === "The query console is not available on an external database", show(execute)),
     check("a row's references answer 409 and name themselves", references.status === 409 && references.body === "A row's references is not available on an external database", show(references)),
     check("the customer was not written", text(stored, "name") === "Ada", show(stored)),
@@ -59,11 +66,11 @@ async function unservedRoutes(ctx) {
  */
 async function lockedPages(ctx, tab) {
   await tab.goto("/modules/database/diagram");
-  const diagram = await settle(() => pageText(tab), (content) => /Not available on an external database/.test(content));
+  const diagram = await settle(() => pageText(tab), (content) => /customers\s+_id\s+string/.test(content));
   await tab.goto("/modules/database/query");
   const query = await settle(() => pageText(tab), (content) => /Not available on an external database/.test(content));
   await ctx.verify("the locked pages", [
-    check("the Diagram page says why it has nothing to show", /Not available on an external database/.test(diagram), diagram),
+    check("the Diagram page draws the table of erp with its columns, not a lock", /customers\s+_id\s+string\s+name\s+string\s+segment\s+string/.test(diagram) && !/Not available on an external database/.test(diagram), diagram),
     check("the Query console page says why it has nothing to show", /Not available on an external database/.test(query), query),
   ]);
 }
@@ -123,7 +130,7 @@ export const refusalJourneys = [
   {
     id: "an-external-database-refuses-what-it-cannot-serve-with-sentences",
     title:
-      "on an external database each refusal reads as a sentence: the pages it cannot serve are locked and their routes answer 409, a stale tab and a save while the access is read are refused in the user's language, a project file the writer cannot rewrite is refused with its reason, and an unknown database or a bad body is refused by the API",
+      "on an external database each refusal reads as a sentence: the query console and a row's references are locked and their routes answer 409, the diagram is drawn from the catalog with a layout of its own, a stale tab and a save while the access is read are refused in the user's language, a project file the writer cannot rewrite is refused with its reason, and an unknown database or a bad body is refused by the API",
     entryPoint: "/modules/database/diagram and /query on an external database, PUT /connections/*, PUT /browse/edit, the access switch",
     backend: "dev",
     async run(/** @type {Ctx} */ ctx) {

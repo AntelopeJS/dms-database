@@ -5,6 +5,7 @@ covers:
   - src/service/browse.ts
   - src/service/declaredFields.ts
   - src/service/references.ts
+  - src/service/rowFilter.ts
   - src/utils/query.ts
   - src/utils/requestValidation.ts
   - frontend-vue/app/components/DataBrowser.vue
@@ -44,7 +45,7 @@ The Data browser's read side: the schema and instance pickers with the row count
 
 - `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`: `tables/instances` sorted, searched without case, cut to the limit with the total, and its 400 and 404.
 - `list-clamps-the-page-and-orders-the-rows`: `browse/list` answers 25 rows by default, clamps `limit` to 1..200 (199, 200, 201 driven) and `offset` to 0, sorts descending only for the word `desc`, and answers the exact total.
-- `list-filters-search-and-counts-follow-the-wire-tokens`: `filter_<column>` with `is:`, `contains:`, a bare value, an unknown mode and an empty value; search across every cell; both combined; the totals.
+- `list-filters-search-and-counts-follow-the-wire-tokens`: `filter_<column>` with `is:`, `contains:` (a substring on text, the whole value on a number), a bare value, an unknown mode and an empty value; search across the text and number cells; both combined; the totals.
 - `the-selection-decodes-schema-table-and-instance`: `filter_schema`, `filter_table` and `filter_instance` (default, empty, named, `__CROSS_INSTANCE__`, `contains:`), the 400 and 404 refusals, and the `_instance` tag.
 - `columns-get-and-tables-answer-what-the-grid-needs`: `browse/columns` (declared columns in declaration order, then sampled ones; runtime types; primary key), `browse/get` and `browse/tables` with the counts of the default instance, of eu, and across all instances.
 - `references-count-the-rows-pointing-at-a-row`: `browse/references` counts per relation column, in the same instance, for one and many relations, and refuses all instances, a missing id and a missing row.
@@ -113,7 +114,7 @@ pnpm e2e:run specs/data.spec.ts
 | grill Q24 No match: Clear filters / Search all instances | `no-match-and-empty-tables-say-so` |
 | grill Q24 Load error: Try again with the error text | `a-refused-read-shows-the-error-and-try-again-reads-it-again` |
 | docs/5.extending.md:77 `/modules/database/data?schema=&table=` opens the table | `links-open-the-table-in-the-instance-they-name` |
-| docs/5.extending.md:78 `/modules/database/query?schema=&table=` opens the console on that table | Not driven: the Query console's feature owns that page |
+| docs/5.extending.md:78 `/modules/database/query?schema=&table=` opens the console on that table | `a-link-opens-the-console-on-the-table-in-the-instance-it-names` (the query feature owns that page) |
 | README:21 browses rows in any instance | `the-sidebar-counts-each-table-in-the-picked-instance`, `links-open-the-table-in-the-instance-they-name`, `all-instances-is-a-read-only-view-with-the-instance-column` |
 | `GET /browse/list`, `count`, `columns`, `tables`, `references`, `get` | the six API journeys above |
 | `GET /tables/instances` (the instance picker) | `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`; the sidebar journey picks eu and us from it and reads No named instance for `metrics` |

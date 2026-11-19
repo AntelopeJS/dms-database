@@ -40,6 +40,7 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 - `hashed-encrypted-and-localized-columns-are-written-as-typed`: the warning, driven on `vault.accounts`.
 - `the-row-drawer-stages-edits-like-the-cells-do`: the drawer's fields stage with the same messages, and its footer and the bar count the same changes.
 - `discard-drops-the-changes-of-every-staged-row`: Discard with changes on three rows empties the bar, restores every cell and writes nothing.
+- `an-undo-whose-write-fails-keeps-the-saved-values-and-offers-undo-again`: the undo PUT answered 500 (injected in the browser) after a two-row save, the toast says 2 changes couldn't be undone, the saved names stay stored, Undo is offered again, and the retry writes the previous names back.
 
 ## How to get to it (user POV)
 
@@ -56,7 +57,7 @@ pnpm e2e:run specs/editing.spec.ts
 - The bar's status line names the changed fields (`Unsaved changes · name, price`); the count is on the **Review and save N changes** button, the tab dot and the drawer's footer.
 - The Undo window is measured from the click on Save; the journey polls for the button and asserts the 9.9 to 11.5 second range.
 - Row identities: a cell is found by the text of the row's `_id` cell and the column's header; unsorted rows are in stored order.
-- A write that fails is injected with `page.route` in the browser (HTTP 500 for one row's PUT); a deleted row is deleted through the query console's route.
+- A write that fails is injected with `page.route` in the browser (HTTP 500 for one row's PUT, or for every PUT once a flag is set, as the undo journey does after the save); a deleted row is deleted through the query console's route.
 - `e2e/playground/src/browse-fixtures.ts` adds two rows to `vault.accounts` (the stored form of a hashed, an encrypted and a localized column), imported from `e2e/playground/src/index.ts`.
 - `src/service/stagedSerialization.ts` and `frontend-vue/app/build/utils/stagedSerialization.ts` are the query console's wire format; the journeys use them to read rows back (`query-wire.mjs` encodes the same way) and to delete and insert rows.
 
@@ -93,5 +94,5 @@ pnpm e2e:run specs/editing.spec.ts
 | edits only on one instance; an edit lands in its instance only | `an-edit-and-its-undo-land-in-the-instance-of-the-tab-only` |
 | read-back through a second view (API, query console, reload, fresh tab) | `edits-are-staged-then-reviewed-then-written-one-put-per-row` and the stored-value checks of the other journeys |
 | the Undo of an edit that emptied a cell writes null back | `undo-writes-the-previous-values-back-within-the-window` |
-| failure to undo with a failure of the write itself (`dms_database.data.save.undo_failed`) | Not driven: the undo's write failing leaves the rows for a retry, an injected 500 on the undo PUT was not added |
+| an undo whose write fails leaves the rows for a retry (source: `useStagedSave.ts` shows `undo_partial`, never the `undo_failed` text) | `an-undo-whose-write-fails-keeps-the-saved-values-and-offers-undo-again` |
 | Discard drops the unsaved changes (every staged row) | 4.data-browser.md:36 | `discard-drops-the-changes-of-every-staged-row` |

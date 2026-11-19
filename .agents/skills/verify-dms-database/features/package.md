@@ -22,9 +22,11 @@ What a project installs from the registry: the module with its build, its Vue da
 
 ## Sub-features
 
-- `the-tarball-holds-what-its-manifest-names`: the packed tarball holds every path the manifest points at, the layer with its components and both locales, the skill and its cases, and holds no test build, no build info and no docs.
-- `both-locales-hold-the-same-texts`: the English and French locale files hold the same keys and no empty text.
-- `ranges-match-the-compatibility-table`: each `@antelopejs/interface-*` dependency appears in the README compatibility table with the same range, and the layer pins one renderer minor.
+No browser drives these: they are mocha tests of the backend suite, `src/test/package.test.ts`, not journeys.
+
+- `the tarball holds what its manifest names`: the packed tarball holds every path the manifest points at, the layer with its components and both locales, the skill and its cases, and holds no test build, no build info and no docs.
+- `both locales hold the same texts, none empty`: the English and French locale files hold the same keys and no empty text.
+- `the README compatibility table names each interface range and the layer pins one renderer minor`: each `@antelopejs/interface-*` dependency appears in the README compatibility table with the same range, and the layer pins one renderer minor.
 
 ## How to get to it (user POV)
 
@@ -33,10 +35,11 @@ What a project installs from the registry: the module with its build, its Vue da
 ## Driving it
 
 ```bash
-pnpm e2e:run specs/package.spec.ts
+pnpm run build
+pnpm exec ajs module test . -f dist/test/package.test.js
 ```
 
 ## Gotchas
 
-- The journeys run `npm pack --ignore-scripts` on the checkout and read files; they need no run state, so they use the shared database and no onboarding.
+- The tests run `npm pack --ignore-scripts` on the checkout and read its files, so they need the build of `pnpm run build` and no DMS state.
 - The registered component names (`DmsDatabase` prefix) are driven by the page features: a rename would make a page fail to render.
