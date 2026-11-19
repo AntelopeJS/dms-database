@@ -36,7 +36,7 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 - `a-save-under-a-search-or-a-filter-reads-the-page-again`: a filtered field and a search read the page again, another field of a filter does not.
 - `an-edit-and-its-undo-land-in-the-instance-of-the-tab-only`: a row with one id in the default, eu and us instances.
 - `saved-cells-keep-their-type-numbers-booleans-dates-and-objects`: the column types the API infers from the stored rows after a typed edit.
-- `the-edit-route-writes-typed-values-and-refuses-the-rest`: the PUT's rules, read from `rowEdit.ts`.
+- `the-edit-route-writes-typed-values-and-refuses-the-rest`: the PUT's rules, read from `rowEdit.ts`. Integration test in `src/test/editing.journeys.test.ts`.
 - `hashed-encrypted-and-localized-columns-are-written-as-typed`: the warning, driven on `vault.accounts`.
 - `the-row-drawer-stages-edits-like-the-cells-do`: the drawer's fields stage with the same messages, and its footer and the bar count the same changes.
 - `discard-drops-the-changes-of-every-staged-row`: Discard with changes on three rows empties the bar, restores every cell and writes nothing.
@@ -50,6 +50,12 @@ Staged edits of the Data browser: a cell or a drawer field is staged with the ol
 
 ```bash
 pnpm e2e:run specs/editing.spec.ts
+```
+
+The journeys marked integration test run in `pnpm test`; one file alone after `pnpm run build`:
+
+```bash
+pnpm exec ajs module test . -f dist/test/editing.journeys.test.js
 ```
 
 ## Gotchas
