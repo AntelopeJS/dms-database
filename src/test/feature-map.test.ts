@@ -1,10 +1,9 @@
 import { strict as assert } from "node:assert";
 import { matchesGlob } from "node:path";
 import {
-  features,
-  journeyIds,
+  featureMap,
+  journeyFeatures,
   repositoryHas,
-  surface,
   trackedFiles,
 } from "./helpers/featureMap";
 
@@ -12,21 +11,22 @@ function matchesAny(file: string, globs: readonly string[]): boolean {
   return globs.some((glob) => matchesGlob(file, glob));
 }
 
-describe("Verify skill feature map", () => {
-  const map = features();
+describe("e2e feature map", () => {
+  const { userFacing, notUserFacing, features } = featureMap();
 
-  it("reads a covers list from every feature file", () => {
-    assert.ok(map.length >= 10, `${map.length} feature files`);
+  it("gives every feature a covers list", () => {
+    assert.ok(features.length >= 10, `${features.length} features`);
     assert.deepEqual(
-      map.filter((feature) => feature.covers.length === 0).map((f) => f.file),
+      features
+        .filter((feature) => feature.covers.length === 0)
+        .map((f) => f.name),
       [],
     );
   });
 
   it("maps every user-facing file to a feature", () => {
-    const { userFacing, notUserFacing } = surface();
-    assert.ok(userFacing.length > 0, "verify.config.ts names a surface");
-    const covers = map.flatMap((feature) => feature.covers);
+    assert.ok(userFacing.length > 0, "e2e/features.json names a surface");
+    const covers = features.flatMap((feature) => feature.covers);
     const unmapped = trackedFiles().filter(
       (file) =>
         matchesAny(file, userFacing) &&
@@ -37,19 +37,20 @@ describe("Verify skill feature map", () => {
   });
 
   it("names only docs pages that exist", () => {
-    const missing = map.flatMap((feature) =>
+    const missing = features.flatMap((feature) =>
       feature.docs
         .filter((page) => !repositoryHas(page))
-        .map((page) => `${feature.file}: ${page}`),
+        .map((page) => `${feature.name}: ${page}`),
     );
     assert.deepEqual(missing, []);
   });
 
-  it("names every journey of the Playwright suite in a feature file", () => {
-    const ids = journeyIds();
-    assert.ok(ids.length > 100, `${ids.length} journeys`);
+  it("names a feature for every journeys file of the Playwright suite", () => {
+    const journeys = journeyFeatures();
+    assert.ok(journeys.length >= 10, `${journeys.length} journeys files`);
+    const names = new Set(features.map((feature) => feature.name));
     assert.deepEqual(
-      ids.filter((id) => !map.some((feature) => feature.text.includes(id))),
+      journeys.filter((journey) => !names.has(journey)),
       [],
     );
   });
