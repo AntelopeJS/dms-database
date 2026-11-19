@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { isString } from "../utils/guards";
+import { isRecord, isString } from "../utils/guards";
 import {
   type Json,
   packModule,
@@ -14,15 +14,7 @@ const FRENCH = "frontend-vue/i18n/locales/database-fr-FR.json";
 type JsonObject = { readonly [key: string]: Json };
 
 function isObject(value: Json | undefined): value is JsonObject {
-  return (
-    value !== null &&
-    value !== undefined &&
-    !isString(value) &&
-    !Array.isArray(value) &&
-    value !== true &&
-    value !== false &&
-    !Number.isFinite(value)
-  );
+  return isRecord(value) && !Array.isArray(value);
 }
 
 function pick(value: Json | undefined, ...path: string[]): Json | undefined {
