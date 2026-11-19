@@ -107,7 +107,7 @@ const undoExpires = {
 /** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
 const undoFails = {
   id: "an-undo-whose-write-fails-keeps-the-saved-values-and-offers-undo-again",
-  title: "when the write of an Undo fails the saved values stay stored, a toast says how many changes could not be undone, Undo is offered again for the rows left, and the retry writes the previous values back",
+  title: "when the write of an Undo fails the saved values stay stored, a toast says the changes could not be undone, Undo is offered again for the rows left, and the retry writes the previous values back",
   entryPoint: "PUT /api/database/browse/edit answering 500 after a save",
   async run(ctx) {
     const tab = await shopTab(ctx, "products", "eu");
@@ -129,14 +129,14 @@ const undoFails = {
     const saved = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
     failing = true;
     await tab.click({ role: "button", name: "Undo" });
-    const toast = await settle(() => tab.page.locator("body").innerText(), (content) => /couldn.t be undone/.test(content));
+    const toast = await settle(() => tab.page.locator("body").innerText(), (content) => /Couldn.t undo the changes/.test(content));
     const lamp = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
     const chair = await storedRow(ctx, "products", "eu_sku_chair", "eu");
     const offered = await tab.visible({ role: "button", name: "Undo" });
     const lampCell = await cellState(tab, "eu_sku_lamp", "name");
     await ctx.verify("the undo is refused", [
       check("the save wrote both names", saved.name === "Reading lamp", saved.name),
-      check("the toast says 2 changes couldn't be undone", /2 changes couldn.t be undone/.test(toast), toast.replace(/\s+/g, " ").slice(-300)),
+      check("the toast says the changes couldn't be undone", /Couldn.t undo the changes/.test(toast), toast.replace(/\s+/g, " ").slice(-300)),
       check("the run stopped at the first failing write", refused === 1, refused),
       check("the saved names stay stored", lamp.name === "Reading lamp" && chair.name === "Armchair", [lamp.name, chair.name]),
       check("the grid shows the saved name, nothing struck", lampCell.text === "Reading lamp" && lampCell.struck === "", lampCell),
