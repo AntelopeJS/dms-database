@@ -5,7 +5,7 @@ description: TLA+ model of the database.table-watch automation trigger of @antel
 
 # Formal check: the table-watch trigger
 
-The `database.table-watch` trigger turns a table's change feed into automation runs. `activate()` opens a cursor on the feed and waits up to `ACTIVATION_PROBE_MS` (2 s) for an early failure. A pump then reads the cursor and calls `emit()` for each change. When a read fails, or the feed ends on its own, the pump waits `RECONNECT_DELAY_MS` (5 s), closes the cursor and opens a new one, once. `deactivate()` sets `handle.stopped` and closes the cursor. A break here makes automations stop firing without a sign, fire after `deactivate()`, fire twice, or leave a change stream open on the server. `src/test/table-watch-feed.test.ts` and the `extending` feature of `verify-dms-database` drive a healthy feed on a replica set; neither reaches a feed failure, a reconnect or a `deactivate()` during a read.
+The `database.table-watch` trigger turns a table's change feed into automation runs. `activate()` opens a cursor on the feed and waits up to `ACTIVATION_PROBE_MS` (2 s) for an early failure. A pump then reads the cursor and calls `emit()` for each change. When a read fails, or the feed ends on its own, the pump waits `RECONNECT_DELAY_MS` (5 s), closes the cursor and opens a new one, once. `deactivate()` sets `handle.stopped` and closes the cursor. A break here makes automations stop firing without a sign, fire after `deactivate()`, fire twice, or leave a change stream open on the server. `src/test/table-watch-feed.test.ts` and the `extending` spec of `e2e` drive a healthy feed on a replica set; neither reaches a feed failure, a reconnect or a `deactivate()` during a read.
 
 Node runs other callbacks at every `await`, so the model makes each stretch of code between two awaits one step, and each answer of a cursor one step. TLC checks every order of those steps, with row changes, feed failures and `deactivate()` calls, within the bounds below.
 
@@ -42,7 +42,7 @@ A finding is judged by the length of its shortest counterexample alone. A change
 
 ## When to run it
 
-Run `--full` when a change touches `src/automation/tableWatch.ts` or this folder. CI runs the CI configuration on every push (job `formal-table-watch`, in the `ubuntu` gate). `dms-control formal` runs it when the `formal` list of `.agents/skills/verify-dms-database/verify.config.ts` names `formal-table-watch`.
+Run `--full` when a change touches `src/automation/tableWatch.ts` or this folder. CI runs the CI configuration on every push (job `formal-table-watch`, in the `ubuntu` gate).
 
 ## The rules
 
@@ -99,7 +99,7 @@ Replay a counterexample with the fake table above, one action per step, and asse
 | `PumpReopen` | the close's end, then `openFeed` or its throw (lines 241-250) |
 | `Deactivate`, `DeactivateReturns` | `deactivate()` (lines 360-364) |
 
-The sync commit is `d14f337` on AntelopeJS/dms-database `feat/verify-dms-database-skill`. `tableWatch.ts` last changed in `78f995c`.
+The sync commit is `d14f337`. `tableWatch.ts` last changed in `78f995c`.
 
 ## Bounds and what is left out
 

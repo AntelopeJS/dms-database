@@ -28,7 +28,7 @@
 - `scripts/check-sources.mts` runs in `pnpm lint`: the components the backend pages name exist, `<i18n-t>` reads the global messages, and every text key a page names resolves in each locale.
 - The playground is linted but not type-checked. Check it with `pnpm --dir playground install --ignore-workspace --frozen-lockfile && pnpm --dir playground build`.
 
-`e2e/` is the Playwright suite of the verify skill's journeys, one spec per feature, run on the `e2e/playground` project with one worker that starts its own MongoDB, backend and dashboard on free ports. `pnpm e2e:smoke` builds once and runs the journeys tagged `@smoke`, as the `e2e` job of `ci.yml` does on a pull request; every other run (the merge queue, the nightly, a manual run, a push and a pull request labelled `ci:full`) runs every journey in two shards, and a draft runs none. After `pnpm e2e:build`, `pnpm e2e:run specs/<feature>.spec.ts` runs one feature without a rebuild.
+`e2e/` is the Playwright suite of the module's feature journeys, one spec per feature, run on the `e2e/playground` project with one worker that starts its own MongoDB, backend and dashboard on free ports. `pnpm e2e:smoke` builds once and runs the journeys tagged `@smoke`, as the `e2e` job of `ci.yml` does on a pull request; every other run (the merge queue, the nightly, a manual run, a push and a pull request labelled `ci:full`) runs every journey in two shards, and a draft runs none. After `pnpm e2e:build`, `pnpm e2e:run specs/<feature>.spec.ts` runs one feature without a rebuild.
 
 `pnpm knip` checks dependencies only. `pnpm knip:all` also reports unused files and exports; confirm each finding before you remove it.
 
@@ -43,7 +43,7 @@ CI runs `pnpm run checks` in full on every pull request and reports what failed.
 - `pnpm exec oxlint <files>` and `pnpm exec oxfmt <files>` on the files you changed.
 - One test file, not the suite. In a module that tests with `ajs module test`: `pnpm run build`, then `pnpm exec ajs module test . -f dist/<path>.test.js`.
 
-Prove a change works with the verification skill in [`.agents/skills/verify-dms-database/SKILL.md`](.agents/skills/verify-dms-database/SKILL.md) before you call it done.
+Prove a change works by running the `e2e` journey of the feature you touched before you call it done.
 
 ### Comments
 
