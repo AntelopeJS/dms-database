@@ -241,8 +241,11 @@ export function useStagedSave(options: StagedSaveOptions) {
 			// The rows the failure left keep their undo, for a retry.
 			if (here)
 				show({ ...current, state: 'saved', changes: left }, UNDO_WINDOW_MS)
+			const wholly = restored.length === 0 && gone.length === 0
 			presentError(outcome.error, {
-				fallbackKey: 'dms_database.data.save.undo_partial',
+				fallbackKey: wholly
+					? 'dms_database.data.save.undo_failed'
+					: 'dms_database.data.save.undo_partial',
 				params: { count: left.length + gone.length },
 			})
 		} else if (here) {
