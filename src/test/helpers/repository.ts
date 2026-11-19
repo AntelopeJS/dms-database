@@ -1,6 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import {
   isBoolean,
@@ -39,6 +38,10 @@ function isJson(value: unknown): value is Json {
   return isRecord(value) && Object.values(value).every(isJson);
 }
 
+function isJsonArray(value: Json | undefined): value is readonly Json[] {
+  return Array.isArray(value);
+}
+
 function parseJson(source: string, origin: string): Json {
   const value: unknown = JSON.parse(source);
   if (!isJson(value)) throw new Error(`${origin} holds no JSON value`);
@@ -63,35 +66,20 @@ export function repositoryJson(file: string): Json {
   return parseJson(repositoryText(file), file);
 }
 
-/** Packs the checkout the way a release does, without its lifecycle scripts, and lists the tarball. */
+/** What `npm pack` would put in the tarball, listed without writing it, and the manifest it packs. */
 export function packModule(): PackedModule {
-  const folder = mkdtempSync(join(tmpdir(), "dms-database-pack-"));
-  try {
-    const name = execFileSync(
-      "npm",
-      ["pack", "--ignore-scripts", "--silent", "--pack-destination", folder],
-      {
-        cwd: REPOSITORY,
-        encoding: "utf8",
-        shell: process.platform === "win32",
-      },
-    )
-      .trim()
-      .split("\n")
-      .at(-1);
-    const tarball = join(folder, name ?? "");
-    const files = execFileSync("tar", ["-tzf", tarball], { encoding: "utf8" })
-      .split("\n")
-      .map((line) => line.trim().replace(/^package\//, ""))
-      .filter(Boolean);
-    const manifest = parseJson(
-      execFileSync("tar", ["-xzOf", tarball, "package/package.json"], {
-        encoding: "utf8",
-      }),
-      "the packed package.json",
-    );
-    return { files, manifest };
-  } finally {
-    rmSync(folder, { recursive: true, force: true });
-  }
+  const report = parseJson(
+    execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
+      cwd: REPOSITORY,
+      encoding: "utf8",
+      shell: process.platform === "win32",
+    }),
+    "npm pack --json",
+  );
+  const entry = isJsonArray(report) ? report.at(0) : undefined;
+  const listed = isRecord(entry) ? entry["files"] : undefined;
+  const files = (isJsonArray(listed) ? listed : []).flatMap((file) =>
+    isRecord(file) && isString(file["path"]) ? [file["path"]] : [],
+  );
+  return { files, manifest: repositoryJson("package.json") };
 }

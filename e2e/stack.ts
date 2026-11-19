@@ -411,7 +411,8 @@ class WorkerStack implements Stack {
         await this.#mongo.start();
         break;
       } catch (error) {
-        if (attempt === RESTART_ATTEMPTS) throw error;
+        if (attempt === RESTART_ATTEMPTS || this.#mongo.state !== "stopped")
+          throw error;
         await delay(RESTART_RETRY_MS);
       }
     }

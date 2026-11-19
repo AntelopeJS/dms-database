@@ -241,7 +241,7 @@ jobs:
       # The blob report keeps each test's steps, attachments and traces, so
       # e2e-report merges the shards into one.
       - if: env.SUITE == 'all'
-        run: pnpm e2e:run --shard=${{ matrix.shard }}/2 --reporter=blob
+        run: pnpm e2e:run --shard=${{ matrix.shard }}/2 --reporter=blob,list
       - if: always() && env.SUITE == 'all'
         uses: actions/upload-artifact@v4
         with:
@@ -260,7 +260,7 @@ jobs:
   # One HTML and JSON report of the shards of a whole-suite run.
   e2e-report:
     needs: [select, e2e]
-    if: always() && needs.select.outputs.e2e == 'all'
+    if: always() && !cancelled() && needs.select.outputs.e2e == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

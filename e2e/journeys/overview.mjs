@@ -211,12 +211,17 @@ export const journeys = [
       const first = probes[0];
       await ctx.verify("the probe's answer", [check("the health route answers status down within 10 s of the request", first !== undefined && first.status === 200 && pick(first.body, "status") === "down" && first.ms < 10_000, first)]);
       await ctx.startDatabase();
+      const button = tab.page.getByRole("button", { name: "Check again" });
+      const deadline = Date.now() + 240_000;
       let healthy = false;
-      for (let attempt = 0; attempt < 6 && !healthy; attempt += 1) {
-        const ready = await tab.enabled(checkAgain, { timeoutMs: 60_000 });
-        if (!ready.pass) continue;
-        await tab.click(checkAgain);
-        healthy = (await tab.shows(/Healthy/, { timeoutMs: 45_000 })).pass;
+      while (!healthy && Date.now() < deadline) {
+        if (await button.isEnabled().catch(() => false)) {
+          await tab.click(checkAgain);
+          healthy = (await tab.shows(/Healthy/, { timeoutMs: 45_000 })).pass;
+        } else {
+          await tab.page.waitForTimeout(500);
+          healthy = (await tab.shows(/Healthy/, { timeoutMs: 1 })).pass;
+        }
       }
       const health = await db(ctx, "health after the database came back", "GET", "/health");
       await ctx.verify("Check again recovers", [

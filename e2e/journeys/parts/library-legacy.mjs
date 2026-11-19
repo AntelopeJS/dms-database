@@ -63,9 +63,9 @@ export const legacyJourneys = [
     title: "a run moved back one day lists under Yesterday and one moved back three days under its date, below today's runs under Today; the API still lists all three newest first",
     entryPoint: "/modules/database/query History tab, GET /api/database/query/history",
     async run(/** @type {Ctx} */ ctx) {
-      await runQuery(ctx, OLDER_SOURCE, tableQuery("demo", "tags", [SLICE(3)]));
-      await runQuery(ctx, LEGACY_SOURCE, tableQuery("demo", "tags", [SLICE(1)]));
       await runQuery(ctx, NEWER_SOURCE, tableQuery("demo", "tags", [SLICE(2)]));
+      await runQuery(ctx, LEGACY_SOURCE, tableQuery("demo", "tags", [SLICE(1)]));
+      await runQuery(ctx, OLDER_SOURCE, tableQuery("demo", "tags", [SLICE(3)]));
       const aged = [await age(ctx, LEGACY_SOURCE, 1), await age(ctx, OLDER_SOURCE, OLDER_DAYS)];
       const olderLabel = new Intl.DateTimeFormat("en-US", { day: "numeric", month: "short" }).format(new Date(Date.now() - OLDER_DAYS * DAY_MS));
       const listed = await history(ctx);
@@ -111,11 +111,12 @@ export const legacyJourneys = [
           executedAt: new Date(Date.now() - 1000),
         };
         await runs.insertOne(row);
-        return Object.keys((await runs.findOne({ _id: row._id })) ?? {}).sort();
+        const own = await runs.findOne({ source: NEWER_SOURCE });
+        return { legacy: Object.keys((await runs.findOne({ _id: row._id })) ?? {}).sort(), ownStatus: pick(own, "status") };
       });
       await ctx.verify("the stored row", [
-        check("the legacy row has no status, mutation or error field", !["status", "mutation", "error"].some((field) => stored.includes(field)), stored),
-        check("a run the module wrote carries a status", pick(written, "status") === "ok", written),
+        check("the legacy row has no status, mutation or error field", !["status", "mutation", "error"].some((field) => stored.legacy.includes(field)), stored.legacy),
+        check("a run the module wrote stores its status", stored.ownStatus === "ok", stored.ownStatus),
       ]);
       const listed = await history(ctx);
       const legacy = listed.items.find((item) => text(item, "source") === LEGACY_SOURCE);
