@@ -9,7 +9,7 @@ import {
 import type { Check } from "./ctx.ts";
 import type { Account } from "./stack.ts";
 
-/** The width, language and theme of every browser context a journey opens, as `dms-control` set them. */
+/** The width, language and theme of every browser context a journey opens. */
 export const CONTEXT_OPTIONS: BrowserContextOptions = {
   viewport: { width: 1280, height: 900 },
   locale: "en-US",
@@ -40,7 +40,7 @@ type Role = Parameters<Page["getByRole"]>[0];
 
 /**
  * An element found by ARIA role and accessible name, as a user finds it; `within` scopes it to the first match of
- * another one. `level` is accepted and ignored, as `dms-control` ignored it.
+ * another one. `level` is accepted and ignored.
  */
 export interface Target {
   readonly role: Role;

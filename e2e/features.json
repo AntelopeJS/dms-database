@@ -1,0 +1,254 @@
+{
+  "userFacing": ["src/**", "frontend-vue/**", "skills/**", "package.json"],
+  "notUserFacing": [
+    "src/test/**",
+    "frontend-vue/tests/**",
+    "frontend-vue/.*",
+    "frontend-vue/eslint.config.mjs",
+    "frontend-vue/vitest.config.ts",
+    "frontend-vue/pnpm-lock.yaml"
+  ],
+  "features": {
+    "access": {
+      "covers": [
+        "src/module.ts",
+        "src/routes/index.ts",
+        "src/pages/index.ts",
+        "src/db/**",
+        "src/routes/health.ts",
+        "src/routes/data.ts"
+      ],
+      "docs": ["docs/1.introduction.md", "docs/6.faq.md", "README.md"]
+    },
+    "config": {
+      "covers": ["src/config.ts", "src/service/schemaLabels.ts"],
+      "docs": ["docs/3.configuration.md", "docs/5.extending.md"]
+    },
+    "data": {
+      "covers": [
+        "src/pages/data.ts",
+        "src/routes/data.ts",
+        "src/service/browse.ts",
+        "src/service/declaredFields.ts",
+        "src/service/references.ts",
+        "src/service/rowFilter.ts",
+        "src/utils/query.ts",
+        "src/utils/requestValidation.ts",
+        "frontend-vue/app/components/DataBrowser.vue",
+        "frontend-vue/app/components/DataBrowserSidebar.vue",
+        "frontend-vue/app/components/DataBrowserTabBar.vue",
+        "frontend-vue/app/components/DataFilterBar.vue",
+        "frontend-vue/app/components/DataGrid.vue",
+        "frontend-vue/app/components/DataGridCell.vue",
+        "frontend-vue/app/components/DataGridHeaderCell.vue",
+        "frontend-vue/app/components/RowDrawer.vue",
+        "frontend-vue/app/components/InstancePicker.vue",
+        "frontend-vue/app/components/DrawerTabs.vue",
+        "frontend-vue/app/build/components/DataGridEmpty.vue",
+        "frontend-vue/app/build/components/DataGridFooter.vue",
+        "frontend-vue/app/build/components/DataGridReadOnlyBanner.vue",
+        "frontend-vue/app/build/components/DataGridToolbar.vue",
+        "frontend-vue/app/build/composables/useDataBrowserGrid.ts",
+        "frontend-vue/app/build/composables/useDataBrowserTabs.ts",
+        "frontend-vue/app/build/composables/useTableCounts.ts",
+        "frontend-vue/app/build/composables/useElsewhereInstances.ts",
+        "frontend-vue/app/build/data/gridData.ts",
+        "frontend-vue/app/build/data/instanceOptions.ts",
+        "frontend-vue/app/build/data/pickerMenus.ts",
+        "frontend-vue/app/build/data/recentTables.ts"
+      ],
+      "docs": [
+        "docs/4.usage/4.data-browser.md",
+        "docs/design/redesign-v2-grill.md",
+        "docs/5.extending.md",
+        "README.md"
+      ]
+    },
+    "diagram": {
+      "covers": [
+        "src/pages/diagram.ts",
+        "src/routes/diagram.ts",
+        "src/db/models/diagram_*.ts",
+        "src/db/tables/diagram_*.ts",
+        "frontend-vue/app/components/SchemaDiagram.vue",
+        "frontend-vue/app/build/components/SchemaDiagramBoard.vue",
+        "frontend-vue/app/components/DiagramNoteNode.vue",
+        "frontend-vue/app/components/DiagramRelationEdge.vue",
+        "frontend-vue/app/components/DiagramStubNode.vue",
+        "frontend-vue/app/components/DiagramTableNode.vue",
+        "frontend-vue/app/build/components/Diagram*",
+        "frontend-vue/app/build/components/diagramFloat.css",
+        "frontend-vue/app/build/diagram/**",
+        "frontend-vue/app/build/composables/useCatalogReferences.ts",
+        "frontend-vue/app/build/composables/useDiagram*.ts"
+      ],
+      "docs": ["docs/4.usage/3.diagram.md"]
+    },
+    "editing": {
+      "covers": [
+        "src/service/rowEdit.ts",
+        "src/service/stagedSerialization.ts",
+        "src/routes/data.ts",
+        "frontend-vue/app/components/JsonCellPanel.vue",
+        "frontend-vue/app/build/data/stagedEdits.ts",
+        "frontend-vue/app/build/data/stagedWrites.ts",
+        "frontend-vue/app/build/data/useStagedSave.ts",
+        "frontend-vue/app/build/data/cellValues.ts",
+        "frontend-vue/app/build/utils/stagedSerialization.ts",
+        "frontend-vue/app/build/components/DataGridSaveStatus.vue"
+      ],
+      "docs": ["docs/4.usage/4.data-browser.md", "docs/6.faq.md", "README.md"]
+    },
+    "extending": {
+      "covers": [
+        "src/automation/**",
+        "frontend-vue/app/config/shortcuts-registry.ts",
+        "src/utils/guards.ts",
+        "src/types/**",
+        "src/service/introspect.ts"
+      ],
+      "docs": ["docs/5.extending.md", "docs/6.faq.md"]
+    },
+    "external": {
+      "covers": [
+        "src/connectionAccess.ts",
+        "src/routes/connections.ts",
+        "src/pages/externalLock.ts",
+        "src/service/builderRefusal.ts",
+        "src/service/catalog.ts",
+        "src/service/catalogReferences.ts",
+        "src/service/catalogSchemas.ts",
+        "src/service/connectionRefusals.ts",
+        "src/service/connectionState.ts",
+        "src/service/connections.ts",
+        "src/service/database.ts",
+        "src/utils/deadline.ts",
+        "frontend-vue/app/components/DatabaseSwitcher.vue",
+        "frontend-vue/app/build/components/DatabaseSubtitle.vue",
+        "frontend-vue/app/build/components/DatabaseSwitcherRow.vue",
+        "frontend-vue/app/build/components/DataBrowserAccessBar.vue",
+        "frontend-vue/app/build/components/FeatureLocked.vue",
+        "frontend-vue/app/build/composables/registerDatabaseSwitcher.ts",
+        "frontend-vue/app/build/composables/reloadForSelection.ts",
+        "frontend-vue/app/build/composables/useDatabaseConnections.ts",
+        "frontend-vue/app/build/composables/useGridAccess.ts",
+        "frontend-vue/app/build/data/assistantOnboarding.ts",
+        "frontend-vue/app/build/data/databaseOptions.ts",
+        "frontend-vue/app/build/data/readOnlyReason.ts",
+        "frontend-vue/app/build/composables/useLockedPages.ts",
+        "frontend-vue/app/build/composables/useSelectionRecheck.ts"
+      ],
+      "docs": [
+        "docs/4.usage/6.external-databases.md",
+        "docs/3.configuration.md"
+      ]
+    },
+    "guard": {
+      "covers": [
+        "src/routes/query.ts",
+        "src/service/queryInspection.ts",
+        "frontend-vue/app/components/QueryConsole.vue",
+        "frontend-vue/app/build/components/QueryConsoleBoard.vue",
+        "frontend-vue/app/components/QueryResultPanel.vue"
+      ],
+      "docs": [
+        "docs/4.usage/5.query-console.md",
+        "docs/6.faq.md",
+        "docs/1.introduction.md"
+      ]
+    },
+    "library": {
+      "covers": [
+        "src/db/**",
+        "src/routes/query.ts",
+        "frontend-vue/app/components/QueryLibrary.vue",
+        "frontend-vue/app/build/composables/useQueryStore.ts",
+        "frontend-vue/app/build/query/runs.ts"
+      ],
+      "docs": ["docs/4.usage/5.query-console.md", "docs/6.faq.md", "README.md"]
+    },
+    "overview": {
+      "covers": [
+        "src/pages/overview.ts",
+        "src/routes/overview.ts",
+        "src/routes/health.ts",
+        "src/service/overview.ts",
+        "src/service/health.ts",
+        "src/service/catalog.ts",
+        "frontend-vue/app/components/ConnectionStatus.vue",
+        "frontend-vue/app/build/composables/useDatabaseHealth.ts",
+        "frontend-vue/app/build/utils/relativeTime.ts"
+      ],
+      "docs": [
+        "docs/4.usage/1.overview.md",
+        "docs/3.configuration.md",
+        "docs/6.faq.md"
+      ]
+    },
+    "package": {
+      "covers": [
+        "package.json",
+        "skills/**",
+        "frontend-vue/package.json",
+        "frontend-vue/tsconfig.json",
+        "frontend-vue/dms.frontend.ts",
+        "frontend-vue/dms.frontend.build.ts",
+        "frontend-vue/build/**",
+        "frontend-vue/i18n/**",
+        "src/frontend-module.ts",
+        "src/i18n/**"
+      ],
+      "docs": ["README.md", "docs/2.installation.md", "docs/5.extending.md"]
+    },
+    "query": {
+      "covers": [
+        "src/pages/query.ts",
+        "src/routes/query.ts",
+        "src/service/queryInspection.ts",
+        "src/utils/requestValidation.ts",
+        "frontend-vue/app/components/QueryConsole.vue",
+        "frontend-vue/app/build/components/QueryConsoleBoard.vue",
+        "frontend-vue/app/components/QueryBuilderPanel.vue",
+        "frontend-vue/app/components/QueryResultPanel.vue",
+        "frontend-vue/app/build/query/completion.ts",
+        "frontend-vue/app/build/query/csv.ts",
+        "frontend-vue/app/build/query/examples.ts",
+        "frontend-vue/app/build/query/failures.ts",
+        "frontend-vue/app/build/query/tableColumns.ts",
+        "frontend-vue/app/build/query/target.ts",
+        "frontend-vue/app/build/composables/useQueryRuntime.ts"
+      ],
+      "docs": ["docs/4.usage/5.query-console.md", "README.md"]
+    },
+    "schemas": {
+      "covers": [
+        "src/pages/schemas.ts",
+        "src/routes/tables.ts",
+        "src/routes/schemas.ts",
+        "src/service/schemaFilters.ts",
+        "src/service/introspect.ts",
+        "src/service/declaredFields.ts",
+        "src/service/fieldDescriptor.ts",
+        "src/service/schemaRegistry.ts",
+        "src/service/types.ts",
+        "src/types/**",
+        "src/utils/guards.ts",
+        "frontend-vue/app/components/SchemasFilterBar.vue",
+        "frontend-vue/app/components/SchemaPicker.vue",
+        "frontend-vue/app/components/InstancePicker.vue",
+        "frontend-vue/app/components/TableInspector.vue",
+        "frontend-vue/app/components/DrawerTabs.vue",
+        "frontend-vue/app/build/schemas/**",
+        "frontend-vue/app/build/composables/useDatabaseSchemas.ts",
+        "frontend-vue/app/build/composables/useTableSample.ts",
+        "frontend-vue/app/build/utils/fieldTypes.ts",
+        "frontend-vue/app/build/utils/databaseLinks.ts"
+      ],
+      "docs": ["docs/4.usage/2.schemas.md"]
+    },
+    "smoke": {
+      "covers": ["src/index.ts", "src/module.ts"],
+      "docs": ["docs/1.introduction.md", "docs/2.installation.md"]
+    }
+  }
+}
