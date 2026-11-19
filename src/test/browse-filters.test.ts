@@ -5,6 +5,7 @@ import { User } from "@antelopejs/interface-dms/auth/db";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import { DatabaseBrowseController } from "../routes/data";
 import { resolveDatabase } from "../service/connections";
+import type { Database } from "../service/database";
 import { refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 
@@ -35,12 +36,8 @@ const own = new Schema<{ customers: Customer }>(OWN_SCHEMA, {
   },
 });
 
-function erpCustomers() {
-  const table = resolveDatabase("erp")
-    .schemas()
-    .get("erp")
-    ?.instance()
-    .table("customers");
+function erpCustomers(erp: Database) {
+  const table = erp.schemas().get("erp")?.instance().table("customers");
   assert.ok(table, "the erp binding declares customers");
   return table;
 }
@@ -166,13 +163,15 @@ describe("[integration] a filter gives the same rows on the own database and an 
   before(async () => {
     await GetModel(ConnectionSelectionModel).select(ERP_USER._id, "erp");
     await own.instance().table("customers").insert(ROWS).run();
-    await erpCustomers().insert(ROWS.slice(HARNESS_SEEDED)).run();
+    await erpCustomers(await resolveDatabase("erp"))
+      .insert(ROWS.slice(HARNESS_SEEDED))
+      .run();
   });
 
   after(async () => {
     await own.instance().table("customers").delete().run();
     for (const { _id } of ROWS.slice(HARNESS_SEEDED)) {
-      await erpCustomers()
+      await erpCustomers(await resolveDatabase("erp"))
         .filter((row) => row.key("_id").eq(_id))
         .delete()
         .run();

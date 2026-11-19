@@ -5,6 +5,7 @@ import { getModuleConfig, setModuleConfig } from "../config";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import { DatabaseBrowseController } from "../routes/data";
 import { resolveDatabase } from "../service/connections";
+import type { Database } from "../service/database";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import { refusal } from "./refusal";
 import { queryContext } from "./requestContext";
@@ -20,12 +21,8 @@ const FILLER = Array.from({ length: FILLER_ROWS }, (_, index) => ({
 const NEEDLE = { _id: "zz-needle", name: "Needle", segment: "needle" };
 const SEEDED_ROWS = 2;
 
-function customers() {
-  const table = resolveDatabase("erp")
-    .schemas()
-    .get("erp")
-    ?.instance()
-    .table("customers");
+function customers(erp: Database) {
+  const table = erp.schemas().get("erp")?.instance().table("customers");
   assert.ok(table, "the erp binding declares customers");
   return table;
 }
@@ -36,17 +33,17 @@ const original = getModuleConfig();
 describe("[integration] an external database's filters run in its query", () => {
   before(async () => {
     await GetModel(ConnectionSelectionModel).select(USER._id, "erp");
-    await customers()
+    await customers(await resolveDatabase("erp"))
       .insert([...FILLER, NEEDLE])
       .run();
   });
 
   after(async () => {
-    await customers()
+    await customers(await resolveDatabase("erp"))
       .filter((row) => row.key("segment").eq("filler"))
       .delete()
       .run();
-    await customers()
+    await customers(await resolveDatabase("erp"))
       .filter((row) => row.key("_id").eq(NEEDLE._id))
       .delete()
       .run();

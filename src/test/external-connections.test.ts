@@ -22,31 +22,58 @@ describe("[integration] external connections: listing and selection", () => {
           id: "own",
           kind: "own",
           label: "own",
+          database: null,
           engine: null,
           access: "read-write",
           canWrite: true,
           unsupported: [],
+          missing: [],
         },
         {
           id: "erp",
           kind: "external",
           label: "erp",
+          database: "erp",
           engine: "mongodb",
           access: "read",
           canWrite: true,
           unsupported,
+          missing: [],
         },
         {
           id: "archive",
           kind: "external",
           label: "archive",
+          database: "archive",
           engine: "mongodb",
           access: "read",
           canWrite: false,
           unsupported,
+          missing: [],
         },
+        ...["shop", "ledger", "legacy", "blank"].map((id) => ({
+          id,
+          kind: "external",
+          label: id,
+          database: id === "shop" ? "erp" : null,
+          engine: id === "shop" ? "mongodb" : null,
+          access: id === "ledger" ? "read-write" : "read",
+          canWrite: id === "shop" ? true : null,
+          unsupported,
+          missing: id === "shop" ? ["database"] : ["database", "catalog"],
+        })),
       ],
     });
+  });
+
+  it("refuses to select a connection that is declared but not registered, which an implementation that selects any listed id gets wrong", async () => {
+    assert.deepEqual(
+      await refusal(
+        controller.select(user("half-user"), { connection: "shop" }),
+      ),
+      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+    );
+    assert.equal((await controller.list(user("half-user"))).selected, "own");
   });
 
   it("keeps each user's selection apart, and refuses a connection that does not exist", async () => {
@@ -70,7 +97,9 @@ describe("[integration] external connections: listing and selection", () => {
       { status: 400, message: "Expected { connection: string }" },
     );
   });
+});
 
+describe("[integration] external connections: relations", () => {
   it("describes an external relation from the connection's catalog", async () => {
     const reader = user("relations-user");
     const { items } = await controller.relations(reader, "erp");

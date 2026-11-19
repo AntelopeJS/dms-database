@@ -67,10 +67,11 @@ export async function pageText(tab) {
  * @returns {Promise<string>} The menu's text before the pick
  */
 export async function pickDatabase(tab, from, to) {
+  const row = { role: "button", name: new RegExp(to), within: { role: "list", name: "Databases" } };
   await tab.click({ role: "button", name: `Database: ${from}` });
-  await tab.visible({ role: "menuitemcheckbox", name: new RegExp(to) });
+  await tab.visible(row);
   const menu = await pageText(tab);
-  await tab.click({ role: "menuitemcheckbox", name: new RegExp(to) });
+  await tab.click(row);
   await tab.visible({ role: "button", name: `Database: ${to}` }, { timeoutMs: 60_000 });
   return menu;
 }

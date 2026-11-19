@@ -11,7 +11,13 @@ import type {
   RelationDescription,
   RelationSummary,
 } from "@antelopejs/interface-database-catalog";
+import { getModuleConfig } from "../config";
 import { isFunction, isObject } from "../utils/guards";
+import {
+  defineCatalogSchemas,
+  ensureCatalogSchemas,
+  type SchemaRegistry,
+} from "./catalogSchemas";
 import { CONNECTION_REFUSALS } from "./connectionRefusals";
 import {
   type Database,
@@ -25,7 +31,7 @@ const CATALOG_INTERFACE = "@antelopejs/interface-database-catalog";
 
 /** The `interface-database` exports a named binding gives the console. */
 interface DatabaseBinding {
-  Schema: { list(): ReadonlyMap<string, Schema> };
+  Schema: SchemaRegistry<Schema>;
 }
 
 /** The `interface-database-catalog` exports a named binding gives the console. */
@@ -105,6 +111,42 @@ export function listExternalIds(): string[] {
   );
 }
 
+/** What a connection the project declares lacks before the console can browse it. */
+export type MissingBinding = "database" | "catalog";
+
+/**
+ * A connection the project declares, by a catalog binding or a
+ * `config.externalConnections` entry, that lacks a binding the console needs.
+ */
+export interface UnregisteredConnection {
+  id: string;
+  missing: MissingBinding[];
+}
+
+/**
+ * The connections the project declares but the console cannot browse: ids a
+ * catalog binding or `config.externalConnections` names that do not have both
+ * bindings. Listing them tells the owner what to register instead of leaving
+ * the database out of the console without a word.
+ */
+export function listUnregisteredConnections(): UnregisteredConnection[] {
+  const databases = namedConnections(DATABASE_INTERFACE);
+  const catalogs = namedConnections(CATALOG_INTERFACE);
+  const declared = [
+    ...catalogs,
+    ...Object.keys(getModuleConfig().externalConnections ?? {}),
+  ];
+  return [...new Set(declared)]
+    .filter((id) => id !== OWN_CONNECTION)
+    .flatMap((id) => {
+      const missing: MissingBinding[] = [
+        ...(databases.has(id) ? [] : (["database"] as const)),
+        ...(catalogs.has(id) ? [] : (["catalog"] as const)),
+      ];
+      return missing.length === 0 ? [] : [{ id, missing }];
+    });
+}
+
 /**
  * Loads a named binding. Core maps the connection's path only for a request
  * from this module's own files, which this `require` is.
@@ -114,11 +156,6 @@ function loadBinding<T>(
   connection: string,
   isBinding: (value: unknown) => value is T,
 ): T {
-  assert(
-    listExternalIds().includes(connection),
-    404,
-    CONNECTION_REFUSALS.unknownConnection,
-  );
   const instance = asOwnModule(() =>
     GetInterfaceInstance(interfaceId, connection),
   );
@@ -134,18 +171,47 @@ function loadBinding<T>(
   });
 }
 
-/** The database a connection id names: `own`, or an external connection. */
-export function resolveDatabase(connection: string): Database {
+function assertExternal(connection: string): void {
+  assert(
+    listExternalIds().includes(connection),
+    404,
+    CONNECTION_REFUSALS.unknownConnection,
+  );
+}
+
+/**
+ * The database a connection id names: `own`, or an external connection, its
+ * schemas no module defines yet defined from its catalog.
+ */
+export async function resolveDatabase(connection: string): Promise<Database> {
   if (connection === OWN_CONNECTION) return OWN_DATABASE;
+  assertExternal(connection);
   const binding = loadBinding(
     DATABASE_INTERFACE,
     connection,
     isDatabaseBinding,
+  );
+  await ensureCatalogSchemas(connection, () =>
+    defineCatalogSchemas(
+      connection,
+      binding.Schema,
+      resolveCatalog(connection),
+      asOwnModule,
+    ),
   );
   return externalDatabase(connection, () => binding.Schema.list());
 }
 
 /** The catalog of an external connection. */
 export function resolveCatalog(connection: string): CatalogBinding {
+  assertExternal(connection);
+  return loadBinding(CATALOG_INTERFACE, connection, isCatalogBinding);
+}
+
+/**
+ * The catalog of a connection the project declares, browsable or not: it
+ * names the engine and the database of a connection the console lists.
+ */
+export function resolveDeclaredCatalog(connection: string): CatalogBinding {
   return loadBinding(CATALOG_INTERFACE, connection, isCatalogBinding);
 }

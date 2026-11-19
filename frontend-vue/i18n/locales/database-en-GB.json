@@ -258,7 +258,17 @@
 				"label": "Database",
 				"menu": "Choose the database to browse",
 				"failed": "The database could not be switched.",
-				"connect": "Connect a database"
+				"connect": "Connect a database",
+				"title": "Databases",
+				"current": "Current database",
+				"switching": "Switching database",
+				"own_subtitle": "This project",
+				"access_read": "Read only",
+				"access_read_write": "Read & write",
+				"unregistered": "Not registered",
+				"unregistered_hint": "{name} is declared in the project, but this module cannot browse it: the dms-database entry of antelope.config.ts lacks its {missing} binding. Let the assistant repair the database connections, or add the import overrides.",
+				"missing_database": "interface-database",
+				"missing_catalog": "interface-database-catalog"
 			},
 			"access": {
 				"read": "Access to {name}: Read only",

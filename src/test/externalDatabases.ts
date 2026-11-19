@@ -115,6 +115,12 @@ export const CONFIG_WRITER_STUB = {
   source: "dms-builder-stub",
 };
 
+/**
+ * A connection a project half registered: its catalog is bound on the dms-database entry, its
+ * `interface-database` is not, as in a project whose entry was copied from the `dms` entry.
+ */
+export const HALF_REGISTERED = { id: "shop", provider: "mongodb-erp" };
+
 /** The `importOverrides` the connect flow writes on the dms-database entry. */
 export const DMS_DATABASE_OVERRIDES = [
   { interface: DATABASE, source: "mongodb" },
@@ -122,6 +128,11 @@ export const DMS_DATABASE_OVERRIDES = [
     { interface: DATABASE, source: provider, id },
     { interface: CATALOG, source: provider, id },
   ]),
+  {
+    interface: CATALOG,
+    source: HALF_REGISTERED.provider,
+    id: HALF_REGISTERED.id,
+  },
 ];
 
 /**
