@@ -113,7 +113,7 @@ pnpm e2e:run specs/data.spec.ts
 | grill Q24 No match: Clear filters / Search all instances | `no-match-and-empty-tables-say-so` |
 | grill Q24 Load error: Try again with the error text | `a-refused-read-shows-the-error-and-try-again-reads-it-again` |
 | docs/5.extending.md:77 `/modules/database/data?schema=&table=` opens the table | `links-open-the-table-in-the-instance-they-name` |
-| docs/5.extending.md:78 `/modules/database/query?schema=&table=` opens the console on that table | Not driven: the Query console's feature owns that page |
+| docs/5.extending.md:78 `/modules/database/query?schema=&table=` opens the console on that table | `a-link-opens-the-console-on-the-table-in-the-instance-it-names` (the query feature owns that page) |
 | README:21 browses rows in any instance | `the-sidebar-counts-each-table-in-the-picked-instance`, `links-open-the-table-in-the-instance-they-name`, `all-instances-is-a-read-only-view-with-the-instance-column` |
 | `GET /browse/list`, `count`, `columns`, `tables`, `references`, `get` | the six API journeys above |
 | `GET /tables/instances` (the instance picker) | `the-instance-picker-lists-named-instances-with-a-search-and-a-limit`; the sidebar journey picks eu and us from it and reads No named instance for `metrics` |
