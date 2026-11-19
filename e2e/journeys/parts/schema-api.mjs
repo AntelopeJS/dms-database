@@ -41,35 +41,3 @@ export async function source(ctx, label, filters = {}) {
 export function ids(rows) {
   return rows.map((row) => text(row, "id"));
 }
-
-/**
- * @param {Row[]} rows Source rows
- * @param {string} id A `schema::table` id
- * @returns {Row | undefined} The row with that id
- */
-export function rowOf(rows, id) {
-  return rows.find((row) => text(row, "id") === id);
-}
-
-/**
- * Reads every schema with its tables.
- *
- * @param {Ctx} ctx The journey
- * @param {string} label What the call does
- * @returns {Promise<Row[]>} The schemas
- */
-export async function schemas(ctx, label) {
-  const answer = await db(ctx, label, "GET", "/schemas");
-  return list(answer.body, "schemas");
-}
-
-/**
- * @param {Row[]} all The schemas
- * @param {string} schemaId A schema id
- * @param {string} table A table name
- * @returns {Row | undefined} The table's summary
- */
-export function tableOf(all, schemaId, table) {
-  const schema = all.find((entry) => text(entry, "id") === schemaId);
-  return list(schema, "tables").find((entry) => text(entry, "name") === table);
-}

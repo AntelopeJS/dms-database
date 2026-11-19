@@ -31,13 +31,6 @@ The Schemas page lists every table the loaded modules register, with the rows co
 
 ## Sub-features
 
-- `the-source-counts-rows-columns-indexes-relations-and-modifiers-of-each-table`: the source route's exact figures for ten known tables, `all` equal to the tables the schemas route registers.
-- `schema-instance-search-and-structure-filters-narrow-the-source-and-combine`: scope, name or column search (case, trim), relations, modifiers, empty, combinations, unknown flags, `all` unchanged by filters.
-- `rows-are-counted-in-the-picked-instance-default-named-or-all`: default, `eu`, `us`, `all` and an unknown instance, and `empty` judged in the picked instance.
-- `the-instances-route-searches-sorts-and-limits-the-named-instances-of-a-schema`: search, numeric sort, limit and its clamps, 400 and 404.
-- `a-table-is-read-by-its-schema-and-name-id`: the single-table route and its refusals.
-- `columns-are-declared-in-code-and-inferred-from-sampled-rows`: declared columns first, sampled columns after, nulls as unions, arrays by element, no instance tag, a column named `constructor`.
-- `the-tables-and-schemas-routes-answer-the-platform-owner-only`: 401 without a session, 403 for a member.
 - `each-filter-of-the-bar-narrows-the-list-and-sets-its-own-url-key`: every filter in the UI, its URL key, the `N of M tables` count only while filtered.
 - `the-url-restores-every-filter-after-a-reload-and-clear-removes-them`: shared link, reload, Clear, Escape, another schema dropping a named instance.
 - `slash-focuses-the-search-field-but-not-while-typing-or-with-a-modifier`: the `/` shortcut.
@@ -53,6 +46,18 @@ The Schemas page lists every table the loaded modules register, with the rows co
 - `browse-query-and-diagram-actions-open-the-other-pages-on-the-same-table`: the three inspector actions, the row menu, the header Diagram button.
 - `with-modifiers-keeps-a-table-with-only-a-hashed-only-a-localized-or-only-an-encrypted-column`: the "or" of the With modifiers filter: three single-modifier tables of the `mods` schema stay in the API and in the list, each flagging only its own modifier.
 - `a-narrow-inspector-scrolls-its-columns-table-and-its-tabs-sideways`: the drawer narrowed to its minimum scrolls the columns table and the tab strip sideways.
+
+## Integration tests
+
+`pnpm test` runs these in `src/test/schemas.journeys.test.ts`, one `it` per id, so `-g <id>` selects one.
+
+- `the-source-counts-rows-columns-indexes-relations-and-modifiers-of-each-table`: the source route's exact figures for ten known tables, `all` equal to the tables the schemas route registers.
+- `schema-instance-search-and-structure-filters-narrow-the-source-and-combine`: scope, name or column search (case, trim), relations, modifiers, empty, combinations, unknown flags, `all` unchanged by filters.
+- `rows-are-counted-in-the-picked-instance-default-named-or-all`: default, `eu`, `us`, `all` and an unknown instance, and `empty` judged in the picked instance.
+- `the-instances-route-searches-sorts-and-limits-the-named-instances-of-a-schema`: search, numeric sort, limit and its clamps, 400 and 404.
+- `a-table-is-read-by-its-schema-and-name-id`: the single-table route and its refusals.
+- `columns-are-declared-in-code-and-inferred-from-sampled-rows`: declared columns first, sampled columns after, nulls as unions, arrays by element, no instance tag, a column named `constructor`.
+- `the-tables-and-schemas-routes-answer-the-platform-owner-only`: 401 without a session, 403 for a member.
 
 ## How to get to it (user POV)
 
