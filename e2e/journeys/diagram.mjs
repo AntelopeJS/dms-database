@@ -4,7 +4,8 @@ import { editing, notes, sharedNotes, undoing } from "./parts/diagram-notes.mjs"
 import { arrangement, preview, whileLoading } from "./parts/diagram-auto.mjs";
 import { dragging, placement } from "./parts/diagram-layout.mjs";
 import { keyJourneys } from "./parts/diagram-keys.mjs";
+import { escapeJourneys } from "./parts/diagram-escape.mjs";
 import { layoutApi, notesApi, notesRefusals, ownerOnly } from "./parts/diagram-api.mjs";
 
 /** The Diagram page: its tables, folds, layout, notes, shortcuts and the routes behind them. */
-export const journeys = [layoutApi, notesApi, notesRefusals, ownerOnly, reading, modifierIcons, folding, foldRule, notSaved, finding, startView, stubs, crossSchema, deepLinks, emptySchema, dragging, placement, preview, whileLoading, arrangement, notes, editing, sharedNotes, undoing, ...keyJourneys];
+export const journeys = [layoutApi, notesApi, notesRefusals, ownerOnly, reading, modifierIcons, folding, foldRule, notSaved, finding, startView, stubs, crossSchema, deepLinks, emptySchema, dragging, placement, preview, whileLoading, arrangement, notes, editing, sharedNotes, undoing, ...keyJourneys, ...escapeJourneys];

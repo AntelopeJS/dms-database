@@ -5,6 +5,7 @@ covers:
   - src/service/browse.ts
   - src/service/declaredFields.ts
   - src/service/references.ts
+  - src/service/rowFilter.ts
   - src/utils/query.ts
   - src/utils/requestValidation.ts
   - frontend-vue/app/components/DataBrowser.vue

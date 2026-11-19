@@ -13,6 +13,7 @@ covers:
   - frontend-vue/app/build/components/Diagram*
   - frontend-vue/app/build/components/diagramFloat.css
   - frontend-vue/app/build/diagram/**
+  - frontend-vue/app/build/composables/useCatalogReferences.ts
   - frontend-vue/app/build/composables/useDiagram*.ts
 docs:
   - docs/4.usage/3.diagram.md
@@ -43,11 +44,13 @@ The Diagram page draws the tables of one schema and the relations between them, 
 - `a-table-not-placed-yet-takes-its-automatic-place-and-placed-tables-stay`: placement rule.
 - `auto-layout-previews-the-arrangement-and-keep-or-discard-decides`: preview bar, count, Discard, Keep, Undo, Escape.
 - `auto-layout-keeps-groups-together-and-clear-of-notes-that-never-move`: arrangement rules, folded height, notes.
+- `auto-layout-and-note-wait-until-the-picked-schema-has-loaded`: while a picked schema reads its layout and notes, Auto layout, Note and N do nothing, so no preview or note holds the previous schema.
 - `n-and-the-note-button-drop-a-note-ready-to-write-and-it-is-saved-with-the-schema`: add notes.
 - `a-double-click-edits-a-note-and-the-trash-button-and-delete-remove-it`: edit and delete.
 - `notes-belong-to-their-schema-and-everyone-reads-them`: shared notes.
 - `undo-and-redo-cover-every-move-and-note-and-are-saved`: Ctrl Z, Ctrl Shift Z, Ctrl Y and the buttons.
 - `escape-steps-back-from-a-selected-table`: a click selects a table and Escape clears the selection.
+- `escape-leaves-the-find-field-then-lifts-the-focus-then-clears-the-selection`: Escape in the find field only leaves it, with a table in focus it brings every table back and keeps the selection, and the next Escape clears the selection and its bar.
 - `a-double-click-opens-the-inspector-and-a-relation-opens-the-other-table-in-it`: the drawer titled with the table, its four tabs, no position, J and K ignored, and a relation opening the other table in the same drawer.
 - `f-focuses-the-find-field-but-not-while-writing-a-note`: F focuses the find field; an f typed into a note stays in the note.
 - `h-pans-the-canvas-and-v-selects-again`: the hand moves the view and no table; V restores table dragging.
@@ -96,7 +99,7 @@ pnpm e2e:run specs/diagram.spec.ts
 | Shortcuts `1`, `0` | 3.diagram.md:41 | a-large-schema-opens-at-forty-percent... |
 | Shortcuts `V` / `H` | 3.diagram.md:40 | `h-pans-the-canvas-and-v-selects-again` |
 | Shortcuts Ctrl Z, Ctrl Shift Z, Ctrl Y | 3.diagram.md:42-43 | undo-and-redo-cover-every-move... |
-| Shortcut `Esc` | 3.diagram.md:44 | auto-layout-previews... (discards the preview); focus and selection steps Not driven |
+| Shortcut `Esc` | 3.diagram.md:44 | auto-layout-previews... (discards the preview); `escape-leaves-the-find-field-then-lifts-the-focus-then-clears-the-selection` (find field, focus, selection) |
 | The Shortcuts settings page lists them | 3.diagram.md:46 | `the-shortcuts-settings-page-lists-the-diagram-shortcuts` |
 | Schema ... not found, Table ... not found, No tables in X | design, SchemaDiagram.vue | the-url-picks-the-schema..., a-schema-without-a-table... |
 | Layout and notes API | routes/diagram.ts | the API journeys |

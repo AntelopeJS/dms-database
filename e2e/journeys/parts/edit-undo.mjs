@@ -1,6 +1,6 @@
 import { check, show } from "../../database.mjs";
-import { openTable } from "./browse.mjs";
-import { barStatus, cellState, recordEdits, reviewLabel, saveStaged, storedRow, typeInto } from "./edit.mjs";
+import { openTable, settle } from "./browse.mjs";
+import { barStatus, cellState, recordEdits, reviewLabel, savedNotice, saveStaged, storedRow, typeInto } from "./edit.mjs";
 import { queryRow } from "./query-wire.mjs";
 
 /** @typedef {import("../../database.mjs").Ctx} Ctx */
@@ -104,5 +104,55 @@ const undoExpires = {
   },
 };
 
-export const undoJourneys = [undoRestores, undoExpires];
+/** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
+const undoFails = {
+  id: "an-undo-whose-write-fails-keeps-the-saved-values-and-offers-undo-again",
+  title: "when the write of an Undo fails the saved values stay stored, a toast says how many changes could not be undone, Undo is offered again for the rows left, and the retry writes the previous values back",
+  entryPoint: "PUT /api/database/browse/edit answering 500 after a save",
+  async run(ctx) {
+    const tab = await shopTab(ctx, "products", "eu");
+    const before = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
+    const chairBefore = await storedRow(ctx, "products", "eu_sku_chair", "eu");
+    await typeInto(tab, "eu_sku_lamp", "name", "Reading lamp");
+    await typeInto(tab, "eu_sku_chair", "name", "Armchair");
+    let failing = false;
+    let refused = 0;
+    await tab.page.route("**/api/database/browse/edit**", async (route) => {
+      if (!failing) {
+        await route.continue();
+        return;
+      }
+      refused += 1;
+      await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ message: "Disk full" }) });
+    });
+    await saveStaged(tab);
+    const saved = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
+    failing = true;
+    await tab.click({ role: "button", name: "Undo" });
+    const toast = await settle(() => tab.page.locator("body").innerText(), (content) => /couldn.t be undone/.test(content));
+    const lamp = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
+    const chair = await storedRow(ctx, "products", "eu_sku_chair", "eu");
+    const offered = await tab.visible({ role: "button", name: "Undo" });
+    const lampCell = await cellState(tab, "eu_sku_lamp", "name");
+    await ctx.verify("the undo is refused", [
+      check("the save wrote both names", saved.name === "Reading lamp", saved.name),
+      check("the toast says 2 changes couldn't be undone", /2 changes couldn.t be undone/.test(toast), toast.replace(/\s+/g, " ").slice(-300)),
+      check("the run stopped at the first failing write", refused === 1, refused),
+      check("the saved names stay stored", lamp.name === "Reading lamp" && chair.name === "Armchair", [lamp.name, chair.name]),
+      check("the grid shows the saved name, nothing struck", lampCell.text === "Reading lamp" && lampCell.struck === "", lampCell),
+      check("Undo is offered again", offered.pass, offered.detail),
+    ]);
+    failing = false;
+    await tab.click({ role: "button", name: "Undo" });
+    const retried = await savedNotice(tab);
+    const lampBack = await storedRow(ctx, "products", "eu_sku_lamp", "eu");
+    const chairBack = await storedRow(ctx, "products", "eu_sku_chair", "eu");
+    await ctx.verify("the retry", [
+      check("the bar says 2 changes undone", /2 changes undone/.test(retried), retried),
+      check("both previous names are stored again", lampBack.name === before.name && chairBack.name === chairBefore.name, [lampBack.name, chairBack.name]),
+    ]);
+  },
+};
+
+export const undoJourneys = [undoRestores, undoExpires, undoFails];
 
