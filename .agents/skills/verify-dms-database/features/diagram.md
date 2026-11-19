@@ -25,10 +25,6 @@ The Diagram page draws the tables of one schema and the relations between them, 
 
 ## Sub-features
 
-- `the-layout-api-stores-one-layout-per-schema-and-refuses-bad-positions`: PUT and GET of the layout, replacement, isolation per schema, 400 refusals.
-- `the-notes-api-creates-lists-updates-and-deletes-notes-per-schema`: note CRUD and its fields.
-- `the-notes-api-refuses-missing-numbers-with-400-and-unknown-notes-with-404`: note refusals.
-- `every-diagram-route-answers-the-platform-owner-only`: 401 and 403 on all six routes.
 - `tables-list-their-columns-with-types-and-icons-and-relations-are-arrows`: columns, types, icons against the legend, arrows, labels.
 - `an-encrypted-column-carries-the-lock-icon-of-the-legend`: modifier icons.
 - `a-table-of-more-than-twelve-columns-comes-folded-and-folding-is-not-saved`: the fold, `+ 5 columns`, click, Enter, Fold columns.
@@ -58,6 +54,15 @@ The Diagram page draws the tables of one schema and the relations between them, 
 - `the-shortcuts-settings-page-lists-the-diagram-shortcuts`: the nine rows of the diagram group on the Shortcuts page.
 - `the-layout-and-the-notes-survive-a-backend-restart`: a dragged table and a note are kept over a restart.
 - `each-relation-arrow-starts-at-its-own-column`: arrow origins for three relations.
+
+## Integration tests
+
+`pnpm test` runs these in `src/test/diagram.journeys.test.ts`, one `it` per id, so `-g <id>` selects one.
+
+- `the-layout-api-stores-one-layout-per-schema-and-refuses-bad-positions`: PUT and GET of the layout, replacement, isolation per schema, 400 refusals.
+- `the-notes-api-creates-lists-updates-and-deletes-notes-per-schema`: note CRUD and its fields.
+- `the-notes-api-refuses-missing-numbers-with-400-and-unknown-notes-with-404`: note refusals.
+- `every-diagram-route-answers-the-platform-owner-only`: 401 and 403 on all six routes.
 
 ## How to get to it (user POV)
 
