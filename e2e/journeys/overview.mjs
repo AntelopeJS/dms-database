@@ -180,7 +180,7 @@ export const journeys = [
     title: "when the database stops answering, the Connection card turns to Unavailable with the last error and a Check again button, the backend keeps running, and Check again shows Healthy once the database is back",
     entryPoint: "/modules/database/overview, GET /api/database/health",
     knownFailures: {
-      "the health route answers status down within 10 s of the request": "with MongoDB stopped, GET /api/database/health answers 500 after the driver's 30 s server selection timeout, not status down with the probe's error within the 3 s probe deadline: the totals read after the probe throw, so the card's Last error reads No answer",
+      "the health route answers status down within 10 s of the request": "with MongoDB stopped, GET /api/database/health answers 500 after the driver's 30 s server selection timeout, before the route runs: DMS auth (validateUserToken of @antelopejs/dms) reads the session and records the user's activity in MongoDB on every request, so the card's Last error reads No answer (proposed AntelopeJS/dms follow-up of Wdf26acfc-150)",
     },
     async run(/** @type {Ctx} */ ctx) {
       const tab = await overviewTab(ctx);
