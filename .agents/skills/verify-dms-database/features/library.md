@@ -25,8 +25,13 @@ The history, saved and team queries beside the console.
 - `history-belongs-to-its-user-and-a-link-restores-a-run`: per-user history and the `?history=` link.
 - `history-groups-runs-by-day-with-yesterday-and-older-dates`: runs aged through `ctx.database` list under Today, Yesterday and an older day's date, in that order.
 - `a-history-row-without-a-status-reads-as-ok`: a row written without status, mutation or error reads as a successful run (design Q26), in the API and in the library.
-- `the-library-survives-a-backend-restart`: persistence.
 - `clear-history-empties-only-your-own-runs`: two owners, each clearing leaves the other's runs.
+
+## Integration tests
+
+`pnpm test` runs these in `src/test/library.journeys.test.ts`, one `it` per id, so `-g <id>` selects one.
+
+- `the-library-survives-a-backend-restart`: persistence. The harness cannot restart its backend, so the test reads the run and the saved query from the module's own tables through a MongoDB client of its own, then through the routes.
 
 ## How to get to it (user POV)
 
@@ -55,6 +60,6 @@ pnpm e2e:run specs/library.spec.ts
 | Team: shared queries; teammates run them; only the author edits or deletes (README, FAQ) | `a-shared-query-reaches-the-team-and-only-its-author-changes-it` |
 | FAQ: only you see your saved queries unless you tick Share with team | same journey (the private query is not in Team) |
 | History records failures; old rows without status read as ok (design Q26) | failures: `history-records-failures-and-writes-with-their-status`; old rows: `a-history-row-without-a-status-reads-as-ok` |
-| Persistence in the module's own schema | `the-library-survives-a-backend-restart` |
+| Persistence in the module's own schema | `the-library-survives-a-backend-restart` (integration test) |
 | Clear history empties it (yours only; per-user, two users) | 5.query-console.md:60 | `clear-history-empties-only-your-own-runs` |
 | The 500 runs are kept per user | 5.query-console.md:60 | `history-keeps-your-last-500-runs-newest-first` (a teammate's runs survive the owner's 503) |

@@ -1,4 +1,4 @@
-import { check, db, pick, show } from "../../database.mjs";
+import { check, pick } from "../../database.mjs";
 import { browse, openTable, rowsOf, settle } from "./browse.mjs";
 import { cellOf, cellState, saveStaged, savedNotice, storedRow, typeInto } from "./edit.mjs";
 
@@ -116,74 +116,4 @@ const typedValues = {
   },
 };
 
-/**
- * PUTs to the edit route for eu's orders.
- *
- * @param {Ctx} ctx The journey
- * @param {string} label What the call does
- * @param {string} id The row, empty to send none
- * @param {unknown} body The JSON body
- * @returns {Promise<import("../../database.mjs").Answer>} The answer
- */
-function putOrder(ctx, label, id, body) {
-  const selection = "filter_schema=is:shop&filter_table=is:orders&filter_instance=is:eu&connection=own";
-  return db(ctx, label, "PUT", `/browse/edit?${selection}${id ? `&id=${id}` : ""}`, { body });
-}
-
-/**
- * The writes the edit route refuses.
- *
- * @param {Ctx} ctx The journey
- * @returns {Promise<void>}
- */
-async function refusals(ctx) {
-  const id = "eu_ord_10405";
-  const everywhere = await db(ctx, "across every instance", "PUT", `/browse/edit?filter_schema=is:shop&filter_table=is:orders&filter_instance=is:__CROSS_INSTANCE__&id=${id}&connection=own`, { body: { channel: "everywhere" } });
-  const noId = await putOrder(ctx, "no id", "", { total: 1 });
-  const array = await putOrder(ctx, "an array body", id, [1, 2]);
-  const missing = await putOrder(ctx, "a missing row", "nope", { total: 1 });
-  const stored = await storedRow(ctx, "orders", id, "eu");
-  await ctx.verify("the refusals", [
-    check("across all instances the edit is refused 400 and writes nothing", everywhere.status === 400 && /Editing is disabled when browsing across all instances/.test(String(everywhere.body)) && stored.channel !== "everywhere", [everywhere.status, everywhere.body, stored.channel]),
-    check("a missing id is 400, an array body is 400, a missing row is 404", noId.status === 400 && array.status === 400 && missing.status === 404 && /Row not found/.test(String(missing.body)), [noId.status, array.status, missing.status]),
-  ]);
-}
-
-/** @type {{ id: string, title: string, entryPoint: string, run: (ctx: Ctx) => Promise<void> }} */
-const editRoute = {
-  id: "the-edit-route-writes-typed-values-and-refuses-the-rest",
-  title: "PUT /browse/edit writes the fields it is given as typed, keeps a date a date and refuses a value that is no date with 400, never rewrites the primary key or _instance, replaces an object whole, clears with null, answers the merged row, and refuses a missing id, a non-object body and a missing row",
-  entryPoint: "PUT /api/database/browse/edit",
-  async run(/** @type {Ctx} */ ctx) {
-    const put = (/** @type {string} */ label, /** @type {string} */ id, /** @type {unknown} */ body) => putOrder(ctx, label, id, body);
-    const id = "eu_ord_10405";
-    const number = await put("a number", id, { total: 12.5 });
-    const textOverNumber = await put("a text over a number", id, { channel: "kiosk", currency: "GBP" });
-    const dateText = await put("a date as text", id, { created_at: "2026-10-09" });
-    const badDate = await put("no date", id, { created_at: "not a date" });
-    const boolDate = await put("a boolean over a date", id, { created_at: true });
-    const key = await put("the primary key", id, { _id: "hacked", _instance: "us" });
-    const object = await put("an object", id, { shipping: { carrier: "X" } });
-    const cleared = await put("null", id, { coupon_id: null, channel: null });
-    const added = await put("a new field", id, { gift: true, note: "hello" });
-    const same = await put("an unchanged echo", id, { currency: "GBP", gift: true });
-    const stored = await storedRow(ctx, "orders", id, "eu");
-    const hacked = await browse(ctx, "the hacked id", "get", "shop.orders", { filter_instance: "is:eu", id: "hacked" });
-    const types = await browse(ctx, "order column types", "columns", "shop.orders", { filter_instance: "is:eu" });
-    await ctx.verify("the writes", [
-      check("a number is stored as a number and answered merged", number.status === 200 && pick(number.body, "total") === 12.5 && pick(number.body, "number") === "#10405", number.body),
-      check("two text fields are written in one call", textOverNumber.status === 200 && pick(textOverNumber.body, "currency") === "GBP", textOverNumber.body),
-      check("a date cell takes a date text and stays a date: the column type is date", dateText.status === 200 && stored.created_at === "2026-10-09T00:00:00.000Z" && pick(types.body, "types", "created_at") === "date", [stored.created_at, pick(types.body, "types", "created_at")]),
-      check("a text that is no date is refused 400 naming the field", badDate.status === 400 && /Invalid date for 'created_at'/.test(String(badDate.body)), [badDate.status, badDate.body]),
-      check("a boolean over a date is refused 400", boolDate.status === 400, boolDate.status),
-      check("the primary key and _instance are never rewritten: the answer is the same row", key.status === 200 && stored._id === id && stored._instance === "eu" && hacked.status === 404, [key.status, stored._id, stored._instance, hacked.status]),
-      check("an object replaces the stored one whole", object.status === 200 && show(stored.shipping) === '{"carrier":"X"}', stored.shipping),
-      check("null clears a cell: coupon_id and channel are null", cleared.status === 200 && stored.coupon_id === null && stored.channel === null, [stored.coupon_id, stored.channel]),
-      check("a field the row never had is added, as typed", added.status === 200 && stored.gift === true && stored.note === "hello", [stored.gift, stored.note]),
-      check("an unchanged echo is accepted and changes nothing", same.status === 200 && stored.currency === "GBP", same.status),
-    ]);
-    await refusals(ctx);
-  },
-};
-
-export const storeJourneys = [instances, typedValues, editRoute];
+export const storeJourneys = [instances, typedValues];

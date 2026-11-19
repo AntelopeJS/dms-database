@@ -10,9 +10,6 @@ import { db, isRow, list } from "../../database.mjs";
 /** The data browser page. */
 export const DATA_PAGE = "/modules/database/data";
 
-/** The wire token of the cross-instance selection. */
-export const ALL = "__CROSS_INSTANCE__";
-
 /**
  * The query string of a browse request.
  *
