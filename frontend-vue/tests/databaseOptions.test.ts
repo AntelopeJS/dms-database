@@ -1,0 +1,98 @@
+import { describe, expect, it } from 'vitest'
+import { OWN, WAREHOUSE } from './fixtures/connections'
+import { databaseOptions, focusTarget } from '../app/build/data/databaseOptions'
+
+const t = (key: string, params?: Record<string, string>) =>
+	params ? `${key} ${Object.values(params).join(' ')}` : key
+
+describe('database options', () => {
+	it('names the project database from the locale and an external one by its label', () => {
+		const options = databaseOptions([OWN, WAREHOUSE], 'own', t)
+		expect(options.map((option) => option.name)).toEqual([
+			'dms_database.connections.own',
+			'Warehouse',
+		])
+	})
+
+	it('gives the project database no badge, an external one the External badge, and an unregistered one the reason it cannot be picked', () => {
+		const shop = { ...WAREHOUSE, id: 'shop', missing: ['catalog' as const] }
+		const writable = { ...WAREHOUSE, id: 'wh', access: 'read-write' as const }
+		const options = databaseOptions([OWN, WAREHOUSE, writable, shop], 'own', t)
+		const external = {
+			label: 'dms_database.connections.external',
+			tone: 'warning',
+		}
+		expect(options.map((option) => option.badge)).toEqual([
+			null,
+			external,
+			external,
+			{
+				label: 'dms_database.connections.switcher.unregistered',
+				tone: 'warning',
+			},
+		])
+		expect(options.map((option) => option.unavailable === null)).toEqual([
+			true,
+			true,
+			true,
+			false,
+		])
+		expect(options[3]?.unavailable).toContain('missing_catalog')
+	})
+
+	it('puts the access in the subtitle of a browsable external database only, which a badge or an access on every row gets wrong', () => {
+		const shop = { ...WAREHOUSE, id: 'shop', missing: ['catalog' as const] }
+		const writable = { ...WAREHOUSE, id: 'wh', access: 'read-write' as const }
+		const options = databaseOptions([OWN, WAREHOUSE, writable, shop], 'own', t)
+		expect(options.map((option) => option.access)).toEqual([
+			null,
+			{
+				label: 'dms_database.connections.switcher.access_read',
+				icon: 'i-ph-lock-simple',
+			},
+			{
+				label: 'dms_database.connections.switcher.access_read_write',
+				icon: 'i-ph-pencil-simple',
+			},
+			null,
+		])
+	})
+
+	it('describes an external database by its engine and the database it is on, which a subtitle naming the engine alone leaves out', () => {
+		const sameName = { ...WAREHOUSE, database: 'Warehouse' }
+		const unknown = { ...WAREHOUSE, engine: null, database: null }
+		const options = databaseOptions([OWN, WAREHOUSE, sameName, unknown], 'own', t)
+		expect(options.map((option) => option.subtitle)).toEqual([
+			'mongodb',
+			'postgres · warehouse_prod',
+			'postgres',
+			'dms_database.connections.engine_unknown',
+		])
+	})
+
+	it('marks only the selected database as current', () => {
+		const options = databaseOptions([OWN, WAREHOUSE], 'warehouse', t)
+		expect(options.map((option) => option.current)).toEqual([false, true])
+	})
+})
+
+describe('switcher keyboard focus', () => {
+	it.each([
+		['ArrowDown', 0, 3, 1],
+		['ArrowDown', 2, 3, 0],
+		['ArrowDown', -1, 3, 0],
+		['ArrowUp', 1, 3, 0],
+		['ArrowUp', 0, 3, 2],
+		['ArrowUp', -1, 3, 2],
+		['Home', 2, 3, 0],
+		['End', 0, 3, 2],
+	])('%s from %i of %i rows lands on %i', (key, current, count, expected) => {
+		expect(focusTarget(current, count, key)).toBe(expected)
+	})
+
+	it('leaves other keys and an empty list alone, which a handler swallowing every key gets wrong', () => {
+		expect(focusTarget(0, 3, 'a')).toBeUndefined()
+		expect(focusTarget(0, 3, 'Tab')).toBeUndefined()
+		expect(focusTarget(-1, 0, 'ArrowDown')).toBeUndefined()
+	})
+})

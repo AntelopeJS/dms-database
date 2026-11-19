@@ -258,7 +258,17 @@
 				"label": "Base de données",
 				"menu": "Choisir la base à parcourir",
 				"failed": "La base n'a pas pu être changée.",
-				"connect": "Connecter une base"
+				"connect": "Connecter une base",
+				"title": "Bases de données",
+				"current": "Base actuelle",
+				"switching": "Changement de base en cours",
+				"own_subtitle": "Ce projet",
+				"access_read": "Lecture seule",
+				"access_read_write": "Lecture et écriture",
+				"unregistered": "Non enregistrée",
+				"unregistered_hint": "{name} est déclarée dans le projet, mais ce module ne peut pas la parcourir : l'entrée dms-database de antelope.config.ts n'a pas sa liaison {missing}. Laissez l'assistant réparer les connexions aux bases, ou ajoutez les import overrides.",
+				"missing_database": "interface-database",
+				"missing_catalog": "interface-database-catalog"
 			},
 			"access": {
 				"read": "Accès à {name} : lecture seule",

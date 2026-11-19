@@ -11,10 +11,12 @@ export const OWN: DatabaseConnection = {
 	id: 'own',
 	kind: 'own',
 	label: 'legacy-label',
+	database: null,
 	engine: 'mongodb',
 	access: 'read-write',
 	canWrite: true,
 	unsupported: [],
+	missing: [],
 }
 
 /** A customer's Postgres, read only, that its account may write to. */
@@ -22,10 +24,12 @@ export const WAREHOUSE: DatabaseConnection = {
 	id: 'warehouse',
 	kind: 'external',
 	label: 'Warehouse',
+	database: 'warehouse_prod',
 	engine: 'postgres',
 	access: 'read',
 	canWrite: true,
 	unsupported: ['queryConsole', 'instances', 'rowReferences'],
+	missing: [],
 }
 
 /** The state the API answers while `selected` is browsed. */

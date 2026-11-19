@@ -15,10 +15,15 @@ import { builderRefusalReason } from "./builderRefusal";
 import { CONNECTION_REFUSALS, connectionRefusal } from "./connectionRefusals";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import {
+  type CatalogBinding,
   listExternalIds,
+  listUnregisteredConnections,
+  type MissingBinding,
   ownModuleId,
   resolveCatalog,
   resolveDatabase,
+  resolveDeclaredCatalog,
+  type UnregisteredConnection,
 } from "./connections";
 import { type Database, OWN_CONNECTION } from "./database";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
@@ -51,13 +56,15 @@ const FEATURE_NAMES: Record<ConsoleFeature, string> = {
 
 /**
  * One database the console shows. The dashboard names the project's own
- * database from its locale; an external one is labelled by the database its
- * catalog reports, else by its connection id.
+ * database from its locale; an external one is labelled by its connection
+ * id, the name the project configuration and the builder give it.
  */
 export interface ConnectionSummary {
   id: string;
   kind: "own" | "external";
   label: string;
+  /** The database the catalog reports the connection is on; `null` for the own database and when the catalog refuses. */
+  database: string | null;
   /** The engine the catalog reports; `null` for the own database and when the catalog refuses. */
   engine: string | null;
   /** What the project lets the console do; always `"read-write"` on the own database. */
@@ -68,6 +75,11 @@ export interface ConnectionSummary {
    */
   canWrite: boolean | null;
   unsupported: ConsoleFeature[];
+  /**
+   * The bindings the project lacks for this connection on the dms-database entry; the console
+   * lists it but cannot browse it until there are none.
+   */
+  missing: MissingBinding[];
 }
 
 /** The databases the console shows, the one the user browses, and whether access may change here. */
@@ -106,8 +118,11 @@ async function catalogAnswer<T>(
   return undefined;
 }
 
-async function summarizeExternal(id: string): Promise<ConnectionSummary> {
-  const catalog = resolveCatalog(id);
+async function summarizeCatalog(
+  id: string,
+  catalog: CatalogBinding,
+  missing: MissingBinding[],
+): Promise<ConnectionSummary> {
   const [info, relations] = await Promise.all([
     catalogAnswer(id, catalog.Info()),
     catalogAnswer(id, catalog.ListRelations()),
@@ -115,22 +130,50 @@ async function summarizeExternal(id: string): Promise<ConnectionSummary> {
   return {
     id,
     kind: "external",
-    label: info?.database || id,
+    label: id,
+    database: info?.database || null,
     engine: info?.engine ?? null,
     access: configuredAccess(id) ?? "read",
     canWrite: relations ? relations.some(grantsWrite) : null,
     unsupported: [...EXTERNAL_UNSUPPORTED],
+    missing,
   };
+}
+
+function summarizeExternal(id: string): Promise<ConnectionSummary> {
+  return summarizeCatalog(id, resolveCatalog(id), []);
+}
+
+async function summarizeUnregistered({
+  id,
+  missing,
+}: UnregisteredConnection): Promise<ConnectionSummary> {
+  if (missing.includes("catalog")) {
+    return {
+      id,
+      kind: "external",
+      label: id,
+      database: null,
+      engine: null,
+      access: configuredAccess(id) ?? "read",
+      canWrite: null,
+      unsupported: [...EXTERNAL_UNSUPPORTED],
+      missing,
+    };
+  }
+  return summarizeCatalog(id, resolveDeclaredCatalog(id), missing);
 }
 
 const OWN_SUMMARY: ConnectionSummary = {
   id: OWN_CONNECTION,
   kind: "own",
   label: OWN_CONNECTION,
+  database: null,
   engine: null,
   access: "read-write",
   canWrite: true,
   unsupported: [],
+  missing: [],
 };
 
 /**
@@ -173,15 +216,16 @@ export async function resolveSelectedDatabase(
 export async function readConnectionsState(
   userId: string,
 ): Promise<ConnectionsState> {
-  const [selected, editable, external] = await Promise.all([
+  const [selected, editable, external, unregistered] = await Promise.all([
     selectedConnection(userId),
     accessEditable(),
     Promise.all(listExternalIds().map((id) => summarizeExternal(id))),
+    Promise.all(listUnregisteredConnections().map(summarizeUnregistered)),
   ]);
   return {
     selected,
     accessEditable: editable,
-    connections: [OWN_SUMMARY, ...external],
+    connections: [OWN_SUMMARY, ...external, ...unregistered],
   };
 }
 

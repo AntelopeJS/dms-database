@@ -72,7 +72,7 @@ async function switching(ctx, tab) {
   await tab.goto(DATA_PAGE);
   const menu = await pickDatabase(tab, "Project database", ERP);
   await ctx.verify("the switcher", [
-    check("the menu lists the project database and erp with its engine and the External badge", /Project database\s+erp\s+mongodb\s+External/.test(menu), menu),
+    check("the menu lists the project database and erp with its engine, its Read only access and its External badge", /Project database\s+This project\s+erp\s+mongodb\s*·\s*Read only\s+External/i.test(menu), menu),
     check("the sidebar entry of the Diagram is locked with its reason", (await lockedEntry(tab, "Diagram")) === true, "Diagram"),
     check("the sidebar entry of the Query console is locked with its reason", (await lockedEntry(tab, "Query console")) === true, "Query console"),
   ]);
@@ -231,7 +231,7 @@ async function tabsAndRecents(ctx, tab) {
   await tab.goto(DATA_PAGE);
   const own = await settle(() => pageText(tab), (content) => /Pick a table to browse/.test(content));
   await ctx.verify("back on the project database", [
-    check("the switcher names it and the access bar is gone", (await accessBar(tab)) === "" && /Database\s+Project database/.test(own), own),
+    check("the switcher names it and the access bar is gone", (await accessBar(tab)) === "" && /Database\s+This project\s+Project database/i.test(own), own),
     check("it lists its own schema, not erp", /\bdemo\b/.test(own) && !/customers/.test(own), own),
     check("the tab of erp was left behind", (await tab.page.getByRole("button", { name: "Close tab" }).count()) === 0, own),
     check("erp's recent table is not offered on the project database", !/Recently opened/.test(own), own),
@@ -250,7 +250,7 @@ async function tabsAndRecents(ctx, tab) {
     check("the project database offers demo.tags", show(ownRecent) === '["demo.tags"]', ownRecent),
     check("erp offers customers again and not demo.tags", show(back) === '["erp.customers"]', back),
     check("no read of the other database's table fails", !/Couldn't load/.test(backText) && !/Couldn't load/.test(reloaded), backText),
-    check("a reload keeps erp selected", /Database\s+erp/.test(reloaded) && /Access to erp: Read only/.test(reloaded), reloaded),
+    check("a reload keeps erp selected", /Database\s+mongodb\s+erp/i.test(reloaded) && /Access to erp: Read only/.test(reloaded), reloaded),
   ]);
 }
 
