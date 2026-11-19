@@ -109,19 +109,4 @@ export function queryDelete(ctx, schema, table, id, instance) {
   return runQuery(ctx, `delete ${table} ${id} by query`, query, `schemas.${schema}.instance(${instance ? JSON.stringify(instance) : ""}).table("${table}").get("${id}").delete()`);
 }
 
-/**
- * Inserts rows through the query console's route.
- *
- * @param {Ctx} ctx The journey
- * @param {string} schema The schema
- * @param {string} table The table
- * @param {Row[]} rows The rows
- * @param {string} [instance] The instance
- * @returns {Promise<Answer>} The answer
- */
-export function queryInsert(ctx, schema, table, rows, instance) {
-  const query = stagedTable(schema, table, instance).insert(rows);
-  return runQuery(ctx, `insert into ${table} by query`, query, `schemas.${schema}.instance(${instance ? JSON.stringify(instance) : ""}).table("${table}").insert(${JSON.stringify(rows)})`);
-}
-
 export { pick };

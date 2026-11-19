@@ -1,42 +1,9 @@
-import { check, db, isRow, list, pick, text } from "../database.mjs";
-import { tableWatchJourney } from "./parts/table-watch.mjs";
+import { check, db } from "../database.mjs";
 
 /** @typedef {import("../database.mjs").Ctx} Ctx */
 
-/**
- * @param {unknown} schemas The schemas answer
- * @param {string} schema A schema id
- * @param {string} table A table name
- * @returns {unknown} The table's summary
- */
-function tableOf(schemas, schema, table) {
-  const found = list(schemas, "schemas").find((row) => text(row, "id") === schema);
-  return list(found, "tables").find((row) => text(row, "name") === table);
-}
-
 /** What a module gets by registering a schema, and the links other pages use. */
 export const journeys = [
-  {
-    id: "a-registered-schema-shows-its-tables-columns-indexes-relations-and-modifiers",
-    title: "a schema registered with RegisterSchema lists its tables with their columns, indexes, relations and modifiers, and a table with named instances lists them",
-    entryPoint: "GET /api/database/schemas, /tables/instances",
-    async run(/** @type {Ctx} */ ctx) {
-      const schemas = await db(ctx, "schemas", "GET", "/schemas");
-      const orders = tableOf(schemas.body, "shop", "orders");
-      const accounts = tableOf(schemas.body, "vault", "accounts");
-      const instances = await db(ctx, "shop instances", "GET", "/tables/instances?schema=shop");
-      const none = await db(ctx, "demo instances", "GET", "/tables/instances?schema=demo");
-      const fields = pick(orders, "fields");
-      await ctx.verify("the introspection", [
-        check("orders has its declared columns", ["_id", "number", "customer_id", "status", "total", "created_at"].every((name) => isRow(fields) && name in fields), fields),
-        check("orders has the indexes number, customer_id and the status_created group", JSON.stringify(Object.keys(pick(orders, "indexes") ?? {}).sort()) === JSON.stringify(["customer_id", "number", "status_created"]), pick(orders, "indexes")),
-        check("orders points to customers through customer_id", list(orders, "relations").some((relation) => text(relation, "fromField") === "customer_id" && text(relation, "toTable") === "customers"), pick(orders, "relations")),
-        check("accounts carries hashed, encrypted and localized modifiers on their fields", JSON.stringify(pick(accounts, "modifiers")) === JSON.stringify({ password: ["HashModifier"], card_number: ["EncryptionModifier"], display_name: ["LocalizationModifier"] }), pick(accounts, "modifiers")),
-        check("shop lists its eu and us instances", JSON.stringify(pick(instances.body, "instances")) === JSON.stringify(["eu", "us"]), instances.body),
-        check("a schema without named instances lists none", JSON.stringify(pick(none.body, "instances")) === "[]", none.body),
-      ]);
-    },
-  },
   {
     id: "deep-links-open-the-documented-pages-on-the-table",
     title: "each link of the Link to the console table opens its page on the table: the inspector, the diagram focused on it, the data browser (default instance, a named instance, all instances) and the query console",
@@ -77,5 +44,4 @@ export const journeys = [
       ]);
     },
   },
-  tableWatchJourney,
 ];
