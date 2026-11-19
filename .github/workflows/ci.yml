@@ -5,6 +5,7 @@ on:
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches: [next]
+  merge_group:
   schedule:
     - cron: "17 2 * * *"
   workflow_dispatch:
@@ -47,6 +48,8 @@ jobs:
       tier: ${{ steps.tier.outputs.tier }}
       tests: ${{ steps.tier.outputs.tests }}
       os: ${{ steps.tier.outputs.os }}
+      e2e: ${{ steps.tier.outputs.e2e }}
+      shards: ${{ steps.tier.outputs.shards }}
     steps:
       - uses: actions/checkout@v4
         if: github.event_name == 'pull_request'
@@ -60,6 +63,8 @@ jobs:
         id: tier
         env:
           TIER: ${{ steps.pick.outputs.tier }}
+          EVENT: ${{ github.event_name }}
+          FULL_LABEL: ${{ contains(github.event.pull_request.labels.*.name, 'ci:full') }}
         run: |
           tier="$TIER"
 
@@ -82,12 +87,25 @@ jobs:
             os='["ubuntu-latest","windows-latest"]'
           fi
 
+          e2e=none
+          shards='[1]'
+          if [[ "$tests" == true ]]; then
+            if [[ "$EVENT" == pull_request && "$FULL_LABEL" != true ]]; then
+              e2e=smoke
+            else
+              e2e=all
+              shards='[1, 2]'
+            fi
+          fi
+
           {
             echo "tier=${tier}"
             echo "tests=${tests}"
             echo "os=${os}"
+            echo "e2e=${e2e}"
+            echo "shards=${shards}"
           } >> "$GITHUB_OUTPUT"
-          echo "Tier \`${tier}\`: tests ${tests}, runners ${os}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tier \`${tier}\`: tests ${tests}, runners ${os}, e2e ${e2e} on ${shards}" >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     needs: select
@@ -171,21 +189,22 @@ jobs:
           key: tla2tools-1.7.4
       - run: node .agents/skills/formal-table-watch/check.mjs
 
-  # The Playwright suite in `e2e/`: the journeys tagged @smoke on the full
-  # tier, every journey in two shards on the nightly tier, nothing on a draft
-  # or the fast tier. One worker owns a MongoDB replica set, the backend and
+  # The Playwright suite in `e2e/`: the journeys tagged @smoke on a pull
+  # request, every journey in two shards in the merge queue, the nightly, a
+  # manual run and a pull request labelled ci:full, nothing on a draft or a
+  # docs-only change. One worker owns a MongoDB replica set, the backend and
   # the dashboard on free ports.
   e2e:
     needs: select
-    if: needs.select.outputs.tier == 'full' || needs.select.outputs.tier == 'nightly'
+    if: needs.select.outputs.e2e != 'none'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
-        shard: ${{ fromJSON(needs.select.outputs.tier == 'nightly' && '[1, 2]' || '[1]') }}
+        shard: ${{ fromJSON(needs.select.outputs.shards) }}
     env:
-      TIER: ${{ needs.select.outputs.tier }}
+      SUITE: ${{ needs.select.outputs.e2e }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -217,19 +236,19 @@ jobs:
           echo "::warning::Chromium's system packages did not install (the package mirrors of the runner did not answer): installing the browser alone"
           pnpm exec playwright install --only-shell chromium
       - run: pnpm e2e:build
-      - if: env.TIER == 'full'
+      - if: env.SUITE == 'smoke'
         run: pnpm e2e:run --grep @smoke
       # The blob report keeps each test's steps, attachments and traces, so
       # e2e-report merges the shards into one.
-      - if: env.TIER == 'nightly'
+      - if: env.SUITE == 'all'
         run: pnpm e2e:run --shard=${{ matrix.shard }}/2 --reporter=blob
-      - if: always() && env.TIER == 'nightly'
+      - if: always() && env.SUITE == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: blob-report-${{ matrix.shard }}
           path: e2e/blob-report
           retention-days: 3
-      - if: failure() && env.TIER == 'full'
+      - if: failure() && env.SUITE == 'smoke'
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report
@@ -238,10 +257,10 @@ jobs:
             e2e/test-results
           retention-days: 7
 
-  # One HTML and JSON report of the nightly shards.
+  # One HTML and JSON report of the shards of a whole-suite run.
   e2e-report:
     needs: [select, e2e]
-    if: always() && needs.select.outputs.tier == 'nightly'
+    if: always() && needs.select.outputs.e2e == 'all'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -283,7 +302,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - if: >-
-          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.tests == 'true' && (needs.frontend.result == 'skipped' || needs.formal-table-watch.result == 'skipped')) || ((needs.select.outputs.tier == 'full' || needs.select.outputs.tier == 'nightly') && needs.e2e.result == 'skipped')
+          needs.select.result != 'success' || contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') || needs.ci.result == 'skipped' || (needs.select.outputs.tests == 'true' && (needs.frontend.result == 'skipped' || needs.formal-table-watch.result == 'skipped')) || (needs.select.outputs.e2e != 'none' && needs.e2e.result == 'skipped')
         run: exit 1
       - if: needs.select.outputs.tier == 'draft'
         run: |
