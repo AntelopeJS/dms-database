@@ -22,7 +22,7 @@ function playgroundDatabase(kind: string): PlaygroundDatabase {
           source: {
             type: "package",
             package: "@antelopejs/mongodb",
-            version: "~1.8.4",
+            version: "~1.8.11",
           },
           config: {
             url: process.env.MONGO_URL ?? "mongodb://localhost:27017",
@@ -39,7 +39,7 @@ function playgroundDatabase(kind: string): PlaygroundDatabase {
           source: {
             type: "package",
             package: "@antelopejs/postgres",
-            version: ">=0.4.2 <0.5.0",
+            version: ">=0.4.3 <0.5.0",
           },
           config: {
             url:
@@ -85,7 +85,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/dms",
-        version: ">=0.21.0 <0.22.0",
+        version: ">=0.21.2 <0.22.0",
       },
       config: {
         homepage: "/modules/database/overview",
@@ -101,7 +101,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/auth-jwt",
-        version: "^1.1.0",
+        version: "^1.1.3",
       },
       config: {
         secret: "dev",
@@ -113,7 +113,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: ">=0.2.0 <1.0.0",
+        version: ">=0.2.2 <1.0.0",
       },
       config: {
         storagePath: ".antelope/file-storage",
@@ -127,7 +127,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/nodemailer",
-        version: ">=0.0.6 <1.0.0",
+        version: ">=0.0.13 <1.0.0",
       },
       config: {
         ethereal: true,
@@ -139,7 +139,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/api",
-        version: "^1.7.0",
+        version: "^1.7.8",
       },
       config: {
         servers: [
