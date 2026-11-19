@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.6.1
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.0...v0.6.1)
+
+### 🚀 Enhancements
+
+- **database:** List declared external connections and restyle the database switcher ([#214](https://github.com/AntelopeJS/dms-database/pull/214))
+
+### 🩹 Fixes
+
+- **deps:** Require the latest @antelopejs dependencies ([#215](https://github.com/AntelopeJS/dms-database/pull/215))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.6.0
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.5.5...v0.6.0)
