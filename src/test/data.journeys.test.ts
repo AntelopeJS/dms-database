@@ -302,7 +302,7 @@ async function assertOwnerOnly(api: DataApi): Promise<void> {
       },
       "a browse route that skips the owner gate answers a visitor or a member",
     );
-    const edit = `/browse/edit?${selection}&id=sku_desk`;
+    const edit = `/browse/edit?${selection}&id=sku_desk&connection=own`;
     assert.deepEqual(
       [
         (await callDatabase(null, "PUT", edit, { name: "Hacked" })).status,
@@ -318,6 +318,14 @@ async function assertOwnerOnly(api: DataApi): Promise<void> {
       ),
       "Standing desk",
       "a refused edit still wrote the row",
+    );
+    const same = await callDatabase(api.owner, "PUT", edit, {
+      name: "Standing desk",
+    });
+    assert.equal(
+      same.status,
+      200,
+      `the owner's edit is refused, so the refusals above prove nothing: ${same.text}`,
     );
   } finally {
     await reader.remove();

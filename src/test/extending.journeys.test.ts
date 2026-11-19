@@ -17,7 +17,7 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { isJsonValue, type JsonObject, type JsonValue } from "../types/json";
 import { call } from "./helpers/http";
-import { at, itemsAt, keysAt, textAt } from "./helpers/jsonAt";
+import { at, itemsAt, keysAt, textAt } from "./helpers/pick";
 import { createOwnerSession, type OwnerSession } from "./ownerSession";
 import { encode } from "./stagedWire";
 

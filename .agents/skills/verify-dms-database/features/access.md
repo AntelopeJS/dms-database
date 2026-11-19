@@ -22,7 +22,7 @@ The pages and the module's API answer to the platform owner only, and the module
 - `a-member-gets-403-from-every-route-and-writes-nothing`: a member with the module's permissions gets 403 from every route and changes nothing. Integration test in `src/test/access.journeys.test.ts`.
 - `a-member-sees-neither-the-pages-nor-the-catalog-tile`: no tile and no page for a member; the owner sees the tile.
 - `the-catalog-tile-reads-the-database`: the tile's two readout lines, version and category.
-- `the-owner-only-gate-is-logged-at-start`: the five 'gated owner-only' log lines. Integration test in `src/test/access.journeys.test.ts`.
+- `the-owner-only-gate-is-logged-at-start`: the owner-only gate the start log reports, each of the five pages' layout routes answering the owner and refusing a member with the module's permissions. Integration test in `src/test/access.journeys.test.ts`.
 
 ## How to get to it (user POV)
 

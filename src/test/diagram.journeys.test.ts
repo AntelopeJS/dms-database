@@ -4,7 +4,7 @@ import { DiagramLayoutModel, DiagramNoteModel } from "../db";
 import { OWN_CONNECTION } from "../types/constants";
 import type { JsonObject, JsonValue } from "../types/json";
 import { call } from "./helpers/http";
-import { at, itemsAt, textAt } from "./helpers/jsonAt";
+import { at, itemsAt, textAt } from "./helpers/pick";
 import {
   createMemberSession,
   createOwnerSession,
@@ -54,6 +54,7 @@ function saveLayout(schema: string, body: JsonObject) {
 
 async function notesOf(schema: string): Promise<JsonValue[]> {
   const answer = await call(owner, "GET", `${NOTES}?schema=${schema}`);
+  assert.equal(answer.status, 200, answer.text);
   return itemsAt(answer.body, "items");
 }
 
@@ -228,7 +229,7 @@ async function ownerOnly(): Promise<void> {
       body: { positions: {} },
     },
     { method: "GET", path: `${NOTES}?schema=${SHOP}` },
-    { method: "POST", path: NOTES, body: NOTE },
+    { method: "POST", path: `${NOTES}?connection=own`, body: NOTE },
     { method: "PUT", path: `${NOTES}/x`, body: { text: "y" } },
     { method: "DELETE", path: `${NOTES}/x` },
   ];

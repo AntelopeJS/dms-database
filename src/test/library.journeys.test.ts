@@ -2,7 +2,7 @@ import { strict as assert } from "node:assert";
 import { Schema } from "@antelopejs/interface-database";
 import { SCHEMA_NAME } from "../types/constants";
 import { call } from "./helpers/http";
-import { at, itemsAt, textAt } from "./helpers/jsonAt";
+import { at, itemsAt, textAt } from "./helpers/pick";
 import { withOwnDatabase } from "./ownDatabase";
 import { createOwnerSession, type OwnerSession } from "./ownerSession";
 import { encode } from "./stagedWire";

@@ -270,6 +270,8 @@ export interface DataApi {
   ): Promise<HttpAnswer>;
   /** Calls `path` under `/api/database`. */
   get(path: string): Promise<HttpAnswer>;
+  /** The owner the suite signed in. */
+  readonly owner: OwnerSession;
 }
 
 /**
@@ -290,6 +292,7 @@ export function withDataFixture(email: string): () => DataApi {
     const session = owner;
     assert.ok(session, "the suite's before hook signed the owner in");
     return {
+      owner: session,
       browse(route, target, params = {}) {
         const [schema = "", table] = target.split(".");
         const query = new URLSearchParams({ filter_schema: `is:${schema}` });

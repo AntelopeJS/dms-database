@@ -1,9 +1,11 @@
 import { strict as assert } from "node:assert";
 import { Schema } from "@antelopejs/interface-database";
 import { pageRoutePath } from "@antelopejs/interface-dms/page";
+import { SCHEMA_NAME } from "../types/constants";
 import type { JsonObject, JsonValue } from "../types/json";
 import { callBackend, callDatabase, type HttpAnswer } from "./helpers/http";
 import { pick } from "./helpers/pick";
+import { withOwnDatabase } from "./ownDatabase";
 import {
   createMemberWithRole,
   createOwnerSession,
@@ -56,14 +58,34 @@ const READS = [
   "/query/history/none",
 ];
 
-/** Every write route of the module, with a body it would accept from the owner. */
-const WRITES: readonly [string, string, JsonValue | undefined][] = [
-  ["PUT", "/browse/edit", { schema: SCHEMA, table: "products", updates: [] }],
-  [
-    "POST",
-    "/query/execute",
-    { query: tableQuery("products"), source: "x", language: "aql" },
-  ],
+/** The source of the run the member sends, which only a run that went through records in the history table. */
+const MEMBER_SOURCE = "access-journeys-member-run";
+
+type Write = readonly [string, string, JsonValue | undefined];
+
+const EDIT: Write = [
+  "PUT",
+  `/browse/edit?${SELECTION}&id=sku_desk&connection=own`,
+  { name: "Member edit" },
+];
+const EXECUTE: Write = [
+  "POST",
+  "/query/execute",
+  { query: tableQuery("products"), source: MEMBER_SOURCE, language: "aql" },
+];
+const ADD_NOTE: Write = [
+  "POST",
+  "/diagram/notes?connection=own",
+  { schemaName: SCHEMA, text: "x", x: 0, y: 0, width: 100, height: 50 },
+];
+
+/** The writes whose effect the member test reads back, which the owner's own call must carry out. */
+const OWNER_ACCEPTS: readonly Write[] = [EXECUTE, ADD_NOTE];
+
+/** Every write route of the module; the edit, the run and the note carry a body the owner's call would carry out. */
+const WRITES: readonly Write[] = [
+  EDIT,
+  EXECUTE,
   ["POST", "/query/dry-run", { query: tableQuery("products") }],
   [
     "POST",
@@ -84,7 +106,7 @@ const WRITES: readonly [string, string, JsonValue | undefined][] = [
   ["DELETE", "/query/saved/none", undefined],
   ["DELETE", "/query/history", undefined],
   ["PUT", `/diagram/layout/${SCHEMA}`, { positions: {} }],
-  ["POST", "/diagram/notes", { schema: SCHEMA, text: "x", x: 0, y: 0 }],
+  ADD_NOTE,
   ["PUT", "/diagram/notes/none", { text: "x" }],
   ["DELETE", "/diagram/notes/none", undefined],
 ];
@@ -114,10 +136,19 @@ function everyRouteAnswers(status: number): Record<string, number> {
   );
 }
 
-/** The length of the list `field` of an answer, or -1 when it holds none. */
+/** The length of the list `field` of a 200 answer. */
 function listLength(answer: HttpAnswer, field: string): number {
+  assert.equal(answer.status, 200, answer.text);
   const items = pick(answer.body, field);
-  return Array.isArray(items) ? items.length : -1;
+  assert.ok(Array.isArray(items), answer.text);
+  return items.length;
+}
+
+/** The rows of the module's history table that a run of `source` recorded, read by a client of its own. */
+function historyRowsOf(source: string): Promise<number> {
+  return withOwnDatabase((db) =>
+    db.collection(`${SCHEMA_NAME}__query_history`).countDocuments({ source }),
+  );
 }
 
 describe("[integration] access journeys", () => {
@@ -142,6 +173,12 @@ describe("[integration] access journeys", () => {
   });
 
   after(async () => {
+    await callDatabase(owner, "DELETE", "/query/history");
+    await withOwnDatabase((db) =>
+      db
+        .collection(`${SCHEMA_NAME}__diagram_notes`)
+        .deleteMany({ schemaName: SCHEMA }),
+    );
     await owner.remove();
     await granted.remove();
     await schema.instance().table("products").delete().run();
@@ -162,19 +199,10 @@ describe("[integration] access journeys", () => {
   });
 
   it("a-member-gets-403-from-every-route-and-writes-nothing", async () => {
-    const run = await callDatabase(owner, "POST", "/query/execute", {
-      query: tableQuery("products"),
-      source: `schemas["${SCHEMA}"].instance().table("products")`,
-      language: "aql",
-    });
-    assert.equal(run.status, 200, run.text);
     const notesPath = `/diagram/notes?schema=${SCHEMA}`;
+    const productPath = `/browse/get?${SELECTION}&id=sku_desk`;
     const notesBefore = listLength(
       await callDatabase(owner, "GET", notesPath),
-      "items",
-    );
-    const historyBefore = listLength(
-      await callDatabase(owner, "GET", "/query/history"),
       "items",
     );
 
@@ -188,13 +216,36 @@ describe("[integration] access journeys", () => {
       notesBefore,
       "the member's POST /diagram/notes added a note",
     );
-    assert.deepEqual(
-      [
-        historyBefore,
-        listLength(await callDatabase(owner, "GET", "/query/history"), "items"),
-      ],
-      [1, 1],
-      "the member's DELETE /query/history cleared the owner's history",
+    const product = await callDatabase(owner, "GET", productPath);
+    assert.equal(product.status, 200, product.text);
+    assert.equal(
+      pick(product.body, "name"),
+      "Standing desk",
+      "the member's PUT /browse/edit rewrote the row",
+    );
+    assert.equal(
+      await historyRowsOf(MEMBER_SOURCE),
+      0,
+      "the member's POST /query/execute ran and recorded a history row",
+    );
+
+    for (const [method, path, body] of OWNER_ACCEPTS) {
+      const answer = await callDatabase(owner, method, path, body);
+      assert.equal(
+        answer.status,
+        200,
+        `the owner's ${method} ${path} is refused, so the member's 403 proves nothing: ${answer.text}`,
+      );
+    }
+    assert.equal(
+      listLength(await callDatabase(owner, "GET", notesPath), "items"),
+      notesBefore + 1,
+      "the member's note body would not store a note even from the owner",
+    );
+    assert.equal(
+      await historyRowsOf(MEMBER_SOURCE),
+      1,
+      "the member's run would not record a history row even from the owner",
     );
   });
 

@@ -1,7 +1,7 @@
 import { strict as assert } from "node:assert";
 import type { JsonValue } from "../types/json";
 import { call } from "./helpers/http";
-import { at, itemsAt, keysAt, textAt } from "./helpers/jsonAt";
+import { at, itemsAt, keysAt, textAt } from "./helpers/pick";
 import {
   CUSTOMERS_PER_REGION,
   DEMO,
@@ -60,7 +60,13 @@ async function source(bar: Bar = {}): Promise<Listing> {
 }
 
 async function listed(bar: Bar): Promise<string[]> {
-  return ids((await source(bar)).rows).sort();
+  const listing = await source(bar);
+  assert.equal(
+    listing.status,
+    200,
+    `the source refused ${JSON.stringify(bar)}`,
+  );
+  return ids(listing.rows).sort();
 }
 
 async function schemas(): Promise<JsonValue[]> {
@@ -259,8 +265,9 @@ async function instanceCounts(): Promise<void> {
     },
     "all counts every instance at once",
   );
-  assert.ok(
-    Object.values(await shopCounts("atlantis")).every((count) => count === 0),
+  assert.deepEqual(
+    await shopCounts("atlantis"),
+    { customers: 0, products: 0, orders: 0, order_items: 0 },
     "an instance that does not exist counts nothing",
   );
   const emptyIn = async (instance: string) =>
