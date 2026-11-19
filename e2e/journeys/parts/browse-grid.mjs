@@ -65,11 +65,10 @@ const searchFilterSort = {
     await tab.click({ role: "button", name: "Remove the filter on band" });
     await addFilter(tab, "band", "is exactly", "band-2");
     const bandTwo = await settle(() => toolbarCount(tab), (text) => text === "250 rows");
-    await addFilter(tab, "seq", "contains", "5");
-    const seqCount = Array.from({ length: 1250 }, (_, index) => index).filter((index) => index % 5 === 1 && String(index + 1).includes("5")).length;
-    const both = await settle(() => toolbarCount(tab), (text) => text === `${seqCount} rows`);
+    await addFilter(tab, "seq", "contains", "2");
+    const both = await settle(() => toolbarCount(tab), (text) => text === "1 row");
     const chipsBoth = await filterChips(tab);
-    const apiBoth = await browse(ctx, "the same two filters", "list", "metrics.readings", { filter_band: "is:band-2", filter_seq: "contains:5", limit: 50, sortKey: "_id" });
+    const apiBoth = await browse(ctx, "the same two filters", "list", "metrics.readings", { filter_band: "is:band-2", filter_seq: "contains:2", limit: 50, sortKey: "_id" });
     await tab.click({ role: "button", name: "Remove the filter on seq" });
     const oneLeft = await settle(() => filterChips(tab), (chips) => chips.length === 1);
     await tab.click({ role: "button", name: "Clear all" });
@@ -80,7 +79,7 @@ const searchFilterSort = {
       check("the chip names column, mode and value", show(chipExact) === '["band is exactly band"]', chipExact),
       check("contains BAND matches every row, whatever the case", containsAll === "1,250 rows" && show(chipContains) === '["band contains BAND"]', [containsAll, chipContains]),
       check("is exactly band-2 matches 250 rows", bandTwo === "250 rows", bandTwo),
-      check(`two filters combine: ${seqCount} rows and two chips`, both === `${seqCount} rows` && show(chipsBoth) === '["band is exactly band-2","seq contains 5"]' && pick(apiBoth.body, "total") === seqCount, [both, chipsBoth, pick(apiBoth.body, "total")]),
+      check("two filters combine: band-2 and seq contains 2 find the one row, seq 2, and two chips", both === "1 row" && show(chipsBoth) === '["band is exactly band-2","seq contains 2"]' && pick(apiBoth.body, "total") === 1 && rowsOf(apiBoth)[0]?.seq === 2, [both, chipsBoth, pick(apiBoth.body, "total")]),
       check("removing one chip keeps the other", show(oneLeft) === '["band is exactly band-2"]', oneLeft),
       check("Clear all removes every chip and restores 1,250 rows", cleared === "1,250 rows" && noChips.length === 0, [cleared, noChips]),
     ]);

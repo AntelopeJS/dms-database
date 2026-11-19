@@ -8,6 +8,7 @@ import {
   barReads,
   closeTabs,
   disabledLink,
+  enabledLink,
   ERP,
   lockedEntry,
   pageText,
@@ -59,7 +60,7 @@ async function listing(ctx) {
   await ctx.verify("the console lists erp next to the project database", [
     check("the project database is listed first", text(rows[0], "kind") === "own", show(listed.body)),
     check("erp is external, on MongoDB, read only", text(erp, "kind") === "external" && text(erp, "engine") === "mongodb" && text(erp, "access") === "read", show(erp)),
-    check("erp has no diagram, query console, instances or references", Array.isArray(unsupported) && ["diagram", "queryConsole", "instances", "rowReferences"].every((feature) => unsupported.includes(feature)), show(unsupported)),
+    check("erp has no query console, instances or references, and its diagram is served", Array.isArray(unsupported) && ["queryConsole", "instances", "rowReferences"].every((feature) => unsupported.includes(feature)) && !unsupported.includes("diagram"), show(unsupported)),
   ]);
 }
 
@@ -72,8 +73,8 @@ async function switching(ctx, tab) {
   await tab.goto(DATA_PAGE);
   const menu = await pickDatabase(tab, "Project database", ERP);
   await ctx.verify("the switcher", [
-    check("the menu lists the project database and erp with its engine, its Read only access and its External badge", /Project database\s+This project\s+erp\s+mongodb\s*·\s*Read only\s+External/i.test(menu), menu),
-    check("the sidebar entry of the Diagram is locked with its reason", (await lockedEntry(tab, "Diagram")) === true, "Diagram"),
+    check("the menu lists the project database and erp with its engine, its Read only access and its External badge", /Project database\s+This project\s+erp\s+External\s+mongodb\s*·\s*Read only/i.test(menu), menu),
+    check("the sidebar entry of the Diagram stays open", (await lockedEntry(tab, "Diagram")) === null && (await enabledLink(tab, "Diagram")), "Diagram"),
     check("the sidebar entry of the Query console is locked with its reason", (await lockedEntry(tab, "Query console")) === true, "Query console"),
   ]);
 }
@@ -106,7 +107,7 @@ async function schemas(ctx, tab) {
   await tab.goto("/modules/database/schemas");
   await tab.visible({ role: "button", name: "Actions for customers" }, { timeoutMs: 60_000 });
   const page = await pageText(tab);
-  const diagramLocked = await disabledLink(tab, "Diagram");
+  const diagramOpen = await enabledLink(tab, "Diagram");
   await tab.click({ role: "button", name: "Actions for customers" });
   const actions = await tab.page.getByRole("menuitem").allInnerTexts();
   await tab.press("Escape");
@@ -118,8 +119,8 @@ async function schemas(ctx, tab) {
   const sample = await settle(() => dialogText(tab), (content) => /"_id": "c1"/.test(content));
   await ctx.verify("Schemas and the inspector", [
     check("the table list holds the one table of erp", /Tables\s+1\b/i.test(page) && /customers/.test(page) && /\berp\b/.test(page), page),
-    check("the header Diagram link is locked", diagramLocked, "Diagram"),
-    check("the row actions offer Inspect and Browse data only", show(actions) === '["Inspect","Browse data"]', actions),
+    check("the header Diagram link is open", diagramOpen, "Diagram"),
+    check("the row actions offer Inspect, Browse data and Show in diagram, and no Query this table", show(actions) === '["Inspect","Browse data","Show in diagram"]', actions),
     check("the inspector says 3 rows, 3 columns, with no instance badge", /3 rows/.test(inspector) && /3 columns/.test(inspector) && !/\binstances?\b/i.test(inspector), inspector),
     check("Browse data leads to the table", browseLink === "/modules/database/data?schema=erp&table=customers", browseLink),
     check("the sample row is the first customer, as JSON, with no instance in its position", /ROW 1 OF 3(?! ·)/i.test(sample) && /"name": "Ada"/.test(sample) && !/default/i.test(sample), sample),
@@ -250,7 +251,7 @@ async function tabsAndRecents(ctx, tab) {
     check("the project database offers demo.tags", show(ownRecent) === '["demo.tags"]', ownRecent),
     check("erp offers customers again and not demo.tags", show(back) === '["erp.customers"]', back),
     check("no read of the other database's table fails", !/Couldn't load/.test(backText) && !/Couldn't load/.test(reloaded), backText),
-    check("a reload keeps erp selected", /Database\s+mongodb\s+erp/i.test(reloaded) && /Access to erp: Read only/.test(reloaded), reloaded),
+    check("a reload keeps erp selected", /Database\s+mongodb\s*·\s*Read only\s+erp\s+External/i.test(reloaded) && /Access to erp: Read only/.test(reloaded), reloaded),
   ]);
 }
 

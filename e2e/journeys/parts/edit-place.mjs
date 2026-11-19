@@ -102,7 +102,7 @@ const refined = {
     await saveStaged(tab);
     await settle(() => savedNotice(tab), (content) => /saved/.test(content));
     const afterSearch = await columnValues(tab, "price");
-    await tab.fill({ role: "textbox", name: "Search rows" }, "o");
+    await tab.fill({ role: "textbox", name: "Search rows" }, "c");
     const several = await settle(() => columnValues(tab, "name"), (values) => values.length > 1);
     await elsewhere(ctx, "eu_sku_monitor", { price: 5 });
     await typeInto(tab, "eu_sku_chair", "price", "322");

@@ -100,6 +100,16 @@ export async function disabledLink(tab, name) {
 }
 
 /**
+ * @param {Tab} tab The tab
+ * @param {string} name A link's name
+ * @returns {Promise<boolean>} Whether the link is there and not disabled
+ */
+export async function enabledLink(tab, name) {
+  const link = tab.page.getByRole("link", { name, exact: true }).first();
+  return link.evaluate((element) => element.getAttribute("aria-disabled") !== "true" && !element.hasAttribute("disabled"), undefined, { timeout: 5_000 }).catch(() => false);
+}
+
+/**
  * Closes every open tab of the Data browser, which leaves the list of the tables opened lately.
  *
  * @param {Tab} tab The tab
