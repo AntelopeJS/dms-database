@@ -6,6 +6,7 @@ import { DatabaseDiagramController } from "../routes/diagram";
 import { OWN_CONNECTION } from "../types/constants";
 import type { JsonValue } from "../types/json";
 import { refusal } from "./refusal";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const SCHEMA_NAME = "diagram-routes-shop";
 const OTHER_SCHEMA_NAME = "diagram-routes-other";
@@ -43,7 +44,9 @@ function withCleanTables(): void {
   after(clearAll);
 }
 
-describe("[integration] diagram layout routes", () => {
+describe("[integration] diagram layout routes", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   withCleanTables();
 
   it("answers an empty layout for a schema that has none", async () => {

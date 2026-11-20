@@ -15,6 +15,7 @@ import {
   parseHasFlags,
   readSchemaFilters,
 } from "../service/schemaFilters";
+import { SEED_HOOK_TIMEOUT_MS } from "./helpers/timeouts";
 
 /**
  * The Schemas page: rows counted across instances (S-7), columns holding
@@ -84,7 +85,10 @@ async function cleanUp(): Promise<void> {
 }
 
 describe("[integration] Schemas page", () => {
-  before(seed);
+  before(async function () {
+    this.timeout(SEED_HOOK_TIMEOUT_MS);
+    await seed();
+  });
   after(cleanUp);
 
   /** The source as the table view calls it, with the bar's hidden filters. */

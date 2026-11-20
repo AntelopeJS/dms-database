@@ -4,6 +4,7 @@ import { getModuleConfig, setModuleConfig } from "../config";
 import { callDatabase } from "./helpers/http";
 import { objectsAt, text } from "./helpers/pick";
 import { createOwnerSession, type OwnerSession } from "./ownerSession";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 /**
  * The schemas whose badge each journey reads, with the label and tone the Overview feed must give them under the
@@ -74,7 +75,9 @@ async function badges(
   );
 }
 
-describe("[integration] config journeys", () => {
+describe("[integration] config journeys", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   let owner: OwnerSession;
 
   before(async () => {

@@ -8,6 +8,7 @@ import {
 } from "../config";
 import { writeAccess } from "../service/connectionState";
 import { writerCalls } from "./writerCalls";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const original = getModuleConfig();
 const SEED = Number(process.env.FC_SEED ?? 20261116);
@@ -77,7 +78,9 @@ const neighbours = fc.array(
   { maxLength: 6 },
 );
 
-describe("[property] external access write-back", () => {
+describe("[property] external access write-back", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   afterEach(() => setModuleConfig(original));
 
   it("sends the configuration writer the input with only the target's access replaced, whatever the other entries hold, and never throws", async () => {

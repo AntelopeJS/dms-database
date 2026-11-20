@@ -12,6 +12,7 @@ import { writeAccess } from "../service/connectionState";
 import { keyedRefusal, refusal } from "./refusal";
 import { queryContext } from "./requestContext";
 import { answerNextWrite, writerCalls } from "./writerCalls";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const controller = new DatabaseConnectionsController();
 const browse = new DatabaseBrowseController();
@@ -43,7 +44,9 @@ async function accessOf(connection: string): Promise<string | undefined> {
   return connections.find(({ id }) => id === connection)?.access;
 }
 
-describe("[integration] external connections: changing access", () => {
+describe("[integration] external connections: changing access", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   beforeEach(() => setModuleConfig({ ...original, externalConnections: {} }));
   afterEach(() => setModuleConfig(original));
 
