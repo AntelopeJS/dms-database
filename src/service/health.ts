@@ -42,13 +42,14 @@ export interface OverviewHealth {
   storage: StorageEntry[];
 }
 
-interface ConnectionProbe {
+/** What one probe of a connection found. */
+export interface ConnectionProbe {
   status: ConnectionStatus;
   latencyMs: number | null;
   error: string | null;
 }
 
-interface StorageAggregate {
+export interface StorageAggregate {
   tableCount: number;
   relationCount: number;
   indexCount: number;
@@ -66,7 +67,7 @@ const PROBE_REFUSED = "refused";
  * the first schema that has one, in its default instance, which every
  * database offers. No table registered -> "ok" with unknown latency.
  */
-async function probeConnection(db: Database): Promise<ConnectionProbe> {
+export async function probeConnection(db: Database): Promise<ConnectionProbe> {
   const probe = Array.from(db.schemas().values())
     .flatMap((schema) =>
       Object.keys(schema.definition).map((table) => ({ schema, table })),
@@ -149,7 +150,7 @@ async function aggregateStorage(
  * own, the engine and version its catalog reports for an external one, or
  * `null` when the catalog does not answer.
  */
-async function driverLabelOf(db: Database): Promise<string | null> {
+export async function driverLabelOf(db: Database): Promise<string | null> {
   if (db.connection === OWN_CONNECTION) {
     return getModuleConfig().driverLabel ?? null;
   }
@@ -157,6 +158,22 @@ async function driverLabelOf(db: Database): Promise<string | null> {
     .Info()
     .catch(() => undefined);
   return info ? `${info.engine} ${info.version}` : null;
+}
+
+/** The size of a database: its schemas, tables, relations, indexes and rows. */
+export interface StorageStats extends StorageAggregate {
+  schemaCount: number;
+}
+
+/**
+ * Counts a database's schemas, tables, relations and indexes, and the rows of
+ * each table in its default instance. A row count is cached for 30 seconds,
+ * and a count that fails reads as 0.
+ */
+export async function getStorageStats(db: Database): Promise<StorageStats> {
+  const summaries = await listSchemaSummaries(db);
+  const aggregate = await aggregateStorage(db, summaries);
+  return { schemaCount: summaries.length, ...aggregate };
 }
 
 /**
@@ -169,8 +186,7 @@ async function driverLabelOf(db: Database): Promise<string | null> {
 export async function getOverviewHealth(db: Database): Promise<OverviewHealth> {
   const checkedAt = new Date().toISOString();
   const { status, latencyMs, error } = await probeConnection(db);
-  const summaries = await listSchemaSummaries(db);
-  const aggregate = await aggregateStorage(db, summaries);
+  const stats = await getStorageStats(db);
   const driver = await driverLabelOf(db);
 
   return {
@@ -179,7 +195,6 @@ export async function getOverviewHealth(db: Database): Promise<OverviewHealth> {
     driver,
     checkedAt,
     error,
-    schemaCount: summaries.length,
-    ...aggregate,
+    ...stats,
   };
 }

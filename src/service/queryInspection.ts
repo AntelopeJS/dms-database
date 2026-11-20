@@ -89,6 +89,18 @@ export function containsMutation(root: StagedObject): boolean {
     );
 }
 
+/**
+ * What a query does: the operation of its first mutating stage, `update` for
+ * a write nested in another stage, else `read`.
+ */
+export function operationOf(root: StagedObject): QueryOperation {
+  const stage = root
+    .build()
+    .find((candidate) => isMutatingStage(candidate.stage));
+  if (stage && isMutatingStage(stage.stage)) return stage.stage;
+  return containsMutation(root) ? "update" : "read";
+}
+
 /** The query a non-empty chain of stages describes. */
 function stagedQuery(stages: QueryStage[]): Query<unknown> {
   const [first, ...rest] = stages;

@@ -65,6 +65,12 @@ export interface BrowseSelection {
   table: string;
 }
 
+/** The rows a count reads: a table, a search and column filters. */
+export interface RowCountQuery extends BrowseSelection {
+  search?: string;
+  columnFilters: ColumnFilter[];
+}
+
 export interface BrowseQuery extends BrowseSelection {
   offset: number;
   limit: number;
@@ -197,7 +203,7 @@ function assertKnownColumn(
  */
 async function resolvePageFilter(
   db: Database,
-  query: BrowseQuery,
+  query: RowCountQuery & Pick<BrowseQuery, "sortKey">,
   primaryKey: string | undefined,
 ): Promise<RowMatch | undefined> {
   if (!query.sortKey && !query.search && query.columnFilters.length === 0) {
@@ -215,7 +221,7 @@ async function resolvePageFilter(
  * Waits for an external database's answer, at most
  * {@link EXTERNAL_PAGE_DEADLINE_MS}, and refuses with a 504 after that.
  */
-async function answerInTime<T>(work: Promise<T>): Promise<T> {
+export async function answerInTime<T>(work: Promise<T>): Promise<T> {
   const answer = await withDeadline(work, EXTERNAL_PAGE_DEADLINE_MS);
   assert(
     answer !== TIMED_OUT,
@@ -258,6 +264,24 @@ export async function fetchRows(db: Database, query: BrowseQuery) {
     ? answered
     : answerInTime(answered));
   return { results, total, ...page };
+}
+
+/**
+ * The exact number of rows that match a search and column filters, counted by
+ * the database. A filter no row can satisfy answers 0 without a query. An
+ * external database that does not answer within
+ * {@link EXTERNAL_PAGE_DEADLINE_MS} is refused with a 504.
+ */
+export async function countRows(
+  db: Database,
+  query: RowCountQuery,
+): Promise<number> {
+  const table = resolveTable(db, query);
+  const primaryKey = db.primaryKey(query.schema, query.table);
+  const filter = await resolvePageFilter(db, query, primaryKey);
+  if (filter === NO_ROW) return 0;
+  const counted = (filter ? table.filter(filter) : table).count().run();
+  return hasInstances(db) ? counted : answerInTime(counted);
 }
 
 /**
