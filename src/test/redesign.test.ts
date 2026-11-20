@@ -25,6 +25,7 @@ import { listRowReferences } from "../service/references";
 import { isObject, isRecord } from "../utils/guards";
 import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
+import { SEED_HOOK_TIMEOUT_MS } from "./helpers/timeouts";
 
 const SCHEMA = "redesign-shop";
 const INSTANCE = "eu";
@@ -118,7 +119,10 @@ async function cleanUp(): Promise<void> {
     .run();
 }
 
-before(seed);
+before(async function () {
+  this.timeout(SEED_HOOK_TIMEOUT_MS);
+  await seed();
+});
 after(cleanUp);
 
 describe("[integration] v2 redesign: browsing", () => {

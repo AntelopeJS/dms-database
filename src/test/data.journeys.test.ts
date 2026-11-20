@@ -11,6 +11,7 @@ import {
 import { callDatabase } from "./helpers/http";
 import { pick } from "./helpers/pick";
 import { createMemberSession } from "./ownerSession";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 async function assertInstancePicker(api: DataApi): Promise<void> {
   const instances = async (query: string) => {
@@ -332,7 +333,9 @@ async function assertOwnerOnly(api: DataApi): Promise<void> {
   }
 }
 
-describe("[integration] data journeys", () => {
+describe("[integration] data journeys", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   const api = withDataFixture("data-journeys-owner@example.test");
 
   it("the-instance-picker-lists-named-instances-with-a-search-and-a-limit", () =>

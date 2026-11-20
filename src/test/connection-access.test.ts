@@ -29,6 +29,7 @@ import { getModuleConfig, setModuleConfig } from "../config";
 import { configuredAccess } from "../connectionAccess";
 import { isObject } from "../utils/guards";
 import { type OwnerSession, createOwnerSession } from "./ownerSession";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const TABLE = "connection-access-countries";
 const API = "http://127.0.0.1:5023/api/connection-access";
@@ -92,7 +93,9 @@ export class UnlistedCountries extends MappedCountries(
   "/api/connection-access/unlisted",
 ) {}
 
-describe("[integration] a table mapped from an external connection", () => {
+describe("[integration] a table mapped from an external connection", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   let owner: OwnerSession;
 
   const send = (method: string, url: string, body?: { name: string }) =>

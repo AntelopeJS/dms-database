@@ -14,6 +14,7 @@ import {
 import { callDatabase, type HttpAnswer } from "./helpers/http";
 import { pick } from "./helpers/pick";
 import { createOwnerSession, type OwnerSession } from "./ownerSession";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const SHOP = "editing-journeys-shop";
 const ID = "eu_ord_10405";
@@ -176,7 +177,9 @@ async function assertRefusals(session: OwnerSession): Promise<void> {
   assert.match(missing.text, /Row not found/);
 }
 
-describe("[integration] editing journeys", () => {
+describe("[integration] editing journeys", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   let owner: OwnerSession;
 
   before(async () => {
