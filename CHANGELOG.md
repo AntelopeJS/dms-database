@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.6.2
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.1...v0.6.2)
+
+### 🩹 Fixes
+
+- **data:** Show undo_failed when an undo restores nothing ([#221](https://github.com/AntelopeJS/dms-database/pull/221))
+- **deps:** Depend on the stable @antelopejs/interface-dms and @antelopejs/dms
+
+### 📦 Build
+
+- **deps:** Depend on the interface-dms 0.15 preview for the release train ([#224](https://github.com/AntelopeJS/dms-database/pull/224))
+
+### 🏡 Chore
+
+- Drop the verify-dms-database skill ([#220](https://github.com/AntelopeJS/dms-database/pull/220))
+
+### ✅ Tests
+
+- **e2e:** Cover the verify skill's undriven flows and run the suite in the merge queue ([#217](https://github.com/AntelopeJS/dms-database/pull/217))
+- Port the inventory's HTTP journeys to integration tests ([#218](https://github.com/AntelopeJS/dms-database/pull/218))
+- Read the feature map from e2e instead of the verify skill ([#219](https://github.com/AntelopeJS/dms-database/pull/219))
+- **e2e:** Name DMS auth as the cause of the health route's 500 with MongoDB down ([#222](https://github.com/AntelopeJS/dms-database/pull/222))
+- Size mocha timeouts for a loaded host and the Windows runner ([#223](https://github.com/AntelopeJS/dms-database/pull/223))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.6.1
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.0...v0.6.1)
