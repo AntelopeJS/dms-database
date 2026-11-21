@@ -2,9 +2,8 @@ import { randomUUID } from "node:crypto";
 import { Controller, JSONBody, Post } from "@antelopejs/interface-api";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { DEFAULT_TENANT_ID } from "@antelopejs/interface-dms/constants";
-import { RoleModel, UserInviteModel } from "@antelopejs/interface-dms/db";
-
-const INVITE_LIFETIME_MS = 3_600_000;
+import { createUserInviteToken } from "@antelopejs/interface-dms";
+import { RoleModel } from "@antelopejs/interface-dms/db";
 
 /** The ids of the permissions a role holds, with every id its grants sit under, as the DMS roles editor stores them. */
 function withAncestors(permissions: string[]): string[] {
@@ -37,15 +36,13 @@ export class VerifyFixtureController extends Controller("/verify-database") {
       name: `${name} ${randomUUID()}`,
       permissions: withAncestors(body.permissions),
     });
-    const token = randomUUID();
     const email = `${name.toLowerCase()}-${randomUUID()}@verify.local`;
-    await GetModel(UserInviteModel, DEFAULT_TENANT_ID).insert({
+    const { token } = await createUserInviteToken({
+      tenantId: DEFAULT_TENANT_ID,
       email,
-      roles_ids: roleId === undefined ? [] : [roleId],
       language: "en",
-      token,
+      roleIds: roleId === undefined ? [] : [roleId],
       asTenantOwner: body.owner === true,
-      expiresAt: new Date(Date.now() + INVITE_LIFETIME_MS),
     });
     return { email, token, roleId };
   }
