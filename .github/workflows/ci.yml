@@ -36,6 +36,7 @@ jobs:
       # names each by exact version, so a restored copy of another version
       # is downloaded again.
       cache-paths: .antelope/cache
+      module-locks: true
     permissions:
       contents: read
 
@@ -243,6 +244,8 @@ jobs:
       # e2e-report merges the shards into one.
       - if: env.SUITE == 'all'
         run: pnpm e2e:run --shard=${{ matrix.shard }}/2 --reporter=blob,list
+      - if: ${{ !cancelled() }}
+        uses: AntelopeJS/.github/.github/actions/module-locks-committed@v2
       - if: always() && env.SUITE == 'all'
         uses: actions/upload-artifact@v4
         with:
@@ -309,6 +312,17 @@ jobs:
         run: |
           echo "::error::Draft pull request: only lint and typecheck ran. Mark it ready for review to run the tests."
           exit 1
+  module-locks:
+    needs: [ci, e2e]
+    if: ${{ !cancelled() }}
+    permissions:
+      contents: read
+      actions: read
+    uses: AntelopeJS/.github/.github/workflows/module-locks-renovate.yml@v2
+    secrets:
+      RELEASE_APP_ID: ${{ secrets.RELEASE_APP_ID }}
+      RELEASE_APP_PRIVATE_KEY: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+
   renovate-sync:
     if: >-
       github.event_name == 'pull_request' && startsWith(github.head_ref, 'renovate/') && github.event.pull_request.head.repo.full_name == github.repository
