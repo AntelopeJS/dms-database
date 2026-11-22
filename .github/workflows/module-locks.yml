@@ -20,6 +20,7 @@ jobs:
       projects: |
         e2e/playground
       commands: |
+        pnpm run sync
         rm -rf antelope-lock
         pnpm test
     secrets:
