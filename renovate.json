@@ -1,4 +1,15 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["github>AntelopeJS/.github:renovate.json5"]
+  "extends": ["github>AntelopeJS/.github:renovate.json5"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "AntelopeJS module versions the backend test harness pins",
+      "managerFilePatterns": ["/^src/test/harness\\.ts$/"],
+      "matchStrings": [
+        "package:\\s*[\"'](?<depName>@antelopejs/[^\"']+)[\"'],\\s*version:\\s*[\"'](?<currentValue>[^\"']+)[\"']"
+      ],
+      "datasourceTemplate": "npm"
+    }
+  ]
 }
