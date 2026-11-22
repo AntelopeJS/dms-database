@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.6.3
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.2...v0.6.3)
+
+### 📦 Build
+
+- **deps:** Move off the dms previews and drop the dms-control names ([#226](https://github.com/AntelopeJS/dms-database/pull/226))
+
+### 🤖 CI
+
+- Re-sync the AntelopeJS pack for the release app ([#227](https://github.com/AntelopeJS/dms-database/pull/227))
+- Adopt the shared module lock refresh and checks ([#228](https://github.com/AntelopeJS/dms-database/pull/228))
+- Stop forwarding the retired RELEASE_GITHUB_TOKEN ([#229](https://github.com/AntelopeJS/dms-database/pull/229))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.6.2
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.1...v0.6.2)
