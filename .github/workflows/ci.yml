@@ -38,8 +38,6 @@ jobs:
       cache-paths: .antelope/cache
     permissions:
       contents: read
-    secrets:
-      NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
 
   # ci-node.yml exposes no outputs, so the jobs declared here select by the
   # shared tier rule: tests on a ready pull request that touches more than docs,
