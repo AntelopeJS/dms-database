@@ -112,6 +112,14 @@ function getRowTests(): void {
     assert.equal(answer.primaryKey, "_id");
   });
 
+  it("reads a key with surrounding spaces as given, not trimmed", async () => {
+    const answer = await getRowAction.execute(
+      { schema: VAULT, table: "accounts", id: " acc2 " },
+      CTX,
+    );
+    assert.equal(answer.row?.handle, "spaced");
+  });
+
   it("refuses an instance the schema does not list, and a named instance on an external database", async () => {
     await assert.rejects(
       getRowAction.execute(
@@ -167,6 +175,13 @@ function countRowsTests(): void {
         CTX,
       )
     ).count;
+
+  it('refuses the instance "*" instead of reading an instance of that name', async () => {
+    await assert.rejects(count({ instance: "*" }), {
+      message:
+        'The instance "*" is not an instance name: read every instance with allInstances',
+    });
+  });
 
   it("counts the default instance, one named instance, and every instance", async () => {
     assert.equal(await count({}), 3);
@@ -256,13 +271,16 @@ describe("[integration] the row actions", () => {
     await vault
       .instance()
       .table("accounts")
-      .insert({
-        _id: "acc1",
-        handle: "ada",
-        password: "plain-copy",
-        card: "plain-card",
-        _internal: { meta: {}, data: { password: "$hash", card: "cipher" } },
-      })
+      .insert([
+        {
+          _id: "acc1",
+          handle: "ada",
+          password: "plain-copy",
+          card: "plain-card",
+          _internal: { meta: {}, data: { password: "$hash", card: "cipher" } },
+        },
+        { _id: " acc2 ", handle: "spaced" },
+      ])
       .run();
   });
 

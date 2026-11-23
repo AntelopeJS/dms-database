@@ -68,6 +68,11 @@ export async function selectionOf(
     return { ...base, instance: CROSS_INSTANCE };
   }
   if (!target.instance) return { ...base, instance: undefined };
+  if (target.instance === "*") {
+    throw new Error(
+      'The instance "*" is not an instance name: read every instance with allInstances',
+    );
+  }
   if (!hasInstances(db)) {
     throw new Error(
       `${db.connection} has no instances: read its tables without one`,

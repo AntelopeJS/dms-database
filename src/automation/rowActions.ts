@@ -121,6 +121,7 @@ export const getRowAction: ActionType<NodeInput, GetRowOutput> = {
       const id = stringInput(input, "id", {
         max: MAX_ID_LENGTH,
         required: true,
+        exact: true,
       });
       const db = await resolveConnection(target.connection);
       return getRow(db, await selectionOf(db, target), id);

@@ -9,18 +9,23 @@ function read(input: NodeInput, name: string): NodeInput[string] {
 }
 
 /**
- * A string input, trimmed: the default when absent or empty, refused when it
- * is not a string or is longer than `max`.
+ * A string input, trimmed unless `exact`: the default when absent or empty,
+ * refused when it is not a string or is longer than `max`.
  *
  * @param input The action's input
  * @param name The port
- * @param options The longest value, the default, and whether it is required
+ * @param options The longest value, the default, whether it is required, and whether it is read as is
  * @returns The value
  */
 export function stringInput(
   input: NodeInput,
   name: string,
-  options: { max: number; fallback?: string; required?: boolean },
+  options: {
+    max: number;
+    fallback?: string;
+    required?: boolean;
+    exact?: boolean;
+  },
 ): string {
   const raw = read(input, name);
   if (raw === undefined || raw === null) {
@@ -28,7 +33,7 @@ export function stringInput(
     return options.fallback ?? "";
   }
   if (!isString(raw)) throw new Error(`'${name}' must be a string`);
-  const value = raw.trim();
+  const value = options.exact ? raw : raw.trim();
   if (options.required && !value) throw new Error(`'${name}' is required`);
   if (value.length > options.max) {
     throw new Error(`'${name}' is longer than ${options.max} characters`);
