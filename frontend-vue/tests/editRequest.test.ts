@@ -27,19 +27,6 @@ const TAB: BrowserTab = {
 	table: 'orders',
 }
 
-interface ConfirmOptions {
-	onConfirm: () => Promise<unknown>
-}
-
-function isConfirm(options: unknown): options is ConfirmOptions {
-	return (
-		typeof options === 'object' &&
-		options !== null &&
-		'onConfirm' in options &&
-		typeof options.onConfirm === 'function'
-	)
-}
-
 /** Stages one edit, opens the review of the save, and writes it as the dialog's confirm button does. */
 async function saveAnEdit(backend: Backend) {
 	let review: () => Promise<void> = async () => undefined
@@ -68,7 +55,7 @@ async function saveAnEdit(backend: Backend) {
 	answerConfirmations(true)
 	await review()
 	const options = confirmations[0]
-	if (!isConfirm(options)) throw new Error('The save asked no confirmation')
+	if (!options?.onConfirm) throw new Error('The save asked no confirmation')
 	await options.onConfirm()
 	return page
 }

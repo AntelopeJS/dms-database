@@ -61,7 +61,11 @@ describe('database options', () => {
 	it('describes an external database by its engine and the database it is on, which a subtitle naming the engine alone leaves out', () => {
 		const sameName = { ...WAREHOUSE, database: 'Warehouse' }
 		const unknown = { ...WAREHOUSE, engine: null, database: null }
-		const options = databaseOptions([OWN, WAREHOUSE, sameName, unknown], 'own', t)
+		const options = databaseOptions(
+			[OWN, WAREHOUSE, sameName, unknown],
+			'own',
+			t,
+		)
 		expect(options.map((option) => option.subtitle)).toEqual([
 			'mongodb',
 			'postgres · warehouse_prod',

@@ -62,7 +62,6 @@ describe('cell drafts: null', () => {
 		expect(draftText('null')).toBe('\\null')
 		expect(draftText('\\null')).toBe('\\\\null')
 		expect(draftText('nullable')).toBe('nullable')
-		// Opened then committed as it is, the text stays.
 		expect(parseDraft(draftText('null'), 'null', 'string')).toMatchObject({
 			value: 'null',
 			unchanged: true,
@@ -114,13 +113,17 @@ describe('cell drafts: dates', () => {
 	})
 })
 
+interface Cyclic {
+	self?: Cyclic
+}
+
 describe('cell drafts: JSON', () => {
 	it('opens a structured cell as indented JSON', () => {
 		expect(jsonDraftText({ a: [1, 2] })).toBe(
 			JSON.stringify({ a: [1, 2] }, null, 2),
 		)
 		expect(jsonDraftText({ a: 1 }).split('\n')).toHaveLength(3)
-		const cyclic: Record<string, unknown> = {}
+		const cyclic: Cyclic = {}
 		cyclic.self = cyclic
 		expect(jsonDraftText(cyclic)).toBe('')
 	})
@@ -144,7 +147,7 @@ describe('cell drafts: JSON', () => {
 })
 
 describe('staged writes', () => {
-	const rows: [string, Record<string, unknown>][] = [
+	const rows: [string, { name: string }][] = [
 		['a', { name: 'A' }],
 		['b', { name: 'B' }],
 		['c', { name: 'C' }],
@@ -227,7 +230,7 @@ describe('staged writes', () => {
 })
 
 describe('rows written in place', () => {
-	const idOf = (row: Record<string, unknown>) =>
+	const idOf: Parameters<typeof withWrittenRow>[2] = (row) =>
 		row._id === undefined ? null : String(row._id)
 	const page = [
 		{ _id: 1, name: 'Ada', _instance: 'eu' },
@@ -268,7 +271,6 @@ describe('instance URL parameter', () => {
 		expect(instanceFromUrl('all')).toEqual({ kind: 'all' })
 		expect(instanceFromUrl('eu')).toEqual({ kind: 'named', id: 'eu' })
 		expect(instanceFromUrl(['eu', 'us'])).toEqual({ kind: 'named', id: 'eu' })
-		// No escaping, and the 0.0.14 cross-instance value is a name now.
 		expect(instanceFromUrl('~all')).toEqual({ kind: 'named', id: '~all' })
 		expect(instanceFromUrl('__CROSS_INSTANCE__')).toEqual({
 			kind: 'named',
@@ -340,7 +342,6 @@ describe('column types', () => {
 		expect(describeField(valueDescriptor(several)).label).toBe(
 			'string | number',
 		)
-		// Only null: nothing else to read it as.
 		const onlyNull = {
 			kind: 'union' as const,
 			members: [{ kind: 'null' as const }],

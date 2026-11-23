@@ -2,7 +2,7 @@ import type {
 	ConnectionsState,
 	DatabaseConnection,
 } from '../../app/build/composables/useDatabaseConnections'
-import type { BackendRead } from './serverRender'
+import type { BackendAnswer, BackendRead, JsonValue } from './serverRender'
 
 export const CONNECTIONS_URL = '/api/database/connections'
 
@@ -47,6 +47,14 @@ export function connectionsState(
 	}
 }
 
+/** The state as the API puts it on the wire. */
+export function connectionsAnswer(state: ConnectionsState): JsonValue {
+	return {
+		...state,
+		connections: state.connections.map((connection) => ({ ...connection })),
+	}
+}
+
 /**
  * A backend that answers the connections read with `state`, every write to
  * it with what `answer` makes of the request (the state by default), and
@@ -55,14 +63,14 @@ export function connectionsState(
 export function connectionsBackend(
 	state: ConnectionsState,
 	options: {
-		answer?: (write: BackendRead) => unknown
-		others?: (read: BackendRead) => unknown
+		answer?: (write: BackendRead) => ConnectionsState
+		others?: (read: BackendRead) => BackendAnswer
 	} = {},
-): (read: BackendRead) => unknown {
+): (read: BackendRead) => BackendAnswer {
 	return (read) => {
-		if (read.url === CONNECTIONS_URL) return state
+		if (read.url === CONNECTIONS_URL) return connectionsAnswer(state)
 		if (read.url.startsWith(`${CONNECTIONS_URL}/`) && read.method === 'PUT')
-			return options.answer ? options.answer(read) : state
+			return connectionsAnswer(options.answer ? options.answer(read) : state)
 		return options.others ? options.others(read) : {}
 	}
 }
@@ -70,7 +78,7 @@ export function connectionsBackend(
 /** The writes a mount made to the connections API, as method, URL and body. */
 export function connectionWrites(
 	reads: BackendRead[],
-): { method: string; url: string; body: unknown }[] {
+): { method: string; url: string; body: JsonValue | undefined }[] {
 	return reads
 		.filter((read) => read.method !== 'GET')
 		.map(({ method, url, body }) => ({ method, url, body }))

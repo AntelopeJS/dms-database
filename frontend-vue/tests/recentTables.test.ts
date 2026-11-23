@@ -1,5 +1,6 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
+import { freshState } from './fixtures/dmsState'
 import { useDataBrowserTabs } from '../app/build/composables/useDataBrowserTabs'
 
 afterEach(() => vi.unstubAllGlobals())
@@ -14,9 +15,7 @@ function browsing() {
 			removeItem: (key: string) => void items.delete(key),
 		}
 	}
-	vi.stubGlobal('useDmsState', (_key: string, init: () => unknown) =>
-		ref(init()),
-	)
+	vi.stubGlobal('useDmsState', freshState)
 	vi.stubGlobal('computed', computed)
 	vi.stubGlobal('useDmsRoute', () => ({ query: {} }))
 	vi.stubGlobal('useDmsRouter', () => ({ replace: vi.fn() }))

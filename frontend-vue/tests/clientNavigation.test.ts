@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { browserMount, type BackendRead } from './fixtures/serverRender'
+import {
+	browserMount,
+	type BackendAnswer,
+	type BackendRead,
+} from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import QueryConsole from '../app/components/QueryConsole.vue'
-
-// A client navigation shows a page once its components' setups settle: the
-// reads that decide a component's size are awaited there, so the page lands
-// with them rather than growing (or swapping placeholders) after it.
 
 const schema = (id: string) => ({
 	id,
@@ -18,7 +18,7 @@ const schema = (id: string) => ({
 	instances: [],
 })
 
-function answer({ url }: BackendRead): unknown {
+function answer({ url }: BackendRead): BackendAnswer {
 	switch (url) {
 		case '/api/database/health':
 			return {
@@ -36,7 +36,7 @@ function answer({ url }: BackendRead): unknown {
 }
 
 /** A backend whose answers wait for `release()`. */
-function heldBackend(respond: (read: BackendRead) => unknown = answer) {
+function heldBackend(respond: (read: BackendRead) => BackendAnswer = answer) {
 	let release!: () => void
 	const released = new Promise<void>((resolve) => (release = resolve))
 	return {
@@ -81,10 +81,8 @@ describe('client navigation: the page lands with what decides its size', () => {
 		expect(page.reads.map((read) => read.url)).toContain(
 			'/api/database/schemas',
 		)
-		// The examples of the first schema's tables are in the empty result.
 		expect(page.text()).toContain('first_description')
 		expect(page.text()).toContain('shop.orders')
-		// The CodeMirror editor mounts on a real DOM, which this mount has not.
 		expect(page.errors).toHaveLength(1)
 		expect(String(page.errors[0])).toContain('document is not defined')
 	})

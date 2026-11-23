@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ref } from 'vue'
+import { freshState } from './fixtures/dmsState'
 import { parseDraft } from '../app/build/data/cellValues'
 import { undoBodies, useStagedEdits } from '../app/build/data/stagedEdits'
 import { DiagramHistory } from '../app/build/diagram/history'
@@ -50,9 +50,7 @@ describe('cell drafts', () => {
 
 describe('staged edits', () => {
 	function staged() {
-		vi.stubGlobal('useDmsState', (_key: string, init: () => unknown) =>
-			ref(init()),
-		)
+		vi.stubGlobal('useDmsState', freshState)
 		return useStagedEdits()
 	}
 

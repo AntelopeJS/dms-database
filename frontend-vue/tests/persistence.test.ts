@@ -1,14 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { computed, reactive, ref } from 'vue'
+import { computed, reactive } from 'vue'
+import { freshState, sharedState } from './fixtures/dmsState'
+import { present } from './fixtures/present'
 import { useDataBrowserTabs } from '../app/build/composables/useDataBrowserTabs'
 import { useStagedEdits } from '../app/build/data/stagedEdits'
 
 afterEach(() => vi.unstubAllGlobals())
 
 function setup() {
-	vi.stubGlobal('useDmsState', (_key: string, init: () => unknown) =>
-		ref(init()),
-	)
+	vi.stubGlobal('useDmsState', freshState)
 	vi.stubGlobal('computed', computed)
 	vi.stubGlobal('useDmsRoute', () => ({ query: {} }))
 	vi.stubGlobal('useDmsRouter', () => ({ replace: vi.fn() }))
@@ -17,7 +17,7 @@ function setup() {
 
 it('restores browser session tabs and persists a new permanent tab', () => {
 	setup()
-	const setItem = vi.fn()
+	const setItem = vi.fn<(key: string, value: string) => void>()
 	vi.stubGlobal('window', {
 		sessionStorage: {
 			getItem: () =>
@@ -37,14 +37,14 @@ it('restores browser session tabs and persists a new permanent tab', () => {
 		'sales::eu::orders',
 		'audit::us::events',
 	])
-	const [key, payload] = setItem.mock.lastCall!
+	const [key, payload] = present(setItem.mock.lastCall, 'the last write')
 	expect(key).toBe('dms-database:data-browser:tabs')
 	expect(JSON.parse(payload).activeId).toBe('audit::us::events')
 })
 
 it('drops the tabs kept on another database', () => {
 	setup()
-	const setItem = vi.fn()
+	const setItem = vi.fn<(key: string, value: string) => void>()
 	vi.stubGlobal('window', {
 		sessionStorage: {
 			getItem: () =>
@@ -61,13 +61,25 @@ it('drops the tabs kept on another database', () => {
 	expect(browser.tabs.value).toEqual([])
 	expect(browser.activeId.value).toBeNull()
 	browser.openTab('audit', 'us', 'events', false)
-	expect(JSON.parse(setItem.mock.lastCall![1])).toMatchObject({
+	expect(
+		JSON.parse(present(setItem.mock.lastCall, 'the last write')[1]),
+	).toMatchObject({
 		database: 'own',
 		tabs: [expect.objectContaining({ id: 'audit::us::events' })],
 	})
 })
 
-function storing(saved: object) {
+interface SavedTabs {
+	database?: string
+	tabs: { schema: string; instance: string; table: string }[]
+	activeId: string | null
+}
+
+interface RouteState {
+	query: Record<string, string>
+}
+
+function storing(saved: SavedTabs) {
 	let raw = JSON.stringify(saved)
 	vi.stubGlobal('window', {
 		sessionStorage: {
@@ -92,11 +104,7 @@ it('drops a tab set saved with no database', () => {
 
 it('drops the open tabs of another database when the page comes back to it without a reload', () => {
 	setup()
-	const states = new Map<string, unknown>()
-	vi.stubGlobal('useDmsState', (key: string, init: () => unknown) => {
-		if (!states.has(key)) states.set(key, ref(init()))
-		return states.get(key)
-	})
+	vi.stubGlobal('useDmsState', sharedState())
 	storing({ database: 'own', tabs: [], activeId: null })
 	const before = useDataBrowserTabs()
 	before.restore('own')
@@ -110,11 +118,7 @@ it('drops the open tabs of another database when the page comes back to it witho
 
 it('discards the staged edits of the open tabs it drops', () => {
 	setup()
-	const states = new Map<string, unknown>()
-	vi.stubGlobal('useDmsState', (key: string, init: () => unknown) => {
-		if (!states.has(key)) states.set(key, ref(init()))
-		return states.get(key)
-	})
+	vi.stubGlobal('useDmsState', sharedState())
 	storing({ database: 'own', tabs: [], activeId: null })
 	const before = useDataBrowserTabs()
 	before.restore('own')
@@ -147,7 +151,7 @@ it('forgets the dropped set, so a load with an unknown selection does not reopen
 
 it('drops the open tab, its saved set and its URL when the selection changes once mounted', () => {
 	setup()
-	const route = reactive({ query: {} as Record<string, string> })
+	const route: RouteState = reactive({ query: {} })
 	const replace = vi.fn(({ query }: { query: Record<string, string> }) => {
 		route.query = query
 	})
@@ -183,11 +187,8 @@ it('drops the open tab, its saved set and its URL when the selection changes onc
 
 it('clears a URL that mirrors a tab of another database instead of opening it again on a reload', () => {
 	setup()
-	const route = reactive({
-		query: { schema: 'sales', table: 'orders', instance: 'eu' } as Record<
-			string,
-			string
-		>,
+	const route: RouteState = reactive({
+		query: { schema: 'sales', table: 'orders', instance: 'eu' },
 	})
 	vi.stubGlobal('useDmsRoute', () => route)
 	vi.stubGlobal('useDmsRouter', () => ({
@@ -362,8 +363,6 @@ it('restores the preview tab as a preview, the URL naming it included', () => {
 })
 
 describe('data browser: the route it writes itself', () => {
-	// A reactive route the router writes to, as the DMS's stable
-	// useDmsRoute() reflects a landed visit.
 	function routed(query: Record<string, string> = {}) {
 		setup()
 		vi.stubGlobal('window', {
@@ -384,7 +383,6 @@ describe('data browser: the route it writes itself', () => {
 		expect(replace).toHaveBeenCalledExactlyOnceWith({
 			query: { schema: 'sales', table: 'orders', instance: 'eu' },
 		})
-		// The page's route watcher sees the URL the browser wrote.
 		expect(route.query.table).toBe('orders')
 		expect(browser.openFromRoute()).toBe(true)
 		expect(browser.tabs.value).toEqual([

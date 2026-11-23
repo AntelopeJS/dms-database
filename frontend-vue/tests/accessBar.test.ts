@@ -3,6 +3,8 @@ import {
 	answerConfirmations,
 	browserMount,
 	confirmations,
+	isPropHandler,
+	type MountProps,
 } from './fixtures/serverRender'
 import {
 	OWN,
@@ -14,10 +16,12 @@ import {
 import type { ConnectionsState } from '../app/build/composables/useDatabaseConnections'
 import DataBrowserAccessBar from '../app/build/components/DataBrowserAccessBar.vue'
 
-const SWITCH = (props: Record<string, unknown>) =>
-	props['data-stub'] === 'DmsInputSwitch'
+const SWITCH = (props: MountProps) => props['data-stub'] === 'DmsInputSwitch'
 
-async function mountBar(state: ConnectionsState, answer?: () => unknown) {
+async function mountBar(
+	state: ConnectionsState,
+	answer?: () => ConnectionsState,
+) {
 	const page = browserMount(
 		DataBrowserAccessBar,
 		connectionsBackend(state, { answer }),
@@ -33,7 +37,7 @@ type Page = Awaited<ReturnType<typeof mountBar>>
 function toggle(page: Page, allowed: boolean): void {
 	const update = page.find(SWITCH)?.['onUpdate:modelValue']
 	expect(update).toBeTypeOf('function')
-	if (typeof update === 'function') update(allowed)
+	if (isPropHandler(update)) update(allowed)
 }
 
 describe('access bar: what it says', () => {

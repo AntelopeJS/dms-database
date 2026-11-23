@@ -4,6 +4,9 @@ import { provideReadOnlyReason } from '../app/build/data/readOnlyReason'
 import {
 	browserMount,
 	drawers,
+	isPropHandler,
+	propText,
+	type BackendAnswer,
 	type BackendRead,
 } from './fixtures/serverRender'
 import {
@@ -26,7 +29,7 @@ const TAB = {
 	table: 'orders',
 }
 
-function others({ url }: BackendRead): unknown {
+function others({ url }: BackendRead): BackendAnswer {
 	if (url === '/api/database/browse/list')
 		return { results: [{ _id: '1', total: 5 }], total: 1, primaryKey: '_id' }
 	if (url === '/api/database/browse/columns')
@@ -51,16 +54,15 @@ async function openFirstRow(connection: DatabaseConnection | null) {
 	)
 	await page.shown
 	const openRow = () =>
-		page.find((props) =>
-			Boolean(props['aria-label']?.toString().endsWith('open_row')),
-		)?.onClick
+		page.find((props) => propText(props['aria-label']).endsWith('open_row'))
+			?.onClick
 	await vi.waitFor(() => expect(openRow()).toBeTypeOf('function'))
 	await vi.waitFor(() =>
 		expect(page.reads.map((read) => read.url)).toContain(CONNECTIONS_URL),
 	)
 	await new Promise((resolve) => setTimeout(resolve, 0))
 	const open = openRow()
-	if (typeof open === 'function') open()
+	if (isPropHandler(open)) open()
 	expect(drawers).toHaveLength(1)
 	return drawers[0]?.componentOptions
 }
@@ -196,9 +198,9 @@ describe('a read-only external database in the data grid', () => {
 			(props) =>
 				props.class !== undefined &&
 				'title' in props &&
-				String(props.class).includes('align-middle'),
+				propText(props.class).includes('align-middle'),
 		)
-		return { title: cell?.title, cursor: String(cell?.class) }
+		return { title: cell?.title, cursor: propText(cell?.class) }
 	}
 
 	it('names why a cell takes no edit where the user tries one, which a grid saying nothing past the access bar gets wrong', async () => {
@@ -223,7 +225,7 @@ async function samplePosition(connection: DatabaseConnection) {
 	const page = browserMount(
 		TableInspector,
 		connectionsBackend(connectionsState(connection), {
-			others: ({ url }) => {
+			others: ({ url }): BackendAnswer => {
 				if (url === '/api/database/schemas')
 					return {
 						schemas: [
@@ -253,8 +255,10 @@ async function samplePosition(connection: DatabaseConnection) {
 	)
 	await page.shown
 	await vi.waitFor(() => {
-		const tabs = page.find((props) => Array.isArray(props.items))
-		;(tabs?.['onUpdate:modelValue'] as (value: string) => void)('sample')
+		const update = page.find((props) => Array.isArray(props.items))?.[
+			'onUpdate:modelValue'
+		]
+		if (isPropHandler(update)) update('sample')
 		expect(page.text()).toContain(SAMPLE_POSITION)
 	})
 	return page.text()

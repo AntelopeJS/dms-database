@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest'
-import { reactive } from 'vue'
+import { inertia } from './fixtures/inertia'
 import { browserMount } from './fixtures/serverRender'
 import {
 	OWN,
@@ -7,25 +7,6 @@ import {
 	connectionsState,
 } from './fixtures/connections'
 import DataBrowser from '../app/components/DataBrowser.vue'
-
-const inertia = vi.hoisted(() => ({
-	page: { url: '/modules/database/data' },
-	visits: [] as string[],
-}))
-
-vi.mock('@inertiajs/vue3', async (original) => {
-	const visit =
-		(kind: string) =>
-		(options: { url: string; onFinish?: (visit: unknown) => void }) => {
-			inertia.visits.push(`${kind} ${options.url}`)
-			options.onFinish?.({})
-		}
-	return {
-		...(await original<object>()),
-		usePage: () => reactive(inertia.page),
-		router: { push: visit('push'), replace: visit('replace') },
-	}
-})
 
 afterEach(() => {
 	vi.unstubAllGlobals()
@@ -41,8 +22,29 @@ const ORDERS = {
 	preview: false,
 }
 
+interface StoredTabs {
+	database: string
+	tabs: (typeof ORDERS)[]
+	activeId: string
+}
+
+function isStoredTabs(value: unknown): value is { tabs: unknown[] } {
+	return (
+		typeof value === 'object' &&
+		value !== null &&
+		'tabs' in value &&
+		Array.isArray(value.tabs)
+	)
+}
+
+function parseStored(text: string): { tabs: unknown[] } {
+	const value: unknown = JSON.parse(text)
+	if (!isStoredTabs(value)) throw new Error(`not the saved tabs: ${text}`)
+	return value
+}
+
 /** A browser tab whose sessionStorage holds `saved`, recording each write. */
-function storing(saved: object, url = '/modules/database/data') {
+function storing(saved: StoredTabs, url = '/modules/database/data') {
 	inertia.page.url = url
 	let raw = JSON.stringify(saved)
 	const writes: string[] = []
@@ -64,7 +66,7 @@ function storing(saved: object, url = '/modules/database/data') {
 			removeItem: vi.fn(),
 		},
 	})
-	return { writes, saved: () => JSON.parse(raw) as unknown }
+	return { writes, saved: () => parseStored(raw) }
 }
 
 it('keeps the saved tabs and the table link of the selected database when the page arrives with no connections read yet, which a selection watch running before the restore gets wrong', async () => {
@@ -79,7 +81,7 @@ it('keeps the saved tabs and the table link of the selected database when the pa
 	await page.shown
 	await new Promise((resolve) => setTimeout(resolve, 0))
 	expect(inertia.visits).toEqual([])
-	expect(storage.writes.map((write) => JSON.parse(write))).not.toContainEqual(
+	expect(storage.writes.map(parseStored)).not.toContainEqual(
 		expect.objectContaining({ tabs: [] }),
 	)
 	expect(storage.saved()).toMatchObject({

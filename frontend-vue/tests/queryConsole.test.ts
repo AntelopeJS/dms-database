@@ -27,7 +27,10 @@ import {
 	withInstance,
 } from '../app/build/query/target'
 
-function table(name: string, fields: string[]) {
+function table(
+	name: string,
+	fields: string[],
+): SchemaSummary['tables'][number] {
 	return {
 		name,
 		fields: Object.fromEntries(
@@ -35,7 +38,17 @@ function table(name: string, fields: string[]) {
 		),
 		indexes: {},
 		relations: [],
-	} as SchemaSummary['tables'][number]
+	}
+}
+
+function inputError(source: string): QueryInputError {
+	try {
+		prepareQueryPayload(source, [shop])
+	} catch (caught) {
+		if (caught instanceof QueryInputError) return caught
+		throw caught
+	}
+	throw new Error('The query was prepared without an input error')
 }
 
 const shop: SchemaSummary = {
@@ -87,7 +100,6 @@ describe('unknown names', () => {
 		expect(
 			replaceName('schemas["shoop"].instance()', 'schema', 'shoop', 'dms-core'),
 		).toBe('schemas["dms-core"].instance()')
-		// A longer schema id sharing the prefix is left alone.
 		expect(replaceName('schemas.shoppers', 'schema', 'shop', 'x')).toBe(
 			'schemas.shoppers',
 		)
@@ -115,33 +127,23 @@ describe('query runtime errors', () => {
 	})
 
 	it('names an unknown schema', () => {
-		let error: unknown
-		try {
-			prepareQueryPayload('schemas.shoop.instance().table("orders")', [shop])
-		} catch (caught) {
-			error = caught
-		}
+		const error = inputError('schemas.shoop.instance().table("orders")')
 		expect(error).toBeInstanceOf(QueryInputError)
-		expect((error as QueryInputError).problem).toEqual({
+		expect(error.problem).toEqual({
 			kind: 'unknown_schema',
 			schema: 'shoop',
 		})
-		expect((error as Error).message).toBe('Unknown schema "shoop"')
+		expect(error.message).toBe('Unknown schema "shoop"')
 	})
 
 	it('points a syntax error where the text breaks', () => {
-		let error: unknown
-		try {
-			prepareQueryPayload('schemas.shop.instance("eu").table("orders"', [shop])
-		} catch (caught) {
-			error = caught
-		}
+		const error = inputError('schemas.shop.instance("eu").table("orders"')
 		expect(error).toBeInstanceOf(QueryInputError)
-		expect((error as QueryInputError).problem).toMatchObject({
+		expect(error.problem).toMatchObject({
 			kind: 'syntax',
 			place: { line: 1, column: 43 },
 		})
-		expect((error as Error).message).toMatch(/^Syntax error at line 1/)
+		expect(error.message).toMatch(/^Syntax error at line 1/)
 	})
 
 	it('accepts a closing semicolon', () => {
@@ -160,9 +162,7 @@ describe('syntax places', () => {
 		expect(findSyntaxPlace('a.b("x").c(1)')).toBeNull()
 		expect(findSyntaxPlace('a.b("x"\n  .c(1))')).toBeNull()
 		expect(findSyntaxPlace('a.b(1))')).toEqual({ line: 1, column: 7 })
-		// An unterminated string breaks where the text ends.
 		expect(findSyntaxPlace('a.b(\n  "open)')).toEqual({ line: 2, column: 9 })
-		// Brackets in strings and comments do not count.
 		expect(findSyntaxPlace('a.b(")") // (\n')).toBeNull()
 	})
 })
@@ -218,7 +218,6 @@ describe('query targets', () => {
 		expect(instanceArgument(undefined)).toBe('')
 		expect(instanceArgument('eu')).toBe('"eu"')
 		expect(instanceArgument('all')).toBe('CROSS_INSTANCE')
-		// No alias: any other value is a named instance.
 		expect(instanceArgument('__CROSS_INSTANCE__')).toBe('"__CROSS_INSTANCE__"')
 	})
 
@@ -239,7 +238,6 @@ describe('query targets', () => {
 				'us',
 			),
 		).toBe('schemas["dms-core"] . instance("us").table("users")')
-		// Another schema, or one sharing the prefix, is left alone.
 		expect(
 			withInstance('schemas.shopper.instance().table("x")', 'shop', 'eu'),
 		).toBe('schemas.shopper.instance().table("x")')
