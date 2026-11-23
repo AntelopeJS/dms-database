@@ -1,7 +1,9 @@
 import { strict as assert } from "node:assert";
 import {
   ACTIONS,
+  AutomationNodeRegistration,
   DATA_NODES,
+  type NodeRegistry,
   registerAutomationNodes,
   TRIGGERS,
   unregisterAutomationNodes,
@@ -53,4 +55,53 @@ describe("the database automation nodes", () => {
       await registerAutomationNodes();
     });
   });
+
+  it("are each declared on the registry, and none is left after the withdrawal", () => {
+    const { registry, ids } = recordingRegistry();
+    const registration = new AutomationNodeRegistration();
+    assert.deepEqual(ids(), []);
+    registration.register(registry);
+    registration.register(registry);
+    assert.deepEqual(ids(), ALL_IDS);
+    registration.unregister(registry);
+    assert.deepEqual(ids(), []);
+  });
+
+  it("withdraw what was declared when one declaration fails", () => {
+    const { registry, ids } = recordingRegistry();
+    const failing: NodeRegistry = {
+      ...registry,
+      RegisterDataNodeType: () => {
+        throw new Error("refused");
+      },
+    };
+    assert.throws(() => new AutomationNodeRegistration().register(failing), {
+      message: "refused",
+    });
+    assert.deepEqual(ids(), []);
+  });
 });
+
+const ALL_IDS = [
+  "action:database.count-rows",
+  "action:database.get-row",
+  "action:database.health",
+  "action:database.run-saved-query",
+  "data:database.field-changed",
+  "data:database.row-diff",
+  "trigger:database.connection-status",
+  "trigger:database.table-watch",
+];
+
+function recordingRegistry() {
+  const live = new Set<string>();
+  const registry: NodeRegistry = {
+    RegisterTriggerType: ({ id }) => void live.add(`trigger:${id}`),
+    UnregisterTriggerType: (id) => void live.delete(`trigger:${id}`),
+    RegisterActionType: ({ id }) => void live.add(`action:${id}`),
+    UnregisterActionType: (id) => void live.delete(`action:${id}`),
+    RegisterDataNodeType: ({ id }) => void live.add(`data:${id}`),
+    UnregisterDataNodeType: (id) => void live.delete(`data:${id}`),
+  };
+  return { registry, ids: () => [...live].sort() };
+}

@@ -36,7 +36,6 @@ export const DATA_NODES: DataNodeType[] = [rowDiffNode, fieldChangedNode];
 let automationInterfacePromise:
   | Promise<AutomationInterface | undefined>
   | undefined;
-let registered = false;
 
 function isMissingAutomationInterface(error: ModuleLoadError): boolean {
   const firstLine = error.message.split("\n", 1)[0] ?? "";
@@ -67,7 +66,66 @@ function getAutomationInterface(): Promise<AutomationInterface | undefined> {
   return automationInterfacePromise;
 }
 
-function unregisterAll(automation: AutomationInterface): unknown[] {
+/** The registration calls of the automation interface. */
+export type NodeRegistry = Pick<
+  AutomationInterface,
+  | "RegisterTriggerType"
+  | "UnregisterTriggerType"
+  | "RegisterActionType"
+  | "UnregisterActionType"
+  | "RegisterDataNodeType"
+  | "UnregisterDataNodeType"
+>;
+
+/**
+ * Declares and withdraws the module's node types on a registry, once each: a
+ * second declaration before a withdrawal does nothing, and a withdrawal that
+ * fails keeps the next one pending.
+ */
+export class AutomationNodeRegistration {
+  private registered = false;
+
+  /**
+   * Declares every node type; withdraws the declared ones when one fails.
+   *
+   * @param registry The automation interface's registration calls
+   */
+  register(registry: NodeRegistry): void {
+    if (this.registered) return;
+    this.registered = true;
+    try {
+      for (const trigger of TRIGGERS) registry.RegisterTriggerType(trigger);
+      for (const action of ACTIONS) registry.RegisterActionType(action);
+      for (const node of DATA_NODES) registry.RegisterDataNodeType(node);
+    } catch (error) {
+      unregisterAll(registry);
+      this.registered = false;
+      throw error;
+    }
+  }
+
+  /**
+   * Withdraws every node type.
+   *
+   * @param registry The automation interface's registration calls
+   * @throws AggregateError with each withdrawal that failed
+   */
+  unregister(registry: NodeRegistry): void {
+    if (!this.registered) return;
+    const errors = unregisterAll(registry);
+    this.registered = errors.length > 0;
+    if (errors.length > 0) {
+      throw new AggregateError(
+        errors,
+        "Failed to unregister database automation nodes",
+      );
+    }
+  }
+}
+
+const registration = new AutomationNodeRegistration();
+
+function unregisterAll(automation: NodeRegistry): unknown[] {
   const errors: unknown[] = [];
   const operations = [
     ...TRIGGERS.map(
@@ -103,17 +161,7 @@ function unregisterAll(automation: AutomationInterface): unknown[] {
  */
 export async function registerAutomationNodes(): Promise<void> {
   const automation = await getAutomationInterface();
-  if (!automation || registered) return;
-  registered = true;
-  try {
-    for (const trigger of TRIGGERS) automation.RegisterTriggerType(trigger);
-    for (const action of ACTIONS) automation.RegisterActionType(action);
-    for (const node of DATA_NODES) automation.RegisterDataNodeType(node);
-  } catch (error) {
-    unregisterAll(automation);
-    registered = false;
-    throw error;
-  }
+  if (automation) registration.register(automation);
 }
 
 /**
@@ -124,13 +172,5 @@ export async function unregisterAutomationNodes(): Promise<void> {
   procedureWrites.reset();
   automationLoopGuard.reset();
   const automation = await getAutomationInterface();
-  if (!automation || !registered) return;
-  const errors = unregisterAll(automation);
-  registered = errors.length > 0;
-  if (errors.length > 0) {
-    throw new AggregateError(
-      errors,
-      "Failed to unregister database automation nodes",
-    );
-  }
+  if (automation) registration.unregister(automation);
 }
