@@ -17,12 +17,6 @@ import { useSchemasListing } from '../build/schemas/useSchemasListing'
 import InstancePicker from './InstancePicker.vue'
 import SchemaPicker from './SchemaPicker.vue'
 
-// The Schemas page's filter bar, above its table view: a schema and an
-// instance picked from searchable menus (SchemaPicker, InstancePicker, shared
-// with the data browser), a table or column name, and structure chips. Its
-// state lives in the URL (see filterState.ts), which the table view reads as
-// hidden filters: a filtered list can be shared and reloaded.
-
 const SEARCH_DEBOUNCE_MS = 250
 
 const HAS_ICONS: Record<HasFlag, string> = {
@@ -41,7 +35,7 @@ const listing = useSchemasListing()
 const state = listing.state
 
 function commit(next: SchemasFilterState) {
-	router.replace({ query: withFilterState(route.query, next) })
+	void router.replace({ query: withFilterState(route.query, next) })
 }
 
 const filtered = computed(() => isFiltered(state.value))
@@ -59,7 +53,6 @@ function pickInstance(instance: InstanceChoice) {
 	commit({ ...state.value, instance })
 }
 
-// --- table or column name ---
 const search = ref(state.value.q)
 const searchInput = useTemplateRef<{ inputRef?: HTMLInputElement }>(
 	'searchInput',
@@ -73,7 +66,6 @@ watchDebounced(
 	{ debounce: SEARCH_DEBOUNCE_MS },
 )
 
-// The URL changed by itself (Clear, Back, a link): the field follows.
 watch(
 	() => state.value.q,
 	(q) => {
@@ -87,14 +79,17 @@ function clearSearch() {
 }
 
 onKeyStroke('/', (event) => {
-	const target = event.target as HTMLElement | null
-	if (target?.closest('input, textarea, select, [contenteditable=true]')) return
+	const target = event.target
+	if (
+		target instanceof Element &&
+		target.closest('input, textarea, select, [contenteditable=true]')
+	)
+		return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
 	event.preventDefault()
 	searchInput.value?.inputRef?.focus()
 })
 
-// --- structure chips and the count ---
 const chips = computed(() =>
 	HAS_FLAGS.map((flag) => ({
 		flag,

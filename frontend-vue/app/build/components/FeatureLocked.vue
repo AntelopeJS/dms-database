@@ -1,5 +1,4 @@
 <script setup lang="ts">
-/** The part of the console an external database cannot serve, shown instead of it. */
 defineProps<{ title: string }>()
 
 const { t } = useI18n()

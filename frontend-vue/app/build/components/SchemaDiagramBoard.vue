@@ -47,17 +47,22 @@ import DiagramStubNode from '../../components/DiagramStubNode.vue'
 import DiagramTableNode from '../../components/DiagramTableNode.vue'
 import TableInspector from '../../components/TableInspector.vue'
 
-// The Diagram page: the tables of one schema and their relations. Moving a
-// table saves the layout on its own (D-10), with undo and redo; auto layout
-// is previewed before it is kept, because it moves every table at once.
-
 const SAVE_DELAY_MS = 800
-// Far enough out for a large schema to fit in the view (D-16).
 const MIN_ZOOM = 0.1
-const NOTE_WIDTH = 220
-const NOTE_HEIGHT = 140
-// Above this many tables the canvas suggests focusing on one of them.
 const LARGE_SCHEMA_TABLES = 40
+
+function isText(value: unknown): value is string {
+	return typeof value === 'string'
+}
+
+function isTableNodeData(data: unknown): data is { tableName: string } {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'tableName' in data &&
+		typeof data.tableName === 'string'
+	)
+}
 
 const { t } = useI18n()
 const route = useDmsRoute()
@@ -88,19 +93,13 @@ const preview = ref<{
 	from: DiagramState['positions']
 	basis: LayoutOptions
 } | null>(null)
-// Tables showing all their columns, per schema: a view setting of this
-// visit, not part of the shared layout.
 const expanded = shallowRef(new Set<string>())
 const expandedBySchema = new Map<string, Set<string>>()
-// The canvas shape and the notes the layout of unsaved tables works around,
-// read when the schema loads and when auto layout runs, so a note moved
-// later does not move them.
 const layoutBasis = shallowRef<LayoutOptions>({})
 const loadedId = ref<string | null>(null)
 const loaded = computed(
 	() => loadedId.value !== null && loadedId.value === schemaId.value,
 )
-// The note just created, opened ready to write until its edit ends.
 const editNoteId = ref<string | null>(null)
 let sync: DiagramSync | null = null
 let autosave: DiagramAutosave | null = null
@@ -108,11 +107,9 @@ const { saveState, savedAt, savedLabel, statusReporter } = useDiagramSaveStatus(
 	() => sync,
 )
 
-// --- schema ---
 const schemaId = computed<string | null>(() => {
 	const asked = route.query.schema
-	if (typeof asked === 'string' && schemas.value.some((s) => s.id === asked))
-		return asked
+	if (isText(asked) && schemas.value.some((s) => s.id === asked)) return asked
 	return schemas.value[0]?.id ?? null
 })
 const schema = computed(() =>
@@ -161,41 +158,38 @@ const { onNodeDragStart, onNodeDragStop } = useDiagramDrag({
 	selectNode,
 })
 
-// Each schema is a step of the browser history (D-11).
 function openSchema(id: string) {
 	if (id === schemaId.value) return
-	router.push({ query: { ...route.query, schema: id, table: undefined } })
+	void router.push({ query: { ...route.query, schema: id, table: undefined } })
 }
 
 /** Opens the table a stub stands for (D-10). */
 function openTable(schemaName: string, tableName: string) {
 	if (schemaName !== schemaId.value) {
-		router.push({
+		void router.push({
 			query: { ...route.query, schema: schemaName, table: tableName },
 		})
 		return
 	}
 	const id = tableNodeId(schemaName, tableName)
 	if (focusIds.value && !focusIds.value.has(id)) focusId.value = null
-	nextTick(() => centerOn(id))
+	void nextTick(() => centerOn(id))
 }
 
 function warn(title: string) {
 	toast.add({ title, color: 'warning', icon: 'i-ph-warning' })
 }
 
-// A schema the URL names that does not exist: say so, and drop it from the
-// URL (D-12).
 onMounted(() => {
 	watch(
 		[() => route.query.schema, schemas, schemasLoading],
 		() => {
 			const asked = route.query.schema
-			if (typeof asked !== 'string' || schemasLoading.value) return
+			if (!isText(asked) || schemasLoading.value) return
 			if (!schemas.value.length || schemas.value.some((s) => s.id === asked))
 				return
 			warn(t('dms_database.diagram.not_found.schema', { schema: asked }))
-			router.replace({
+			void router.replace({
 				query: { ...route.query, schema: undefined, table: undefined },
 			})
 		},
@@ -203,15 +197,12 @@ onMounted(() => {
 	)
 })
 
-// --- graph ---
 const focusIds = computed(() =>
 	focusId.value && schema.value
 		? neighbourIds(schema.value, focusId.value.split('::')[1] ?? '')
 		: null,
 )
 
-// Where the layout puts every table of the schema: the place of a table
-// without a saved one, focused or not (D-4).
 const fullLayout = computed(() =>
 	schema.value ? layOutSchema(schema.value, layoutBasis.value) : undefined,
 )
@@ -284,9 +275,6 @@ const { search, searchIndex, searchMissed, searchPosition, runSearch } =
 		centerOn,
 	})
 
-// --- loading and saving ---
-// An auto layout being previewed is not kept yet: a save writes the layout
-// from before it.
 function stateToSave(): DiagramState {
 	return preview.value
 		? { positions: preview.value.from, notes: state.notes }
@@ -303,8 +291,6 @@ function saveNow() {
 }
 
 async function load(id: string) {
-	// What is left of the shown schema's changes is copied now and written
-	// under its own id before the next schema loads (D-2).
 	const leaving = autosave?.flush()
 	autosave = null
 	loadedId.value = null
@@ -345,9 +331,6 @@ async function load(id: string) {
 	loadedId.value = id
 }
 
-// The canvas is drawn in the browser, from a working copy of the layout and
-// notes it reads there: a server render, which would read them without
-// handing them over, never starts it.
 onMounted(() => watch(schemaId, (id) => id && load(id), { immediate: true }))
 
 function record(op: DiagramOperation) {
@@ -358,7 +341,6 @@ function record(op: DiagramOperation) {
 
 onBeforeUnmount(() => void autosave?.flush())
 
-// --- undo / redo ---
 const canUndo = computed(
 	() => historyRevision.value >= 0 && history.canUndo && !preview.value,
 )
@@ -380,11 +362,9 @@ function redo() {
 	scheduleSave()
 }
 
-// --- auto layout, previewed before it is kept ---
 const movedCount = computed(() => {
 	if (!preview.value || !schema.value) return 0
 	return schema.value.tables.filter((table) => {
-		// A table without a saved position already sat where the layout puts it.
 		const before = preview.value?.from[table.name]
 		const after = state.positions[table.name]
 		return Boolean(
@@ -399,12 +379,11 @@ function startAutoLayout() {
 		from: clonePositions(state.positions),
 		basis: layoutBasis.value,
 	}
-	// Laid out for the canvas and the notes as they are now.
 	layoutBasis.value = currentLayoutBasis()
 	state.positions = clonePositions(fullLayout.value.tables)
 	routing.clear()
 	render()
-	nextTick(startView)
+	void nextTick(startView)
 }
 
 function keepLayout() {
@@ -417,13 +396,11 @@ function keepLayout() {
 function discardLayout() {
 	if (!preview.value) return
 	state.positions = preview.value.from
-	// Unsaved tables go back where they were before the preview.
 	layoutBasis.value = preview.value.basis
 	preview.value = null
 	render()
 }
 
-// --- selection and inspection ---
 function onNodeClick({ node }: NodeMouseEvent) {
 	if (node.type === STUB_NODE_TYPE) return
 	selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
@@ -433,9 +410,6 @@ function onPaneClick() {
 	selectedId.value = null
 }
 
-// The drawer is titled with the table it shows, as the Schemas page's; a
-// relation the inspector follows shows its table in the same drawer. No
-// position nor J / K: the diagram's tables are not a list.
 let inspector: ReturnType<typeof openDrawer> | null = null
 
 function inspectorOptions(schema: string, name: string) {
@@ -444,8 +418,7 @@ function inspectorOptions(schema: string, name: string) {
 		title: name,
 		componentOptions: {
 			rowData: { schema, name },
-			showRow: async (row: object | string) => {
-				if (typeof row !== 'string') throw new Error('not a table id')
+			showRow: async (row: string) => {
 				const [toSchema = '', toName = ''] = row.split('::')
 				inspector?.patch(inspectorOptions(toSchema, toName))
 			},
@@ -460,14 +433,14 @@ function inspect(tableName: string) {
 		component: TableInspector,
 		...inspectorOptions(schemaId.value, tableName),
 	})
-	inspector.result.finally(() => {
+	void inspector.result.finally(() => {
 		inspector = null
 	})
 }
 
 function onNodeDoubleClick({ node }: NodeMouseEvent) {
-	if (node.type !== TABLE_NODE_TYPE) return
-	inspect((node.data as { tableName: string }).tableName)
+	if (node.type !== TABLE_NODE_TYPE || !isTableNodeData(node.data)) return
+	inspect(node.data.tableName)
 }
 
 const selectedTable = computed(() => selectedId.value?.split('::')[1] ?? null)
@@ -475,23 +448,19 @@ const selectedTable = computed(() => selectedId.value?.split('::')[1] ?? null)
 function toggleFocus() {
 	focusId.value = focusId.value ? null : selectedId.value
 	render()
-	nextTick(fitAll)
+	void nextTick(fitAll)
 }
 
 function leaveSearch() {
 	searchBar.value?.blur()
 }
 
-// --- viewport ---
 const zoomPercent = computed(() => `${Math.round(viewport.value.zoom * 100)}%`)
 
 function onViewportChange(next: { x: number; y: number; zoom: number }) {
 	viewport.value = { ...next }
 }
 
-// --- keyboard: the shortcuts the toolbar's tooltips name ---
-// Escape steps back one level: the auto layout preview, then the focus,
-// then the selection (D-14).
 function escape(): boolean {
 	if (preview.value) {
 		discardLayout()
@@ -508,7 +477,7 @@ function escape(): boolean {
 	return true
 }
 
-function always(run: () => unknown): () => boolean {
+function always(run: () => void): () => boolean {
 	return () => {
 		run()
 		return true
@@ -527,8 +496,6 @@ const COMMANDS: Record<DiagramCommand, () => boolean> = {
 	escape,
 }
 
-// Keys reach the canvas only from the canvas or the page itself: not while
-// typing, and not while a dialog such as the inspector is open (D-6).
 useEventListener('keydown', (event: KeyboardEvent) => {
 	const command = diagramCommand(event)
 	if (!command || event.defaultPrevented) return
@@ -536,8 +503,6 @@ useEventListener('keydown', (event: KeyboardEvent) => {
 	if (COMMANDS[command]()) event.preventDefault()
 })
 
-// Imported, not resolved by name: the edge must mount in the SVG namespace,
-// which an async global component does not.
 const nodeTypes = markRaw({
 	[TABLE_NODE_TYPE]: DiagramTableNode,
 	[STUB_NODE_TYPE]: DiagramStubNode,
@@ -570,8 +535,6 @@ const isLarge = computed(
 				class="border-default relative min-h-0 flex-1 overflow-hidden rounded-xl border"
 				:class="panMode ? 'diagram-pan-mode' : ''"
 			>
-				<!-- Notes carry their own delete button, named in the page's
-				     language: the canvas's generic badge would only repeat it. -->
 				<DmsFlowCanvas
 					ref="canvas"
 					:node-types="nodeTypes"

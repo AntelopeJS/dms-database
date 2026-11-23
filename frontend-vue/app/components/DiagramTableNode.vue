@@ -9,15 +9,6 @@ import {
 	isPrimaryKey,
 } from '../build/utils/fieldTypes'
 
-// One table of the diagram (D-09): each column with its type as mono text and
-// a neutral icon. Colour only marks structure: the primary key, and the
-// relation columns, which light up with the selected table's relations.
-
-// A table with many columns comes folded: its first columns and every column
-// an arrow ends on, then a row that unfolds it and folds it back.
-
-// The canvas keeps the selection in `data.selected`: Vue Flow's own one is
-// off for tables, so one table at most is drawn selected.
 const props = defineProps<{ data: TableNodeData }>()
 
 const SIDES = ['left', 'right'] as const
@@ -123,7 +114,6 @@ const rows = computed(() =>
 				</span>
 			</li>
 			<li v-if="data.foldable" class="h-6">
-				<!-- `nodrag`: a click unfolds the table instead of grabbing it. -->
 				<button
 					type="button"
 					class="nodrag text-muted hover:text-highlighted hover:bg-elevated focus-visible:ring-primary flex h-full w-full cursor-pointer items-center gap-1.5 pl-3 pr-2.5 font-mono text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset"

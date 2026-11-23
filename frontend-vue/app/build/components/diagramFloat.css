@@ -1,5 +1,3 @@
-/* As wide as its content: a centred panel only gets half the canvas, which
-   would wrap a bar that fits. It wraps only when the screen is narrower. */
 .diagram-float {
 	display: flex;
 	flex-wrap: wrap;

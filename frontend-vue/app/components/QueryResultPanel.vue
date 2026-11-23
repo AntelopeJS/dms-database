@@ -25,12 +25,33 @@ import {
 	tableLink,
 } from '../build/utils/databaseLinks'
 
-// The result of the last run (D-13): what it read or changed and where, the
-// rows as a table, JSON or a chart with picked axes, copied or exported, and
-// whether every row is shown. A failed run says what failed and, for a
-// mistyped table, offers the right one.
-
 type ResultMode = 'table' | 'json' | 'chart'
+
+type ResultRow = ExecuteResult['rows'][number]
+
+function isScalar(
+	value: unknown,
+): value is string | number | boolean | bigint | symbol {
+	return (
+		typeof value === 'string' ||
+		typeof value === 'number' ||
+		typeof value === 'boolean' ||
+		typeof value === 'bigint' ||
+		typeof value === 'symbol'
+	)
+}
+
+function isObject(value: unknown): value is object {
+	return typeof value === 'object' && value !== null
+}
+
+function isNumber(value: unknown): value is number {
+	return typeof value === 'number'
+}
+
+function isRowId(value: unknown): value is string | number {
+	return typeof value === 'string' || typeof value === 'number'
+}
 
 export interface QueryFailure {
 	message: string
@@ -68,8 +89,6 @@ const emit = defineEmits<{
 
 const EXAMPLE_ROWS = 10
 const CHART_ROWS = 50
-// Bars past this many are drawn sideways, a fixed height each, so their
-// labels stay apart.
 const UPRIGHT_BARS = 20
 const BAR_HEIGHT = 22
 const CHART_HEIGHT = 280
@@ -106,21 +125,18 @@ const rightAligned = computed(
 const targetLabel = computed(() => describeTarget(props.target))
 
 function renderCell(value: unknown): string {
-	if (value === null || value === undefined) return 'null'
-	if (typeof value === 'object') return JSON.stringify(value)
-	return String(value)
+	if (isObject(value)) return JSON.stringify(value)
+	if (isScalar(value)) return String(value)
+	return 'null'
 }
 
-// --- links to the data browser ---
-// A row of a read across every instance opens in its own instance.
 const browsable = computed(() =>
 	Boolean(props.target.schema && props.target.table),
 )
 
-function rowLink(row: Record<string, unknown>): string | null {
+function rowLink(row: ResultRow): string | null {
 	const id = row._id
-	if (!browsable.value || (typeof id !== 'string' && typeof id !== 'number'))
-		return null
+	if (!browsable.value || !isRowId(id)) return null
 	const instance = rowInstance(props.target, row)
 	if (instance === null) return null
 	return tableLink('data', {
@@ -141,7 +157,6 @@ const tableBrowserLink = computed(() =>
 		: null,
 )
 
-// --- copy and export ---
 async function copyJson() {
 	await copy(JSON.stringify(rows.value, null, 2))
 	toast.add({
@@ -156,10 +171,9 @@ function exportCsv() {
 	downloadText(`${name}.csv`, toCsv(rows.value), 'text/csv;charset=utf-8')
 }
 
-// --- chart with picked axes ---
 const numericColumns = computed(() =>
 	columns.value.filter((column) =>
-		rows.value.some((row) => typeof row[column] === 'number'),
+		rows.value.some((row) => isNumber(row[column])),
 	),
 )
 const xColumn = ref<string | undefined>()
@@ -190,22 +204,23 @@ const chartDataset = computed(() => {
 	return [
 		{
 			name: y,
-			data: chartRows.value.map((row, index) => ({
-				x: xColumn.value ? renderCell(row[xColumn.value]) : String(index + 1),
-				y: typeof row[y] === 'number' ? (row[y] as number) : 0,
-			})),
+			data: chartRows.value.map((row, index) => {
+				const value = row[y]
+				return {
+					x: xColumn.value ? renderCell(row[xColumn.value]) : String(index + 1),
+					y: isNumber(value) ? value : 0,
+				}
+			}),
 		},
 	]
 })
 
-// --- first run and failures ---
 const examples = computed(() => {
 	const schema = props.schemas.find((candidate) => candidate.tables.length > 0)
 	if (!schema) return []
 	const [first, second] = schema.tables
 	const firstTable = `${schema.id}.${first?.name}`
 	const access = tableAccess({ schema: schema.id, table: first?.name ?? '' })
-	// "Latest" rows only when a date orders them; else the first ones.
 	const dated = first ? latestOrderField(first) : null
 	const items = [
 		dated
@@ -244,7 +259,6 @@ const exampleActions = computed(() =>
 	})),
 )
 
-// One button per instance holding rows: `eu · 160` reruns the read there.
 const elsewhereActions = computed(() =>
 	(props.elsewhere ?? []).map((instance) => ({
 		label: `${instance.id} · ${n(instance.count)}`,
@@ -255,8 +269,6 @@ const elsewhereActions = computed(() =>
 	})),
 )
 
-// A mistyped schema, instance or table, and the closest name the workspace
-// has: the console offers to use it, as for a table.
 const mistyped = computed<UnknownName | null>(() =>
 	props.failure
 		? (props.failure.unknown ?? unknownName(props.failure.message))

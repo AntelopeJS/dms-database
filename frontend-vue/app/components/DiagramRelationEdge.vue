@@ -7,13 +7,11 @@ import {
 } from '@vue-flow/core'
 import { EDGE_ACTIVE_COLOR, type EdgeEnds } from '../build/diagram/graph'
 
-// A relation column pointing at a table. The relations of the selected table
-// are drawn in the primary colour; the others stay quiet.
 const props = defineProps<EdgeProps<EdgeEnds>>()
 
 const edgeStyle = computed(() =>
 	props.data?.active
-		? { ...(props.style as object), stroke: EDGE_ACTIVE_COLOR, strokeWidth: 2 }
+		? { ...props.style, stroke: EDGE_ACTIVE_COLOR, strokeWidth: 2 }
 		: props.style,
 )
 
@@ -37,7 +35,6 @@ const computedPath = computed<[string, number, number]>(() => {
 		const cx2 = props.targetX + targetSign * offset
 		const cy2 = props.targetY
 		const d = `M${props.sourceX},${props.sourceY} C${cx1},${cy1} ${cx2},${cy2} ${props.targetX},${props.targetY}`
-		// Label sits at the bezier midpoint (t = 0.5).
 		const labelX = (props.sourceX + 3 * cx1 + 3 * cx2 + props.targetX) / 8
 		const labelY = (props.sourceY + 3 * cy1 + 3 * cy2 + props.targetY) / 8
 		return [d, labelX, labelY]
@@ -80,8 +77,6 @@ const computedPath = computed<[string, number, number]>(() => {
 </template>
 
 <style scoped>
-/* Theme tokens, with a halo of the canvas colour so the line that crosses
-   the label does not run through its letters. */
 .diagram-edge-label {
 	fill: var(--ui-text-muted);
 	stroke: var(--ui-bg-muted);

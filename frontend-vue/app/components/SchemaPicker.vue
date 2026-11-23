@@ -8,11 +8,6 @@ import {
 } from '../build/data/pickerMenus'
 import { sortNames } from '../build/data/instanceOptions'
 
-// A schema picked from a searchable menu, shared by the Schemas page's filter
-// bar and the data browser's sidebar: "All schemas" pinned first when the
-// page can list every schema, and at most a hundred others with how many
-// matched.
-
 const props = defineProps<{
 	/** The schema picked; null for every schema (with `allowAll`) or none yet. */
 	modelValue: string | null
@@ -46,8 +41,8 @@ const items = computed(() =>
 	}),
 )
 
-function pick(value: unknown) {
-	if (typeof value !== 'string') return
+function pick(value: string | null | undefined) {
+	if (value === null || value === undefined) return
 	emit('update:modelValue', value === PICK_ALL ? null : value)
 }
 </script>
