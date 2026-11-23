@@ -66,7 +66,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 | `@antelopejs/interface-database-catalog`    | `>=0.1.1 <0.2.0`   | `0.1.1`     |
 | `@antelopejs/interface-database-decorators` | `>=0.5.2 <0.6.0`   | `0.5.4`     |
 | `@antelopejs/interface-dms`                 | `>=0.16.0 <0.17.0` | `0.16.0`    |
-| `@antelopejs/interface-dms-automation`      | `>=0.7.1 <0.8.0`   | `0.7.2`     |
+| `@antelopejs/interface-dms-automation`      | `>=0.7.3 <0.8.0`   | `0.7.3`     |
 | `@antelopejs/interface-dms-builder`         | `>=0.6.0 <0.7.0`   | `0.6.0`     |
 
 <!-- antelopejs-docs-compat:end -->
