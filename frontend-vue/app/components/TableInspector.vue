@@ -39,7 +39,7 @@ import DrawerTabs from './DrawerTabs.vue'
 // hands the inspector the row, and the means to show another row in place:
 // a relation opens the table it names in its place.
 
-interface TableRow {
+export interface TableRow {
 	schema: string
 	name: string
 }

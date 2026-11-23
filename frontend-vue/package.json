@@ -13,8 +13,9 @@
     "build": "pnpm --dir ../playground exec ajs dms build",
     "typecheck": "pnpm --dir \"${DMS_FRONTEND_WORKSPACE:?Set DMS_FRONTEND_WORKSPACE to the generated Inertia workspace}\" typecheck",
     "format": "prettier --write .",
-    "lint": "eslint .",
-    "lint:fix": "eslint . --fix",
+    "lint": "pnpm -s run types && eslint .",
+    "lint:fix": "pnpm -s run types && eslint . --fix",
+    "types": "pnpm --dir .. exec ajs dms prepare-types -q --module frontend-vue --out frontend-vue/.dms-types",
     "test": "vitest run"
   },
   "dependencies": {
@@ -33,12 +34,12 @@
     "vue": "^3.5.18"
   },
   "devDependencies": {
+    "@antelopejs/tooling-configs": ">=0.10.0 <0.11.0",
     "@intlify/message-compiler": "^11",
+    "@nuxt/eslint-config": "^1.17.0",
     "@nuxt/ui": "4.10.0",
-    "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-vue": "^6.0.10",
     "eslint": "^9.0.0",
-    "eslint-plugin-vue": "^10.0.0",
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "typescript": "^5.8.2",

@@ -4,7 +4,7 @@ import { useResizeObserver, useScroll } from '@vueuse/core'
 // The tab list of a drawer: on a phone, or a drawer narrower than its tabs,
 // it scrolls sideways, and a fade on the side more tabs hide in says so.
 
-interface DrawerTab {
+export interface DrawerTab {
 	value: Tab
 	label: string
 	badge?: number
