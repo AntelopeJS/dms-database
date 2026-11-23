@@ -1,13 +1,13 @@
 <script setup lang="ts" generic="Tab extends string">
 import { useResizeObserver, useScroll } from '@vueuse/core'
 
-export interface DrawerTab {
-	value: Tab
+export interface DrawerTab<Value extends string = string> {
+	value: Value
 	label: string
 	badge?: number
 }
 
-defineProps<{ items: DrawerTab[] }>()
+defineProps<{ items: DrawerTab<Tab>[] }>()
 const active = defineModel<Tab>({ required: true })
 
 const scroller = useTemplateRef('scroller')
