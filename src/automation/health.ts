@@ -10,6 +10,7 @@ import {
   driverLabelOf,
   getStorageStats,
   probeConnection,
+  type StorageStats,
 } from "../service/health";
 import { resolveConnection } from "../service/rows";
 import { asStep } from "./errors";
@@ -55,7 +56,7 @@ const INPUT_SCHEMA: JsonSchema = {
       type: "boolean",
       title: "Include stats",
       description:
-        "Also count schemas, tables and rows (one count per table, cached 30 s; a failed count reads as 0)",
+        "Also count schemas, tables and rows when the connection is up (one count per table, cached 30 s; a failed count reads as 0)",
       default: true,
     },
     largestTables: {
@@ -123,13 +124,16 @@ const OUTPUT_SCHEMA: JsonSchema = {
 };
 
 /**
- * Builds the health action on a probe, which a test replaces.
+ * Builds the health action on a probe and a count of the database, which a
+ * test replaces.
  *
  * @param probe Probes the database
+ * @param stats Counts its schemas, tables and rows
  * @returns The action type
  */
 export function createHealthAction(
   probe: (db: Database) => Promise<ConnectionProbe> = probeConnection,
+  stats: (db: Database) => Promise<StorageStats> = getStorageStats,
 ): ActionType<NodeInput, HealthOutput> {
   return {
     id: "database.health",
@@ -155,7 +159,8 @@ export function createHealthAction(
         const db = await resolveConnection(connection);
         const checkedAt = new Date().toISOString();
         const answer = await probe(db);
-        const stats = includeStats ? await getStorageStats(db) : undefined;
+        const counted =
+          includeStats && answer.status === "ok" ? await stats(db) : undefined;
         const driver = await driverLabelOf(db);
         return {
           connection,
@@ -164,12 +169,12 @@ export function createHealthAction(
           error: answer.error,
           driver,
           checkedAt,
-          schemaCount: stats?.schemaCount ?? null,
-          tableCount: stats?.tableCount ?? null,
-          relationCount: stats?.relationCount ?? null,
-          indexCount: stats?.indexCount ?? null,
-          totalRows: stats?.totalRows ?? null,
-          largestTables: stats ? stats.storage.slice(0, largest) : [],
+          schemaCount: counted?.schemaCount ?? null,
+          tableCount: counted?.tableCount ?? null,
+          relationCount: counted?.relationCount ?? null,
+          indexCount: counted?.indexCount ?? null,
+          totalRows: counted?.totalRows ?? null,
+          largestTables: counted ? counted.storage.slice(0, largest) : [],
         };
       });
     },
