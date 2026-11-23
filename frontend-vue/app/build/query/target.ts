@@ -1,11 +1,13 @@
-// The schema, instance and table an encoded query starts from, read from its
-// stages the way the server reads them: what the result header names and the
-// data browser link opens.
-
 import { instanceFromUrl } from '../utils/databaseLinks'
 import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
+import { isRecord, isString, isSymbol } from './guards'
+import type { ResultRow } from './resultRow'
 import { escapeRegExp } from './runs'
 
+/**
+ * The schema, instance and table a query starts from: what the result header
+ * names and the data browser link opens.
+ */
 export interface QueryTarget {
 	schema?: string
 	/** `""` for the default instance, `"*"` across every instance. */
@@ -13,33 +15,54 @@ export interface QueryTarget {
 	table?: string
 }
 
+/** A URL query parameter: absent, one value or a repeated one. */
+type UrlParam = string | null | (string | null)[] | undefined
+
 interface EncodedStage {
 	stage?: unknown
-	options?: { id?: unknown }
+	options?: unknown
 }
 
-function stageId(stages: EncodedStage[], name: string): unknown {
-	return stages.find((stage) => stage.stage === name)?.options?.id
+/** A query as the server encodes it: its stages in order. */
+export interface EncodedQuery {
+	stages?: unknown
 }
 
-export function readQueryTarget(
-	encoded: Record<string, unknown> | null,
-): QueryTarget {
-	const stages = Array.isArray(encoded?.stages)
-		? (encoded.stages as EncodedStage[])
+function isEncodedStage(value: unknown): value is EncodedStage {
+	return isRecord(value)
+}
+
+function stageId(
+	stages: EncodedStage[],
+	name: string,
+): string | symbol | undefined {
+	const options = stages.find((stage) => stage.stage === name)?.options
+	if (!isRecord(options)) return undefined
+	const id = options.id
+	return isString(id) || isSymbol(id) ? id : undefined
+}
+
+/**
+ * The target of an encoded query, read from its stages the way the server
+ * reads them.
+ */
+export function readQueryTarget(encoded: EncodedQuery | null): QueryTarget {
+	const encodedStages = encoded?.stages
+	const stages = Array.isArray(encodedStages)
+		? encodedStages.filter(isEncodedStage)
 		: []
 	const schema = stageId(stages, 'schema')
 	const table = stageId(stages, 'table')
 	const hasInstance = stages.some((stage) => stage.stage === 'instance')
 	const instance = stageId(stages, 'instance')
 	return {
-		schema: typeof schema === 'string' ? schema : undefined,
-		table: typeof table === 'string' ? table : undefined,
+		schema: isString(schema) ? schema : undefined,
+		table: isString(table) ? table : undefined,
 		instance: !hasInstance
 			? undefined
-			: instance === CROSS_INSTANCE_SENTINEL || typeof instance === 'symbol'
+			: instance === CROSS_INSTANCE_SENTINEL || isSymbol(instance)
 				? '*'
-				: typeof instance === 'string'
+				: isString(instance)
 					? instance
 					: '',
 	}
@@ -57,7 +80,7 @@ export function describeTarget(target: QueryTarget): string {
 const SCHEMA_ACCESS =
 	/schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])/g
 const INSTANCE_CALL =
-	/\.\s*instance\(\s*(?:(["'`])([^"'`]*)\1|(CROSS_INSTANCE))?\s*\)/g
+	/\.\s*instance\(\s*(?:(?:(["'`])([^"'`]*)\1|(CROSS_INSTANCE))\s*)?\)/g
 const TABLE_CALL = /\.\s*table\(\s*(["'`])([^"'`]+)\1\s*\)/g
 
 function lastMatch(pattern: RegExp, text: string): RegExpExecArray | null {
@@ -88,7 +111,7 @@ export function targetFromSource(source: string): QueryTarget {
 
 /** Where a past run pointed: its encoded query, else its text. */
 export function runTarget(run: {
-	query?: Record<string, unknown> | null
+	query?: EncodedQuery | null
 	source: string
 }): QueryTarget {
 	const encoded = readQueryTarget(run.query ?? null)
@@ -102,20 +125,20 @@ export function runTarget(run: {
  */
 export function rowInstance(
 	target: QueryTarget,
-	row: Record<string, unknown>,
+	row: ResultRow,
 ): string | null {
 	if (target.instance !== '*') return target.instance ?? ''
 	if (!('_instance' in row)) return null
 	const instance = row._instance
 	if (instance === null || instance === undefined || instance === '') return ''
-	return typeof instance === 'string' ? instance : null
+	return isString(instance) ? instance : null
 }
 
 /**
  * The `instance(…)` argument for the instance the URL's `instance` names:
  * none for the default one, CROSS_INSTANCE for every instance.
  */
-export function instanceArgument(raw: unknown): string {
+export function instanceArgument(raw: UrlParam): string {
 	const choice = instanceFromUrl(raw)
 	if (choice.kind === 'default') return ''
 	if (choice.kind === 'all') return 'CROSS_INSTANCE'

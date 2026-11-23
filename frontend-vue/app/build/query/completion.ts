@@ -1,16 +1,20 @@
 import type { SchemaSummary } from '../composables/useDatabaseSchemas'
 import type { QueryTarget } from './target'
 
-// What the editor completes, by place in the chain (D-12): the methods a
-// query step answers, and the schemas, instances, tables and fields of the
-// workspace, indexed so a table's fields are its own.
-
-// Schema also exposes createInstance/destroyInstance/listInstances, but only
-// instance(id?) continues the browse chain, so it is the only one offered.
+/**
+ * The methods a schema completes: only `instance(id?)` continues the browse
+ * chain, though a schema also exposes createInstance, destroyInstance and
+ * listInstances.
+ */
 export const SCHEMA_METHODS = ['instance']
-export const INSTANCE_METHODS = ['table'] // a SchemaInstance only exposes table(name)
-// The steps of a Table, Selection, Stream or Datum: each is a method of the
-// staged query classes, so a completion never names one that does not exist.
+
+/** The methods a schema instance completes: it only exposes `table(name)`. */
+export const INSTANCE_METHODS = ['table']
+
+/**
+ * The steps of a Table, Selection, Stream or Datum: each is a method of the
+ * staged query classes, so a completion never names one that does not exist.
+ */
 export const QUERY_METHODS = [
 	'slice',
 	'orderBy',
@@ -39,6 +43,10 @@ export const QUERY_METHODS = [
 	'changes',
 ]
 
+/**
+ * The schemas, instances, tables and fields of the workspace the editor
+ * completes, indexed so a table's fields are its own.
+ */
 export interface CompletionIndex {
 	schemaIds: string[]
 	tablesBySchema: Record<string, string[]>
@@ -94,7 +102,6 @@ export function fieldsAt(index: CompletionIndex, chain: QueryTarget): string[] {
 		const own = index.fieldsByTable[`${chain.schema}.${chain.table}`]
 		if (own) return own
 	}
-	if (chain.schema && index.fieldsBySchema[chain.schema])
-		return index.fieldsBySchema[chain.schema] as string[]
-	return index.allFields
+	const wider = chain.schema ? index.fieldsBySchema[chain.schema] : undefined
+	return wider ?? index.allFields
 }

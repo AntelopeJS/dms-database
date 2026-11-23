@@ -1,9 +1,5 @@
 import type { DiagramPosition } from '../composables/useDiagramPersistence'
 
-// Places blocks (a group of related tables laid out by dagre, or a table on
-// its own) in rows, so a schema of many unrelated tables fills a canvas
-// shaped like the screen instead of one long column.
-
 export interface Size {
 	width: number
 	height: number
@@ -20,12 +16,14 @@ export interface Block extends Size {
 
 /** Room between two blocks, and between a block and a note. */
 export const PACK_GAP = 64
-// Width / height of a canvas whose size is not known: a wide screen.
+/** Width / height of a canvas whose size is not known: a wide screen. */
 export const DEFAULT_ASPECT = 16 / 9
 const WIDTH_CANDIDATES = 48
-// Packings this close in shape to the best one (as a log of the ratio) count
-// as as good: the most compact of them wins.
-const SHAPE_TOLERANCE = 0.1
+/**
+ * Packings this close in aspect to the best one (as a log of the ratio) count
+ * as as good: the most compact of them wins.
+ */
+const ASPECT_TOLERANCE = 0.1
 
 export function overlaps(a: Rect, b: Rect, margin = 0): boolean {
 	return (
@@ -151,6 +149,10 @@ function sizeOf(block: Size): Size {
 }
 
 /**
+ * Places blocks (a group of related tables laid out by dagre, or a table on
+ * its own) in rows, so a schema of many unrelated tables fills a canvas
+ * shaped like the screen instead of one long column.
+ *
  * Where each block goes, its top-left corner from 0, 0: the packing closest
  * to `aspect` (width / height) among rows of several widths, short blocks
  * stacked or not; of the ones about as close, the most compact. The order of
@@ -169,7 +171,6 @@ export function packBlocks(
 		0,
 	)
 	const ideal = Math.max(widest, Math.sqrt(area * aspect))
-	// Row widths around the ideal one, from the widest block to one row.
 	const widths = new Set([widest, total])
 	for (let i = 0; i < WIDTH_CANDIDATES; i++) {
 		const width = ideal * (0.5 + (1.5 * i) / WIDTH_CANDIDATES)
@@ -179,17 +180,17 @@ export function packBlocks(
 		[0, width / aspect, Infinity].map((stack) => {
 			const placed = packRows(blocks, width, stack, obstacles)
 			const bounds = boundsOf([...placed.values()])
-			const shape = bounds.width / Math.max(bounds.height, 1) / aspect
+			const aspectRatio = bounds.width / Math.max(bounds.height, 1) / aspect
 			return {
 				placed,
-				score: Math.abs(Math.log(shape)),
+				score: Math.abs(Math.log(aspectRatio)),
 				area: bounds.width * bounds.height,
 			}
 		}),
 	)
 	const closest = Math.min(...tries.map((t) => t.score))
 	const best = tries
-		.filter((t) => t.score <= closest + SHAPE_TOLERANCE)
+		.filter((t) => t.score <= closest + ASPECT_TOLERANCE)
 		.reduce((a, b) => (b.area < a.area ? b : a))
 	const positions = new Map<string, DiagramPosition>()
 	for (const [id, rect] of best.placed)

@@ -50,7 +50,7 @@ function layOutGroup(
 	sizes: Map<string, Size>,
 	links: [string, string][],
 ): LaidGroup {
-	const graph = new dagre.graphlib.Graph()
+	const graph = new dagre.graphlib.Graph<typeof LAYOUT, Partial<LaidNode>>()
 	graph.setDefaultEdgeLabel(() => ({}))
 	graph.setGraph({ ...LAYOUT })
 	const members = new Set(ids)
@@ -59,10 +59,8 @@ function layOutGroup(
 		if (members.has(from) && members.has(to)) graph.setEdge(from, to)
 	dagre.layout(graph)
 	const rects = ids.map((id) => {
-		const laid = graph.node(id) as LaidNode
-		const x = laid.x - laid.width / 2
-		const y = laid.y - laid.height / 2
-		return { id, x, y, width: laid.width, height: laid.height }
+		const { x = 0, y = 0, width = 0, height = 0 } = graph.node(id)
+		return { id, x: x - width / 2, y: y - height / 2, width, height }
 	})
 	const bounds = boundsOf(rects)
 	const offsets = new Map(
@@ -110,9 +108,10 @@ export function layOutSchema(
 	)
 	const single: Block[] = alone
 		.sort((a, b) => a.localeCompare(b))
-		.map((name) => {
+		.flatMap((name) => {
 			const id = tableNodeId(schema.id, name)
-			return { id, ...(sizes.get(id) as Size) }
+			const size = sizes.get(id)
+			return size ? [{ id, ...size }] : []
 		})
 
 	const packed = packBlocks(

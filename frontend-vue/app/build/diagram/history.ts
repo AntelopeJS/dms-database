@@ -1,15 +1,15 @@
 import type { DiagramPositions } from '../composables/useDiagramPersistence'
 import type { NoteDraft } from './graph'
 
-// The diagram's undo stack. Every change is an operation that knows how to
-// apply itself and how to take itself back; the canvas saves whatever state
-// results, so undo and redo are saved like any other change.
-
 interface Point {
 	x: number
 	y: number
 }
 
+/**
+ * One change to the diagram, which knows how to apply itself and how to take
+ * itself back.
+ */
 export type DiagramOperation =
 	| { kind: 'tableMove'; tableName: string; from: Point; to: Point }
 	| { kind: 'noteMove'; noteId: string; from: Point; to: Point }
@@ -37,7 +37,7 @@ interface Handlers<K extends DiagramOperation['kind']> {
 }
 type OperationHandlers = { [K in DiagramOperation['kind']]: Handlers<K> }
 
-// Moves and text edits made in quick succession are one step.
+/** Moves and text edits made in quick succession are one step. */
 const SQUASH_WINDOW_MS = 600
 
 export function clonePositions(positions: DiagramPositions): DiagramPositions {
@@ -99,16 +99,12 @@ const HANDLERS: OperationHandlers = {
 	},
 }
 
-function run(
+function run<K extends DiagramOperation['kind']>(
 	state: DiagramState,
-	op: DiagramOperation,
-	direction: keyof Handlers<never>,
+	op: OperationOf<K>,
+	direction: keyof Handlers<K>,
 ) {
-	const handlers = HANDLERS[op.kind] as Handlers<typeof op.kind>
-	;(handlers[direction] as (s: DiagramState, o: DiagramOperation) => void)(
-		state,
-		op,
-	)
+	HANDLERS[op.kind][direction](state, op)
 }
 
 /** Folds `next` into `head` when both edit the same thing in a burst. */
@@ -123,16 +119,28 @@ function squash(head: DiagramOperation, next: DiagramOperation): boolean {
 		return true
 	}
 	if (
-		(next.kind === 'noteMove' || next.kind === 'noteText') &&
-		(head.kind === 'noteMove' || head.kind === 'noteText') &&
+		next.kind === 'noteMove' &&
+		head.kind === 'noteMove' &&
 		head.noteId === next.noteId
 	) {
-		head.to = next.to as never
+		head.to = next.to
+		return true
+	}
+	if (
+		next.kind === 'noteText' &&
+		head.kind === 'noteText' &&
+		head.noteId === next.noteId
+	) {
+		head.to = next.to
 		return true
 	}
 	return false
 }
 
+/**
+ * The diagram's undo stack. The canvas saves whatever state results, so undo
+ * and redo are saved like any other change.
+ */
 export class DiagramHistory {
 	private operations: DiagramOperation[] = []
 	private cursor = 0
@@ -163,15 +171,17 @@ export class DiagramHistory {
 	}
 
 	undo(state: DiagramState): boolean {
-		if (!this.canUndo) return false
+		const op = this.operations[this.cursor - 1]
+		if (!op) return false
 		this.cursor -= 1
-		run(state, this.operations[this.cursor] as DiagramOperation, 'reverse')
+		run(state, op, 'reverse')
 		return true
 	}
 
 	redo(state: DiagramState): boolean {
-		if (!this.canRedo) return false
-		run(state, this.operations[this.cursor] as DiagramOperation, 'forward')
+		const op = this.operations[this.cursor]
+		if (!op) return false
+		run(state, op, 'forward')
 		this.cursor += 1
 		return true
 	}

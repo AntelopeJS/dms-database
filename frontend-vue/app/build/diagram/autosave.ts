@@ -1,10 +1,6 @@
 import { clonePositions, type DiagramState } from './history'
 
-// When the diagram of one schema is written (D-2): a change waits for a short
-// pause, then its differences go out through that schema's writer. The state
-// is copied the moment a write is asked for, so the canvas loading another
-// schema afterwards never reaches it; writes run one after the other.
-
+/** Where the autosave of a diagram stands. */
 export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 /** What writes one schema's diagram: a DiagramSync. */
@@ -20,6 +16,12 @@ function snapshotState(state: DiagramState): DiagramState {
 	}
 }
 
+/**
+ * When the diagram of one schema is written: a change waits for a short
+ * pause, then its differences go out through that schema's writer. The state
+ * is copied the moment a write is asked for, so the canvas loading another
+ * schema afterwards never reaches it; writes run one after the other.
+ */
 export class DiagramAutosave {
 	private timer: ReturnType<typeof setTimeout> | null = null
 	private writes: Promise<void> = Promise.resolve()
@@ -29,7 +31,7 @@ export class DiagramAutosave {
 		/** The state to write, read when the write is asked for. */
 		private readonly read: () => DiagramState,
 		private readonly delayMs: number,
-		private readonly onStatus: (status: SaveStatus, error?: unknown) => void,
+		private readonly onStatus: (status: SaveStatus, cause?: unknown) => void,
 	) {}
 
 	/** Saves once edits pause. */
@@ -56,7 +58,6 @@ export class DiagramAutosave {
 	}
 
 	private async write(state: DiagramState) {
-		// Nothing left to write, say after an undo: an earlier error is moot.
 		if (!this.writer.hasChanges(state)) {
 			this.onStatus('idle')
 			return

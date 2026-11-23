@@ -35,14 +35,6 @@ import {
 } from './graphModel'
 import { layOutSchema } from './layout'
 
-// Turns a schema into the nodes and edges of the diagram: one node per table,
-// a dashed stub for a table a relation points to that is not drawn, the
-// notes, and one edge per relation column. Table positions come from the
-// saved layout; a table without one takes the place the layout of the whole
-// schema gives it, so it stays put when the canvas focuses on a few tables.
-// That layout runs dagre on each group of related tables, then sets the
-// groups and the tables on their own in rows shaped like the canvas.
-
 export {
 	EDGE_ACTIVE_COLOR,
 	EDGE_COLOR,
@@ -135,7 +127,6 @@ function tableNodes(
 				table,
 				highlighted,
 				selected: input.selectedId === id,
-				// Tables unrelated to the selected one step back.
 				dimmed:
 					input.selectedId !== null &&
 					input.selectedId !== id &&
@@ -144,18 +135,16 @@ function tableNodes(
 				expanded,
 				onToggleColumns: input.onToggleColumns ?? (() => undefined),
 			}
-			return {
+			const node: DiagramNode = {
 				id,
 				type: TABLE_NODE_TYPE,
-				// An unfolded table runs over the tables below it: drawn above them.
-				...(expanded ? { zIndex: 1 } : {}),
 				position: { ...tablePosition(input, layout, table.name) },
-				// The canvas keeps its own selection (`data.selected`), and a
-				// table leaves the diagram only with its schema.
 				selectable: false,
 				deletable: false,
-				data: data as unknown as Record<string, unknown>,
+				data,
 			}
+			if (expanded) node.zIndex = 1
+			return node
 		})
 }
 
@@ -190,7 +179,7 @@ function stubNodes(
 			targetSchema: target.schema,
 			targetTable: target.table,
 			onOpenSchema: input.onOpenSchema,
-		} satisfies StubNodeData as unknown as Record<string, unknown>,
+		} satisfies StubNodeData,
 	}))
 }
 
@@ -209,7 +198,7 @@ function noteNodes(input: GraphInput): DiagramNode[] {
 			type: NOTE_NODE_TYPE,
 			position: { x: note.x, y: note.y },
 			zIndex: NOTE_Z_INDEX,
-			data: data as unknown as Record<string, unknown>,
+			data,
 		}
 	})
 }
@@ -256,6 +245,15 @@ function routeEdges(
 	})
 }
 
+/**
+ * Turns a schema into the nodes and edges of the diagram: one node per table,
+ * a dashed stub for a table a relation points to that is not drawn, the
+ * notes, and one edge per relation column. Table positions come from the
+ * saved layout; a table without one takes the place the layout of the whole
+ * schema gives it, so it stays put when the canvas focuses on a few tables.
+ * That layout runs dagre on each group of related tables, then sets the
+ * groups and the tables on their own in rows shaped like the canvas.
+ */
 export function buildGraph(input: GraphInput): BuiltGraph {
 	const visible = new Set(
 		input.schema.tables

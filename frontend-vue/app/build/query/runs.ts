@@ -1,12 +1,12 @@
 import type { HistoryEntry } from '../composables/useQueryStore'
 
-// How the library tells runs apart (D-11): a dot per run — fast, slow,
-// failed or changed data — and day headings.
-
+/** How the library tells runs apart: a dot per run, fast, slow, failed or changed data. */
 export type RunKind = 'fast' | 'slow' | 'failed' | 'changed'
 
-// A run slower than this, in milliseconds, is slow; the server flags the
-// recent queries of the overview with the same threshold.
+/**
+ * A run slower than this, in milliseconds, is slow; the server flags the
+ * recent queries of the overview with the same threshold.
+ */
 export const SLOW_QUERY_MS = 100
 
 export function runKind(entry: HistoryEntry): RunKind {
@@ -15,8 +15,10 @@ export function runKind(entry: HistoryEntry): RunKind {
 	return entry.durationMs > SLOW_QUERY_MS ? 'slow' : 'fast'
 }
 
-// A run that changed data reads apart from a fast one by its shape too: a
-// ring, as the info and success tones sit close in some themes.
+/**
+ * A run that changed data reads apart from a fast one by its shape too: a
+ * ring, as the info and success tones sit close in some themes.
+ */
 export const RUN_DOT_CLASSES: Record<RunKind, string> = {
 	fast: 'bg-success',
 	slow: 'bg-warning',
@@ -54,7 +56,12 @@ export function groupByDay<T>(
 	return [...groups.values()]
 }
 
+/** What a query can name that its schema does not know. */
 export type UnknownKind = 'schema' | 'instance' | 'table'
+
+function isUnknownKind(value: string): value is UnknownKind {
+	return value === 'schema' || value === 'instance' || value === 'table'
+}
 
 /** A name a query used that its schema does not know. */
 export interface UnknownName {
@@ -64,36 +71,34 @@ export interface UnknownName {
 
 /** What an "Unknown schema / instance / table" error names, if it names one. */
 export function unknownName(message: string): UnknownName | null {
-	const match = /unknown (schema|instance|table):?\s*["“'«]?\s*([\w$-]+)/i.exec(
-		message,
-	)
+	const match =
+		/unknown (schema|instance|table):?\s*(?:["“'«]\s*)?([\w$-]+)/i.exec(message)
 	if (!match) return null
-	return {
-		kind: (match[1] as string).toLowerCase() as UnknownKind,
-		name: match[2] as string,
-	}
+	const [, kind = '', name = ''] = match
+	const lowered = kind.toLowerCase()
+	return isUnknownKind(lowered) ? { kind: lowered, name } : null
 }
 
 function distance(left: string, right: string): number {
 	const previous = Array.from({ length: right.length + 1 }, (_, index) => index)
 	for (let i = 1; i <= left.length; i += 1) {
-		let diagonal = previous[0] as number
+		let diagonal = previous[0] ?? 0
 		previous[0] = i
 		for (let j = 1; j <= right.length; j += 1) {
-			const above = previous[j] as number
+			const above = previous[j] ?? 0
 			const cost = left[i - 1] === right[j - 1] ? 0 : 1
 			previous[j] = Math.min(
 				above + 1,
-				(previous[j - 1] as number) + 1,
+				(previous[j - 1] ?? 0) + 1,
 				diagonal + cost,
 			)
 			diagonal = above
 		}
 	}
-	return previous[right.length] as number
+	return previous[right.length] ?? 0
 }
 
-// Two edits away at most: "invoice" for "invoices", "oders" for "orders".
+/** Two edits away at most: "invoice" for "invoices", "oders" for "orders". */
 const MAX_SUGGESTION_DISTANCE = 2
 
 /** The name closest to a mistyped one, when one is close enough. */

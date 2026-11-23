@@ -7,10 +7,7 @@ import type {
 import type { NoteDraft } from './graph'
 import { clonePositions, type DiagramState } from './history'
 
-// Saves the diagram as it changes (D-10): the layout and the notes are
-// compared with what was last stored, and only the differences are written.
-// One DiagramSync belongs to one schema: it only ever writes under its id.
-
+/** Where a schema's layout and notes are stored. */
 export interface DiagramStore {
 	saveLayout(schema: string, positions: DiagramPositions): Promise<void>
 	createNote(payload: DiagramNoteCreate): Promise<DiagramNote>
@@ -49,11 +46,18 @@ export function noteFromStored(note: DiagramNote): NoteDraft {
 	}
 }
 
+/**
+ * Saves the diagram as it changes: the layout and the notes are compared with
+ * what was last stored, and only the differences are written. One DiagramSync
+ * belongs to one schema: it only ever writes under its id.
+ */
 export class DiagramSync {
 	private saved: DiagramState = { positions: {}, notes: [] }
-	// The id the store gave each note created on the canvas, by its temporary
-	// id. The canvas keeps the temporary one, so the note's node is not
-	// remounted (and its edit lost) when it is first saved.
+	/**
+	 * The id the store gave each note created on the canvas, by its temporary
+	 * id. The canvas keeps the temporary one, so the note's node is not
+	 * remounted (and its edit lost) when it is first saved.
+	 */
 	private readonly created = new Map<string, string>()
 
 	constructor(
