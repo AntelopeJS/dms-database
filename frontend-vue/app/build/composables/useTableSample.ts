@@ -1,10 +1,11 @@
 import type { ComputedRef, Ref } from 'vue'
+import type { JsonValue } from './jsonValue'
 import type { SchemaSummary } from './useDatabaseSchemas'
 
 const BROWSE_LIST = '/api/database/browse/list'
 
 interface SamplePage {
-	results: Record<string, unknown>[]
+	results: Record<string, JsonValue>[]
 	total: number
 }
 
@@ -65,7 +66,6 @@ export function useTableSample({
 		return { instance: null, page }
 	}
 
-	// Read once the Sample tab shows, in the browser only.
 	const sampleRead = useApiData<SampleRead>(
 		() =>
 			schemaId.value && tableName.value
@@ -78,15 +78,15 @@ export function useTableSample({
 		async ({ $authFetch, signal }) => {
 			const table = tableKey.value
 			const { instance, offset } = requested.value
+			const query = {
+				filter_schema: `is:${schemaId.value}`,
+				filter_table: `is:${tableName.value}`,
+				offset,
+				limit: 1,
+			}
 			const read: ReadSample = (from) =>
 				$authFetch<SamplePage>(BROWSE_LIST, {
-					query: {
-						filter_schema: `is:${schemaId.value}`,
-						filter_table: `is:${tableName.value}`,
-						offset,
-						limit: 1,
-						...(from ? { filter_instance: `is:${from}` } : {}),
-					},
+					query: from ? { ...query, filter_instance: `is:${from}` } : query,
 					signal,
 				})
 			const found =
@@ -103,7 +103,6 @@ export function useTableSample({
 		},
 	)
 
-	// Another table (a relation followed) shows none of the previous one's row.
 	const sampleShown = computed(() => {
 		const value = sampleRead.data.value
 		return value?.table === tableKey.value ? value : null
@@ -113,7 +112,6 @@ export function useTableSample({
 	const sampleOffset = computed(() => requested.value.offset)
 	const sampleLoading = computed(() => sampleRead.pending.value)
 	const sampleFailed = computed(() => sampleRead.status.value === 'error')
-	// The instance the sample is read from.
 	const sampleInstance = computed(() => sampleShown.value?.instance ?? null)
 
 	const sampleInstanceLabel = computed(() =>
@@ -137,13 +135,11 @@ export function useTableSample({
 		loadSample()
 	}
 
-	// Another table (a relation followed) starts over from its latest row.
 	watch(tableKey, () => {
 		requested.value = { instance: null, offset: 0 }
 		if (tab.value === 'sample' && !loading.value) loadSample()
 	})
 
-	// The sample waits for the schemas: they name the instances to look in.
 	onMounted(() =>
 		watch(
 			() => tab.value === 'sample' && !loading.value,
@@ -154,8 +150,6 @@ export function useTableSample({
 		),
 	)
 
-	// The `_instance` tag the store adds to rows of named instances is not a
-	// column of the table.
 	const sampleJson = computed(() => {
 		if (!sample.value) return ''
 		const { _instance: _tag, ...row } = sample.value

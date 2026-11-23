@@ -11,17 +11,10 @@ const BROWSE_COUNT = '/api/database/browse/count'
  * default instance (decision 11): counted after the run, in the browser.
  */
 export function useElsewhereInstances(schemas: Ref<SchemaSummary[]>) {
-	// Named instances holding rows of a table the last read found empty in the
-	// default instance.
 	const elsewhere = ref<InstanceRows[]>([])
 
 	type CountRows = (query: Record<string, string>) => Promise<{ total: number }>
 
-	/**
-	 * The named instances of a table that hold rows, each with its count: asked
-	 * only when a read found the table empty in the default instance (decision
-	 * 11). An instance whose count fails is left out.
-	 */
 	async function instancesWithRows(
 		target: QueryTarget,
 		count: CountRows,
@@ -44,8 +37,6 @@ export function useElsewhereInstances(schemas: Ref<SchemaSummary[]>) {
 		return counts.filter((entry) => entry.count > 0)
 	}
 
-	// The table the last read found empty, whose instances are counted: in the
-	// browser, after a run.
 	const emptyTarget = shallowRef<QueryTarget | null>(null)
 	const elsewhereRead = useApiData<InstanceRows[]>(
 		() =>
@@ -55,10 +46,13 @@ export function useElsewhereInstances(schemas: Ref<SchemaSummary[]>) {
 						emptyTarget.value.table,
 					])}`
 				: null,
-		({ $authFetch, signal }) =>
-			instancesWithRows(emptyTarget.value as QueryTarget, (query) =>
+		async ({ $authFetch, signal }) => {
+			const target = emptyTarget.value
+			if (!target) return []
+			return instancesWithRows(target, (query) =>
 				$authFetch<{ total: number }>(BROWSE_COUNT, { query, signal }),
-			),
+			)
+		},
 		{
 			immediate: false,
 			server: false,
@@ -67,8 +61,6 @@ export function useElsewhereInstances(schemas: Ref<SchemaSummary[]>) {
 		},
 	)
 
-	// Each run drops the instances found for the previous one; a slow answer
-	// for an older run is ignored.
 	let runId = 0
 
 	async function findElsewhere(

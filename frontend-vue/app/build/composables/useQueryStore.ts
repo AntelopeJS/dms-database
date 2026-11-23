@@ -1,3 +1,7 @@
+import { HISTORY_KEPT } from '../query/runs'
+import type { JsonValue } from './jsonValue'
+import type { StagedQuery } from './useQueryRuntime'
+
 export type QueryLanguage = 'aql'
 
 export interface SavedQuery {
@@ -5,7 +9,7 @@ export interface SavedQuery {
 	userId: string
 	name: string
 	description: string
-	query: Record<string, unknown>
+	query: StagedQuery
 	source: string
 	language: QueryLanguage
 	shared: boolean
@@ -20,7 +24,7 @@ export type QueryRunStatus = 'ok' | 'error'
 export interface HistoryEntry {
 	id: string
 	userId: string
-	query: Record<string, unknown>
+	query: StagedQuery
 	source: string
 	language: QueryLanguage
 	executedAt: string
@@ -33,7 +37,7 @@ export interface HistoryEntry {
 }
 
 export interface ExecuteResult {
-	rows: Record<string, unknown>[]
+	rows: Record<string, JsonValue>[]
 	/** Rows the query answered; above `rows.length` when they were cut. */
 	rowCount: number
 	truncated: boolean
@@ -57,13 +61,11 @@ export interface DryRunResult {
 export interface SaveQueryInput {
 	name: string
 	description: string
-	query: Record<string, unknown>
+	query: StagedQuery
 	source: string
 	language: QueryLanguage
 	shared: boolean
 }
-
-import { HISTORY_KEPT } from '../query/runs'
 
 const QUERY_BASE = '/api/database/query'
 
@@ -89,12 +91,10 @@ export function useQueryStore() {
 	)
 	const reads = [saved, shared, history]
 
-	/** The saved queries and the shared ones, read again. */
 	async function refreshSaved(): Promise<void> {
 		await Promise.all([saved.refresh(), shared.refresh()])
 	}
 
-	// A run a link names (`?history=`), read when the console opens it.
 	const entryId = shallowRef<string | null>(null)
 	const entry = useApiData<HistoryEntry>(
 		() =>
@@ -124,7 +124,7 @@ export function useQueryStore() {
 		history.data.value = { items: [] }
 	}
 
-	async function dryRun(query: Record<string, unknown>): Promise<DryRunResult> {
+	async function dryRun(query: StagedQuery): Promise<DryRunResult> {
 		return $authFetch<DryRunResult>(`${QUERY_BASE}/dry-run`, {
 			method: 'POST',
 			body: { query },
@@ -132,7 +132,7 @@ export function useQueryStore() {
 	}
 
 	async function executeQuery(
-		query: Record<string, unknown>,
+		query: StagedQuery,
 		source: string,
 		language: QueryLanguage,
 	): Promise<ExecuteResult> {

@@ -73,8 +73,12 @@ interface SchemaSummary {
 	instances: string[]
 }
 
+interface SchemaList {
+	schemas: SchemaSummary[]
+}
+
 const SCHEMAS_ENDPOINT = '/api/database/schemas'
-const EMPTY_SCHEMAS = { schemas: [] as SchemaSummary[] }
+const EMPTY_SCHEMAS: SchemaList = { schemas: [] }
 
 /** A table of the given schemas, by schema id and table name. */
 export function findTableIn(
@@ -110,10 +114,10 @@ export function inboundRelationsIn(
 }
 
 export function useDatabaseSchemas() {
-	const read = useApiData<{
-		schemas: SchemaSummary[]
-	}>(SCHEMAS_ENDPOINT, { default: () => EMPTY_SCHEMAS })
-	const { data, pending, error, status, refresh } = read
+	const read = useApiData<SchemaList>(SCHEMAS_ENDPOINT, {
+		default: () => EMPTY_SCHEMAS,
+	})
+	const { data, pending, error, status } = read
 
 	const schemas = computed(() => data.value?.schemas ?? [])
 
@@ -127,7 +131,7 @@ export function useDatabaseSchemas() {
 			() => status.value === 'success' || status.value === 'error',
 		),
 		error,
-		refresh,
+		refresh: () => read.refresh(),
 		/**
 		 * Settles once the first read is in, at once when the schemas were read
 		 * before. Awaited in a setup, a client navigation waits for the

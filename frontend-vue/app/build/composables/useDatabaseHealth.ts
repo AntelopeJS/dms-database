@@ -40,13 +40,13 @@ export function useDatabaseHealth(options: { refreshInterval?: number } = {}) {
 		default: () => ({ ...EMPTY_HEALTH }),
 		refreshInterval: options.refreshInterval,
 	})
-	const { data, pending, error, refresh } = read
+	const { data, pending, error } = read
 
 	return {
 		health: computed(() => data.value ?? { ...EMPTY_HEALTH }),
 		isLoading: pending,
 		error,
-		refresh,
+		refresh: () => read.refresh(),
 		/**
 		 * Settles once the first probe is in, at once when it ran before:
 		 * awaited in a setup, a client navigation shows the probe, not the

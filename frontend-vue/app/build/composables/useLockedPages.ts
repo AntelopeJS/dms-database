@@ -9,9 +9,7 @@ import {
 const LOCKABLE_PAGES: ReadonlyArray<{
 	path: string
 	feature: ConnectionFeature
-}> = [
-	{ path: '/modules/database/query', feature: 'queryConsole' },
-]
+}> = [{ path: '/modules/database/query', feature: 'queryConsole' }]
 
 const LOCK_REASON = '$dms_database.connections.locked.reason'
 

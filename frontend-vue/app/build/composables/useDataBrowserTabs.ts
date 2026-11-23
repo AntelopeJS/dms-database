@@ -1,5 +1,4 @@
-import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
-import { useDataBrowserGrid } from './useDataBrowserGrid'
+import type { ComputedRef, Ref } from 'vue'
 import type { InstanceChoice } from '../data/instanceOptions'
 import {
 	type RecentTable,
@@ -12,16 +11,11 @@ import {
 	instanceFromUrl,
 	instanceToUrl,
 } from '../utils/databaseLinks'
+import { CROSS_INSTANCE_VALUE, DEFAULT_INSTANCE_VALUE } from './browserInstance'
+import { isObjectLike, isText } from './guards'
+import { useDataBrowserGrid } from './useDataBrowserGrid'
 
-// Shared state for the data-browser tabs: each tab pins a (schema, instance,
-// table) triplet. The active tab is mirrored to the URL query (deep-links) and
-// the whole tab set is persisted to sessionStorage (stays per browser tab); a
-// page refresh brings every tab back, the preview one still a preview.
-
-// A tab's instance as its id and the browse routes' `filter_instance` carry
-// it: these two values, or a named instance id.
-export const DEFAULT_INSTANCE_VALUE = '__DEFAULT__'
-export const CROSS_INSTANCE_VALUE = CROSS_INSTANCE_SENTINEL
+export { CROSS_INSTANCE_VALUE, DEFAULT_INSTANCE_VALUE }
 
 /**
  * A tab's instance as a choice ("all": read-only), as pickers and the URL
@@ -52,12 +46,14 @@ export function instanceBadge(
 export interface BrowserTab {
 	id: string
 	schema: string
-	// DEFAULT_INSTANCE_VALUE, CROSS_INSTANCE_VALUE or a named instance id.
+	/** DEFAULT_INSTANCE_VALUE, CROSS_INSTANCE_VALUE or a named instance id. */
 	instance: string
 	table: string
-	// VS Code-style preview tab: the next openTab reuses it instead of adding
-	// a new tab. At most one per session; pinning (double-click, pin icon,
-	// drag-reorder, editing a cell) clears the flag.
+	/**
+	 * VS Code-style preview tab: the next openTab reuses it instead of adding
+	 * a new tab. At most one per session; pinning (double-click, pin icon,
+	 * drag-reorder, editing a cell) clears the flag.
+	 */
 	preview?: boolean
 }
 
@@ -89,95 +85,122 @@ interface PersistedTabs {
 	activeId: string | null
 }
 
+interface StoredTab {
+	schema: string
+	instance: string
+	table: string
+	preview?: unknown
+}
+
+interface StoredTabs {
+	database: string | null
+	tabs: unknown[]
+	activeId?: unknown
+}
+
+/** Whether a stored value names the table of a tab. */
+function isStoredTab(value: unknown): value is StoredTab {
+	return (
+		isObjectLike(value) &&
+		'schema' in value &&
+		isText(value.schema) &&
+		'instance' in value &&
+		isText(value.instance) &&
+		'table' in value &&
+		isText(value.table)
+	)
+}
+
+/** Whether a stored value is a list of tabs with the database they were opened on. */
+function isStoredTabs(value: unknown): value is StoredTabs {
+	return (
+		isObjectLike(value) &&
+		'database' in value &&
+		(value.database === null || isText(value.database)) &&
+		'tabs' in value &&
+		Array.isArray(value.tabs)
+	)
+}
+
 /** The tabs this browser tab kept, with the database they were opened on. */
 function readPersisted(): PersistedTabs | null {
 	if (typeof window === 'undefined') return null
 	try {
 		const raw = window.sessionStorage.getItem(STORAGE_KEY)
 		if (!raw) return null
-		const parsed = JSON.parse(raw) as PersistedTabs
-		const { database } = parsed
-		if (typeof database !== 'string' && database !== null) return null
-		if (!Array.isArray(parsed.tabs)) return null
+		const parsed: unknown = JSON.parse(raw)
+		if (!isStoredTabs(parsed)) return null
 		const tabs = parsed.tabs
-			.filter(
-				(tab) =>
-					tab &&
-					typeof tab.schema === 'string' &&
-					typeof tab.instance === 'string' &&
-					typeof tab.table === 'string',
-			)
+			.filter(isStoredTab)
 			.map((tab) => ({
 				...tab,
 				id: browserTabId(tab.schema, tab.instance, tab.table),
 				preview: tab.preview === true,
 			}))
-			// Recomputed ids can collide on a legacy/hand-edited payload; duplicate
-			// ids would break the tab bar's v-for keys and closeTab.
 			.filter(
 				(tab, index, all) => all.findIndex((t) => t.id === tab.id) === index,
 			)
-		// The preview slot is a singleton; a hand-edited payload could carry
-		// several — honour only the first.
 		const firstPreview = tabs.findIndex((tab) => tab.preview)
 		for (const [index, tab] of tabs.entries()) {
 			if (index !== firstPreview) tab.preview = false
 		}
-		const activeId = tabs.some((tab) => tab.id === parsed.activeId)
-			? parsed.activeId
-			: (tabs[0]?.id ?? null)
-		return { database, tabs, activeId }
+		const activeId =
+			tabs.find((tab) => tab.id === parsed.activeId)?.id ?? tabs[0]?.id ?? null
+		return { database: parsed.database, tabs, activeId }
 	} catch {
 		return null
 	}
 }
 
-export function useDataBrowserTabs() {
+interface TabsState {
+	tabs: Ref<BrowserTab[]>
+	activeId: Ref<string | null>
+	activations: Ref<number>
+	database: Ref<string | null>
+	recent: Ref<RecentTable[]>
+	activeTab: ComputedRef<BrowserTab | null>
+}
+
+function useTabsState(): TabsState {
 	const tabs = useDmsState<BrowserTab[]>('dms-database-browser-tabs', () => [])
 	const activeId = useDmsState<string | null>(
 		'dms-database-browser-active',
 		() => null,
 	)
-	// Counts the activations, a tab already active included: the sidebar
-	// follows the tab the user goes to, even back to the same one.
 	const activations = useDmsState<number>(ACTIVATIONS_STATE, () => 0)
 	const database = useDmsState<string | null>(DATABASE_STATE, () => null)
-	// Read from the browser's storage once restored: the server renders
-	// without it, and a list only the client has would not match its markup.
 	const recent = useDmsState<RecentTable[]>(RECENT_STATE, () => [])
-	const route = useDmsRoute()
-	const router = useDmsRouter()
-	// Captured at setup so closeTab can drop the closed tab's
-	// grid state itself instead of relying on every caller to remember to.
-	const grid = useDataBrowserGrid()
-	const staged = useStagedEdits()
-
 	const activeTab = computed(
 		() => tabs.value.find((tab) => tab.id === activeId.value) ?? null,
 	)
-	// When tabs span several schemas the tab bar disambiguates its labels.
-	const hasMultipleSchemas = computed(
-		() => new Set(tabs.value.map((tab) => tab.schema)).size > 1,
-	)
+	return { tabs, activeId, activations, database, recent, activeTab }
+}
 
-	function persist() {
-		if (typeof window === 'undefined') return
-		try {
-			window.sessionStorage.setItem(
-				STORAGE_KEY,
-				JSON.stringify({
-					database: database.value,
-					tabs: tabs.value,
-					activeId: activeId.value,
-				}),
-			)
-		} catch {
-			// Quota/private-mode failures only cost tab restoration.
-		}
+function persistTabs({ database, tabs, activeId }: TabsState) {
+	if (typeof window === 'undefined') return
+	try {
+		window.sessionStorage.setItem(
+			STORAGE_KEY,
+			JSON.stringify({
+				database: database.value,
+				tabs: tabs.value,
+				activeId: activeId.value,
+			}),
+		)
+	} catch {
+		return
 	}
+}
 
-	// The URL carries the ACTIVE tab only (deep-links); per-tab grid state
-	// deliberately stays out of it.
+/**
+ * The URL carries the active tab only (deep-links); per-tab grid state
+ * deliberately stays out of it.
+ */
+function createTabsUrl(
+	{ activeTab }: TabsState,
+	route: ReturnType<typeof useDmsRoute>,
+	router: ReturnType<typeof useDmsRouter>,
+) {
 	function syncUrl() {
 		const tab = activeTab.value
 		const query = { ...route.query }
@@ -199,6 +222,38 @@ export function useDataBrowserTabs() {
 		void router.replace({ query })
 	}
 
+	function routeTable() {
+		const schema = route.query.schema
+		const table = route.query.table
+		if (!isText(schema) || !schema || !isText(table) || !table) return null
+		const instance = tabInstanceOf(instanceFromUrl(route.query.instance))
+		return {
+			schema,
+			instance,
+			table,
+			id: browserTabId(schema, instance, table),
+			match: decodeMatch(route.query.match),
+		}
+	}
+
+	return { syncUrl, routeTable }
+}
+
+interface TabsContext {
+	state: TabsState
+	grid: ReturnType<typeof useDataBrowserGrid>
+	staged: ReturnType<typeof useStagedEdits>
+	persist: () => void
+	syncUrl: () => void
+}
+
+function createTabOperations({
+	state: { tabs, activeId, activations, database, recent },
+	grid,
+	staged,
+	persist,
+	syncUrl,
+}: TabsContext) {
 	function activateTab(id: string) {
 		const tab = tabs.value.find((candidate) => candidate.id === id)
 		if (!tab) return
@@ -216,7 +271,6 @@ export function useDataBrowserTabs() {
 		persist()
 	}
 
-	// Promote a preview tab to a permanent one (double-click, pin icon, drag).
 	function pinTab(id: string) {
 		const tab = tabs.value.find((t) => t.id === id)
 		if (!tab?.preview) return
@@ -226,10 +280,6 @@ export function useDataBrowserTabs() {
 		persist()
 	}
 
-	// Opens as a preview by default (VS Code-style: single-click reuses the
-	// preview slot). Pass preview = false for an explicitly permanent open
-	// (sidebar double-click, deep-links) — it also pins the tab if already
-	// open as preview.
 	function openTab(
 		schema: string,
 		instance: string,
@@ -244,20 +294,14 @@ export function useDataBrowserTabs() {
 			return
 		}
 		const tab: BrowserTab = { id, schema, instance, table, preview }
-		let previewIndex = tabs.value.findIndex((t) => t.preview)
-		// A tab holding staged edits is never replaced: it is kept instead
-		// (staging a cell already keeps it; this guards any other path).
-		if (previewIndex >= 0 && staged.count(tabs.value[previewIndex]!.id) > 0) {
-			pinTab(tabs.value[previewIndex]!.id)
-			previewIndex = -1
+		let replaceable = tabs.value.find((t) => t.preview)
+		if (replaceable && staged.count(replaceable.id) > 0) {
+			pinTab(replaceable.id)
+			replaceable = undefined
 		}
-		if (preview && previewIndex >= 0) {
-			// Reuse the preview slot in place: swap its content, drop the replaced
-			// tab's grid state (its id dies with it).
-			const replaced = tabs.value[previewIndex]!
-			const next = [...tabs.value]
-			next[previewIndex] = tab
-			tabs.value = next
+		if (preview && replaceable) {
+			const replaced = replaceable
+			tabs.value = tabs.value.map((t) => (t === replaced ? tab : t))
 			grid.drop(replaced.id)
 		} else {
 			tabs.value = [...tabs.value, tab]
@@ -265,12 +309,6 @@ export function useDataBrowserTabs() {
 		activateTab(id)
 	}
 
-	/**
-	 * Puts another table in a tab's place (an instance switch): same position,
-	 * same preview state, and the grid's search, filters and sort carried
-	 * over. A tab already open on that table is activated instead, and the
-	 * replaced one closed.
-	 */
 	function replaceTab(
 		oldId: string,
 		schema: string,
@@ -302,19 +340,13 @@ export function useDataBrowserTabs() {
 		const next = tabs.value.filter((tab) => tab.id !== id)
 		tabs.value = next
 		if (activeId.value === id) {
-			// Right neighbour first, then left — mirrors browser tab behaviour.
 			activeId.value = (next[index] ?? next[index - 1])?.id ?? null
 		}
-		// The closed tab's grid state and cached rows go with it — otherwise they
-		// leak for the rest of the session.
 		grid.drop(id)
 		syncUrl()
 		persist()
 	}
 
-	// Reorder (drag & drop): move the dragged tab to the target tab's position.
-	// Pure reorder — pin-on-drag is a gesture policy and lives at the drop site
-	// (the tab bar's onDrop), not in this primitive.
 	function moveTab(draggedId: string, targetId: string) {
 		if (draggedId === targetId) return
 		const next = [...tabs.value]
@@ -328,38 +360,29 @@ export function useDataBrowserTabs() {
 		persist()
 	}
 
-	// Opens the table the URL names (overview links, the inspector's "Browse
-	// data", relation links, shared URLs): permanently, since the preview
-	// slot is for casual browsing from the list.
-	// The table the URL names, if any.
-	function routeTable() {
-		const schema = route.query.schema
-		const table = route.query.table
-		if (
-			typeof schema !== 'string' ||
-			!schema ||
-			typeof table !== 'string' ||
-			!table
-		)
-			return null
-		const instance = tabInstanceOf(instanceFromUrl(route.query.instance))
-		return {
-			schema,
-			instance,
-			table,
-			id: browserTabId(schema, instance, table),
-			// A link to one row (a relation, a reference) opens the table filtered
-			// on it; the filter shows as a chip the user removes.
-			match: decodeMatch(route.query.match),
-		}
-	}
+	return { activateTab, pinTab, openTab, replaceTab, closeTab, moveTab }
+}
 
+interface TabsSessionContext extends TabsContext {
+	route: ReturnType<typeof useDmsRoute>
+	routeTable: ReturnType<typeof createTabsUrl>['routeTable']
+	openTab: ReturnType<typeof createTabOperations>['openTab']
+}
+
+function createTabsSession({
+	state: { tabs, activeId, database, recent, activeTab },
+	grid,
+	staged,
+	persist,
+	syncUrl,
+	route,
+	routeTable,
+	openTab,
+}: TabsSessionContext) {
 	function openFromRoute() {
 		const target = routeTable()
 		if (!target) return false
 		const { schema, instance, table, id, match } = target
-		// The route names the active tab: the browser wrote it itself (a tab
-		// activated, a reload), so it opens nothing and a preview tab stays one.
 		if (!match && id === activeId.value) return true
 		if (match) {
 			const state = grid.getState(id)
@@ -370,7 +393,6 @@ export function useDataBrowserTabs() {
 		return true
 	}
 
-	/** Drops the grid state and staged edits of tabs that are gone; returns their ids. */
 	function release(gone: BrowserTab[]): string[] {
 		for (const tab of gone) {
 			grid.drop(tab.id)
@@ -379,12 +401,6 @@ export function useDataBrowserTabs() {
 		return gone.map((tab) => tab.id)
 	}
 
-	/**
-	 * Makes `owner` the database of the tabs, open and saved: the tabs of
-	 * another known database are released, tabs of no known database are
-	 * claimed. Returns the ids released, so a URL that mirrors one of them is
-	 * cleared instead of opened.
-	 */
 	function settle(owner: string | null, saved: PersistedTabs | null) {
 		const dropped: string[] = []
 		if (database.value !== null && database.value !== owner) {
@@ -404,48 +420,103 @@ export function useDataBrowserTabs() {
 		return new Set(dropped)
 	}
 
-	/**
-	 * Restores the tabs this browser tab kept on the selected database,
-	 * preview included, then lets the URL win for the active selection. Tabs
-	 * of another database, kept or still open, are dropped, and a URL that
-	 * mirrors one of them is cleared. Call once, from the page's onMounted,
-	 * with the selected connection's id, undefined when the selection is
-	 * unknown.
-	 */
 	function restore(selected: string | undefined) {
 		const saved = readPersisted()
 		const dropped = settle(selected ?? saved?.database ?? database.value, saved)
 		const target = routeTable()
 		if (target && dropped.has(target.id)) return syncUrl()
-		// A schema-only link (?schema=X) is the sidebar's to honour.
 		if (!openFromRoute() && !route.query.schema && activeTab.value) syncUrl()
 	}
 
-	/**
-	 * Follows a selection the page learns once restored (its connections
-	 * read again in the background). Register it after restore().
-	 */
 	function follow(selected: string | undefined) {
 		if (selected === undefined || selected === database.value) return
 		if (settle(selected, null).size > 0) syncUrl()
 	}
 
+	return { openFromRoute, restore, follow }
+}
+
+/**
+ * Shared state for the data-browser tabs: each tab pins a (schema, instance,
+ * table) triplet. The active tab is mirrored to the URL query (deep-links) and
+ * the whole tab set is persisted to sessionStorage (stays per browser tab); a
+ * page refresh brings every tab back, the preview one still a preview.
+ */
+export function useDataBrowserTabs() {
+	const state = useTabsState()
+	const route = useDmsRoute()
+	const router = useDmsRouter()
+	const grid = useDataBrowserGrid()
+	const staged = useStagedEdits()
+	const persist = () => persistTabs(state)
+	const { syncUrl, routeTable } = createTabsUrl(state, route, router)
+	const context = { state, grid, staged, persist, syncUrl }
+	const operations = createTabOperations(context)
+	const session = createTabsSession({
+		...context,
+		route,
+		routeTable,
+		openTab: operations.openTab,
+	})
+
 	return {
-		tabs,
-		activeId,
-		activeTab,
-		activations,
-		hasMultipleSchemas,
+		tabs: state.tabs,
+		activeId: state.activeId,
+		activeTab: state.activeTab,
+		/**
+		 * Counts the activations, a tab already active included: the sidebar
+		 * follows the tab the user goes to, even back to the same one.
+		 */
+		activations: state.activations,
+		/** When tabs span several schemas the tab bar disambiguates its labels. */
+		hasMultipleSchemas: computed(
+			() => new Set(state.tabs.value.map((tab) => tab.schema)).size > 1,
+		),
 		/** The tables opened lately on the tabs' database, newest first. */
-		recent: computed(() => recent.value),
-		openTab,
-		replaceTab,
-		closeTab,
-		activateTab,
-		pinTab,
-		moveTab,
-		restore,
-		follow,
-		openFromRoute,
+		recent: computed(() => state.recent.value),
+		/**
+		 * Opens as a preview by default (VS Code-style: single-click reuses the
+		 * preview slot). Pass preview = false for an explicitly permanent open
+		 * (sidebar double-click, deep-links), which also pins the tab if already
+		 * open as preview. A tab holding staged edits is never replaced.
+		 */
+		openTab: operations.openTab,
+		/**
+		 * Puts another table in a tab's place (an instance switch): same position,
+		 * same preview state, and the grid's search, filters and sort carried
+		 * over. A tab already open on that table is activated instead, and the
+		 * replaced one closed.
+		 */
+		replaceTab: operations.replaceTab,
+		/** Closes a tab; its grid state and cached rows go with it. */
+		closeTab: operations.closeTab,
+		activateTab: operations.activateTab,
+		/** Promotes a preview tab to a permanent one (double-click, pin icon, drag). */
+		pinTab: operations.pinTab,
+		/**
+		 * Moves the dragged tab to the target tab's position. A pure reorder:
+		 * pinning on drag is a gesture policy that lives at the drop site.
+		 */
+		moveTab: operations.moveTab,
+		/**
+		 * Restores the tabs this browser tab kept on the selected database,
+		 * preview included, then lets the URL win for the active selection. Tabs
+		 * of another database, kept or still open, are dropped, and a URL that
+		 * mirrors one of them is cleared. Call once, from the page's onMounted,
+		 * with the selected connection's id, undefined when the selection is
+		 * unknown.
+		 */
+		restore: session.restore,
+		/**
+		 * Follows a selection the page learns once restored (its connections
+		 * read again in the background). Register it after restore().
+		 */
+		follow: session.follow,
+		/**
+		 * Opens, permanently, the table the URL names (overview links, the
+		 * inspector's "Browse data", relation links, shared URLs); a link to one
+		 * row opens the table filtered on it.
+		 */
+		openFromRoute: session.openFromRoute,
 	}
 }

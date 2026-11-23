@@ -19,7 +19,9 @@ export function withCatalogRelations(
 		...schema,
 		tables: schema.tables.map((table) => ({
 			...table,
-			relations: relations[table.name] ?? [],
+			relations: Object.hasOwn(relations, table.name)
+				? relations[table.name]
+				: [],
 		})),
 	}
 }
@@ -31,10 +33,6 @@ export function withCatalogRelations(
  */
 export function useCatalogReferences() {
 	const { $authFetch } = useAuthFetch()
-	/**
-	 * The shown schema's foreign keys by table; null on the project's own
-	 * database, whose schema declares its relations.
-	 */
 	const relations = shallowRef<RelationsByTable | null>(null)
 
 	return {

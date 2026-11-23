@@ -1,4 +1,5 @@
 import type { GridColumn, GridData } from '../composables/useDataBrowserGrid'
+import type { JsonValue } from '../composables/jsonValue'
 import type { TableSummary } from '../composables/useDatabaseSchemas'
 
 /** Primary key assumed when the backend reports none (MongoDB's implicit id). */
@@ -11,7 +12,7 @@ export interface ColumnsResponse {
 }
 
 export interface ListResponse {
-	results: Record<string, unknown>[]
+	results: Record<string, JsonValue>[]
 	total: number
 	primaryKey: string | null
 }

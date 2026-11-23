@@ -29,6 +29,9 @@ export interface DatabaseConnection {
 	missing: MissingBinding[]
 }
 
+/** The body of a connections write: the connection to browse, or an access to grant. */
+type ConnectionWrite = { connection: string } | { access: ConnectionAccess }
+
 export interface ConnectionsState {
 	/** The connection this user browses: every page of the module follows it. */
 	selected: string
@@ -77,7 +80,7 @@ export function useDatabaseConnections() {
 		default: () => EMPTY_STATE,
 	})
 	const { $authFetch } = useAuthFetch()
-	const { presentError } = useApiErrorPresenter()
+	const presenter = useApiErrorPresenter()
 
 	const state = computed(() => read.data.value ?? EMPTY_STATE)
 	const connections = computed(() => state.value.connections)
@@ -91,7 +94,7 @@ export function useDatabaseConnections() {
 
 	async function write(
 		path: string,
-		body: object,
+		body: ConnectionWrite,
 		fallbackKey: string,
 		keepsSelection: boolean,
 	): Promise<boolean> {
@@ -107,7 +110,7 @@ export function useDatabaseConnections() {
 			read.data.value = next
 			return true
 		} catch (error) {
-			presentError(error, { fallbackKey })
+			presenter.presentError(error, { fallbackKey })
 			return false
 		}
 	}
