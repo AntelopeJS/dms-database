@@ -8,6 +8,7 @@ import {
 } from '../app/build/composables/useDataBrowserTabs'
 import {
 	cellLabel,
+	cellText,
 	draftText,
 	isWideValue,
 	jsonDraftText,
@@ -231,7 +232,7 @@ describe('staged writes', () => {
 
 describe('rows written in place', () => {
 	const idOf: Parameters<typeof withWrittenRow>[2] = (row) =>
-		row._id === undefined ? null : String(row._id)
+		row._id === undefined ? null : cellText(row._id)
 	const page = [
 		{ _id: 1, name: 'Ada', _instance: 'eu' },
 		{ _id: 2, name: 'Bob', _instance: 'eu' },

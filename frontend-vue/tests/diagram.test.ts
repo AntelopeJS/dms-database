@@ -310,7 +310,7 @@ describe('diagram shortcuts (D-5, D-6)', () => {
 		const inside = element({})
 		const canvas = {
 			contains: (e: EventTarget | null) => e === inside,
-		} as Element
+		}
 		expect(canvasOwnsKey(inside, canvas)).toBe(true)
 		expect(canvasOwnsKey(element({}, true), canvas)).toBe(true)
 		expect(canvasOwnsKey(element({ textarea: true }), canvas)).toBe(false)

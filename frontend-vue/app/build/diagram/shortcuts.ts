@@ -59,7 +59,7 @@ function hasClosest(target: EventTarget | null): target is Element {
  */
 export function canvasOwnsKey(
 	target: EventTarget | null,
-	canvas: Element | null,
+	canvas: Pick<Node, 'contains'> | null,
 ): boolean {
 	if (!hasClosest(target)) return true
 	const element = target
