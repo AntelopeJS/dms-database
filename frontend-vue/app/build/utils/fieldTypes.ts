@@ -1,20 +1,14 @@
 import type { FieldDescriptor } from '../composables/useDatabaseSchemas'
+import { isBoolean, isNumber, isRecord, isText } from './values'
 
-// How a column's type reads in the inspector, the diagram and the grid: an
-// icon and a mono label. Colour never encodes the type (D-09): it is kept for
-// structure, primary keys and relations, which `columnRole` names.
-
+/**
+ * How a column's type reads in the inspector, the diagram and the grid: an
+ * icon and a mono label. Colour never encodes the type: it is kept for
+ * structure, primary keys and relations, which `columnRole` names.
+ */
 interface FieldTypeView {
 	icon: string
 	label: string
-}
-
-type DescriptorOf<K extends FieldDescriptor['kind']> = Extract<
-	FieldDescriptor,
-	{ kind: K }
->
-type DescriptorViews = {
-	[K in FieldDescriptor['kind']]: (descriptor: DescriptorOf<K>) => FieldTypeView
 }
 
 const UNKNOWN: FieldTypeView = { icon: 'i-ph-question', label: 'unknown' }
@@ -26,81 +20,212 @@ const OBJECT_ICON = 'i-ph-brackets-curly'
 const ENUM_ICON = 'i-ph-list-checks'
 const UNION_ICON = 'i-ph-arrows-split'
 
-const NAMED_FIELDS: Record<string, FieldTypeView> = {
-	email: { icon: 'i-ph-at', label: 'email' },
-	password: { icon: 'i-ph-lock', label: 'password' },
-	secret: { icon: 'i-ph-lock', label: 'secret' },
-}
+const NAMED_FIELDS = new Map<string, FieldTypeView>([
+	['email', { icon: 'i-ph-at', label: 'email' }],
+	['password', { icon: 'i-ph-lock', label: 'password' }],
+	['secret', { icon: 'i-ph-lock', label: 'secret' }],
+])
 
-const LITERAL_ICONS: Record<string, string> = {
-	string: STRING_ICON,
-	number: NUMBER_ICON,
-	boolean: BOOLEAN_ICON,
+function literalIcon(value: string | number | boolean): string {
+	if (isNumber(value)) return NUMBER_ICON
+	if (isBoolean(value)) return BOOLEAN_ICON
+	return STRING_ICON
 }
 
 function literalLabel(value: string | number | boolean): string {
-	return typeof value === 'string' ? `"${value}"` : String(value)
+	return isText(value) ? `"${value}"` : String(value)
 }
 
 function label(descriptor: FieldDescriptor): string {
 	return describeField(descriptor).label
 }
 
-const VIEWS: DescriptorViews = {
-	string: () => ({ icon: STRING_ICON, label: 'string' }),
-	number: () => ({ icon: NUMBER_ICON, label: 'number' }),
-	boolean: () => ({ icon: BOOLEAN_ICON, label: 'boolean' }),
-	date: () => ({ icon: 'i-ph-calendar-blank', label: 'date' }),
-	any: () => ({ icon: 'i-ph-asterisk', label: 'any' }),
-	unknown: () => UNKNOWN,
-	null: () => ({ icon: 'i-ph-circle-dashed', label: 'null' }),
-	undefined: () => ({ icon: 'i-ph-circle-dashed', label: 'undefined' }),
-	literal: (d) => ({
-		icon: LITERAL_ICONS[typeof d.value] ?? STRING_ICON,
-		label: literalLabel(d.value),
-	}),
-	array: (d) => ({
-		icon: LIST_ICON,
-		label: `${d.element ? label(d.element) : 'any'}[]`,
-	}),
-	tuple: (d) => ({
-		icon: LIST_ICON,
-		label: `[${d.elements.map(label).join(', ')}]`,
-	}),
-	object: (d) => ({
-		icon: OBJECT_ICON,
-		label: d.partial ? 'partial object' : 'object',
-	}),
-	record: (d) => ({
-		icon: OBJECT_ICON,
-		label: `Record<${d.key ? label(d.key) : 'string'}, ${label(d.value)}>`,
-	}),
-	union: (d) => ({
-		icon:
-			d.members.length > 0 && d.members.every((m) => m.kind === 'literal')
-				? ENUM_ICON
-				: UNION_ICON,
-		label: d.members.map(label).join(' | '),
-	}),
-	intersection: (d) => ({
-		icon: UNION_ICON,
-		label: d.members.map(label).join(' & '),
-	}),
-	keyof: (d) => ({
-		icon: ENUM_ICON,
-		label:
-			d.keys.length > 0 ? d.keys.map((k) => `"${k}"`).join(' | ') : 'keyof',
-	}),
-	refinement: (d) => ({ icon: describeField(d.base).icon, label: d.name }),
-	recursive: (d) => ({ icon: UNKNOWN.icon, label: d.name }),
+const SIMPLE_VIEWS = new Map<string, FieldTypeView>([
+	['string', { icon: STRING_ICON, label: 'string' }],
+	['number', { icon: NUMBER_ICON, label: 'number' }],
+	['boolean', { icon: BOOLEAN_ICON, label: 'boolean' }],
+	['date', { icon: 'i-ph-calendar-blank', label: 'date' }],
+	['any', { icon: 'i-ph-asterisk', label: 'any' }],
+	['unknown', UNKNOWN],
+	['null', { icon: 'i-ph-circle-dashed', label: 'null' }],
+	['undefined', { icon: 'i-ph-circle-dashed', label: 'undefined' }],
+])
+
+function viewOf(descriptor: FieldDescriptor): FieldTypeView {
+	switch (descriptor.kind) {
+		case 'literal':
+			return {
+				icon: literalIcon(descriptor.value),
+				label: literalLabel(descriptor.value),
+			}
+		case 'array':
+			return {
+				icon: LIST_ICON,
+				label: `${descriptor.element ? label(descriptor.element) : 'any'}[]`,
+			}
+		case 'tuple':
+			return {
+				icon: LIST_ICON,
+				label: `[${descriptor.elements.map(label).join(', ')}]`,
+			}
+		case 'object':
+			return {
+				icon: OBJECT_ICON,
+				label: descriptor.partial ? 'partial object' : 'object',
+			}
+		case 'record':
+			return {
+				icon: OBJECT_ICON,
+				label: `Record<${descriptor.key ? label(descriptor.key) : 'string'}, ${label(descriptor.value)}>`,
+			}
+		case 'union':
+			return {
+				icon:
+					descriptor.members.length > 0 &&
+					descriptor.members.every((member) => member.kind === 'literal')
+						? ENUM_ICON
+						: UNION_ICON,
+				label: descriptor.members.map(label).join(' | '),
+			}
+		case 'intersection':
+			return {
+				icon: UNION_ICON,
+				label: descriptor.members.map(label).join(' & '),
+			}
+		case 'keyof':
+			return {
+				icon: ENUM_ICON,
+				label:
+					descriptor.keys.length > 0
+						? descriptor.keys.map((key) => `"${key}"`).join(' | ')
+						: 'keyof',
+			}
+		case 'refinement':
+			return {
+				icon: describeField(descriptor.base).icon,
+				label: descriptor.name,
+			}
+		case 'recursive':
+			return { icon: UNKNOWN.icon, label: descriptor.name }
+		default:
+			return SIMPLE_VIEWS.get(descriptor.kind) ?? UNKNOWN
+	}
 }
 
-function isDescriptor(value: unknown): value is FieldDescriptor {
+type DescriptorOf<K extends FieldDescriptor['kind']> = Extract<
+	FieldDescriptor,
+	{ kind: K }
+>
+
+function isDescriptorList(value: unknown): value is FieldDescriptor[] {
+	return Array.isArray(value) && value.every(isFieldDescriptor)
+}
+
+function isOptionalDescriptor(
+	value: unknown,
+): value is FieldDescriptor | undefined {
+	return value === undefined || isFieldDescriptor(value)
+}
+
+function isSimpleDescriptor(
+	value: unknown,
+): value is DescriptorOf<
+	| 'string'
+	| 'number'
+	| 'boolean'
+	| 'date'
+	| 'unknown'
+	| 'any'
+	| 'null'
+	| 'undefined'
+> {
+	return isRecord(value) && isText(value.kind) && SIMPLE_VIEWS.has(value.kind)
+}
+
+function isLiteralDescriptor(value: unknown): value is DescriptorOf<'literal'> {
 	return (
-		value !== null &&
-		typeof value === 'object' &&
-		typeof (value as { kind?: unknown }).kind === 'string' &&
-		Object.hasOwn(VIEWS, (value as { kind: string }).kind)
+		isRecord(value) &&
+		value.kind === 'literal' &&
+		(isText(value.value) || isNumber(value.value) || isBoolean(value.value))
+	)
+}
+
+function isMembersDescriptor(
+	value: unknown,
+): value is DescriptorOf<'union' | 'intersection'> {
+	return (
+		isRecord(value) &&
+		(value.kind === 'union' || value.kind === 'intersection') &&
+		isDescriptorList(value.members)
+	)
+}
+
+function isTupleDescriptor(value: unknown): value is DescriptorOf<'tuple'> {
+	return (
+		isRecord(value) &&
+		value.kind === 'tuple' &&
+		isDescriptorList(value.elements)
+	)
+}
+
+function isArrayDescriptor(value: unknown): value is DescriptorOf<'array'> {
+	return (
+		isRecord(value) &&
+		value.kind === 'array' &&
+		isOptionalDescriptor(value.element)
+	)
+}
+
+function isObjectDescriptor(value: unknown): value is DescriptorOf<'object'> {
+	return (
+		isRecord(value) &&
+		value.kind === 'object' &&
+		isRecord(value.fields) &&
+		Object.values(value.fields).every(isFieldDescriptor) &&
+		(value.partial === undefined || isBoolean(value.partial))
+	)
+}
+
+function isRecordDescriptor(value: unknown): value is DescriptorOf<'record'> {
+	return (
+		isRecord(value) &&
+		value.kind === 'record' &&
+		isOptionalDescriptor(value.key) &&
+		isFieldDescriptor(value.value)
+	)
+}
+
+function isKeyofDescriptor(value: unknown): value is DescriptorOf<'keyof'> {
+	return (
+		isRecord(value) &&
+		value.kind === 'keyof' &&
+		Array.isArray(value.keys) &&
+		value.keys.every(isText)
+	)
+}
+
+function isNamedDescriptor(
+	value: unknown,
+): value is DescriptorOf<'refinement' | 'recursive'> {
+	return (
+		isRecord(value) &&
+		isText(value.name) &&
+		(value.kind === 'recursive' ||
+			(value.kind === 'refinement' && isFieldDescriptor(value.base)))
+	)
+}
+
+function isFieldDescriptor(value: unknown): value is FieldDescriptor {
+	return (
+		isSimpleDescriptor(value) ||
+		isLiteralDescriptor(value) ||
+		isMembersDescriptor(value) ||
+		isTupleDescriptor(value) ||
+		isArrayDescriptor(value) ||
+		isObjectDescriptor(value) ||
+		isRecordDescriptor(value) ||
+		isKeyofDescriptor(value) ||
+		isNamedDescriptor(value)
 	)
 }
 
@@ -109,11 +234,9 @@ export function describeField(
 	descriptor: unknown,
 	fieldName = '',
 ): FieldTypeView {
-	const name = fieldName.toLowerCase()
-	if (Object.hasOwn(NAMED_FIELDS, name)) return NAMED_FIELDS[name]
-	if (!isDescriptor(descriptor)) return UNKNOWN
-	const view = VIEWS[descriptor.kind] as (d: FieldDescriptor) => FieldTypeView
-	return view(descriptor)
+	const named = NAMED_FIELDS.get(fieldName.toLowerCase())
+	if (named) return named
+	return isFieldDescriptor(descriptor) ? viewOf(descriptor) : UNKNOWN
 }
 
 const NULL_KINDS = new Set<FieldDescriptor['kind']>(['null', 'undefined'])
@@ -126,19 +249,21 @@ const NULL_KINDS = new Set<FieldDescriptor['kind']>(['null', 'undefined'])
 export function valueDescriptor(descriptor: FieldDescriptor): FieldDescriptor {
 	if (descriptor.kind !== 'union') return descriptor
 	const members = descriptor.members.filter((m) => !NULL_KINDS.has(m.kind))
+	const [only] = members
 	if (members.length === 0 || members.length === descriptor.members.length)
 		return descriptor
-	return members.length === 1 ? members[0]! : { ...descriptor, members }
+	return members.length === 1 && only ? only : { ...descriptor, members }
 }
 
-const RUNTIME_KINDS = new Set([
-	'string',
-	'number',
-	'boolean',
-	'array',
-	'object',
-	'null',
-	'undefined',
+const RUNTIME_DESCRIPTORS = new Map<string, FieldDescriptor>([
+	['string', { kind: 'string' }],
+	['number', { kind: 'number' }],
+	['boolean', { kind: 'boolean' }],
+	['null', { kind: 'null' }],
+	['undefined', { kind: 'undefined' }],
+	['date', { kind: 'date' }],
+	['object', { kind: 'object', fields: {} }],
+	['array', { kind: 'array' }],
 ])
 
 /**
@@ -150,14 +275,8 @@ export function describeRuntimeType(
 	type: string,
 	fieldName: string,
 ): FieldTypeView {
-	if (type === 'date') return describeField({ kind: 'date' }, fieldName)
-	if (type === 'object')
-		return describeField({ kind: 'object', fields: {} }, fieldName)
-	if (type === 'array') return describeField({ kind: 'array' }, fieldName)
 	return describeField(
-		RUNTIME_KINDS.has(type)
-			? ({ kind: type } as FieldDescriptor)
-			: { kind: 'unknown' },
+		RUNTIME_DESCRIPTORS.get(type) ?? { kind: 'unknown' },
 		fieldName,
 	)
 }
@@ -193,28 +312,23 @@ interface ModifierView {
 	id: string
 }
 
-const MODIFIERS: Record<string, Omit<ModifierView, 'id'>> = {
-	HashModifier: {
-		icon: 'i-ph-fingerprint',
-		labelKey: 'dms_database.modifiers.hashed',
-	},
-	LocalizationModifier: {
-		icon: 'i-ph-translate',
-		labelKey: 'dms_database.modifiers.localized',
-	},
-	EncryptionModifier: {
-		icon: 'i-ph-lock-key',
-		labelKey: 'dms_database.modifiers.encrypted',
-	},
-}
+const MODIFIERS = new Map<string, Omit<ModifierView, 'id'>>([
+	[
+		'HashModifier',
+		{ icon: 'i-ph-fingerprint', labelKey: 'dms_database.modifiers.hashed' },
+	],
+	[
+		'LocalizationModifier',
+		{ icon: 'i-ph-translate', labelKey: 'dms_database.modifiers.localized' },
+	],
+	[
+		'EncryptionModifier',
+		{ icon: 'i-ph-lock-key', labelKey: 'dms_database.modifiers.encrypted' },
+	],
+])
 
 export function describeModifier(id: string): ModifierView {
-	return {
-		id,
-		...(Object.hasOwn(MODIFIERS, id)
-			? MODIFIERS[id]
-			: { icon: 'i-ph-sliders' }),
-	}
+	return { id, ...(MODIFIERS.get(id) ?? { icon: 'i-ph-sliders' }) }
 }
 
 /** The modifiers a table declares on one of its columns, by own key only. */

@@ -10,88 +10,100 @@ import {
 	Table,
 	ValueProxy,
 } from '@antelopejs/interface-database/staged-query'
+import { type CellValue, isRecord, isScalar, isText } from './values'
 
-interface QueryStage {
+type EncodedStage = {
 	stage: string
-	options?: unknown
-	args: unknown[]
+	options?: CellValue
+	args: CellValue[]
 }
 
-type StagedCtor = new (...args: never[]) => unknown
-
-const STAGED_CLASSES: Record<string, StagedCtor> = {
-	Schema,
-	SchemaInstance,
-	Table,
-	Selection,
-	SingleSelection,
-	Stream,
-	Datum,
-	Query,
-	ValueProxy,
+/** A node of a staged query that holds its stages. */
+interface StagedInstance {
+	stages?: unknown
 }
 
-function classNameOf(obj: object): string | undefined {
-	for (const [name, ctor] of Object.entries(STAGED_CLASSES)) {
-		if (obj instanceof ctor) return name
+type StagedCtor = new (...args: never[]) => object
+
+const STAGED_CLASSES = new Map<string, StagedCtor>([
+	['Schema', Schema],
+	['SchemaInstance', SchemaInstance],
+	['Table', Table],
+	['Selection', Selection],
+	['SingleSelection', SingleSelection],
+	['Stream', Stream],
+	['Datum', Datum],
+	['Query', Query],
+	['ValueProxy', ValueProxy],
+])
+
+function classNameOf(node: StagedInstance): string | undefined {
+	for (const [name, ctor] of STAGED_CLASSES) {
+		if (node instanceof ctor) return name
 	}
 	return undefined
 }
 
-// CROSS_INSTANCE is a symbol, which JSON drops: it travels as this sentinel,
-// which the server turns back into the symbol.
-export const CROSS_INSTANCE_SENTINEL = '__CROSS_INSTANCE__'
-
-export function encodeStaged(node: unknown): unknown {
-	if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL
-	if (node === null || node === undefined) return node
-	if (typeof node !== 'object') return node
-	if (Array.isArray(node)) return node.map(encodeStaged)
-
-	const cls = classNameOf(node)
-	if (cls) {
-		const stages = (node as { stages?: unknown[] }).stages ?? []
-		return {
-			__cls: cls,
-			stages: stages.map(encodeStage),
-		}
-	}
-
-	const out: Record<string, unknown> = {}
-	for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
-		out[key] = encodeStaged(value)
-	}
-	return out
+function isCrossInstance(value: unknown): value is typeof CROSS_INSTANCE {
+	return value === CROSS_INSTANCE
 }
 
-function encodeStage(stage: unknown): unknown {
-	if (!stage || typeof stage !== 'object') return stage
-	const { stage: name, options, args } = stage as Partial<QueryStage>
-	const encoded: QueryStage = {
-		stage: typeof name === 'string' ? name : '',
-		args: Array.isArray(args) ? args.map(encodeStaged) : [],
+/** The symbol CROSS_INSTANCE, which JSON drops, travels as this sentinel, which the server turns back into the symbol. */
+export const CROSS_INSTANCE_SENTINEL = '__CROSS_INSTANCE__'
+
+function encodeStage(stage: unknown): CellValue {
+	if (isRecord(stage)) {
+		const { stage: name, options, args } = stage
+		const encoded: EncodedStage = {
+			stage: isText(name) ? name : '',
+			args: Array.isArray(args) ? args.map(encodeStaged) : [],
+		}
+		if (options !== undefined) encoded.options = encodeStaged(options)
+		return encoded
 	}
-	if (options !== undefined) encoded.options = encodeStaged(options)
-	return encoded
+	if (isScalar(stage)) return stage
+	return undefined
+}
+
+/** A staged query as JSON: its classes by name with their stages, anything else as the plain data it holds. */
+export function encodeStaged(node: unknown): CellValue {
+	if (isCrossInstance(node)) return CROSS_INSTANCE_SENTINEL
+	if (isScalar(node)) return node
+	if (Array.isArray(node)) return node.map(encodeStaged)
+	if (isRecord(node)) {
+		const cls = classNameOf(node)
+		if (cls) {
+			const stages: unknown = node.stages
+			return {
+				__cls: cls,
+				stages: Array.isArray(stages) ? stages.map(encodeStage) : [],
+			}
+		}
+		const out: { [key: string]: CellValue } = {}
+		for (const [key, value] of Object.entries(node)) {
+			out[key] = encodeStaged(value)
+		}
+		return out
+	}
+	return undefined
 }
 
 const MUTATING_STAGES = new Set(['insert', 'update', 'replace', 'delete'])
 
+function isMutatingStage(stage: unknown): boolean {
+	if (isRecord(stage)) {
+		const { stage: name, args } = stage
+		if (isText(name) && MUTATING_STAGES.has(name)) return true
+		return Array.isArray(args) && args.some(containsMutations)
+	}
+	return false
+}
+
+/** Whether a staged query writes: one of its stages, or of the queries it takes, inserts, updates, replaces or deletes. */
 export function containsMutations(root: unknown): boolean {
-	if (!root || typeof root !== 'object') return false
-	const stages = (root as { stages?: unknown }).stages
-	if (!Array.isArray(stages)) return false
-	for (const stage of stages) {
-		if (!stage || typeof stage !== 'object') continue
-		const s = stage as { stage?: unknown; args?: unknown }
-		if (typeof s.stage === 'string' && MUTATING_STAGES.has(s.stage)) {
-			return true
-		}
-		if (Array.isArray(s.args)) {
-			for (const arg of s.args) {
-				if (containsMutations(arg)) return true
-			}
-		}
+	if (isRecord(root)) {
+		const stages = root.stages
+		return Array.isArray(stages) && stages.some(isMutatingStage)
 	}
 	return false
 }

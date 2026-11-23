@@ -2,9 +2,11 @@ const MINUTE_MS = 60_000
 const MINUTES_PER_HOUR = 60
 const HOURS_PER_DAY = 24
 
-// Human "3 minutes ago" style label for an ISO timestamp, relative to now, in
-// the interface language. Not named `formatRelativeTime`: the DMS core layer
-// auto-imports a helper of that name, and the two would shadow each other.
+/**
+ * Human "3 minutes ago" style label for an ISO timestamp, relative to now, in
+ * the interface language. Not named `formatRelativeTime`: the DMS core layer
+ * auto-imports a helper of that name, and the two would shadow each other.
+ */
 export function formatDatabaseRelativeTime(
 	iso: string,
 	locale?: string,

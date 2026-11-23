@@ -1,8 +1,4 @@
-// Writes rows one call at a time, as a save and its undo do, and tells what
-// went through: the rows written, the rows gone meanwhile (404, nothing left
-// to write to) and the error that stopped the rest, if any. Rows are written
-// in order and the first other failure stops the run, so the rows after it
-// are left untouched.
+import { type CellRow, isNumber, isRecord } from '../utils/values'
 
 const NOT_FOUND = 404
 
@@ -16,14 +12,25 @@ export interface RowWriteOutcome {
 }
 
 function statusOf(error: unknown): number | undefined {
-	const failure = error as { statusCode?: number; status?: number } | null
-	return failure?.statusCode ?? failure?.status
+	if (isRecord(error)) {
+		const { statusCode, status } = error
+		const code = statusCode ?? status
+		return isNumber(code) ? code : undefined
+	}
+	return undefined
 }
 
-export async function writeRows<T = unknown>(
-	rows: Iterable<[string, Record<string, unknown>]>,
-	write: (rowId: string, body: Record<string, unknown>) => Promise<T>,
-	/** Called once a row is settled: written, with the write's answer, or gone. */
+/**
+ * Writes rows one call at a time, as a save and its undo do, and tells what
+ * went through: the rows written, the rows gone meanwhile (404, nothing left
+ * to write to) and the error that stopped the rest, if any. Rows are written
+ * in order and the first other failure stops the run, so the rows after it
+ * are left untouched. `onSettled` is called once a row is settled: written,
+ * with the write's answer, or gone.
+ */
+export async function writeRows<T, Body>(
+	rows: Iterable<[string, Body]>,
+	write: (rowId: string, body: Body) => Promise<T>,
 	onSettled?: (rowId: string, answer?: T) => void,
 ): Promise<RowWriteOutcome> {
 	const outcome: RowWriteOutcome = {
@@ -43,7 +50,6 @@ export async function writeRows<T = unknown>(
 			outcome.written.push(rowId)
 		} catch (error) {
 			if (statusOf(error) !== NOT_FOUND) {
-				// A failure without a message still stops the run.
 				outcome.error = error ?? new Error('Write failed')
 				outcome.left.push(rowId)
 				continue
@@ -94,10 +100,10 @@ export function mayMoveRows(
  * the same id: the fields it holds replace theirs, the browse-only ones stay.
  */
 export function withWrittenRow(
-	rows: Record<string, unknown>[],
-	written: Record<string, unknown>,
-	idOf: (row: Record<string, unknown>) => string | null,
-): Record<string, unknown>[] {
+	rows: CellRow[],
+	written: CellRow,
+	idOf: (row: CellRow) => string | null,
+): CellRow[] {
 	const id = idOf(written)
 	if (id === null) return rows
 	return rows.map((row) => (idOf(row) === id ? { ...row, ...written } : row))

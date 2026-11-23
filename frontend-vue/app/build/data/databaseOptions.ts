@@ -98,7 +98,10 @@ export function accessOf(
 ): DatabaseAccess | null {
 	if (connection.kind === 'own' || !isBrowsable(connection)) return null
 	return connection.access === 'read-write'
-		? { label: t(`${KEYS}.switcher.access_read_write`), icon: 'i-ph-pencil-simple' }
+		? {
+				label: t(`${KEYS}.switcher.access_read_write`),
+				icon: 'i-ph-pencil-simple',
+			}
 		: { label: t(`${KEYS}.switcher.access_read`), icon: 'i-ph-lock-simple' }
 }
 

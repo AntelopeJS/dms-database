@@ -1,9 +1,9 @@
 import type { InstanceChoice } from '../data/instanceOptions'
+import { isText } from './values'
 
 export type { InstanceChoice }
 
-// Where the module's pages live. Module pages resolve under
-// /modules/<module id>; a link without that prefix 404s.
+/** Where the module's pages live: module pages resolve under /modules/<module id>, and a link without that prefix 404s. */
 const MODULE_ROOT = '/modules/database'
 
 export const DATABASE_PAGES = {
@@ -35,21 +35,36 @@ interface TableAddress {
 
 const MATCH_SEPARATOR = ':'
 
-// The URL's `instance`, the same on every page of the module: absent for the
-// default instance, `all` for every instance at once, any other value for
-// the instance of that name. No escaping: an instance named "all" cannot be
-// linked to.
-
-/** The URL's `instance` for every instance at once. */
+/**
+ * The URL's `instance` for every instance at once. The parameter is the same
+ * on every page of the module: absent for the default instance, `all` for
+ * every instance at once, any other value for the instance of that name. No
+ * escaping: an instance named "all" cannot be linked to.
+ */
 export const ALL_INSTANCES_PARAM = 'all'
 
-/** The instance an `instance` URL parameter names; a missing one is the default. */
-export function instanceFromUrl(param: unknown): InstanceChoice {
-	const first = Array.isArray(param) ? param[0] : param
-	const value = typeof first === 'string' ? first.trim() : ''
+function trimmedText(value: unknown): string {
+	return isText(value) ? value.trim() : ''
+}
+
+/** The first value of a URL query parameter, trimmed; empty for none or one that is not text. */
+export function queryText(param: unknown): string {
+	if (Array.isArray(param)) return trimmedText(param[0])
+	if (isText(param)) return param.trim()
+	return ''
+}
+
+function instanceChoiceOf(value: string): InstanceChoice {
 	if (!value) return { kind: 'default' }
 	if (value === ALL_INSTANCES_PARAM) return { kind: 'all' }
 	return { kind: 'named', id: value }
+}
+
+/** The instance an `instance` URL parameter names; a missing one is the default. */
+export function instanceFromUrl(param: unknown): InstanceChoice {
+	if (Array.isArray(param)) return instanceChoiceOf(trimmedText(param[0]))
+	if (isText(param)) return instanceChoiceOf(param.trim())
+	return { kind: 'default' }
 }
 
 /** The `instance` URL parameter of a choice; undefined (left out) for the default. */
@@ -65,10 +80,12 @@ function encodeMatch(match: TableMatch): string {
 
 /** `field:value` back to its parts; the value may hold separators itself. */
 export function decodeMatch(raw: unknown): TableMatch | null {
-	if (typeof raw !== 'string') return null
-	const index = raw.indexOf(MATCH_SEPARATOR)
-	if (index <= 0) return null
-	return { field: raw.slice(0, index), value: raw.slice(index + 1) }
+	if (isText(raw)) {
+		const index = raw.indexOf(MATCH_SEPARATOR)
+		if (index <= 0) return null
+		return { field: raw.slice(0, index), value: raw.slice(index + 1) }
+	}
+	return null
 }
 
 /** A page of the module opened on one table, e.g. the data browser on it. */

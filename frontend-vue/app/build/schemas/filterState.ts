@@ -1,17 +1,21 @@
 import type { InstanceChoice } from '../data/instanceOptions'
-import { instanceFromUrl, instanceToUrl } from '../utils/databaseLinks'
+import {
+	instanceFromUrl,
+	instanceToUrl,
+	queryText,
+} from '../utils/databaseLinks'
 
-// The Schemas page's filter bar keeps its state in the URL, so a filtered
-// list can be shared, reloaded and gone back to: `scope` (a schema),
-// `instance`, `q` (a table or column name) and `has` (relations, modifiers,
-// empty). The table view reads the same keys as hidden filters and sends
-// them to its source route, which reads them back (src/service/schemaFilters.ts
-// holds the same rules).
-// `instance` follows the module's convention (see instanceFromUrl): absent
-// for the default instance, `all` for every instance.
-
-const FILTER_KEYS = ['scope', 'instance', 'q', 'has'] as const
-type FilterKey = (typeof FILTER_KEYS)[number]
+/**
+ * The keys of the Schemas page's filter bar, which keeps its state in the URL,
+ * so a filtered list can be shared, reloaded and gone back to: `scope` (a
+ * schema), `instance`, `q` (a table or column name) and `has` (relations,
+ * modifiers, empty). The table view reads the same keys as hidden filters and
+ * sends them to its source route, which reads them back
+ * (src/service/schemaFilters.ts holds the same rules). `instance` follows the
+ * module's convention (see instanceFromUrl): absent for the default instance,
+ * `all` for every instance.
+ */
+type FilterKey = 'scope' | 'instance' | 'q' | 'has'
 
 export const HAS_FLAGS = ['relations', 'modifiers', 'empty'] as const
 export type HasFlag = (typeof HAS_FLAGS)[number]
@@ -36,11 +40,14 @@ export const EMPTY_FILTER_STATE: SchemasFilterState = {
 	has: [],
 }
 
-type Query = Record<string, unknown>
+/** A route query: each key holds a value, or a list of them. */
+interface Query {
+	[key: string]: string | null | undefined | (string | null)[]
+}
 
-function text(value: unknown): string {
-	const first = Array.isArray(value) ? value[0] : value
-	return typeof first === 'string' ? first.trim() : ''
+/** The query a table view sends to its source route. */
+interface SourceQuery {
+	[key: string]: string
 }
 
 /** Known flags only, once each, in their fixed order. */
@@ -53,10 +60,10 @@ export function parseHas(param: string | undefined): HasFlag[] {
 /** The bar's state from a route query; an empty value reads as unset. */
 export function readFilterState(query: Query): SchemasFilterState {
 	return {
-		scope: text(query.scope) || null,
+		scope: queryText(query.scope) || null,
 		instance: instanceFromUrl(query.instance),
-		q: text(query.q),
-		has: parseHas(text(query.has)),
+		q: queryText(query.q),
+		has: parseHas(queryText(query.has)),
 	}
 }
 
@@ -81,9 +88,9 @@ export function withFilterState(
 	query: Query,
 	state: SchemasFilterState,
 ): Query {
-	const next: Query = { ...query }
+	const next = { ...query }
 	for (const [key, value] of Object.entries(filterParams(state))) {
-		if (value === undefined) delete next[key]
+		if (value === undefined) Reflect.deleteProperty(next, key)
 		else next[key] = value
 	}
 	return next
@@ -95,8 +102,8 @@ export function isFiltered(state: SchemasFilterState): boolean {
 }
 
 /** The source route's query for a state, as the table view sends it. */
-export function sourceQuery(state: SchemasFilterState): Record<string, string> {
-	const query: Record<string, string> = {}
+export function sourceQuery(state: SchemasFilterState): SourceQuery {
+	const query: SourceQuery = {}
 	for (const [key, value] of Object.entries(filterParams(state))) {
 		if (value !== undefined) query[`filter_${key}`] = `is:${value}`
 	}

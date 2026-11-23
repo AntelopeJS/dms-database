@@ -1,33 +1,39 @@
-// How a typed draft becomes a cell value: the stored type is kept, and a
-// column whose cell is empty falls back to the type sampled for it, so filling
-// an empty cell of a number column stores a number. A date column takes a
-// date whatever its cell holds, as dates travel as ISO text.
-//
-// "null" empties a cell, whatever its type. The text "null" itself is typed
-// escaped, "\null" (and "\\null" for "\null"): an editor opens a cell holding
-// such a text escaped, so committing it unchanged keeps it.
+import {
+	type CellValue,
+	isBoolean,
+	isCellValue,
+	isNumber,
+	isText,
+} from '../utils/values'
+
+/** A cell value that is not structured. */
+type CellScalar = string | number | boolean | null | undefined
 
 type DraftResult =
-	| { ok: true; value: unknown; unchanged: boolean }
+	| { ok: true; value: CellScalar; unchanged: boolean }
 	| { ok: false; reason: 'number' | 'boolean' | 'date' }
 
 type Parser = (text: string) => DraftResult
 
-const BOOLEANS: Record<string, boolean> = { true: true, false: false }
+const BOOLEANS = new Map([
+	['true', true],
+	['false', false],
+])
 const NULL_DRAFT = 'null'
-// A text made of backslashes then "null": typed with one more backslash.
+
+/** A text made of backslashes then "null": typed with one more backslash. */
 const NULL_LIKE_TEXT = /^\\*null$/
 const ESCAPED_NULL = /^\\+null$/
-// YYYY-MM-DD, then optionally a time (T or a space) and a zone.
+
+/** YYYY-MM-DD, then optionally a time (T or a space) and a zone. */
 const DATE_DRAFT =
 	/^(\d{4})-(\d{2})-(\d{2})(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?(?:Z|[+-]\d{2}:?\d{2})?)?$/i
 
-function parsed(value: unknown): DraftResult {
+function parsed(value: CellScalar): DraftResult {
 	return { ok: true, value, unchanged: false }
 }
 
-// Date.parse rolls an impossible day over (2026-02-30 is March 2nd): the
-// calendar date typed must exist.
+/** Date.parse rolls an impossible day over (2026-02-30 is March 2nd): the calendar date typed must exist. */
 function isCalendarDate(year: number, month: number, day: number): boolean {
 	const date = new Date(Date.UTC(year, month - 1, day))
 	return (
@@ -50,38 +56,66 @@ function parseDate(text: string): DraftResult {
 	return parsed(new Date(time).toISOString())
 }
 
-const PARSERS: Record<string, Parser> = {
-	number: (text) => {
-		const trimmed = text.trim()
-		const value = Number(trimmed)
-		return trimmed === '' || !Number.isFinite(value)
-			? { ok: false, reason: 'number' }
-			: parsed(value)
-	},
-	boolean: (text) => {
-		const value = BOOLEANS[text.trim().toLowerCase()]
-		return value === undefined
-			? { ok: false, reason: 'boolean' }
-			: parsed(value)
-	},
-	date: parseDate,
-}
+const PARSERS = new Map<string, Parser>([
+	[
+		'number',
+		(text) => {
+			const trimmed = text.trim()
+			const value = Number(trimmed)
+			return trimmed === '' || !Number.isFinite(value)
+				? { ok: false, reason: 'number' }
+				: parsed(value)
+		},
+	],
+	[
+		'boolean',
+		(text) => {
+			const value = BOOLEANS.get(text.trim().toLowerCase())
+			return value === undefined
+				? { ok: false, reason: 'boolean' }
+				: parsed(value)
+		},
+	],
+	['date', parseDate],
+])
 
-function isEmpty(value: unknown): boolean {
+function isEmpty(value: CellValue): value is null | undefined {
 	return value === null || value === undefined
 }
 
-/** The value a draft stands for, given the cell's current value and column type. */
+/** Whether a value holds other values: an object or a list. */
+export function isStructured(
+	value: CellValue,
+): value is CellValue[] | { [key: string]: CellValue } {
+	return typeof value === 'object' && value !== null
+}
+
+function sampledType(value: CellValue): string {
+	if (isNumber(value)) return 'number'
+	if (isBoolean(value)) return 'boolean'
+	return 'other'
+}
+
+/**
+ * The value a draft stands for, given the cell's current value and column
+ * type. The stored type is kept, and a column whose cell is empty falls back
+ * to the type sampled for it, so filling an empty cell of a number column
+ * stores a number. A date column takes a date whatever its cell holds, as
+ * dates travel as ISO text. Leaving an empty cell empty is not an edit.
+ *
+ * "null" empties a cell, whatever its type. The text "null" itself is typed
+ * escaped, "\null" (and "\\null" for "\null"): an editor opens a cell holding
+ * such a text escaped, so committing it unchanged keeps it.
+ */
 export function parseDraft(
 	draft: string | boolean,
-	before: unknown,
+	before: CellValue,
 	columnType: string,
 ): DraftResult {
-	if (typeof draft === 'boolean')
+	if (draft === true || draft === false)
 		return { ok: true, value: draft, unchanged: draft === before }
 	if (draft.trim() === NULL_DRAFT)
 		return { ok: true, value: null, unchanged: isEmpty(before) }
-	// Leaving an empty cell empty is not an edit.
 	if (isEmpty(before) && draft === '')
 		return { ok: true, value: before, unchanged: true }
 	const text = ESCAPED_NULL.test(draft) ? draft.slice(1) : draft
@@ -90,30 +124,32 @@ export function parseDraft(
 			? 'date'
 			: isEmpty(before)
 				? columnType
-				: typeof before
-	const result = (PARSERS[type] ?? parsed)(text)
+				: sampledType(before)
+	const result = (PARSERS.get(type) ?? parsed)(text)
 	if (!result.ok) return result
 	return {
 		...result,
-		unchanged: !isEmpty(before) && String(before) === String(result.value),
+		unchanged:
+			!isEmpty(before) &&
+			!isStructured(before) &&
+			String(before) === String(result.value),
 	}
 }
 
-/** The text an editor opens a cell with: see the escape above. */
-export function draftText(value: unknown): string {
-	if (typeof value === 'string' && NULL_LIKE_TEXT.test(value))
-		return `\\${value}`
+/** The text an editor opens a cell with: see the escape of `parseDraft`. */
+export function draftText(value: CellValue): string {
+	if (isText(value) && NULL_LIKE_TEXT.test(value)) return `\\${value}`
 	return cellText(value)
 }
 
 /** A cell as one line of text: JSON for objects and lists. */
-export function cellText(value: unknown): string {
+export function cellText(value: CellValue): string {
 	if (isEmpty(value)) return ''
-	if (typeof value !== 'object') return String(value)
+	if (!isStructured(value)) return String(value)
 	try {
 		return JSON.stringify(value)
 	} catch {
-		return String(value)
+		return Object.prototype.toString.call(value)
 	}
 }
 
@@ -121,17 +157,13 @@ export function cellText(value: unknown): string {
  * A cell as the review and the "was" hints name it: an empty cell reads
  * null, and a text that would read as one of those is quoted ("", "null").
  */
-export function cellLabel(value: unknown): string {
+export function cellLabel(value: CellValue): string {
 	if (isEmpty(value)) return NULL_DRAFT
 	if (value === '' || value === NULL_DRAFT) return JSON.stringify(value)
 	return cellText(value)
 }
 
-export function isStructured(value: unknown): boolean {
-	return value !== null && typeof value === 'object'
-}
-
-// Past this length a text no longer reads whole in the drawer's value column.
+/** Past this length a text no longer reads whole in the drawer's value column. */
 const WIDE_TEXT_LENGTH = 48
 
 /**
@@ -139,44 +171,47 @@ const WIDE_TEXT_LENGTH = 48
  * an object or a list (edited as JSON), and a text of several lines or too
  * long for the value column (edited in a text area).
  */
-export function isWideValue(value: unknown): boolean {
+export function isWideValue(value: CellValue): boolean {
 	if (isStructured(value)) return true
 	return (
-		typeof value === 'string' &&
-		(value.length > WIDE_TEXT_LENGTH || value.includes('\n'))
+		isText(value) && (value.length > WIDE_TEXT_LENGTH || value.includes('\n'))
 	)
 }
 
 type JsonDraftResult =
-	| { ok: true; value: unknown }
+	| { ok: true; value: CellValue }
 	| { ok: false; reason: 'invalid' | 'not_structured'; detail?: string }
 
 /** The text the JSON editor opens a structured cell with. */
 export function jsonDraftText(value: unknown): string {
-	try {
-		return JSON.stringify(value, null, 2) ?? ''
-	} catch {
-		return ''
+	if (isCellValue(value)) {
+		try {
+			return JSON.stringify(value, null, 2) ?? ''
+		} catch {
+			return ''
+		}
 	}
+	return ''
 }
 
 /**
  * The value a JSON editor's draft stands for: an object, a list, or null to
- * empty the cell. A scalar is not a structured cell.
+ * empty the cell. A scalar is not a structured cell. An invalid draft carries
+ * the engine's parse detail (position, token…).
  */
 export function parseJsonDraft(text: string): JsonDraftResult {
 	let value: unknown
 	try {
 		value = JSON.parse(text)
 	} catch (error) {
-		// The engine's parse detail (position, token…).
 		return {
 			ok: false,
 			reason: 'invalid',
 			detail: error instanceof Error ? error.message : undefined,
 		}
 	}
-	if (value !== null && typeof value !== 'object')
+	if (!isCellValue(value)) return { ok: false, reason: 'invalid' }
+	if (value !== null && !isStructured(value))
 		return { ok: false, reason: 'not_structured' }
 	return { ok: true, value }
 }

@@ -1,11 +1,9 @@
-// Edits of the data browser are staged (D-02): a changed cell keeps its old
-// value until the user saves, and a save can be undone for a few seconds.
-// Staged edits live per tab, keyed by row id then column, and survive
-// switching tabs.
+import type { CellRow, CellValue } from '../utils/values'
 
+/** A staged cell: the value it holds in the table, and the one the user set. */
 export interface StagedCell {
-	before: unknown
-	after: unknown
+	before: CellValue
+	after: CellValue
 }
 
 /** One staged change, as the review lists it. */
@@ -18,7 +16,7 @@ type RowEdits = Record<string, StagedCell>
 type TabEdits = Record<string, RowEdits>
 
 /** Two cell values are the same when their JSON forms are. */
-function sameValue(left: unknown, right: unknown): boolean {
+function sameValue(left: CellValue, right: CellValue): boolean {
 	if (left === right) return true
 	try {
 		return JSON.stringify(left ?? null) === JSON.stringify(right ?? null)
@@ -27,6 +25,14 @@ function sameValue(left: unknown, right: unknown): boolean {
 	}
 }
 
+/**
+ * Edits of the data browser are staged: a changed cell keeps its old value
+ * until the user saves, and a save can be undone for a few seconds. Staged
+ * edits live per tab, keyed by row id then column, and survive switching tabs.
+ * `stage` puts `after` over `before`, and setting a cell back to `before`
+ * unstages it; `rowBody` holds the staged values of a row, as the edit route
+ * takes them.
+ */
 export function useStagedEdits() {
 	const edits = useDmsState<Record<string, TabEdits>>(
 		'dms-database-staged-edits',
@@ -45,10 +51,9 @@ export function useStagedEdits() {
 		return tabEdits(tabId)[rowId]?.[field]
 	}
 
-	/** Stages `after` over `before`; setting a cell back to `before` unstages it. */
 	function stage(tabId: string, change: StagedChange) {
 		const rows = { ...tabEdits(tabId) }
-		const row = { ...(rows[change.rowId] ?? {}) }
+		const row = { ...rows[change.rowId] }
 		const before = row[change.field]?.before ?? change.before
 		if (sameValue(before, change.after))
 			Reflect.deleteProperty(row, change.field)
@@ -85,8 +90,7 @@ export function useStagedEdits() {
 		edits.value = { ...edits.value, [tabId]: rows }
 	}
 
-	/** The staged values of a row, as the edit route takes them. */
-	function rowBody(tabId: string, rowId: string): Record<string, unknown> {
+	function rowBody(tabId: string, rowId: string): CellRow {
 		return Object.fromEntries(
 			Object.entries(tabEdits(tabId)[rowId] ?? {}).map(([field, cell]) => [
 				field,
@@ -102,14 +106,14 @@ export function useStagedEdits() {
 	return { get, stage, list, count, rowCount, discard, rowBody, rowIds }
 }
 
-/** The values a saved change replaced, grouped per row: what an undo writes. */
-export function undoBodies(
-	changes: StagedChange[],
-): Map<string, Record<string, unknown>> {
-	const bodies = new Map<string, Record<string, unknown>>()
+/**
+ * The values a saved change replaced, grouped per row: what an undo writes. An
+ * empty cell is cleared with null: the edit route skips undefined.
+ */
+export function undoBodies(changes: StagedChange[]): Map<string, CellRow> {
+	const bodies = new Map<string, CellRow>()
 	for (const change of changes) {
 		const body = bodies.get(change.rowId) ?? {}
-		// An empty cell is cleared with null: the edit route skips undefined.
 		body[change.field] = change.before ?? null
 		bodies.set(change.rowId, body)
 	}
