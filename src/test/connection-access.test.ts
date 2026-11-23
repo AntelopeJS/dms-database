@@ -109,7 +109,6 @@ describe("[integration] a table mapped from an external connection", function ()
       body: body === undefined ? undefined : JSON.stringify(body),
     });
 
-  /** Empties the table and stores one row, so each test starts from the same state. */
   const seed = async () => {
     const countries = GetModel(CountryModel);
     for (const row of await countries.getAll()) {

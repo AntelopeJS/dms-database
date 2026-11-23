@@ -91,7 +91,6 @@ describe("[integration] Schemas page", () => {
   });
   after(cleanUp);
 
-  /** The source as the table view calls it, with the bar's hidden filters. */
   function listed(bar: { instance?: string; q?: string; has?: string } = {}) {
     const asFilter = (value?: string) => (value ? `is:${value}` : undefined);
     return new DatabaseTablesController().source(
