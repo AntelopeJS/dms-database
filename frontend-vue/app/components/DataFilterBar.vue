@@ -6,9 +6,6 @@ import type {
 } from '../build/composables/useDataBrowserGrid'
 import { describeRuntimeType } from '../build/utils/fieldTypes'
 
-// The active column filters as removable chips (D-14), with a way to add one
-// on any column and to clear them all.
-
 type FilterMode = ColumnFilterState['mode']
 
 const props = defineProps<{
@@ -38,6 +35,8 @@ const chips = computed(() =>
 		}),
 )
 
+const FILTER_MODES: FilterMode[] = ['contains', 'is']
+
 const MODE_LABELS: Record<FilterMode, string> = {
 	contains: 'dms_database.data.filters.contains',
 	is: 'dms_database.data.filters.is',
@@ -54,7 +53,7 @@ const fieldItems = computed(() =>
 		.map((column) => ({ label: column.name, value: column.name })),
 )
 const modeItems = computed(() =>
-	(Object.keys(MODE_LABELS) as FilterMode[]).map((mode) => ({
+	FILTER_MODES.map((mode) => ({
 		label: t(MODE_LABELS[mode]),
 		value: mode,
 	})),

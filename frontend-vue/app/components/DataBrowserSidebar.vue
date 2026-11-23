@@ -15,13 +15,6 @@ import { instanceFromUrl } from '../build/utils/databaseLinks'
 import InstancePicker from './InstancePicker.vue'
 import SchemaPicker from './SchemaPicker.vue'
 
-// The data browser's scope (D-04): a labelled schema picker, the instance
-// ("all" is read-only), both the Schemas page's searchable pickers, the table
-// search under them, and the schema's tables with their row count in that
-// instance. A
-// table open in a tab carries a hollow ring, the active one included: the
-// fill of the row says which is shown.
-
 const props = defineProps<{
 	schemas: SchemaSummary[]
 	/** The schema list is being read. */
@@ -44,14 +37,8 @@ const filterInput = useTemplateRef<{ inputRef?: HTMLInputElement }>(
 	'filterInput',
 )
 
-// The schema a link names (?schema=X) leads, else the first one; once a tab
-// is active, it leads. A table link (?schema=X&table=Y) opens its tab once
-// mounted, in the instance it names: that scope is shown from the start, so
-// the server renders the counts the browser keeps. A schema or instance
-// picked here holds until the user goes to a tab (another one, or the same
-// again).
-const linkedSchema =
-	typeof route.query.schema === 'string' ? route.query.schema : null
+const schemaParam = route.query.schema
+const linkedSchema = Array.isArray(schemaParam) ? null : (schemaParam ?? null)
 const linkedInstance = route.query.table
 	? tabInstanceOf(instanceFromUrl(route.query.instance))
 	: DEFAULT_INSTANCE_VALUE
@@ -81,7 +68,6 @@ watch(
 function pickSchema(id: string | null) {
 	if (!id) return
 	schemaId.value = id
-	// Named instances belong to one schema.
 	instance.value = DEFAULT_INSTANCE_VALUE
 }
 
@@ -92,7 +78,6 @@ function pickInstance(choice: InstanceChoice) {
 const schema = computed(
 	() => props.schemas.find((s) => s.id === schemaId.value) ?? null,
 )
-// Nothing to list yet: the list is read, or failed to be.
 const schemasPending = computed(
 	() => Boolean(props.loading) && props.schemas.length === 0,
 )
@@ -101,7 +86,6 @@ const schemasFailed = computed(
 )
 const schemaIds = computed(() => props.schemas.map((s) => s.id))
 const instanceChoice = computed(() => instanceChoiceOf(instance.value))
-// The footer names the instance as a tab's badge does ("all").
 const instanceName = computed(() => {
 	if (instance.value === DEFAULT_INSTANCE_VALUE)
 		return t('dms_database.pickers.instance.default')
@@ -110,7 +94,6 @@ const instanceName = computed(() => {
 	return instance.value
 })
 
-// --- tables and their counts in the picked instance ---
 const { counts, failed: countsFailed } = useTableCounts(schemaId, instance)
 
 const openIds = computed(() => new Set(tabs.value.map((tab) => tab.id)))
@@ -132,7 +115,6 @@ const tables = computed(() => {
 		}))
 })
 
-// A click opens a preview tab, a double-click (or a modified click) keeps it.
 function open(name: string, event?: MouseEvent) {
 	if (!schemaId.value) return
 	const keep = Boolean(
@@ -150,8 +132,12 @@ function clearFilter() {
 }
 
 onKeyStroke('t', (event) => {
-	const target = event.target as HTMLElement | null
-	if (target?.closest('input, textarea, [contenteditable=true]')) return
+	const target = event.target
+	if (
+		target instanceof Element &&
+		target.closest('input, textarea, [contenteditable=true]')
+	)
+		return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
 	event.preventDefault()
 	filterInput.value?.inputRef?.focus()

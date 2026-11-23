@@ -1,9 +1,6 @@
 <script setup lang="ts" generic="Tab extends string">
 import { useResizeObserver, useScroll } from '@vueuse/core'
 
-// The tab list of a drawer: on a phone, or a drawer narrower than its tabs,
-// it scrolls sideways, and a fade on the side more tabs hide in says so.
-
 export interface DrawerTab {
 	value: Tab
 	label: string
@@ -25,7 +22,6 @@ useResizeObserver(scroller, () => {
 	measure()
 })
 
-// A 24px fade on each side the list still scrolls to.
 const fade = computed(() => {
 	if (!overflows.value) return undefined
 	const start = arrivedState.left ? 'black' : 'transparent'

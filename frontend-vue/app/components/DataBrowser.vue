@@ -13,10 +13,6 @@ import DataBrowserSidebar from './DataBrowserSidebar.vue'
 import DataBrowserTabBar from './DataBrowserTabBar.vue'
 import DataGrid from './DataGrid.vue'
 
-// The data browser: a table list scoped to one schema and instance, the open
-// tables as tabs, and the grid of the active one. Edits are staged per tab
-// and written only when saved; leaving with staged edits asks first.
-
 const { t, locale } = useI18n()
 const {
 	schemas,
@@ -39,7 +35,6 @@ onMounted(() => {
 		(id) => follow(id),
 	)
 })
-// A link from this page to another table (a relation) keeps the page mounted.
 watch(
 	() => route.query,
 	() => openFromRoute(),
@@ -50,8 +45,6 @@ const hasStagedEdits = computed(() =>
 )
 useUnsavedChanges({ dirty: hasStagedEdits })
 
-// Schema-introspected columns of the active table: the grid falls back to
-// them when sampling finds no row, and reads its relation columns from them.
 const activeTableSummary = computed(() =>
 	activeTab.value
 		? findTable(activeTab.value.schema, activeTab.value.table)

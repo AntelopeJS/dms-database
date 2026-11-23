@@ -6,10 +6,6 @@ import {
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
 
-// The open tables (D-05). A preview tab, in italics, is replaced by the next
-// table opened from the list; its pin keeps it, and the bar says so. A tab
-// holding staged edits carries a dot and asks before it is closed.
-
 const {
 	tabs,
 	activeId,
@@ -29,52 +25,41 @@ const pinButtonClass =
 	'rounded p-0.5 text-muted hover:bg-elevated hover:text-highlighted'
 const hasPreview = computed(() => tabs.value.some((tab) => tab.preview))
 
-// The label doubles as the accessible name; a preview tab announces its
-// ephemeral state, which the italic styling alone cannot convey.
 function tabAriaLabel(tab: BrowserTab): string {
 	return tab.preview
 		? t('dms_database.data.tabs.preview', { name: label(tab) })
 		: label(tab)
 }
 
-// Pinning from the pin button unmounts the button under focus (v-if), which
-// would drop focus to <body> for keyboard users; re-anchor it on the tab's
-// label button — but only when focus actually fell to the body, so a mouse
-// click doesn't get focus stolen elsewhere.
-function pinFromButton(tab: BrowserTab, event: MouseEvent) {
-	const tabEl = (event.currentTarget as HTMLElement).closest('[data-tab]')
+async function pinFromButton(tab: BrowserTab, event: MouseEvent) {
+	const origin = event.currentTarget
+	const tabEl =
+		origin instanceof HTMLElement ? origin.closest('[data-tab]') : null
 	pinTab(tab.id)
-	nextTick(() => {
-		if (document.activeElement === document.body) {
-			tabEl?.querySelector('button')?.focus()
-		}
-	})
+	await nextTick()
+	if (document.activeElement === document.body) {
+		tabEl?.querySelector('button')?.focus()
+	}
 }
 
-// --- drag & drop reorder ---
 const draggedId = ref<string | null>(null)
 const dropTargetId = ref<string | null>(null)
 
 function onDragStart(tab: BrowserTab, event: DragEvent) {
 	draggedId.value = tab.id
-	// Firefox refuses to start a drag without data attached.
 	event.dataTransfer?.setData('text/plain', tab.id)
 	if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
 }
 
 function onDragOver(tab: BrowserTab, event: DragEvent) {
 	if (!draggedId.value || draggedId.value === tab.id) return
-	// preventDefault marks the tab as a valid drop target.
 	event.preventDefault()
 	if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
 	dropTargetId.value = tab.id
 }
 
 function onDrop(tab: BrowserTab) {
-	// A self-drop is not a reorder: no pin, no move. (onDragOver never marks
-	// the dragged tab as a valid target, so this is belt-and-braces.)
 	if (draggedId.value && draggedId.value !== tab.id) {
-		// An arranged tab is kept (VS Code): a completed drag-reorder pins.
 		pinTab(draggedId.value)
 		moveTab(draggedId.value, tab.id)
 	}
@@ -86,10 +71,6 @@ function onDragEnd() {
 	dropTargetId.value = null
 }
 
-// Labels name the schema while tabs span several. Closing the last tab of a
-// schema would drop the prefix from every other label at once, so the tabs
-// shrink and slide under the pointer that is closing them: as browsers keep
-// tab widths, the prefix stays until the pointer leaves the bar.
 const pointerInBar = ref(false)
 const showSchema = ref(hasMultipleSchemas.value)
 watch(hasMultipleSchemas, (several) => {
@@ -101,7 +82,6 @@ function leaveBar() {
 	showSchema.value = hasMultipleSchemas.value
 }
 
-// Closing the last tab removes the bar before the pointer can leave it.
 watch(
 	() => tabs.value.length === 0,
 	(empty) => {
@@ -117,20 +97,17 @@ function instanceBadge(tab: BrowserTab): string | null {
 	return badgeOf(tab.instance, t('dms_database.data.scope.all'))
 }
 
-// The active tab stays in view when it changes or the bar fills up: a tab
-// opened at the end of a full bar would otherwise open out of sight.
 const strip = useTemplateRef<HTMLDivElement>('strip')
 watch(
 	[activeId, () => tabs.value.length],
-	() => {
-		nextTick(() => {
-			const id = activeId.value
-			if (!id) return
-			const active = [
-				...(strip.value?.querySelectorAll<HTMLElement>('[data-tab]') ?? []),
-			].find((element) => element.dataset.tabId === id)
-			active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-		})
+	async () => {
+		await nextTick()
+		const id = activeId.value
+		if (!id) return
+		const active = [
+			...(strip.value?.querySelectorAll<HTMLElement>('[data-tab]') ?? []),
+		].find((element) => element.dataset.tabId === id)
+		active?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
 	},
 	{ immediate: true, flush: 'post' },
 )
@@ -225,10 +202,6 @@ async function close(tab: BrowserTab) {
 				>
 					<UIcon name="i-ph-x" class="size-3" />
 				</button>
-				<!-- The pin button sits AFTER the close button: pinning unmounts it, and
-			     nothing may reflow into the pointer's position — a double-click's
-			     second click would otherwise land on the close button and destroy
-			     the tab the user just pinned. -->
 				<UTooltip
 					v-if="tab.preview"
 					:text="t('dms_database.data.tabs.keep_hint')"

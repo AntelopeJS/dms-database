@@ -9,10 +9,6 @@ import type { StagedCell } from '../build/data/stagedEdits'
 import { READ_ONLY_REASON } from '../build/data/readOnlyReason'
 import type { ColumnRole } from '../build/utils/fieldTypes'
 
-// One cell of the data grid. A staged cell is tinted, with the stored value
-// struck through before the new one; nothing is written until the changes
-// are saved. An empty cell reads null, an empty text "".
-
 const props = defineProps<{
 	/** The column's name, which names the editor for assistive technology. */
 	column: string
@@ -33,17 +29,29 @@ const emit = defineEmits<{
 	cancel: []
 }>()
 
+function isBooleanValue(value: unknown): value is boolean {
+	return typeof value === 'boolean'
+}
+
+function isNumberValue(value: unknown): value is number {
+	return typeof value === 'number'
+}
+
+function isObjectValue(value: unknown): value is object {
+	return value !== null && typeof value === 'object'
+}
+
 const readOnlyReason = inject(READ_ONLY_REASON, ref<string | null>(null))
 const shown = computed(() => (props.staged ? props.staged.after : props.value))
 const isNull = computed(() => shown.value === null || shown.value === undefined)
 const isEmptyText = computed(() => shown.value === '')
 const structured = computed(() => isStructured(shown.value))
-const isNumber = computed(() => typeof shown.value === 'number')
-// "{3}" for an object of three keys, "[2]" for a list of two items.
+const isNumber = computed(() => isNumberValue(shown.value))
 const sizeTag = computed(() => {
-	if (!structured.value) return ''
-	const size = Object.keys(shown.value as object).length
-	return Array.isArray(shown.value) ? `[${size}]` : `{${size}}`
+	const value = shown.value
+	if (!structured.value || !isObjectValue(value)) return ''
+	const size = Object.keys(value).length
+	return Array.isArray(value) ? `[${size}]` : `{${size}}`
 })
 
 const draft = ref('')
@@ -51,20 +59,18 @@ const boolDraft = ref(false)
 const cellInput = useTemplateRef<HTMLInputElement | HTMLSelectElement>(
 	'cellInput',
 )
-// Set before blurring on Escape so the blur does not commit after a cancel.
 const cancelling = ref(false)
 
 watch(
 	() => props.editing,
-	(editing) => {
+	async (editing) => {
 		if (!editing) return
 		cancelling.value = false
-		if (typeof shown.value === 'boolean') boolDraft.value = shown.value
+		if (isBooleanValue(shown.value)) boolDraft.value = shown.value
 		else draft.value = draftText(shown.value)
-		nextTick(() => {
-			cellInput.value?.focus()
-			if (cellInput.value instanceof HTMLInputElement) cellInput.value.select()
-		})
+		await nextTick()
+		cellInput.value?.focus()
+		if (cellInput.value instanceof HTMLInputElement) cellInput.value.select()
 	},
 )
 
@@ -72,7 +78,7 @@ function commit(source: 'enter' | 'blur') {
 	if (cancelling.value) return
 	emit(
 		'commit',
-		typeof shown.value === 'boolean' ? boolDraft.value : draft.value,
+		isBooleanValue(shown.value) ? boolDraft.value : draft.value,
 		source,
 	)
 }
