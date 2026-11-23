@@ -130,6 +130,7 @@ export function findSyntaxPlace(text: string): SyntaxPlace | null {
 function compile(code: string, text: string) {
 	const wrapped = `"use strict"; return (${code}\n);`
 	try {
+		// oxlint-disable-next-line typescript/no-implied-eval -- the browser query console compiles the signed-in admin's own query text, in their own browser session
 		return new Function(
 			'schemas',
 			'Schema',
