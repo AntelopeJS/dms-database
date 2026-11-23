@@ -380,3 +380,5 @@ e2e/playground/.codex
 
 # pnpm store
 .pnpm-store
+# The frontend types `ajs dms prepare-types` writes for type-aware lint
+frontend-vue/.dms-types

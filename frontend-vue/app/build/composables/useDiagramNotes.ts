@@ -11,10 +11,24 @@ import {
 } from '../diagram/graph'
 import type { DiagramOperation, DiagramState } from '../diagram/history'
 import type { Rect } from '../diagram/packing'
-import type { SchemaSummary } from './useDatabaseSchemas'
+import { findTableIn, type SchemaSummary } from './useDatabaseSchemas'
 
 const NOTE_WIDTH = 220
 const NOTE_HEIGHT = 140
+
+/** Whether node data carries the name and the fold state of the table it draws. */
+function isTableNodeData(
+	data: unknown,
+): data is Pick<TableNodeData, 'tableName' | 'expanded'> {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'tableName' in data &&
+		typeof data.tableName === 'string' &&
+		'expanded' in data &&
+		typeof data.expanded === 'boolean'
+	)
+}
 
 /** What the notes read and write of the diagram page. */
 interface NotesContext {
@@ -43,19 +57,22 @@ export function useDiagramNotes({
 	record,
 	render,
 }: NotesContext) {
-	// What a new note should not cover: the tables drawn, and every note. Sizes
-	// come from the schema and the notes, as a node just added is not measured.
 	function takenRects(): Rect[] {
 		const tables = (canvas.value?.getNodes ?? []).flatMap((node) => {
-			if (node.type !== TABLE_NODE_TYPE) return []
-			const { table, expanded: open } = node.data as TableNodeData
-			if (!schema.value) return []
+			if (node.type !== TABLE_NODE_TYPE || !schema.value) return []
+			if (!isTableNodeData(node.data)) return []
+			const table = findTableIn(
+				[schema.value],
+				schema.value.id,
+				node.data.tableName,
+			)
+			if (!table) return []
 			return [
 				{
 					x: node.position.x,
 					y: node.position.y,
 					width: NODE_WIDTH,
-					height: nodeHeight(schema.value, table, open),
+					height: nodeHeight(schema.value, table, node.data.expanded),
 				},
 			]
 		})
@@ -70,8 +87,6 @@ export function useDiagramNotes({
 		flow.addSelectedNodes([node])
 	}
 
-	// A new note goes in the free space nearest the centre of the view, above
-	// the tables, selected and ready to write (D-8).
 	function addNote() {
 		if (!schemaId.value) return
 		const rect = canvasWrapper.value?.getBoundingClientRect()
@@ -101,7 +116,7 @@ export function useDiagramNotes({
 		editNoteId.value = note.id
 		selectedId.value = null
 		render()
-		nextTick(() => selectNode(noteNodeId(note.id)))
+		void nextTick(() => selectNode(noteNodeId(note.id)))
 	}
 
 	function changeNoteText(noteId: string, text: string) {
@@ -127,10 +142,9 @@ export function useDiagramNotes({
 		render()
 	}
 
-	// Delete or Backspace on the canvas: only notes go, with undo (D-3).
 	function onDeleteNodes(ids: string[]) {
 		const doomed = new Set(ids)
-		for (const note of [...state.notes]) {
+		for (const note of state.notes) {
 			if (doomed.has(noteNodeId(note.id))) deleteNote(note.id)
 		}
 	}

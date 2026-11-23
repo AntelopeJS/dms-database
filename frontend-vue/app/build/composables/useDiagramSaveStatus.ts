@@ -1,8 +1,10 @@
 import { useNow } from '@vueuse/core'
-import { type SaveStatus } from '../diagram/autosave'
+import type { SaveStatus } from '../diagram/autosave'
 import type { DiagramSync } from '../diagram/sync'
 
 const MINUTE_MS = 60_000
+
+type ApiFailure = Parameters<ApiErrorPresenter['presentError']>[0]
 
 /**
  * What the save bar says of the layout's autosave: the status of the schema
@@ -10,16 +12,15 @@ const MINUTE_MS = 60_000
  */
 export function useDiagramSaveStatus(shown: () => DiagramSync | null) {
 	const { t } = useI18n()
-	const { presentError } = useApiErrorPresenter()
+	const presenter = useApiErrorPresenter()
 	const now = useNow({ interval: MINUTE_MS / 2 })
 	const saveState = ref<SaveStatus>('idle')
 	const savedAt = ref<Date | null>(null)
 
-	/** Shows the save status of the schema shown; a schema left reports a failure. */
 	function statusReporter(owner: DiagramSync) {
-		return (status: SaveStatus, error?: unknown) => {
+		return (status: SaveStatus, error?: ApiFailure) => {
 			if (status === 'error')
-				presentError(error, {
+				presenter.presentError(error, {
 					fallbackKey:
 						owner === shown()
 							? 'dms_database.diagram.save.error'

@@ -1,10 +1,6 @@
 import { baseCompile } from '@intlify/message-compiler'
 import { describe, expect, it } from 'vitest'
 
-// vue-i18n compiles a message the first time it shows it: a stray `@`, `{`,
-// `}` or `|` then fails at runtime, on the page that shows it (S-1). Compile
-// every message of every locale here instead; literals go through `{'@'}`.
-
 type Messages = { [key: string]: string | Messages }
 
 const locales = import.meta.glob<Messages>('../i18n/locales/*.json', {
@@ -12,10 +8,14 @@ const locales = import.meta.glob<Messages>('../i18n/locales/*.json', {
 	import: 'default',
 })
 
+function isMessage(value: string | Messages): value is string {
+	return typeof value === 'string'
+}
+
 function leaves(messages: Messages, prefix = ''): [string, string][] {
 	return Object.entries(messages).flatMap(([key, value]) => {
 		const path = prefix ? `${prefix}.${key}` : key
-		return typeof value === 'string' ? [[path, value]] : leaves(value, path)
+		return isMessage(value) ? [[path, value]] : leaves(value, path)
 	})
 }
 
@@ -23,7 +23,6 @@ function compileErrors(message: string): string[] {
 	const errors: string[] = []
 	baseCompile(message, {
 		onError: (error) => errors.push(error.message),
-		onWarn: () => undefined,
 	})
 	return errors
 }

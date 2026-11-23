@@ -2,9 +2,6 @@
 import { useDatabaseHealth } from '../build/composables/useDatabaseHealth'
 import { useNow } from '@vueuse/core'
 
-// The overview's health hero: whether the database answers, how fast, and
-// what it holds. The probe runs again every PROBE_INTERVAL_MS while the page
-// is open, so a lost connection shows up without a reload.
 const PROBE_INTERVAL_MS = 30_000
 const SECOND_MS = 1000
 const MINUTE_S = 60
@@ -14,15 +11,11 @@ const { health, isLoading, error, refresh, ready } = useDatabaseHealth({
 	refreshInterval: PROBE_INTERVAL_MS,
 })
 const clock = useNow({ interval: SECOND_MS })
-// The probe's own time until the page is mounted: the server renders the age
-// a few seconds before the browser hydrates it, and both must write the same.
 const mounted = ref(false)
 onMounted(() => {
 	mounted.value = true
 })
 
-// A failed health request is a lost connection too: the route answers
-// whenever the backend is up.
 const isDown = computed(
 	() => Boolean(error.value) || health.value.status === 'down',
 )
@@ -95,8 +88,6 @@ const downMetrics = computed(() => [
 	},
 ])
 
-// A client navigation shows the first probe, as a server render does, not
-// the empty health whose missing driver and age lines it would then grow by.
 await ready
 </script>
 

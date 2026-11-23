@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { browserMount } from './fixtures/serverRender'
+import type { Component } from 'vue'
+import { browserMount, type BackendAnswer } from './fixtures/serverRender'
 import {
 	CONNECTIONS_URL,
 	OWN,
@@ -13,7 +14,7 @@ import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 const LOCKED = 'data-feature-locked'
 
 async function mount(
-	component: typeof QueryConsole | typeof SchemaDiagram,
+	component: Component,
 	state = connectionsState(WAREHOUSE),
 ) {
 	const page = browserMount(component, connectionsBackend(state))
@@ -32,7 +33,7 @@ describe('diagram page', () => {
 		const page = browserMount(
 			SchemaDiagram,
 			connectionsBackend(connectionsState(selected), {
-				others: (read) =>
+				others: (read): BackendAnswer =>
 					read.url === '/api/database/schemas'
 						? SCHEMAS
 						: read.url === REFERENCES_URL

@@ -7,6 +7,7 @@
     "anti-slop/no-unsafe-dictionary-type": 0,
     "eslint/max-params": 0,
     "typescript/no-base-to-string": 0,
+    "typescript/no-implied-eval": 1,
     "typescript/no-unsafe-assignment": 0,
     "typescript/unbound-method": 0
   },

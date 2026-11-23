@@ -1,5 +1,6 @@
 import type { GridColumn, GridData } from '../composables/useDataBrowserGrid'
 import type { TableSummary } from '../composables/useDatabaseSchemas'
+import type { CellRow } from '../utils/values'
 
 /** Primary key assumed when the backend reports none (MongoDB's implicit id). */
 export const DEFAULT_PRIMARY_KEY = '_id'
@@ -11,7 +12,7 @@ export interface ColumnsResponse {
 }
 
 export interface ListResponse {
-	results: Record<string, unknown>[]
+	results: CellRow[]
 	total: number
 	primaryKey: string | null
 }
@@ -54,12 +55,12 @@ export interface GridCell {
 	c: number
 }
 
-const MOVES: Record<string, (cell: GridCell) => GridCell> = {
-	ArrowUp: ({ r, c }) => ({ r: r - 1, c }),
-	ArrowDown: ({ r, c }) => ({ r: r + 1, c }),
-	ArrowLeft: ({ r, c }) => ({ r, c: c - 1 }),
-	ArrowRight: ({ r, c }) => ({ r, c: c + 1 }),
-}
+const MOVES = new Map<string, (cell: GridCell) => GridCell>([
+	['ArrowUp', ({ r, c }) => ({ r: r - 1, c })],
+	['ArrowDown', ({ r, c }) => ({ r: r + 1, c })],
+	['ArrowLeft', ({ r, c }) => ({ r, c: c - 1 })],
+	['ArrowRight', ({ r, c }) => ({ r, c: c + 1 })],
+])
 
 /**
  * The cell an arrow key moves the focus to, kept inside a grid of `rows` by
@@ -71,7 +72,7 @@ export function moveFocus(
 	rows: number,
 	columns: number,
 ): GridCell | null {
-	const move = MOVES[key]
+	const move = MOVES.get(key)
 	if (!move) return null
 	const next = move(from)
 	return {

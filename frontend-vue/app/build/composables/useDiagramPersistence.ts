@@ -40,8 +40,11 @@ export interface StoredDiagram {
 }
 
 const BASE = '/api/database/diagram'
-// A request that hangs fails after this (ofetch's own `timeout`), so the
-// canvas shows the error and its "Try again" instead of "Saving…" forever.
+
+/**
+ * A request that hangs fails after this, so the canvas shows the error and
+ * its "Try again" instead of "Saving…" forever.
+ */
 const REQUEST_TIMEOUT_MS = 15_000
 
 /**
@@ -54,14 +57,13 @@ export function useDiagramPersistence(connection: () => string | undefined) {
 	const { $authFetch } = useAuthFetch()
 	const written = () => ({ connection: connection() })
 
-	// The schema whose diagram is read: in the browser only, when the canvas
-	// asks, since it draws and edits a working copy of it.
 	const readSchema = shallowRef<string | null>(null)
 	const stored = useApiData<StoredDiagram>(
 		() =>
 			readSchema.value ? `dms-database:diagram:${readSchema.value}` : null,
 		async ({ $authFetch: read, signal }) => {
-			const schema = readSchema.value as string
+			const schema = readSchema.value
+			if (!schema) throw new Error('Diagram not read')
 			const [layout, notes] = await Promise.all([
 				read<{ positions: DiagramPositions }>(
 					`${BASE}/layout/${encodeURIComponent(schema)}`,
@@ -87,7 +89,6 @@ export function useDiagramPersistence(connection: () => string | undefined) {
 		},
 	)
 
-	/** Reads a schema's layout and notes; throws when they cannot be read. */
 	async function readDiagram(schema: string): Promise<StoredDiagram> {
 		readSchema.value = schema
 		await stored.execute()

@@ -1,7 +1,4 @@
-// The diagram's keyboard shortcuts, the ones its toolbar's tooltips name.
-// Letters match whatever their case (Caps Lock, Shift); undo and redo take
-// Ctrl or ⌘, with Shift+Z or Y for redo.
-
+/** What a keyboard shortcut of the diagram does. */
 export type DiagramCommand =
 	| 'search'
 	| 'note'
@@ -18,16 +15,21 @@ type KeyInput = Pick<
 	'key' | 'ctrlKey' | 'metaKey' | 'altKey' | 'shiftKey'
 >
 
-const PLAIN_KEYS: Record<string, DiagramCommand> = {
-	f: 'search',
-	n: 'note',
-	v: 'select',
-	h: 'pan',
-	'1': 'fit',
-	'0': 'resetZoom',
-	escape: 'escape',
-}
+const PLAIN_KEYS = new Map<string, DiagramCommand>([
+	['f', 'search'],
+	['n', 'note'],
+	['v', 'select'],
+	['h', 'pan'],
+	['1', 'fit'],
+	['0', 'resetZoom'],
+	['escape', 'escape'],
+])
 
+/**
+ * The diagram's keyboard shortcuts, the ones its toolbar's tooltips name.
+ * Letters match whatever their case (Caps Lock, Shift); undo and redo take
+ * Ctrl or ⌘, with Shift+Z or Y for redo.
+ */
 export function diagramCommand(event: KeyInput): DiagramCommand | null {
 	if (event.altKey) return null
 	const key = event.key.toLowerCase()
@@ -36,11 +38,19 @@ export function diagramCommand(event: KeyInput): DiagramCommand | null {
 		if (key === 'y' && !event.shiftKey) return 'redo'
 		return null
 	}
-	return PLAIN_KEYS[key] ?? null
+	return PLAIN_KEYS.get(key) ?? null
 }
 
 const EDITABLE =
 	'input, textarea, select, [contenteditable=""], [contenteditable="true"]'
+
+function hasClosest(target: EventTarget | null): target is Element {
+	return (
+		target !== null &&
+		'closest' in target &&
+		typeof target.closest === 'function'
+	)
+}
 
 /**
  * Whether a key pressed on `target` is the canvas's to handle: not while
@@ -49,10 +59,10 @@ const EDITABLE =
  */
 export function canvasOwnsKey(
 	target: EventTarget | null,
-	canvas: Element | null,
+	canvas: Pick<Node, 'contains'> | null,
 ): boolean {
-	const element = target as Element | null
-	if (!element || typeof element.closest !== 'function') return true
+	if (!hasClosest(target)) return true
+	const element = target
 	if (element.closest(EDITABLE)) return false
 	if (element.ownerDocument?.querySelector('[role="dialog"]')) return false
 	const isPage =

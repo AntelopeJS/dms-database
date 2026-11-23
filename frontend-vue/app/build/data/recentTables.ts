@@ -1,11 +1,21 @@
-// The tables opened lately on each database, offered by the data browser's
-// first-visit state (D-15). Kept in this browser only.
+import { isRecord, isText } from '../utils/values'
 
+/** A table opened lately on a database, offered by the data browser's first-visit state; kept in this browser only. */
 export interface RecentTable {
 	schema: string
 	instance: string
 	table: string
 	openedAt: string
+}
+
+function isRecentTable(value: unknown): value is RecentTable {
+	return (
+		isRecord(value) &&
+		isText(value.schema) &&
+		isText(value.table) &&
+		isText(value.instance) &&
+		isText(value.openedAt)
+	)
 }
 
 const STORAGE_PREFIX = 'dms-database:data-browser:recent:'
@@ -15,23 +25,16 @@ const MAX_RECENT = 5
 export function readRecentTables(database: string): RecentTable[] {
 	if (typeof window === 'undefined') return []
 	try {
-		const parsed = JSON.parse(
+		const parsed: unknown = JSON.parse(
 			window.localStorage.getItem(STORAGE_PREFIX + database) ?? '[]',
 		)
-		return Array.isArray(parsed)
-			? parsed.filter(
-					(entry): entry is RecentTable =>
-						typeof entry?.schema === 'string' &&
-						typeof entry?.table === 'string' &&
-						typeof entry?.instance === 'string',
-				)
-			: []
+		return Array.isArray(parsed) ? parsed.filter(isRecentTable) : []
 	} catch {
 		return []
 	}
 }
 
-/** Records a table opened on `database` as its newest. */
+/** Records a table opened on `database` as its newest. A full or private storage only loses the suggestions. */
 export function rememberTable(
 	database: string,
 	entry: Omit<RecentTable, 'openedAt'>,
@@ -49,7 +52,5 @@ export function rememberTable(
 	].slice(0, MAX_RECENT)
 	try {
 		window.localStorage.setItem(STORAGE_PREFIX + database, JSON.stringify(next))
-	} catch {
-		// A full or private storage only loses the suggestions.
-	}
+	} catch {}
 }

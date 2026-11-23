@@ -35,18 +35,14 @@ import {
 	INSTANCE_METHODS,
 	QUERY_METHODS,
 	SCHEMA_METHODS,
+	type CompletionIndex,
 } from '../build/query/completion'
 import { targetFromSource } from '../build/query/target'
 import { tableAccess } from '../build/utils/databaseLinks'
 
-// The query editor (D-12): AQL with completion of the workspace's own
-// schemas, tables and columns, snippets to insert at
-// the cursor, and the cursor position.
-
 interface Props {
 	modelValue: string
 	executing?: boolean
-	// Drives the schema-aware autocomplete (table/field names + the query DSL).
 	schemas?: SchemaSummary[]
 	/** The saved query open in the editor, if any. */
 	savedName?: string
@@ -77,7 +73,6 @@ const internalValue = computed<string>({
 	set: (value) => emit('update:modelValue', value),
 })
 
-// The placeholder starts from a table of the workspace, not a made-up one.
 const placeholderExample = computed(() => {
 	const schema = props.schemas.find((candidate) => candidate.tables.length > 0)
 	const table = schema?.tables[0]?.name
@@ -106,7 +101,6 @@ function canExecute(): boolean {
 	return Boolean(internalValue.value.trim()) && !props.executing
 }
 
-// Light tidy: strip trailing whitespace and surrounding blank lines.
 function runFormat() {
 	internalValue.value = internalValue.value
 		.split('\n')
@@ -116,17 +110,10 @@ function runFormat() {
 		.replace(/\n+$/, '')
 }
 
-// --- autocomplete -----------------------------------------------------------
-// The DSL is a fluent chain — `schemas.<id>.instance().table("…").slice(…)` — so
-// completions are offered by position in that chain rather than as one flat list.
-
 interface CompletionItem {
 	label: string
 	type: string
 	detail?: string
-	// What is actually inserted, when it differs from the label: a string (e.g.
-	// auto-quoting a table name) or a function (e.g. rewriting `schemas.<id>` to
-	// bracket form for ids that aren't valid identifiers).
 	apply?:
 		| string
 		| ((
@@ -143,18 +130,10 @@ const opt = (label: string, type: string, detail?: string): CompletionItem => ({
 	detail,
 })
 
-// Schema-derived names, indexed per schema and per table so completions are
-// scoped to the chain's own schema and table. Rebuilt whenever the live schema
-// list changes; the completion source reads `.value` lazily, so no editor
-// reconfigure is needed.
 const completionData = computed(() => buildCompletionIndex(props.schemas ?? []))
 
-// How far back the chain the cursor is in is read: a long multi-line chain
-// still names its schema, instance and table.
 const CHAIN_WINDOW = 2000
 
-// The schema the chain before the cursor names: `schemas.demo` or
-// `schemas["dms-core"]`. Scopes table completions.
 function currentSchemaId(before: string): string | null {
 	return targetFromSource(before).schema ?? null
 }
@@ -164,21 +143,67 @@ function listFor(
 	schemaId: string | null,
 	fallback: string[],
 ): string[] {
-	return (schemaId && map[schemaId]) || fallback
+	return (schemaId && Object.hasOwn(map, schemaId) && map[schemaId]) || fallback
 }
 
 function chainText(ctx: CompletionContext): string {
 	return ctx.state.sliceDoc(Math.max(0, ctx.pos - CHAIN_WINDOW), ctx.pos)
 }
 
+function chainMembers(
+	upto: string,
+	from: number,
+	data: CompletionIndex,
+): CompletionResult | null {
+	const chain = upto.slice(0, -1).trimEnd()
+	if (/(?:^|[^\w$.])schemas$/.test(chain)) {
+		return {
+			from,
+			validFor: /[\w$]*/,
+			options: data.schemaIds.map((id) => {
+				if (/^[A-Z_$][\w$]*$/i.test(id)) {
+					return opt(id, 'namespace', 'schema')
+				}
+				return {
+					label: id,
+					type: 'namespace',
+					detail: 'schema',
+					apply: (view, _completion, fromPos, toPos) =>
+						view.dispatch({
+							changes: {
+								from: fromPos - 1,
+								to: toPos,
+								insert: `[${JSON.stringify(id)}]`,
+							},
+						}),
+				}
+			}),
+		}
+	}
+	if (
+		/(?:^|[^\w$.])schemas\s*(?:\.\s*[A-Za-z_$][\w$]*|\[\s*["'`][\w$-]+["'`]\s*\])$/.test(
+			chain,
+		)
+	) {
+		return {
+			from,
+			validFor: /[\w$]*/,
+			options: SCHEMA_METHODS.map((m) => opt(m, 'method', 'Schema')),
+		}
+	}
+	if (chain.endsWith(')')) {
+		const options = /\binstance\s*\([^()]*\)$/.test(chain)
+			? INSTANCE_METHODS.map((m) => opt(m, 'method', 'SchemaInstance'))
+			: QUERY_METHODS.map((m) => opt(m, 'method', 'Query'))
+		return { from, validFor: /[\w$]*/, options }
+	}
+	return null
+}
+
 function completionSource(ctx: CompletionContext): CompletionResult | null {
 	const data = completionData.value
-	// A bounded look-behind window covers multi-line chains without scanning the
-	// whole document on every keystroke.
 	const before = ctx.state.sliceDoc(Math.max(0, ctx.pos - 240), ctx.pos)
 
-	// `instance(<id>)` argument → that schema's instance ids (+ CROSS_INSTANCE).
-	// Acts as parameter help: it surfaces what instance() accepts. Quote-aware.
 	const inInstance =
 		/(?:^|[^\w$.])schemas\s*(?:\.\s*([A-Za-z_$][\w$]*)|\[\s*["'`]([\w$-]+)["'`]\s*\])\s*\.\s*instance\(\s*(["'`])?([\w$-]*)$/.exec(
 			before,
@@ -195,7 +220,6 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 			detail: 'instance id',
 			apply: quote ? id : `"${id}"`,
 		}))
-		// CROSS_INSTANCE is a bare identifier, so only when not inside a quote.
 		if (!quote) {
 			options.push({
 				label: 'CROSS_INSTANCE',
@@ -206,7 +230,6 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 		if (!options.length) return null
 		return { from: ctx.pos - typed.length, validFor: /[\w$-]*/, options }
 	}
-	// Schema id inside bracket access: `schemas["…`.
 	const inSchemaBracket = /schemas\s*\[\s*["'`]([\w$-]*)$/.exec(before)
 	if (inSchemaBracket) {
 		const typed = inSchemaBracket[1] ?? ''
@@ -216,7 +239,6 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 			options: data.schemaIds.map((id) => opt(id, 'namespace', 'schema')),
 		}
 	}
-	// `table(<name>)` argument → that schema's table names. Quote-aware.
 	const inTable = /\.table\(\s*(["'`])?([\w$-]*)$/.exec(before)
 	if (inTable) {
 		const quote = inTable[1]
@@ -234,8 +256,6 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 			})),
 		}
 	}
-	// Quoted field name inside a field selector (`pluck` / `orderBy` / `key`):
-	// the fields of the chain's table.
 	const inField = /\.(?:pluck|orderBy|key)\([^)]*["'`]([\w$]*)$/.exec(before)
 	if (inField) {
 		const typed = inField[1] ?? ''
@@ -247,63 +267,12 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 		}
 	}
 
-	// Member access / bare identifier.
 	const typed = before.match(/[\w$]*$/)?.[0] ?? ''
 	const upto = before.slice(0, before.length - typed.length)
 	const from = ctx.pos - typed.length
 
-	if (upto.endsWith('.')) {
-		const chain = upto.slice(0, -1).trimEnd()
-		if (/(?:^|[^\w$.])schemas$/.test(chain)) {
-			// `schemas.` → schema ids. Ids that aren't valid identifiers rewrite the
-			// dot to bracket form (`schemas["dms-core"]`).
-			return {
-				from,
-				validFor: /[\w$]*/,
-				options: data.schemaIds.map((id) => {
-					if (/^[A-Z_$][\w$]*$/i.test(id)) {
-						return opt(id, 'namespace', 'schema')
-					}
-					return {
-						label: id,
-						type: 'namespace',
-						detail: 'schema',
-						apply: (view, _completion, fromPos, toPos) =>
-							view.dispatch({
-								changes: {
-									from: fromPos - 1,
-									to: toPos,
-									insert: `[${JSON.stringify(id)}]`,
-								},
-							}),
-					}
-				}),
-			}
-		}
-		if (
-			/(?:^|[^\w$.])schemas\s*(?:\.\s*[A-Za-z_$][\w$]*|\[\s*["'`][\w$-]+["'`]\s*\])$/.test(
-				chain,
-			)
-		) {
-			// `schemas.<id>.` / `schemas["<id>"].` → Schema methods
-			return {
-				from,
-				validFor: /[\w$]*/,
-				options: SCHEMA_METHODS.map((m) => opt(m, 'method', 'Schema')),
-			}
-		}
-		if (chain.endsWith(')')) {
-			// A completed call → its result's methods.
-			const options = /\binstance\s*\([^()]*\)$/.test(chain)
-				? INSTANCE_METHODS.map((m) => opt(m, 'method', 'SchemaInstance'))
-				: QUERY_METHODS.map((m) => opt(m, 'method', 'Query'))
-			return { from, validFor: /[\w$]*/, options }
-		}
-		// A `.` after a bare, uncalled method (e.g. `…instance.`) is not a DSL step.
-		return null
-	}
+	if (upto.endsWith('.')) return chainMembers(upto, from, data)
 
-	// Top level: the entry point only.
 	if (!typed && !ctx.explicit) return null
 	return {
 		from,
@@ -312,14 +281,12 @@ function completionSource(ctx: CompletionContext): CompletionResult | null {
 	}
 }
 
-// --- editor -----------------------------------------------------------------
 const editorContainer = ref<HTMLElement | null>(null)
 let view: EditorView | null = null
 const themeCompartment = new Compartment()
 const placeholderCompartment = new Compartment()
 const colorMode = useColorMode()
 
-// Transparent surfaces so the editor blends into the DmsCardPanel (bg-default).
 const baseTheme = EditorView.theme({
 	'&': { backgroundColor: 'transparent', height: '100%', fontSize: '13px' },
 	'&.cm-focused': { outline: 'none' },
@@ -394,7 +361,6 @@ onMounted(() => {
 	view = new EditorView({ state, parent: editorContainer.value })
 })
 
-// External edits (history load, format, clear) → push into the editor.
 watch(
 	() => props.modelValue,
 	(value) => {
@@ -412,7 +378,6 @@ watch(placeholderExample, (example) => {
 	})
 })
 
-// Swap the syntax theme when the app toggles light/dark.
 watch(
 	() => colorMode.value,
 	() => {
@@ -427,7 +392,6 @@ onBeforeUnmount(() => {
 	view = null
 })
 
-// Inserts a snippet at the cursor, the cursor landing inside its first quotes.
 function insertSnippet(snippet: Snippet) {
 	if (!view) return
 	const { from, to } = view.state.selection.main
@@ -493,8 +457,6 @@ defineExpose({ focus: () => view?.focus() })
 				@click="emit('save')"
 			>
 				{{ t('dms_database.query.editor.save') }}
-				<!-- `meta` and `ctrl` read ⌘ or Ctrl from the browser, which the
-				     server cannot tell: rendered on the client only. -->
 				<DmsClientOnly>
 					<UKbd value="meta" size="sm" class="ml-1" />
 				</DmsClientOnly>
@@ -515,7 +477,6 @@ defineExpose({ focus: () => view?.focus() })
 			</UButton>
 		</div>
 
-		<!-- CodeMirror mounts here on the client. -->
 		<div
 			ref="editorContainer"
 			class="bg-default text-toned h-60 overflow-auto"

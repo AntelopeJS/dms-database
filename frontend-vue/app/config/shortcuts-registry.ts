@@ -1,6 +1,3 @@
-// The module's keyboard shortcuts, listed on the dashboard's Shortcuts
-// settings page (D-17); the components bind them themselves.
-
 interface ShortcutMetadata {
 	key: string[]
 	descriptionKey: string
@@ -29,6 +26,7 @@ function group(
 	}
 }
 
+/** The module's keyboard shortcuts, listed on the dashboard's Shortcuts settings page; the components bind them themselves. */
 export default [
 	group('$dms_database.shortcuts.data_browser', [
 		[['T'], 'find_table'],

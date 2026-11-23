@@ -17,9 +17,6 @@ import {
 } from '../app/build/data/pickerMenus'
 import { sortNames } from '../app/build/data/instanceOptions'
 
-// The schema and instance pickers the Schemas page's filter bar and the data
-// browser's sidebar share (SchemaPicker.vue, InstancePicker.vue).
-
 const values = (groups: PickerItem[][]) =>
 	groups.map((group) => group.map((item) => item.value ?? `#${item.label}`))
 
@@ -195,7 +192,9 @@ describe('instance picker menu', () => {
 			),
 		).toEqual([['eu']])
 	})
+})
 
+describe('instance picker menu: its states and choices', () => {
 	it('says the instances load, failed, or are more than listed', () => {
 		expect(values(instanceMenu(menu({ status: 'pending' })))[1]).toEqual([
 			'#Loading',

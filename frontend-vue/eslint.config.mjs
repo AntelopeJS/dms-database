@@ -1,15 +1,5 @@
-import vue from 'eslint-plugin-vue'
-import typescript from '@typescript-eslint/parser'
+import { antelopeNuxtConfig } from "@antelopejs/tooling-configs/eslint";
 
-export default [
-	{ ignores: ['node_modules/**', 'dist/**'] },
-	...vue.configs['flat/essential'],
-	{
-		files: ['**/*.ts'],
-		languageOptions: { parser: typescript },
-	},
-	{
-		files: ['**/*.vue'],
-		languageOptions: { parserOptions: { parser: typescript } },
-	},
-]
+export default antelopeNuxtConfig({
+	typeAware: { tsconfigRootDir: import.meta.dirname },
+}).prepend({ ignores: [".dms-types/**"] });

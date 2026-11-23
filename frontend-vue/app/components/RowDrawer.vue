@@ -13,6 +13,11 @@ import {
 	isWideValue,
 	parseDraft,
 } from '../build/data/cellValues'
+import {
+	type CellRow as GridRow,
+	type CellValue,
+	isCellValue,
+} from '../build/utils/values'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
@@ -20,11 +25,6 @@ import type { GridColumn } from '../build/composables/useDataBrowserGrid'
 import { tableLink } from '../build/utils/databaseLinks'
 import { describeRuntimeType } from '../build/utils/fieldTypes'
 import DrawerTabs from './DrawerTabs.vue'
-
-// One row of the data browser in a drawer: its fields, editable and staged
-// like the grid's cells, its JSON, and the rows of other tables pointing at
-// it. The DMS row header (the drawer's `rowHeader`) names the row, its
-// position, previous / next and J / K.
 
 interface RowReference {
 	schema: string
@@ -38,20 +38,19 @@ type DrawerTab = 'fields' | 'json' | 'references'
 const props = withDefaults(
 	defineProps<{
 		tab: BrowserTab
-		row: Record<string, unknown>
+		row: GridRow
 		rowId: string | null
 		columns: GridColumn[]
 		table?: TableSummary
 		readOnly: boolean
 		/** Whether the rows pointing at this one are offered. */
 		showReferences?: boolean
-		onStage: (rowId: string, field: string, value: unknown) => void
+		onStage: (rowId: string, field: string, value: CellValue) => void
 		onReview: () => void
 	}>(),
 	{ showReferences: true },
 )
 
-// A link out closes the drawer: the page it opens may be this one.
 const emit = defineEmits<{ success: [] }>()
 
 const { t, n } = useI18n()
@@ -71,7 +70,7 @@ const relations = computed(
 		),
 )
 
-function valueOf(field: string): unknown {
+function valueOf(field: string): CellValue {
 	if (!props.rowId) return props.row[field]
 	const cell = staged.get(props.tab.id, props.rowId, field)
 	return cell ? cell.after : props.row[field]
@@ -88,7 +87,6 @@ const fields = computed(() =>
 			key: column.isPrimaryKey,
 			relation,
 			structured: isStructured(value),
-			// Laid out by the value read: editing it does not move the row.
 			wide: isWideValue(props.row[column.name]),
 			type: relation
 				? relation.toTable
@@ -113,7 +111,6 @@ const fields = computed(() =>
 const pending = computed(() =>
 	props.rowId ? staged.rowCount(props.tab.id, props.rowId) : 0,
 )
-// The review writes every staged change of the table, this row's and others'.
 const tabPending = computed(() => staged.count(props.tab.id))
 const stagedRow = computed(() =>
 	Object.fromEntries(
@@ -122,7 +119,7 @@ const stagedRow = computed(() =>
 )
 const json = computed(() => JSON.stringify(stagedRow.value, null, 2))
 
-function draftOf(field: string, value: unknown): string {
+function draftOf(field: string, value: CellValue): string {
 	return (
 		drafts[field] ??
 		(isStructured(value) ? JSON.stringify(value, null, 2) : draftText(value))
@@ -135,7 +132,8 @@ function commit(field: (typeof fields.value)[number]) {
 	Reflect.deleteProperty(errors, field.name)
 	if (field.structured) {
 		try {
-			props.onStage(props.rowId, field.name, JSON.parse(draft))
+			const parsed: unknown = JSON.parse(draft)
+			if (isCellValue(parsed)) props.onStage(props.rowId, field.name, parsed)
 		} catch {
 			errors[field.name] = t('dms_database.data.row.invalid_json')
 			return
@@ -151,7 +149,6 @@ function commit(field: (typeof fields.value)[number]) {
 	Reflect.deleteProperty(drafts, field.name)
 }
 
-// The id the row's label names its control by.
 function controlId(field: string): string {
 	return `dms-database-row-field-${field.replace(/[^\w-]/g, '_')}`
 }
@@ -166,8 +163,6 @@ function setBoolean(field: string, value: boolean) {
 	if (props.rowId) props.onStage(props.rowId, field, value)
 }
 
-// --- referenced by ---
-// Read once the drawer opens, in the browser.
 const referencesRead = useApiData<{ items: RowReference[] }>(
 	() =>
 		props.rowId && props.showReferences
@@ -218,7 +213,6 @@ const scope = computed(() => {
 	return `${props.tab.schema}.${props.tab.table}${badge ? ` ${badge}` : ''}`
 })
 
-// The instance a link to a table of the same schema keeps.
 const scopedInstance = computed(() =>
 	props.tab.instance === DEFAULT_INSTANCE_VALUE ||
 	props.tab.instance === CROSS_INSTANCE_VALUE
@@ -228,8 +222,6 @@ const scopedInstance = computed(() =>
 </script>
 
 <template>
-	<!-- As wide as the side drawer, as the table inspector; it fills the
-		drawer's flex body, so the DMS footer sits at its end. -->
 	<div class="flex w-full min-w-0 flex-1 flex-col gap-4">
 		<header class="grid gap-3">
 			<p
@@ -243,12 +235,6 @@ const scopedInstance = computed(() =>
 		</header>
 
 		<div class="min-w-0">
-			<!-- Each field is a DMS form row: the column's name in the label
-				column, its type and staged change as help, the error under the
-				control. A wide value (JSON, a long text) takes the row's width
-				under its label; the others sit beside it once the row is wide
-				enough (the row's container query). Every control keeps the same
-				end slot, "Set to null" or nothing: the column stays even. -->
 			<div v-if="active === 'fields'" class="flex flex-col">
 				<DmsFieldRow
 					v-for="field in fields"
@@ -317,7 +303,6 @@ const scopedInstance = computed(() =>
 									:model-value="field.value"
 									@update:model-value="setBoolean(field.name, Boolean($event))"
 								/>
-								<!-- JSON, or a text of several lines: a text area. -->
 								<DmsInputTextarea
 									v-else-if="field.wide"
 									:id="controlId(field.name)"
@@ -361,7 +346,6 @@ const scopedInstance = computed(() =>
 									@keydown.enter.prevent="commit(field)"
 								/>
 							</div>
-							<!-- The end slot, as wide with its button or without. -->
 							<div class="flex w-8 shrink-0 justify-center" data-null-slot>
 								<UButton
 									v-if="field.value !== null && field.value !== undefined"
@@ -381,7 +365,6 @@ const scopedInstance = computed(() =>
 						</template>
 					</UFormField>
 					<DmsAutoLink
-						@click="emit('success')"
 						v-if="
 							field.relation &&
 							field.value !== null &&
@@ -402,6 +385,7 @@ const scopedInstance = computed(() =>
 							})
 						"
 						class="text-primary inline-flex items-center gap-1 justify-self-start text-xs hover:underline"
+						@click="emit('success')"
 					>
 						<UIcon name="i-ph-arrow-square-out" class="size-3" />
 						{{
@@ -435,7 +419,6 @@ const scopedInstance = computed(() =>
 					:title="t('dms_database.data.row.references_none')"
 				/>
 				<DmsAutoLink
-					@click="emit('success')"
 					v-for="reference in references ?? []"
 					:key="`${reference.schema}.${reference.table}.${reference.field}`"
 					:to="
@@ -450,6 +433,7 @@ const scopedInstance = computed(() =>
 						})
 					"
 					class="border-default hover:bg-elevated/50 flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[12.5px]"
+					@click="emit('success')"
 				>
 					<UIcon name="i-ph-table" class="text-primary size-3.5" />
 					<span class="text-toned">

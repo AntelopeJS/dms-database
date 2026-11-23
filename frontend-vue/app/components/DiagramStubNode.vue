@@ -3,9 +3,6 @@ import { Handle, Position } from '@vue-flow/core'
 
 import type { StubNodeData } from '../build/diagram/graph'
 
-// A table a relation points to that is not drawn: one of another schema, or
-// one the focus leaves out. The dashed chip opens it: in its own schema's
-// diagram, or here, out of the focus.
 defineProps<{ data: StubNodeData }>()
 </script>
 

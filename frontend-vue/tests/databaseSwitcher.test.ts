@@ -5,8 +5,16 @@ import {
 	registerUnsavedChanges,
 	resetUnsavedChanges,
 } from '#dms-ui/app/build/composables/unsaved-changes/registry'
-import { browserMount, menuLocks, serverRender } from './fixtures/serverRender'
-import type { BackendRead } from './fixtures/serverRender'
+import {
+	browserMount,
+	isPropHandler,
+	menuLocks,
+	propText,
+	type BackendRead,
+	type BrowserMount,
+	type MountProps,
+	type MountValue,
+} from './fixtures/serverRender'
 import {
 	CONNECTIONS_URL,
 	OWN,
@@ -35,25 +43,24 @@ const PopoverStub = defineComponent({
 			]),
 })
 
-type Props = Record<string, unknown>
-type Mounted = ReturnType<typeof browserMount>
+type Mounted = BrowserMount
 
-const rowOf = (page: Mounted, id: string): Props | undefined =>
+const rowOf = (page: Mounted, id: string): MountProps | undefined =>
 	page.find((props) => props['data-database-option'] === id)
 
 /** What picking a row does: the handler of its button. */
 function pickRow(page: Mounted, id: string): void {
 	const click = rowOf(page, id)?.onClick
-	if (typeof click !== 'function') throw new Error(`no row for ${id}`)
+	if (!isPropHandler(click)) throw new Error(`no row for ${id}`)
 	click()
 }
 
-const connectEntry = (page: Mounted): Props | undefined =>
+const connectEntry = (page: Mounted): MountProps | undefined =>
 	page.find((props) => props.icon === 'i-ph-plus')
 
 async function mountSwitcher(
 	backend = connectionsBackend(connectionsState(OWN)),
-	props: Record<string, unknown> = {},
+	props: Record<string, MountValue> = {},
 	provide: [symbol, unknown][] = [],
 ) {
 	const page = browserMount(DatabaseSwitcher, backend, props, {
@@ -223,13 +230,15 @@ describe('database switcher: a database the project did not fully register', () 
 		)
 		const row = rowOf(page, 'shop')
 		expect(row?.disabled).toBe(true)
-		expect(String(row?.title)).toContain('unregistered_hint')
-		expect(String(row?.title)).toContain('missing_database')
+		expect(propText(row?.title)).toContain('unregistered_hint')
+		expect(propText(row?.title)).toContain('missing_database')
 		expect(page.text()).toContain(
 			'label="dms_database.connections.switcher.unregistered"',
 		)
 		expect(page.text()).not.toContain('access_read')
-		expect(page.text()).not.toContain('UBadge" label="dms_database.connections.external')
+		expect(page.text()).not.toContain(
+			'UBadge" label="dms_database.connections.external',
+		)
 	})
 
 	it('stores nothing when its row is activated anyway, which an implementation that relies on the disabled attribute alone gets wrong', async () => {
@@ -267,7 +276,7 @@ describe('database switcher: connect a database', () => {
 		])
 		const click = connectEntry(page)?.onClick
 		expect(click).toBeTypeOf('function')
-		if (typeof click === 'function') click()
+		if (isPropHandler(click)) click()
 		expect(open).toHaveBeenCalledExactlyOnceWith('connect-database')
 	})
 })

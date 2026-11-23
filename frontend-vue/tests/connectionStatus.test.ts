@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { browserMount, type BackendRead } from './fixtures/serverRender'
+import {
+	browserMount,
+	type BackendAnswer,
+	type BackendRead,
+} from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 
 function healthWith(driver: string | null) {
-	return ({ url }: BackendRead): unknown =>
+	return ({ url }: BackendRead): BackendAnswer =>
 		url === '/api/database/health'
 			? {
 					status: 'ok',

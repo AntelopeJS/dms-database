@@ -40,8 +40,6 @@ export function useDiagramSearch({
 			: null,
 	)
 
-	// Synchronous: an Enter right after the text changed starts from the first
-	// match of the new text.
 	watch(
 		search,
 		() => {
@@ -57,7 +55,6 @@ export function useDiagramSearch({
 		const tableName = matches[searchIndex.value] ?? ''
 		const id = tableNodeId(schemaId.value, tableName)
 		if (focusIds.value && !focusIds.value.has(id)) focusId.value = null
-		// A column found in a folded table unfolds it.
 		if (schema.value) {
 			const next = expandForSearch(
 				schema.value,
@@ -70,7 +67,7 @@ export function useDiagramSearch({
 				render()
 			}
 		}
-		nextTick(() => centerOn(id))
+		void nextTick(() => centerOn(id))
 	}
 
 	return { search, searchIndex, searchMissed, searchPosition, runSearch }

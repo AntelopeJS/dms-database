@@ -23,12 +23,13 @@ export function useTableCounts(
 		() => (schema.value ? TABLES_ENDPOINT : null),
 		{
 			query: () => {
-				const query: Record<string, string> = {
-					filter_schema: isFilterToken(schema.value ?? ''),
-				}
-				if (instance.value !== DEFAULT_INSTANCE_VALUE)
-					query.filter_instance = isFilterToken(instance.value)
-				return query
+				const filterSchema = isFilterToken(schema.value ?? '')
+				return instance.value === DEFAULT_INSTANCE_VALUE
+					? { filter_schema: filterSchema }
+					: {
+							filter_schema: filterSchema,
+							filter_instance: isFilterToken(instance.value),
+						}
 			},
 		},
 	)

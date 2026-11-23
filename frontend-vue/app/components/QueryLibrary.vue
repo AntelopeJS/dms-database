@@ -11,11 +11,6 @@ import type {
 	SavedQuery,
 } from '../build/composables/useQueryStore'
 
-// The query library (D-11): one rail for the runs of the caller (History),
-// the queries they saved (Saved) and the ones teammates shared (Team), with
-// one search over all three. Runs are grouped by day and carry a dot telling
-// a fast, slow, failed or writing run apart.
-
 type LibraryTab = 'history' | 'saved' | 'team'
 
 const props = defineProps<{
@@ -38,8 +33,6 @@ const emit = defineEmits<{
 }>()
 
 const { t, n } = useI18n()
-// Times and days in the user's time zone, which a server render writes in
-// the browser's: the HTML shows what the browser shows.
 const { dateTimeFormat } = useRegionalFormat()
 
 const tab = ref<LibraryTab>('history')
@@ -64,7 +57,6 @@ function matches(...texts: (string | undefined)[]): boolean {
 	return !needle || texts.some((text) => text?.toLowerCase().includes(needle))
 }
 
-// Each run leads with where it pointed: runs on one schema all start alike.
 const runs = computed(() =>
 	props.history.map((entry) => ({
 		entry,

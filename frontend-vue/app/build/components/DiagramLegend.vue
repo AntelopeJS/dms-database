@@ -39,7 +39,6 @@ const { t } = useI18n()
 	align-items: center;
 	gap: 5px;
 }
-/* Below md the legend and the overview give their room to the canvas. */
 @media (max-width: 767.98px) {
 	.diagram-legend {
 		display: none;

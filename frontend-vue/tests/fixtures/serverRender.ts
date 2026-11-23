@@ -1,9 +1,3 @@
-/**
- * Server renders of the module's components on the renderer's real data
- * layer (`#dms/frontend-module`) and the DMS's real `useApiData`, as the
- * generated application runs them: what each render reads from the backend,
- * and what it hands the browser with the page.
- */
 import * as vue from 'vue'
 import { createSSRApp, h, type Component } from 'vue'
 import { renderToString } from 'vue/server-renderer'
@@ -13,23 +7,66 @@ import type { DmsPayload } from '#dms/frontend-module'
 const engine = await import('#dms/frontend-module')
 const regional = await import('#dms-core/app/utils/regional')
 
+/** A value a backend request carries or a backend answers with. */
+export type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue }
+
 /** A backend request a render made. */
 export interface BackendRead {
 	url: string
 	method: string
-	query: Record<string, unknown>
-	body?: unknown
+	query: Record<string, JsonValue>
+	body?: JsonValue
 	headers?: Record<string, string>
 }
 
-export type Backend = (read: BackendRead) => unknown
+/** What a backend answers: the value, or a promise of it for a later answer. */
+export type BackendAnswer = JsonValue | Promise<JsonValue>
+
+export type Backend = (read: BackendRead) => BackendAnswer
 
 interface FetchOptions {
 	method?: string
-	query?: Record<string, unknown>
-	body?: unknown
+	query?: Record<string, JsonValue>
+	body?: JsonValue
 	headers?: Record<string, string>
 	signal?: AbortSignal
+}
+
+/** A handler a component put on an element, called with the value it emits. */
+export type PropHandler = (value?: MountValue) => void
+
+/** A prop a component put on an element of the browser mount. */
+export type MountValue =
+	| string
+	| number
+	| boolean
+	| null
+	| undefined
+	| PropHandler
+	| MountValue[]
+	| { [key: string]: MountValue }
+
+/** The props of an element of the browser mount. */
+export type MountProps = Record<string, MountValue>
+
+/** Whether a prop is a handler a test can call. */
+export function isPropHandler(value: MountValue): value is PropHandler {
+	return typeof value === 'function'
+}
+
+function isText(value: MountValue): value is string {
+	return typeof value === 'string'
+}
+
+/** What a prop reads as in a rendered attribute: a text as it is, anything else as JSON. */
+export function propText(value: MountValue): string {
+	return isText(value) ? value : String(JSON.stringify(value))
 }
 
 const CONNECTIONS_URL = '/api/database/connections'
@@ -55,11 +92,14 @@ const OWN_DATABASE_ONLY = {
 	],
 }
 
-function answerIsConnections(answer: unknown): boolean {
+function answerIsConnections(
+	answer: BackendAnswer,
+): answer is { connections: JsonValue[] } {
 	return (
 		typeof answer === 'object' &&
 		answer !== null &&
-		'connections' in answer &&
+		!Array.isArray(answer) &&
+		!(answer instanceof Promise) &&
 		Array.isArray(answer.connections)
 	)
 }
@@ -87,8 +127,6 @@ const $authFetch = async (url: string, options: FetchOptions = {}) => {
 
 const noop = () => undefined
 
-// The application's auto-imports: Vue's API, the renderer's, the DMS
-// layers' the module calls, and the module's own composables.
 for (const [name, value] of Object.entries(vue))
 	if (/^[a-z]/.test(name)) vi.stubGlobal(name, value)
 vi.stubGlobal('useDmsFetch', engine.useDmsFetch)
@@ -104,10 +142,9 @@ vi.stubGlobal('useApiErrorPresenter', useApiErrorPresenter)
 vi.stubGlobal('getPluginI18n', () => ({
 	i18n: { tm: (key: string) => key, rt: (text: string) => text },
 }))
-// `useFetchAuth`: the former name of `useApiData`.
 vi.stubGlobal('useAuthFetch', () => ({ $authFetch, useFetchAuth: useApiData }))
 vi.stubGlobal('useI18n', () => ({
-	t: (key: string, params?: Record<string, unknown>) =>
+	t: (key: string, params?: Record<string, string | number>) =>
 		params ? `${key} ${Object.values(params).join(' ')}` : key,
 	n: (value: number) => String(value),
 	locale: vue.ref('en'),
@@ -137,29 +174,41 @@ vi.stubGlobal('useMenuLocks', () => ({
 		menuLocks.value = menuLocks.value.filter((known) => known.fullId !== fullId)
 	},
 }))
-/** Every page of the site layout, its `fullId` derived from its path. */
 vi.stubGlobal('useSiteLayout', () => ({
 	findMatchingRoute: (path: string) => ({
 		metadata: { fullId: `page${path}` },
 	}),
 }))
+/** What a confirmation dialog is asked, as far as the tests read it. */
+export interface ConfirmRequest {
+	color?: string
+	description?: string
+	onConfirm?: () => Promise<void>
+}
+
+/** What a drawer's component is given, as far as the tests read it. */
+export interface DrawerComponentOptions {
+	readOnly?: boolean
+	showReferences?: boolean
+}
+
 /** The confirmation dialogs the mounted components opened, in order. */
-export const confirmations: unknown[] = []
+export const confirmations: ConfirmRequest[] = []
 let confirmationAnswer = false
 /** What the next confirmation dialogs resolve: the user's choice. */
 export function answerConfirmations(confirmed: boolean): void {
 	confirmationAnswer = confirmed
 }
 vi.stubGlobal('useConfirm', () => ({
-	confirm: async (options: unknown) => {
+	confirm: async (options: ConfirmRequest) => {
 		confirmations.push(options)
 		return confirmationAnswer
 	},
 }))
 /** The options of each drawer the mounted components opened, in order. */
-export const drawers: { componentOptions?: Record<string, unknown> }[] = []
+export const drawers: { componentOptions?: DrawerComponentOptions }[] = []
 vi.stubGlobal('useDrawer', () => ({
-	open: (options: { componentOptions?: Record<string, unknown> }) => {
+	open: (options: { componentOptions?: DrawerComponentOptions }) => {
 		drawers.push(options)
 		return { result: new Promise(noop), patch: noop }
 	},
@@ -170,19 +219,18 @@ vi.stubGlobal('useDmsUserSession', () => ({
 	user: vue.ref({ _id: 'me' }),
 	loggedIn: vue.ref(true),
 }))
-for (const [name, module] of Object.entries({
-	useDataBrowserGrid:
-		await import('../../app/build/composables/useDataBrowserGrid'),
-	useDataBrowserTabs:
-		await import('../../app/build/composables/useDataBrowserTabs'),
-	useStagedEdits: await import('../../app/build/data/stagedEdits'),
-	useDatabaseSchemas:
-		await import('../../app/build/composables/useDatabaseSchemas'),
-}))
-	vi.stubGlobal(name, (module as Record<string, unknown>)[name])
+const { useDataBrowserGrid } =
+	await import('../../app/build/composables/useDataBrowserGrid')
+const { useDataBrowserTabs } =
+	await import('../../app/build/composables/useDataBrowserTabs')
+const { useStagedEdits } = await import('../../app/build/data/stagedEdits')
+const { useDatabaseSchemas } =
+	await import('../../app/build/composables/useDatabaseSchemas')
+vi.stubGlobal('useDataBrowserGrid', useDataBrowserGrid)
+vi.stubGlobal('useDataBrowserTabs', useDataBrowserTabs)
+vi.stubGlobal('useStagedEdits', useStagedEdits)
+vi.stubGlobal('useDatabaseSchemas', useDatabaseSchemas)
 
-// The DMS's and Nuxt UI's components the module's templates use: each
-// renders its default slot, its props as attributes.
 const UI_COMPONENTS = [
 	'DmsAutoLink',
 	'DmsCardPanel',
@@ -238,7 +286,7 @@ const uiStub = (name: string): Component =>
 interface MountNode {
 	tag?: string
 	text?: string
-	props: Record<string, unknown>
+	props: MountProps
 	children: MountNode[]
 	parent: MountNode | null
 }
@@ -256,8 +304,6 @@ function detach(node: MountNode): void {
 	node.parent = null
 }
 
-// A DOM-less renderer: enough of Vue's node operations to mount a component
-// tree in Node and read back what it shows.
 const { createApp: createMountApp } = vue.createRenderer<MountNode, MountNode>({
 	createElement: (tag) => mountNode({ tag }),
 	createText: (text) => mountNode({ text }),
@@ -281,7 +327,7 @@ const { createApp: createMountApp } = vue.createRenderer<MountNode, MountNode>({
 		const siblings = node.parent?.children ?? []
 		return siblings[siblings.indexOf(node) + 1] ?? null
 	},
-	patchProp: (node, key, _previous, next) => {
+	patchProp: (node, key, _previous, next: MountValue) => {
 		node.props[key] = next
 	},
 })
@@ -289,10 +335,10 @@ const { createApp: createMountApp } = vue.createRenderer<MountNode, MountNode>({
 function mountText(node: MountNode): string {
 	if (node.tag === undefined) return node.text ?? ''
 	const attributes = Object.entries(node.props)
-		.filter(([, value]) => typeof value !== 'function')
+		.filter(([, value]) => !isPropHandler(value))
 		.map(
 			([key, value]) =>
-				` ${key}="${typeof value === 'string' ? value : JSON.stringify(value)}"`,
+				` ${key}="${isText(value) ? value : JSON.stringify(value)}"`,
 		)
 		.join('')
 	return `<${node.tag}${attributes}>${node.children.map(mountText).join('')}</${node.tag}>`
@@ -300,7 +346,7 @@ function mountText(node: MountNode): string {
 
 function findNode(
 	node: MountNode,
-	match: (props: Record<string, unknown>) => boolean,
+	match: (props: MountProps) => boolean,
 ): MountNode | undefined {
 	if (node.tag !== undefined && match(node.props)) return node
 	for (const child of node.children) {
@@ -323,9 +369,7 @@ export interface BrowserMount {
 	 * The props, handlers included, of the first element shown that `match`
 	 * accepts: what a click or a toggle on it would call.
 	 */
-	find: (
-		match: (props: Record<string, unknown>) => boolean,
-	) => Record<string, unknown> | undefined
+	find: (match: (props: MountProps) => boolean) => MountProps | undefined
 	reads: BackendRead[]
 	/** What the mounted components threw outside a test's own calls. */
 	errors: unknown[]
@@ -347,7 +391,7 @@ export interface BrowserMountOptions {
 export function browserMount(
 	component: Component,
 	respond: Backend,
-	props: Record<string, unknown> = {},
+	props: Record<string, MountValue> = {},
 	options: BrowserMountOptions = {},
 ): BrowserMount {
 	backend = respond
@@ -366,8 +410,6 @@ export function browserMount(
 			),
 	})
 	engine.provideDmsFrontendRuntime(app, runtime)
-	// The tests compile the components for a server, whose setups record
-	// themselves in the render's context: an empty one stands in for it.
 	app.provide(vue.ssrContextKey, {})
 	app.component('DmsClientOnly', engine.DmsClientOnly)
 	const replacements = options.components ?? {}
@@ -417,7 +459,7 @@ function transferKey(read: BackendRead): string | null {
  */
 export async function serverRender(
 	component: Component,
-	props: Record<string, unknown> = {},
+	props: Record<string, MountValue> = {},
 	options: { url?: string; respond?: Backend } = {},
 ): Promise<ServerRender> {
 	backend = options.respond ?? (() => ({}))
@@ -466,6 +508,7 @@ export function inBrowser<T>(
 	const app = createSSRApp({ render: () => null })
 	engine.provideDmsFrontendRuntime(app, runtime)
 	const scope = vue.effectScope()
-	const value = app.runWithContext(() => scope.run(setup) as T)
+	const value = app.runWithContext(() => scope.run(setup))
+	if (value === undefined) throw new Error('the effect scope is inactive')
 	return { value, reads }
 }

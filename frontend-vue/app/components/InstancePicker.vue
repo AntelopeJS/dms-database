@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
+import { isText } from '../build/utils/values'
 import {
 	PICKER_LIMIT,
 	type InstanceChoice,
@@ -15,14 +16,6 @@ import {
 	type AllInstancesMode,
 	type InstancesStatus,
 } from '../build/data/pickerMenus'
-
-// An instance picked from a searchable menu, shared by the Schemas page's
-// filter bar and the data browser's sidebar. A SaaS schema may hold one
-// instance per tenant: the named ones load when the menu opens and the
-// server searches them, a hundred at most with how many matched. "All
-// instances" (with their count) and "default" are pinned first, "all" after
-// the matches of a search; "all" is a filter on the Schemas page, the data
-// browser's read-only view there.
 
 const props = withDefaults(
 	defineProps<{
@@ -51,7 +44,6 @@ interface InstancesPage {
 const { t, n } = useI18n()
 
 const search = ref('')
-// What the server searches: the term once typing settles.
 const term = ref('')
 const open = ref(false)
 
@@ -59,15 +51,14 @@ watchDebounced(search, (value) => (term.value = value.trim()), {
 	debounce: SEARCH_DEBOUNCE_MS,
 })
 
-// Read when the menu opens, in the browser only, never on the page's
-// refreshes: a closed menu shows nothing of it.
 const instances = useApiData<InstancesPage>(
 	() =>
 		props.schema
 			? `dms-database:instances:${JSON.stringify([props.schema, term.value])}`
 			: null,
 	async ({ $authFetch, signal }) => {
-		const schema = props.schema as string
+		const schema = props.schema
+		if (!schema) throw new Error('No schema to list the instances of')
 		const searched = term.value
 		const page = await $authFetch<{ instances: string[]; total: number }>(
 			INSTANCES_ENDPOINT,
@@ -86,17 +77,14 @@ const instances = useApiData<InstancesPage>(
 	},
 )
 
-// Another schema shows none of the previous one's instances while its own
-// load; another search keeps the previous matches on screen meanwhile.
 const page = computed(() => {
 	const value = instances.data.value
 	return value?.schema === props.schema ? value : null
 })
 const names = computed(() => page.value?.instances ?? [])
 const matched = computed(() => page.value?.total ?? 0)
-const status = computed(() => instances.status.value as InstancesStatus)
+const status = computed<InstancesStatus>(() => instances.status.value)
 
-// Named instances of the schema, before any search; null until known.
 const unsearched = shallowRef<InstancesPage | null>(null)
 watch(page, (value) => {
 	if (value && !value.term) unsearched.value = value
@@ -160,8 +148,7 @@ const icon = computed(() => {
 })
 
 function pick(value: unknown) {
-	if (typeof value === 'string')
-		emit('update:modelValue', instancePickChoice(value))
+	if (isText(value)) emit('update:modelValue', instancePickChoice(value))
 }
 </script>
 

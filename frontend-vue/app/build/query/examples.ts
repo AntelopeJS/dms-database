@@ -1,12 +1,11 @@
-// The example queries an empty result offers, built on the workspace's own
-// tables (D-13).
+import type { FieldDescriptor } from '../composables/useDatabaseSchemas'
 
 interface ExampleTable {
 	name: string
-	fields?: Record<string, { kind?: string } | unknown>
+	fields?: Record<string, FieldDescriptor>
 }
 
-// Field names that date a row, most telling first.
+/** Field names that date a row, most telling first. */
 const DATE_FIELDS = [
 	'created_at',
 	'createdAt',
@@ -16,11 +15,6 @@ const DATE_FIELDS = [
 	'updatedAt',
 	'date',
 ]
-
-function kindOf(descriptor: unknown): string | undefined {
-	const kind = (descriptor as { kind?: unknown } | null)?.kind
-	return typeof kind === 'string' ? kind : undefined
-}
 
 /**
  * The field that orders a table's rows by age, for "Latest rows": a known
@@ -32,7 +26,7 @@ export function latestOrderField(table: ExampleTable): string | null {
 	if (named) return named
 	return (
 		Object.entries(fields).find(
-			([, descriptor]) => kindOf(descriptor) === 'date',
+			([, descriptor]) => descriptor.kind === 'date',
 		)?.[0] ?? null
 	)
 }

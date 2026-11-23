@@ -12,7 +12,8 @@ import {
 	useDataBrowserGrid,
 } from '../build/composables/useDataBrowserGrid'
 import { onKeyStroke, useEventListener } from '@vueuse/core'
-import { parseDraft } from '../build/data/cellValues'
+import { cellText, isStructured, parseDraft } from '../build/data/cellValues'
+import type { CellRow as GridRow, CellValue } from '../build/utils/values'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import { mayMoveRows, withWrittenRow } from '../build/data/stagedWrites'
 import { type SavedChanges, useStagedSave } from '../build/data/useStagedSave'
@@ -42,14 +43,7 @@ import DataGridHeaderCell from './DataGridHeaderCell.vue'
 import JsonCellPanel from './JsonCellPanel.vue'
 import RowDrawer from './RowDrawer.vue'
 
-// The grid of one open table. Rows are read a page at a time; a committed
-// cell is staged, not written (D-02): the save bar offers a review of every
-// change before it is written, then the save and its undo for a few seconds.
-// A row written shows as the server answered it, in place: the page is read
-// again only when the write may move rows in or out of it.
-
 const BROWSE_ENDPOINT = '/api/database/browse'
-// Browse-only columns: the source instance of a cross-instance read.
 const SYNTHETIC_FIELDS = new Set(['_instance'])
 const DEFAULT_COLUMN_WIDTH = 180
 const SEARCH_DEBOUNCE_MS = 300
@@ -78,15 +72,10 @@ const {
 
 const state = grid.getState(props.tab.id)
 
-// --- data loading ---
 const selection = computed(() => browseSelectionQuery(props.tab))
-// The columns sampled from the table: the table alone decides them. A
-// failure leaves the grid on the introspected fields.
 const columnsRead = useApiData<ColumnsResponse>(`${BROWSE_ENDPOINT}/columns`, {
 	query: selection,
 })
-// A page of rows, read again as the selection, the page, the sort, the search
-// or the filters change; the previous page stays on screen meanwhile.
 const listRead = useApiData<ListResponse>(`${BROWSE_ENDPOINT}/list`, {
 	query: () => ({ ...selection.value, ...browseListQuery(state) }),
 })
@@ -110,7 +99,6 @@ watch(data, (next) => {
 	) {
 		cancelEdit()
 	}
-	// Rows deleted elsewhere can leave the page past the end.
 	if (next.total > 0 && state.page * state.pageSize >= next.total) {
 		state.page = Math.max(0, Math.ceil(next.total / state.pageSize) - 1)
 	}
@@ -148,12 +136,12 @@ function roleOf(column: GridColumn): ColumnRole {
 	return relationFields.value.has(column.name) ? 'relation' : 'plain'
 }
 
-function rowIdOf(row: Record<string, unknown>): string | null {
+function rowIdOf(row: GridRow): string | null {
 	const id = row[rowIdKey.value]
-	return id === null || id === undefined ? null : String(id)
+	return id === null || id === undefined ? null : cellText(id)
 }
 
-function isCellEditable(field: string, row: Record<string, unknown>): boolean {
+function isCellEditable(field: string, row: GridRow): boolean {
 	if (readOnly.value || rowIdOf(row) === null) return false
 	return (
 		field !== DEFAULT_PRIMARY_KEY &&
@@ -162,7 +150,6 @@ function isCellEditable(field: string, row: Record<string, unknown>): boolean {
 	)
 }
 
-// --- toolbar: debounced search ---
 const searchDraft = ref(state.search)
 const toolbar = useTemplateRef<{ focusSearch: () => void }>('toolbar')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
@@ -182,7 +169,6 @@ onBeforeUnmount(() => {
 	}
 })
 
-// --- filters, sort, widths ---
 function setFilter(name: string, filter: ColumnFilterState | null) {
 	const next = { ...state.filters }
 	if (filter) next[name] = filter
@@ -224,14 +210,13 @@ function resizeColumn(name: string, width: number) {
 	state.columnWidths = { ...state.columnWidths, [name]: width }
 }
 
-// --- links out ---
-function openInQueryConsole() {
+async function openInQueryConsole() {
 	const instance =
 		props.tab.instance === DEFAULT_INSTANCE_VALUE || crossInstance.value
 			? undefined
 			: props.tab.instance
 	const source = `${tableAccess({ schema: props.tab.schema, table: props.tab.table, instance })}.slice(0, 100)`
-	router.push({ path: DATABASE_PAGES.query, query: { source } })
+	await router.push({ path: DATABASE_PAGES.query, query: { source } })
 }
 
 const namedInstances = computed(
@@ -240,8 +225,6 @@ const namedInstances = computed(
 		[],
 )
 
-// The tab moves to the other instance in place; a tab holding staged edits
-// keeps them, and the instance opens next to it instead.
 function switchInstance(instance: string) {
 	if (staged.count(props.tab.id) > 0) {
 		openTab(props.tab.schema, instance, props.tab.table, false)
@@ -250,13 +233,12 @@ function switchInstance(instance: string) {
 	replaceTab(props.tab.id, props.tab.schema, instance, props.tab.table)
 }
 
-// --- cell focus and keyboard ---
 const scroller = useTemplateRef<HTMLDivElement>('scroller')
 const focused = ref<{ r: number; c: number } | null>(null)
 
 function focusCell(r: number, c: number) {
 	focused.value = { r, c }
-	nextTick(() => {
+	void nextTick(() => {
 		scroller.value
 			?.querySelector(`[data-cell="${r}:${c}"]`)
 			?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -291,7 +273,6 @@ function onKeydown(event: KeyboardEvent) {
 	focusCell(next.r, next.c)
 }
 
-// --- inline editing: a commit stages the value ---
 const editing = ref<{
 	r: number
 	c: number
@@ -300,12 +281,12 @@ const editing = ref<{
 } | null>(null)
 const invalidReason = ref<string | null>(null)
 
-function stagedCell(row: Record<string, unknown>, field: string) {
+function stagedCell(row: GridRow, field: string) {
 	const rowId = rowIdOf(row)
 	return rowId === null ? undefined : staged.get(props.tab.id, rowId, field)
 }
 
-function currentValue(row: Record<string, unknown>, field: string): unknown {
+function currentValue(row: GridRow, field: string): CellValue {
 	const cell = stagedCell(row, field)
 	return cell ? cell.after : row[field]
 }
@@ -316,7 +297,7 @@ function openEditorAt(r: number, c: number) {
 	if (!column || !row) return
 	const value = currentValue(row, column.name)
 	const rowId = rowIdOf(row)
-	if (value !== null && typeof value === 'object') {
+	if (isStructured(value)) {
 		openJsonEditor(rowId, column.name, value, !isCellEditable(column.name, row))
 		return
 	}
@@ -326,7 +307,7 @@ function openEditorAt(r: number, c: number) {
 }
 
 function refocusGrid() {
-	nextTick(() => {
+	void nextTick(() => {
 		if (document.activeElement === document.body) scroller.value?.focus()
 	})
 }
@@ -337,12 +318,10 @@ function cancelEdit() {
 	refocusGrid()
 }
 
-function stage(rowId: string, field: string, value: unknown) {
+function stage(rowId: string, field: string, value: CellValue) {
 	const row = rows.value.find((candidate) => rowIdOf(candidate) === rowId)
 	if (!row) return
 	staged.stage(props.tab.id, { rowId, field, before: row[field], after: value })
-	// A table with staged edits is kept: the next table opened from the list
-	// must not replace it.
 	if (browserTabs.value.includes(props.tab)) pinTab(props.tab.id)
 }
 
@@ -354,7 +333,6 @@ function commitCell(draft: string | boolean, source: 'enter' | 'blur') {
 	if (!column || !row) return cancelEdit()
 	const result = parseDraft(draft, currentValue(row, column.name), column.type)
 	if (!result.ok) {
-		// Enter keeps the editor open to fix the draft; a click elsewhere drops it.
 		if (source === 'blur') return cancelEdit()
 		invalidReason.value = t(`dms_database.data.grid.invalid_${result.reason}`)
 		return
@@ -365,20 +343,19 @@ function commitCell(draft: string | boolean, source: 'enter' | 'blur') {
 	refocusGrid()
 }
 
-// A structured cell opens its JSON in a DMS drawer; applying stages it.
 function openJsonEditor(
 	rowId: string | null,
 	field: string,
-	value: unknown,
+	value: CellValue,
 	cellReadOnly: boolean,
 ) {
-	const editor = openDrawer<{ value: unknown } | undefined>({
+	const editor = openDrawer<{ value: CellValue } | undefined>({
 		direction: 'right',
 		component: JsonCellPanel,
 		title: t('dms_database.data.json.title', { column: field }),
 		componentOptions: { column: field, value, readOnly: cellReadOnly },
 	})
-	editor.result
+	void editor.result
 		.then((result) => {
 			if (result && !cellReadOnly && rowId !== null)
 				stage(rowId, field, result.value)
@@ -386,14 +363,11 @@ function openJsonEditor(
 		.finally(refocusGrid)
 }
 
-// --- staged changes: review, save, undo ---
 const pendingCount = computed(() => staged.count(props.tab.id))
 const changedFields = computed(() => [
 	...new Set(staged.list(props.tab.id).map((change) => change.field)),
 ])
-// The page on screen, with a row written in place of the one read: the read's
-// data is replaced (it is shallow), so the cell shows the stored value at once.
-function showWritten(tab: BrowserTab, row: Record<string, unknown>) {
+function showWritten(tab: BrowserTab, row: GridRow) {
 	const list = listRead.data.value
 	if (tab.id !== props.tab.id || !list) return
 	listRead.data.value = {
@@ -402,8 +376,6 @@ function showWritten(tab: BrowserTab, row: Record<string, unknown>) {
 	}
 }
 
-// A save may change which rows the page holds, or their order, only through
-// the fields it sorts, filters or searches by; a row gone meanwhile leaves.
 function afterSave({ fields, gone }: SavedChanges) {
 	const filtered = Object.entries(state.filters)
 		.filter(([, filter]) => filter.value)
@@ -430,15 +402,11 @@ const {
 	onSaved: afterSave,
 })
 
-onKeyStroke('s', (event) => {
+onKeyStroke('s', async (event) => {
 	if (!(event.metaKey || event.ctrlKey) || pendingCount.value === 0) return
 	event.preventDefault()
-	review()
+	await review()
 })
-
-// --- the row drawer ---
-// The DMS row header (`rowHeader`) names the row and holds its position on
-// the page, previous / next and J / K.
 
 /** The position over the rows of the page, "Row 3 of 50". */
 const ROW_POSITION_KEY = 'dms_database.data.row.position'
@@ -494,16 +462,15 @@ function openRow(index: number) {
 		component: RowDrawer,
 		...rowDrawerOptions(index),
 	})
-	drawer.result.finally(() => {
+	void drawer.result.finally(() => {
 		drawer = null
 	})
 }
 
-// Cross-instance unions can repeat a primary key across instances.
-function rowKey(row: Record<string, unknown>, index: number): string | number {
+function rowKey(row: GridRow, index: number): string | number {
 	const id = rowIdOf(row)
 	if (id === null) return index
-	return crossInstance.value ? `${String(row._instance ?? '')}::${id}` : id
+	return crossInstance.value ? `${cellText(row._instance)}::${id}` : id
 }
 
 const hasRefinements = computed(
@@ -512,16 +479,18 @@ const hasRefinements = computed(
 		Object.values(state.filters).some((filter) => filter.value),
 )
 
-// ⌘ / (Ctrl / elsewhere) focuses the row search, as every DMS page search:
-// "/" alone belongs to the navigation search.
 useEventListener('keydown', (event: KeyboardEvent) => {
 	if (event.key === '/' && (event.metaKey || event.ctrlKey)) {
 		event.preventDefault()
 		toolbar.value?.focusSearch()
 		return
 	}
-	const target = event.target as HTMLElement | null
-	if (target?.closest('input, textarea, select, [contenteditable=true]')) return
+	const target = event.target
+	if (
+		target instanceof Element &&
+		target.closest('input, textarea, select, [contenteditable=true]')
+	)
+		return
 	if (event.metaKey || event.ctrlKey || event.altKey) return
 	if (event.key === 'r' && !editing.value) reload()
 })

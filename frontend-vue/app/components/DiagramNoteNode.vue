@@ -2,8 +2,6 @@
 import { onClickOutside } from '@vueuse/core'
 import type { NoteNodeData } from '../build/diagram/graph'
 
-// A sticky note on the diagram: double-click to write, saved with the layout.
-// A click anywhere else, or Escape, ends the edit.
 const props = defineProps<{
 	data: NoteNodeData
 	selected?: boolean
@@ -23,8 +21,6 @@ watch(
 	},
 )
 
-// Vue Flow shows a new node only once it has measured it: until then the
-// field cannot take the focus. It is tried again when the node's size comes in.
 let focusPending = false
 
 function focusField() {
@@ -57,15 +53,12 @@ function commitText() {
 	props.data.onEditEnd(props.data.noteId)
 }
 
-// The canvas swallows the pointer down that would blur the field: a click on
-// the pane or a table has to end the edit itself.
 onClickOutside(root, () => {
 	if (editing.value) commitText()
 })
 
-// A note just created opens ready to write.
-onMounted(() => {
-	if (props.data.autoEdit) startEdit()
+onMounted(async () => {
+	if (props.data.autoEdit) await startEdit()
 })
 </script>
 

@@ -1,4 +1,4 @@
-import { MarkerType } from '@vue-flow/core'
+import type { MarkerType } from '@vue-flow/core'
 import type {
 	SchemaSummary,
 	TableSummary,
@@ -15,9 +15,10 @@ export const LAYOUT = { rankdir: 'LR', nodesep: 48, ranksep: 120 } as const
 /** Columns a folded table shows, besides the ones an arrow ends on. */
 export const FOLDED_COLUMNS = 12
 const HYSTERESIS_PX = 15
-// Notes sit above the tables, so a new one is never hidden under a table.
+/** Notes sit above the tables, so a new one is never hidden under a table. */
 export const NOTE_Z_INDEX = 10
-// Arrow colours, as theme tokens so they follow the light and dark themes.
+
+/** Arrow colours are theme tokens, so they follow the light and dark themes. */
 export const EDGE_COLOR = 'var(--ui-border-accented)'
 export const EDGE_MANY_COLOR = 'var(--color-dms-500)'
 export const EDGE_ACTIVE_COLOR = 'var(--ui-primary)'
@@ -72,6 +73,11 @@ export interface NoteNodeData {
 	onEditEnd: (noteId: string) => void
 }
 
+/** The data of a diagram node, whichever kind it is: a table, a stub or a note. */
+export type DiagramNodeData = Partial<
+	TableNodeData & StubNodeData & NoteNodeData
+>
+
 export interface DiagramNode {
 	id: string
 	type: string
@@ -80,7 +86,7 @@ export interface DiagramNode {
 	draggable?: boolean
 	deletable?: boolean
 	zIndex?: number
-	data: Record<string, unknown>
+	data: DiagramNodeData
 }
 
 export interface EdgeEnds {
@@ -266,6 +272,16 @@ export function neighbourIds(
 	return ids
 }
 
+function keepRange(previous: Sides, width: number): [number, number] {
+	if (previous.source === 'right')
+		return previous.target === 'left'
+			? [width - HYSTERESIS_PX, Infinity]
+			: [-HYSTERESIS_PX, width + HYSTERESIS_PX]
+	return previous.target === 'left'
+		? [-width - HYSTERESIS_PX, HYSTERESIS_PX]
+		: [-Infinity, -width + HYSTERESIS_PX]
+}
+
 /**
  * Picks the handle sides of an edge from the horizontal distance between its
  * nodes, keeping the previous sides within a small margin.
@@ -280,15 +296,7 @@ export function pickSides(dx: number, width: number, previous?: Sides): Sides {
 					? { source: 'left', target: 'left' }
 					: { source: 'left', target: 'right' }
 	if (!previous) return pure
-	const keepRanges: Record<string, [number, number]> = {
-		'right-left': [width - HYSTERESIS_PX, Infinity],
-		'right-right': [-HYSTERESIS_PX, width + HYSTERESIS_PX],
-		'left-left': [-width - HYSTERESIS_PX, HYSTERESIS_PX],
-		'left-right': [-Infinity, -width + HYSTERESIS_PX],
-	}
-	const [min, max] = keepRanges[`${previous.source}-${previous.target}`] ?? [
-		0, 0,
-	]
+	const [min, max] = keepRange(previous, width)
 	return dx > min && dx < max ? previous : pure
 }
 

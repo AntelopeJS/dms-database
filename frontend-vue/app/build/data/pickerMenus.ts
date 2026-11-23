@@ -1,11 +1,12 @@
 import type { InstanceChoice } from './instanceOptions'
 import { matchNames } from './instanceOptions'
 
-// The menus of the schema and instance pickers (SchemaPicker.vue,
-// InstancePicker.vue), shared by the Schemas page's filter bar and the data
-// browser's sidebar: what is pinned, the names a search found, and the note
-// under them (loading, failed, more than shown).
-
+/**
+ * An entry of the menus of the schema and instance pickers (SchemaPicker.vue,
+ * InstancePicker.vue), shared by the Schemas page's filter bar and the data
+ * browser's sidebar: what is pinned, the names a search found, and the note
+ * under them (loading, failed, more than shown).
+ */
 export interface PickerItem {
 	label: string
 	value?: string
@@ -15,13 +16,13 @@ export interface PickerItem {
 	type?: 'label'
 }
 
-// Menu values standing for no schema or instance in particular: a NUL never
-// appears in a name.
+/** Menu value standing for no schema or instance in particular: a NUL never appears in a name. */
 export const PICK_ALL = '\u0000all'
+
+/** Menu value standing for the default instance, NUL-prefixed like `PICK_ALL`. */
 export const PICK_DEFAULT = '\u0000default'
 
-// A group holding a `.pin-top` item sticks to the top of the list while it
-// scrolls; notes read as plain text.
+/** The picker menu's classes: a group holding a `.pin-top` item sticks to the top of the list while it scrolls; notes read as plain text. */
 export const PICKER_MENU_UI = {
 	viewport: 'scroll-pt-10 scroll-pb-14',
 	label: 'font-sans text-xs font-normal normal-case tracking-normal text-muted',
@@ -112,34 +113,35 @@ export interface InstanceMenu {
 	labels: InstanceMenuLabels
 }
 
+/**
+ * The groups of an instance picker's menu. Every instance (the default one and
+ * the named ones) is offered whatever the search in the read-only view, as it
+ * also reads rows of instances never registered; the filter matches the
+ * search. Without a search "all" comes first, pinned; while one is typed it
+ * comes after the matches, so that Enter picks the first match.
+ */
 export function instanceMenu(menu: InstanceMenu): PickerItem[][] {
 	const { labels } = menu
 	const needle = menu.search.trim().toLowerCase()
 	const readOnly = menu.allMode === 'readonly'
-	// Every instance: the default one and the named ones. The read-only view
-	// is offered whatever the search, as it also reads rows of instances never
-	// registered; the filter matches the search.
-	const all: PickerItem[] =
-		readOnly || matching(labels.all, needle)
-			? [
-					{
-						label:
-							menu.total === null
-								? labels.all
-								: `${labels.all} (${labels.count(menu.total + 1)})`,
-						value: PICK_ALL,
-						icon: readOnly ? READ_ONLY_ICON : ALL_ICON,
-						...(readOnly ? { description: labels.readOnly } : {}),
-						...(needle ? {} : { class: 'pin-top' }),
-					},
-				]
-			: []
+	const all: PickerItem[] = []
+	if (readOnly || matching(labels.all, needle)) {
+		const item: PickerItem = {
+			label:
+				menu.total === null
+					? labels.all
+					: `${labels.all} (${labels.count(menu.total + 1)})`,
+			value: PICK_ALL,
+			icon: readOnly ? READ_ONLY_ICON : ALL_ICON,
+		}
+		if (readOnly) item.description = labels.readOnly
+		if (!needle) item.class = 'pin-top'
+		all.push(item)
+	}
 	const defaultShown = matching(labels.default, needle)
 	const pinned: PickerItem[] = defaultShown
 		? [{ label: labels.default, value: PICK_DEFAULT, icon: INSTANCE_ICON }]
 		: []
-	// Without a search "all" comes first, pinned; while one is typed it comes
-	// after the matches, so that Enter picks the first match.
 	if (!needle) pinned.unshift(...all)
 	const last = needle ? all : []
 	if (!menu.hasSchema)

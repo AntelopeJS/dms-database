@@ -1,4 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { isOpenTable, tableView } from './fixtures/diagramNodes'
+import { FakeDocument, FakeElement } from './fixtures/fakeElement'
+import type { DiagramNote } from '../app/build/composables/useDiagramPersistence'
 import type { SchemaSummary } from '../app/build/composables/useDatabaseSchemas'
 import { DiagramAutosave, type SaveStatus } from '../app/build/diagram/autosave'
 import {
@@ -13,17 +16,17 @@ import {
 	type NoteDraft,
 	searchTables,
 	TABLE_NODE_TYPE,
-	type TableNodeData,
 	tableNodeId,
 } from '../app/build/diagram/graph'
 import { DiagramHistory, type DiagramState } from '../app/build/diagram/history'
 import { canvasOwnsKey, diagramCommand } from '../app/build/diagram/shortcuts'
 import { DiagramSync, type DiagramStore } from '../app/build/diagram/sync'
 
-// shop: order_items -> orders -> customers, order_items -> products, and
-// orders -> billing.accounts in another schema.
-const SHOP = {
+const SHOP: SchemaSummary = {
 	id: 'shop',
+	options: {},
+	stats: { tableCount: 4, elementCount: 0, instanceCount: 0 },
+	instances: [],
 	tables: [
 		{
 			name: 'customers',
@@ -88,7 +91,7 @@ const SHOP = {
 			],
 		},
 	],
-} as unknown as SchemaSummary
+}
 
 function input(overrides: Partial<GraphInput> = {}): GraphInput {
 	return {
@@ -109,8 +112,7 @@ function input(overrides: Partial<GraphInput> = {}): GraphInput {
 }
 
 function tableData(graph: ReturnType<typeof buildGraph>, name: string) {
-	const node = graph.nodes.find((n) => n.id === tableNodeId('shop', name))
-	return node?.data as unknown as TableNodeData
+	return tableView(graph.nodes.find((n) => n.id === tableNodeId('shop', name)))
 }
 
 function positionOf(graph: ReturnType<typeof buildGraph>, id: string) {
@@ -129,7 +131,6 @@ describe('diagram graph', () => {
 			expect(positionOf(focused, id)).toEqual(positionOf(full, id))
 			expect(positionOf(full, id)).toEqual(layout.tables[name])
 		}
-		// Without a cached layout the result is the same.
 		expect(buildGraph(input()).nodes.map((n) => n.position)).toEqual(
 			full.nodes.map((n) => n.position),
 		)
@@ -140,8 +141,6 @@ describe('diagram graph', () => {
 		const focused = buildGraph(
 			input({ layout, focusIds: neighbourIds(SHOP, 'customers') }),
 		)
-		// customers -> orders is drawn; orders -> billing.accounts is a stub of
-		// another schema; order_items is not a neighbour of customers.
 		const stub = focused.nodes.find((n) => n.id === 'stub::billing::accounts')
 		expect(stub?.data).toMatchObject({
 			targetSchema: 'billing',
@@ -160,10 +159,9 @@ describe('diagram graph', () => {
 		const onOpenSchema = vi.fn()
 		const graph = buildGraph(input({ onOpenSchema }))
 		const stub = graph.nodes.find((n) => n.id === 'stub::billing::accounts')
-		;(stub?.data.onOpenSchema as (s: string, t: string) => void)(
-			'billing',
-			'accounts',
-		)
+		const open = stub?.data.onOpenSchema
+		if (!isOpenTable(open)) throw new Error('the stub opens no table')
+		open('billing', 'accounts')
 		expect(onOpenSchema).toHaveBeenCalledWith('billing', 'accounts')
 	})
 
@@ -301,37 +299,38 @@ describe('diagram shortcuts (D-5, D-6)', () => {
 		matches: Record<string, boolean>,
 		page = false,
 		dialogOpen = false,
-	): Element & { ownerDocument: unknown } {
-		const doc = {
-			body: null as unknown,
-			documentElement: null,
-			querySelector: (selector: string) =>
-				dialogOpen && selector.includes('dialog') ? {} : null,
-		}
-		const el = {
-			closest: (selector: string) =>
-				Object.entries(matches).some(
-					([part, hit]) => hit && selector.includes(part),
-				)
-					? el
-					: null,
-			ownerDocument: doc,
-		}
+	): FakeElement {
+		const doc = new FakeDocument(dialogOpen)
+		const el = new FakeElement(matches, doc)
 		if (page) doc.body = el
-		return el as unknown as Element & { ownerDocument: unknown }
+		return el
 	}
 
 	it('leaves keys to fields, dialogs and the rest of the page', () => {
 		const inside = element({})
-		const canvas = { contains: (e: unknown) => e === inside } as Element
+		const canvas = {
+			contains: (e: EventTarget | null) => e === inside,
+		}
 		expect(canvasOwnsKey(inside, canvas)).toBe(true)
 		expect(canvasOwnsKey(element({}, true), canvas)).toBe(true)
 		expect(canvasOwnsKey(element({ textarea: true }), canvas)).toBe(false)
-		// Any open dialog, wherever the focus is.
 		expect(canvasOwnsKey(element({}, true, true), canvas)).toBe(false)
 		expect(canvasOwnsKey(element({}), canvas)).toBe(false)
 	})
 })
+
+const STORED_NOTE: DiagramNote = {
+	id: 'n0',
+	schemaName: 'a',
+	text: '',
+	x: 0,
+	y: 0,
+	width: 0,
+	height: 0,
+	color: null,
+	createdAt: '',
+	updatedAt: '',
+}
 
 function memoryStore() {
 	const calls: string[] = []
@@ -353,7 +352,7 @@ function memoryStore() {
 		},
 		updateNote: async (id, patch) => {
 			calls.push(`update ${id} ${patch.text}`)
-			return {} as never
+			return STORED_NOTE
 		},
 		deleteNote: async (id) => {
 			calls.push(`delete ${id}`)
@@ -385,7 +384,6 @@ describe('diagram autosave (D-2)', () => {
 		vi.useFakeTimers()
 		const { store, calls } = memoryStore()
 		const statuses: SaveStatus[] = []
-		// One table moved and one note written in a, then b loads at once.
 		const shown: DiagramState = {
 			positions: { t: { x: 1, y: 2 } },
 			notes: [note('temp-1', 'hello')],
@@ -398,13 +396,11 @@ describe('diagram autosave (D-2)', () => {
 		)
 		a.schedule()
 		const leaving = a.flush()
-		// b's state replaces a's on the canvas before a's write ends.
 		shown.positions = { u: { x: 0, y: 0 } }
 		shown.notes = []
 		await leaving
 		expect(calls).toEqual(['layout a t', 'create a hello'])
 		expect(statuses).toEqual(['saving', 'saved'])
-		// Nothing is left scheduled for a.
 		await vi.runAllTimersAsync()
 		expect(calls).toHaveLength(2)
 	})
@@ -474,7 +470,6 @@ describe('diagram autosave (D-2)', () => {
 		)
 		autosave.schedule()
 		await autosave.flush()
-		// The move is undone: the stored state is the shown one again.
 		state = { positions: {}, notes: [] }
 		autosave.schedule()
 		await autosave.flush()

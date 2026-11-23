@@ -10,11 +10,6 @@ import {
 	describeRuntimeType,
 } from '../build/utils/fieldTypes'
 
-// A column header (D-14): its type as a neutral icon, colour only for the key
-// and relation columns, and the sort arrow and funnel shown whenever they are
-// on. The funnel opens the column's filter; the active filters are also chips
-// under the toolbar.
-
 const props = defineProps<{
 	column: GridColumn
 	role: ColumnRole
@@ -48,7 +43,6 @@ const sortIcon = computed(() => {
 	return props.sortDirection === 'asc' ? 'i-ph-arrow-up' : 'i-ph-arrow-down'
 })
 
-// --- filter popover ---
 const filterOpen = ref(false)
 const draftMode = ref<'is' | 'contains'>('contains')
 const draftValue = ref('')
@@ -75,12 +69,9 @@ function clearFilter() {
 	filterOpen.value = false
 }
 
-// --- column resize (drag the right edge) ---
 const MIN_WIDTH = 80
 const MAX_WIDTH = 640
 
-// Emits are rAF-throttled (one width update per frame, not per mousemove) and
-// the window listeners are detached if the header unmounts mid-drag.
 let resizeFrame = 0
 let detachResize: (() => void) | null = null
 
@@ -147,9 +138,6 @@ onBeforeUnmount(() => detachResize?.())
 				:name="sortIcon"
 				class="text-primary size-3 shrink-0"
 			/>
-			<!-- Columns named after the selection parameters (schema, table,
-			     instance) cannot be filtered: the server reads those as the
-			     table to browse. -->
 			<UPopover
 				v-if="!isReservedFilterField(column.name)"
 				v-model:open="filterOpen"

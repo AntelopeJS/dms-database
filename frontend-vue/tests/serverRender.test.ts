@@ -1,9 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { defineComponent, h } from 'vue'
 import {
 	menuLocks,
 	serverRender,
+	type BackendAnswer,
 	type BackendRead,
+	type MountValue,
 } from './fixtures/serverRender'
 import ConnectionStatus from '../app/components/ConnectionStatus.vue'
 import DataBrowser from '../app/components/DataBrowser.vue'
@@ -12,13 +13,14 @@ import QueryConsole from '../app/components/QueryConsole.vue'
 import SchemaDiagram from '../app/components/SchemaDiagram.vue'
 import SchemasFilterBar from '../app/components/SchemasFilterBar.vue'
 import TableInspector from '../app/components/TableInspector.vue'
-import DatabaseSwitcher from '../app/components/DatabaseSwitcher.vue'
-import { useDatabaseConnections } from '../app/build/composables/useDatabaseConnections'
-import { WAREHOUSE, connectionsState } from './fixtures/connections'
-
-// What a server render of each page reads, and that the browser is handed
-// every response it read: a read the page does not hand over is made again
-// by the browser, after a server request for nothing.
+import { ConnectionsFirstSwitcher } from './fixtures/connectionsFirstSwitcher'
+import { SchemasFirstDiagram } from './fixtures/schemasFirstDiagram'
+import { present } from './fixtures/present'
+import {
+	WAREHOUSE,
+	connectionsAnswer,
+	connectionsState,
+} from './fixtures/connections'
 
 const CONNECTIONS_URL = '/api/database/connections'
 
@@ -39,7 +41,9 @@ const schema = (id: string, instances: string[] = []) => ({
 	instances,
 })
 
-function backend({ url, query }: BackendRead): unknown {
+const HEALTH = { status: 'ok', latencyMs: 3, driver: 'MongoDB', storage: [] }
+
+function backend({ url, query }: BackendRead): BackendAnswer {
 	switch (url) {
 		case '/api/database/schemas':
 			return { schemas: [schema('audit'), schema('shop', ['eu'])] }
@@ -51,7 +55,7 @@ function backend({ url, query }: BackendRead): unknown {
 				],
 			}
 		case '/api/database/health':
-			return { status: 'ok', latencyMs: 3, driver: 'MongoDB', storage: [] }
+			return HEALTH
 		case '/api/database/query/saved':
 			return {
 				items:
@@ -102,7 +106,7 @@ function query_(id: string, name: string, userId: string) {
 
 const render = (
 	component: Parameters<typeof serverRender>[0],
-	props: Record<string, unknown> = {},
+	props: Record<string, MountValue> = {},
 	url = '/',
 ) => serverRender(component, props, { url, respond: backend })
 
@@ -114,7 +118,9 @@ describe('server render: every read is handed to the browser', () => {
 			'/api/database/schemas',
 			'/api/database/browse/tables',
 		])
-		expect(reads[1]!.query).toEqual({ filter_schema: 'is:audit' })
+		expect(present(reads[1], 'the tables read').query).toEqual({
+			filter_schema: 'is:audit',
+		})
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toContain('4242')
 	})
@@ -126,7 +132,7 @@ describe('server render: every read is handed to the browser', () => {
 			'/modules/database/data?schema=shop&table=orders&instance=eu',
 		)
 		const reads = page.reads.filter((read) => read.url !== CONNECTIONS_URL)
-		expect(reads[1]!.query).toEqual({
+		expect(present(reads[1], 'the tables read').query).toEqual({
 			filter_schema: 'is:shop',
 			filter_instance: 'is:eu',
 		})
@@ -198,21 +204,20 @@ describe('server render: every read is handed to the browser', () => {
 	})
 
 	it('diagram: no layout or notes either once the schemas are in', async () => {
-		// A block of the page read the schemas before the diagram's setup ran.
-		const SchemasFirst = defineComponent({
-			async setup() {
-				await useApiData('/api/database/schemas')
-				return () => h(SchemaDiagram)
-			},
-		})
-		const page = await render(SchemasFirst, {}, '/modules/database/diagram')
+		const page = await render(
+			SchemasFirstDiagram,
+			{},
+			'/modules/database/diagram',
+		)
 		expect(page.reads.map((read) => read.url)).toEqual([
 			'/api/database/schemas',
 			CONNECTIONS_URL,
 		])
 		expect(page.untransferred).toEqual([])
 	})
+})
 
+describe('server render: every read of the table inspector is handed to the browser', () => {
 	it('table inspector: the rows of the table in every instance', async () => {
 		const page = await render(
 			TableInspector,
@@ -230,20 +235,14 @@ describe('server render: every read is handed to the browser', () => {
 
 	it('database switcher: sets no sidebar lock in a server render, even once the connections are read, which the sidebar it renders before would hydrate against a locked client state', async () => {
 		menuLocks.value = []
-		const ConnectionsFirst = defineComponent({
-			async setup() {
-				await useDatabaseConnections().ready
-				return () => h(DatabaseSwitcher)
-			},
-		})
 		await serverRender(
-			ConnectionsFirst,
+			ConnectionsFirstSwitcher,
 			{},
 			{
 				url: '/modules/database/data',
 				respond: (read) =>
 					read.url === CONNECTIONS_URL
-						? connectionsState(WAREHOUSE)
+						? connectionsAnswer(connectionsState(WAREHOUSE))
 						: backend(read),
 			},
 		)
@@ -258,7 +257,9 @@ describe('server render: every read is handed to the browser', () => {
 			{
 				url: '/modules/database/schemas',
 				respond: (read) =>
-					read.url === CONNECTIONS_URL ? external : backend(read),
+					read.url === CONNECTIONS_URL
+						? connectionsAnswer(external)
+						: backend(read),
 			},
 		)
 		expect(page.untransferred).toEqual([])
@@ -282,13 +283,15 @@ describe('server render: every read is handed to the browser', () => {
 				url: '/modules/database/schemas',
 				respond: (read) =>
 					read.url === CONNECTIONS_URL
-						? connectionsState(WAREHOUSE)
+						? connectionsAnswer(connectionsState(WAREHOUSE))
 						: backend(read),
 			},
 		)
 		expect(external.html).not.toContain(INSTANCES)
 	})
+})
 
+describe('server render: what the table inspector shows', () => {
 	it('table inspector: leaves the position and steps to the DMS header', async () => {
 		const page = await render(
 			TableInspector,
@@ -317,18 +320,13 @@ describe('server render: every read is handed to the browser', () => {
 			{ rowData: { schema: 'shop', name: 'orders' } },
 			'/modules/database/schemas',
 		)
-		// The DMS header names the table: no heading of its own in the body.
 		expect(page.html).not.toMatch(/<h3[^>]*>\s*orders/)
-		// Narrower than its columns, the table scrolls sideways; the types
-		// and the tabs stay on one line.
 		expect(page.html).toMatch(
 			/data-columns-scroller[^>]*overflow-x-auto|overflow-x-auto[^>]*data-columns-scroller/,
 		)
 		expect(page.html).toContain('min-w-[30rem]')
 		expect(page.html).toContain('whitespace-nowrap')
 		expect(page.html).toContain('data-drawer-tabs')
-		// `string | null` reads `string`, with its icon; the Null column
-		// answers the same way for every column.
 		expect(page.html).not.toContain('string | null')
 		expect(page.html).not.toContain('border-dashed')
 		expect(page.html).toContain('dms_database.inspector.cols.nullable')
@@ -357,7 +355,9 @@ describe('server render: every read is handed to the browser', () => {
 		expect(page.html).toMatch(/>\s*constructor\s*</)
 		expect(page.html).toContain('i-ph-text-aa')
 	})
+})
 
+describe('server render: every read of the filter bar and the overview is handed to the browser', () => {
 	it('schemas filter bar: the tables listed out of all', async () => {
 		const page = await render(
 			SchemasFilterBar,
@@ -371,7 +371,6 @@ describe('server render: every read is handed to the browser', () => {
 		})
 		expect(page.untransferred).toEqual([])
 		expect(page.html).toMatch(/12[^<]*40/)
-		// The counts only, not the rows the route lists.
 		expect(Object.values(page.payload.data)).toContainEqual({
 			total: 12,
 			all: 40,
@@ -395,12 +394,10 @@ describe('server render: what the browser hydrates the same', () => {
 	})
 
 	it('overview: the probe age, whenever the page renders', async () => {
-		// The browser hydrates a few seconds after the server rendered: the age
-		// of the probe must not follow the clock before the page is mounted.
 		const checkedAt = '2026-10-15T20:00:00.000Z'
 		const health = (read: BackendRead) =>
 			read.url === '/api/database/health'
-				? { ...(backend(read) as object), checkedAt }
+				? { ...HEALTH, checkedAt }
 				: backend(read)
 		const renderAt = async (time: string) => {
 			vi.useFakeTimers({ toFake: ['Date'] })

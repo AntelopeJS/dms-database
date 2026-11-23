@@ -4,8 +4,34 @@ import {
 	type DiagramNode,
 	NOTE_NODE_TYPE,
 	TABLE_NODE_TYPE,
+	type NoteNodeData,
+	type TableNodeData,
 } from '../diagram/graph'
 import type { DiagramOperation, DiagramState } from '../diagram/history'
+
+type DraggedNode = Pick<DiagramNode, 'position' | 'data'>
+
+/** Whether node data carries the name of the table it draws. */
+function isTableDragData(
+	data: unknown,
+): data is Pick<TableNodeData, 'tableName'> {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'tableName' in data &&
+		typeof data.tableName === 'string'
+	)
+}
+
+/** Whether node data carries the id of the note it draws. */
+function isNoteDragData(data: unknown): data is Pick<NoteNodeData, 'noteId'> {
+	return (
+		typeof data === 'object' &&
+		data !== null &&
+		'noteId' in data &&
+		typeof data.noteId === 'string'
+	)
+}
 
 /** What dragging reads and writes of the diagram page. */
 interface DragContext {
@@ -28,37 +54,28 @@ export function useDiagramDrag({
 }: DragContext) {
 	const dragStarts = new Map<string, { x: number; y: number }>()
 
-	// With `select-nodes-on-drag` off, Vue Flow lets go of the selection when a
-	// node not selected is grabbed, so a note left selected does not follow a
-	// table, which Vue Flow cannot select.
 	function onNodeDragStart({ node, nodes }: NodeDragEvent) {
 		for (const dragged of nodes.length ? nodes : [node])
 			dragStarts.set(dragged.id, { ...dragged.position })
 	}
 
-	function tableMoved(node: DiagramNode, from: { x: number; y: number }) {
-		const tableName = (node.data as { tableName: string }).tableName
+	function tableMoved(node: DraggedNode, from: { x: number; y: number }) {
+		if (!isTableDragData(node.data)) return
+		const { tableName } = node.data
 		const to = { x: node.position.x, y: node.position.y }
 		state.positions[tableName] = to
 		if (preview.value) return
 		record({ kind: 'tableMove', tableName, from, to })
 	}
 
-	function noteMoved(node: DiagramNode, from: { x: number; y: number }) {
-		const noteId = (node.data as { noteId: string }).noteId
+	function noteMoved(node: DraggedNode, from: { x: number; y: number }) {
+		if (!isNoteDragData(node.data)) return
+		const { noteId } = node.data
 		const to = { x: node.position.x, y: node.position.y }
 		const note = state.notes.find((n) => n.id === noteId)
 		if (!note) return
 		Object.assign(note, to)
 		record({ kind: 'noteMove', noteId, from, to })
-	}
-
-	const DRAG_HANDLERS: Record<
-		string,
-		(node: DiagramNode, from: { x: number; y: number }) => void
-	> = {
-		[TABLE_NODE_TYPE]: tableMoved,
-		[NOTE_NODE_TYPE]: noteMoved,
 	}
 
 	function onNodeDragStop({ node, nodes }: NodeDragEvent) {
@@ -67,14 +84,9 @@ export function useDiagramDrag({
 			dragStarts.delete(dragged.id)
 			const { x, y } = dragged.position
 			if (!from || (from.x === x && from.y === y)) continue
-			DRAG_HANDLERS[dragged.type ?? '']?.(
-				dragged as unknown as DiagramNode,
-				from,
-			)
+			if (dragged.type === TABLE_NODE_TYPE) tableMoved(dragged, from)
+			else if (dragged.type === NOTE_NODE_TYPE) noteMoved(dragged, from)
 		}
-		// The node put down becomes the selection: a table through
-		// `data.selected` (D-9), a note through Vue Flow. Set once the drag is
-		// over, as setting the nodes during it would put the dragged one back.
 		selectedId.value = node.type === TABLE_NODE_TYPE ? node.id : null
 		if (node.type === NOTE_NODE_TYPE && !node.selected) selectNode(node.id)
 		render()

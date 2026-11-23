@@ -2,17 +2,15 @@ import { describe, expect, it } from 'vitest'
 import {
 	inBrowser,
 	serverRender,
+	type BackendAnswer,
 	type BackendRead,
 } from './fixtures/serverRender'
+import { present } from './fixtures/present'
 import { useDiagramPersistence } from '../app/build/composables/useDiagramPersistence'
 import { useQueryStore } from '../app/build/composables/useQueryStore'
 import InstancePicker from '../app/components/InstancePicker.vue'
 import JsonCellPanel from '../app/components/JsonCellPanel.vue'
 import RowDrawer from '../app/components/RowDrawer.vue'
-
-// The reads the module makes on demand go through `useApiData` too
-// (`immediate: false` + `execute()`): nothing on the server, nothing before
-// they are asked for, and a fresh read each time they are.
 
 const NOTE = {
 	id: 'n1',
@@ -29,7 +27,7 @@ const NOTE = {
 
 let layoutVersion = 0
 
-function backend({ url }: BackendRead): unknown {
+function backend({ url }: BackendRead): BackendAnswer {
 	if (url === '/api/database/diagram/layout/shop')
 		return { positions: { orders: { x: layoutVersion++, y: 0 } } }
 	if (url === '/api/database/diagram/notes') return { items: [NOTE] }
@@ -55,8 +53,9 @@ describe('reads on demand', () => {
 			'/api/database/diagram/layout/shop',
 			'/api/database/diagram/notes',
 		])
-		expect(browser.reads[1]!.query).toEqual({ schema: 'shop' })
-		// The canvas edits a working copy: a new load reads what is stored now.
+		expect(present(browser.reads[1], 'the notes read').query).toEqual({
+			schema: 'shop',
+		})
 		const second = await browser.value.readDiagram('shop')
 		expect(second.positions).toEqual({ orders: { x: 1, y: 0 } })
 	})
@@ -127,11 +126,9 @@ describe('server render: what only the browser reads', () => {
 			onStage: () => undefined,
 			onReview: () => undefined,
 		})
-		// The DMS row header holds the position and the steps.
 		expect(page.html).not.toMatch(/1\s*\/\s*50/)
 		expect(page.html).not.toContain('i-ph-caret-up')
 		expect(page.html).toContain('data-row-scope')
-		// A short value beside its label, a long text and JSON across the row.
 		const row = (field: string) =>
 			page.html.match(
 				new RegExp(`<div[^>]*data-field-row="${field}"[^>]*>`),
@@ -140,10 +137,8 @@ describe('server render: what only the browser reads', () => {
 		expect(row('description')).toContain('layout="stack"')
 		expect(row('address')).toContain('layout="stack"')
 		expect(page.html.match(/data-stub="DmsInputTextarea"/g)).toHaveLength(2)
-		// Every editable field, the switch too, keeps the same end slot.
 		expect(page.html.match(/data-null-slot/g)).toHaveLength(4)
 		expect(page.html.match(/icon="i-ph-circle-dashed"/g)).toHaveLength(4)
-		// The DMS footer, at the drawer's bottom.
 		expect(page.html).toMatch(
 			/data-stub="DmsContainerFooter"[^>]*data-row-footer|data-row-footer[^>]*data-stub="DmsContainerFooter"/,
 		)
@@ -156,11 +151,8 @@ describe('server render: what only the browser reads', () => {
 			readOnly: false,
 		})
 		expect(page.reads).toEqual([])
-		// The DMS drawer is the surface: no slideover of its own.
 		expect(page.html).not.toContain('USlideover')
 		expect(page.html).toContain('DmsInputCode')
-		// Stacked for the drawer: the label above an editor across it, which
-		// fills the drawer's height, never fewer than 12 lines.
 		expect(page.html).toMatch(/layout="stack"[^>]*fill/)
 		expect(page.html).toMatch(/fill[^>]*min-lines="12"/)
 		expect(page.html).not.toContain('max-lines')

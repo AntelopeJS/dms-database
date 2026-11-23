@@ -1,5 +1,9 @@
 import { expect, it } from 'vitest'
-import { inBrowser, type BackendRead } from './fixtures/serverRender'
+import {
+	inBrowser,
+	type BackendAnswer,
+	type BackendRead,
+} from './fixtures/serverRender'
 import { useDiagramPersistence } from '../app/build/composables/useDiagramPersistence'
 
 const NOTE = {
@@ -15,7 +19,7 @@ const NOTE = {
 	updatedAt: '2026-10-01T10:00:00.000Z',
 }
 
-function backend({ method }: BackendRead): unknown {
+function backend({ method }: BackendRead): BackendAnswer {
 	return method === 'DELETE' || method === 'GET' ? { success: true } : NOTE
 }
 

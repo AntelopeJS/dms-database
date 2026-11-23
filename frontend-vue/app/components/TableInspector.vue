@@ -1,11 +1,11 @@
 <script lang="ts">
-import type { SchemaSummary } from '../build/composables/useDatabaseSchemas'
+import type {
+	SchemaSummary,
+	FieldDescriptor,
+} from '../build/composables/useDatabaseSchemas'
 
 type InspectorTab = 'columns' | 'indexes' | 'relations' | 'sample'
 
-// The drawer mounts the inspector anew on each table J / K step to: the
-// last schemas and tab carry over, so the next table shows at once, on the
-// same tab, while the schemas load again. Written in the browser only.
 let lastSchemas: SchemaSummary[] | undefined
 let lastTab: InspectorTab = 'columns'
 </script>
@@ -16,7 +16,6 @@ import {
 	findTableIn,
 	inboundRelationsIn,
 	useDatabaseSchemas,
-	type FieldDescriptor,
 } from '../build/composables/useDatabaseSchemas'
 import {
 	COLUMN_ROLE_CLASSES,
@@ -32,27 +31,18 @@ import { useTableSample } from '../build/composables/useTableSample'
 import { useDatabaseConnections } from '../build/composables/useDatabaseConnections'
 import DrawerTabs from './DrawerTabs.vue'
 
-// The Schemas page's row drawer (D-07), also opened from the diagram: the
-// facts of one table, its columns, indexes and relations both ways, and a
-// sample row. The container draws the header naming the table and, on the
-// Schemas page, its position and the steps to the next one (J / K); it
-// hands the inspector the row, and the means to show another row in place:
-// a relation opens the table it names in its place.
-
-interface TableRow {
+export interface TableRow {
 	schema: string
 	name: string
 }
 
 const props = defineProps<{
 	rowData?: TableRow
-	showRow?: (row: object | string) => Promise<void>
+	showRow?: (row: string) => Promise<void>
 }>()
 
-// A link out closes the drawer.
 const emit = defineEmits<{ success: [] }>()
 
-// Descriptor kinds that admit an empty value on their own.
 const NULLISH_KINDS = new Set<FieldDescriptor['kind']>([
 	'null',
 	'undefined',
@@ -83,7 +73,6 @@ watch(schemasSettled, (settled) => {
 	if (settled && !schemasError.value && isBrowser)
 		lastSchemas = loadedSchemas.value
 })
-// Every schema: the last ones until these load, and should these fail.
 const schemas = computed(() =>
 	schemasSettled.value && !schemasError.value
 		? loadedSchemas.value
@@ -96,12 +85,8 @@ const failed = computed(
 	() => schemasSettled.value && schemas.value === undefined,
 )
 
-// The table a relation was followed to, in place of the row's, should the
-// container fail to show it as its own row.
 const followed = ref<TableRow | null>(null)
 const shown = computed(() => followed.value ?? props.rowData)
-// The drawer's header names the row's table; one followed in place is named
-// in the body.
 const namedInBody = computed(() => followed.value !== null)
 
 const schemaId = computed(() => shown.value?.schema ?? '')
@@ -110,7 +95,6 @@ const tableKey = computed(() => `${schemaId.value}::${tableName.value}`)
 const table = computed(() =>
 	findTableIn(schemas.value ?? [], schemaId.value, tableName.value),
 )
-// Renamed, dropped or mistyped: once the schemas are in, nothing names it.
 const missing = computed(
 	() => !loading.value && !failed.value && table.value === undefined,
 )
@@ -142,8 +126,6 @@ const columns = computed(() => {
 		const relation = relationByField.value.get(name)
 		const key = isPrimaryKey(name, current.indexes ?? {})
 		const role: ColumnRole = key ? 'key' : relation ? 'relation' : 'plain'
-		// Whether it takes null is the Null column's: `string | null` reads
-		// `string`, with the string's icon.
 		const type = describeField(valueDescriptor(descriptor), name)
 		return {
 			name,
@@ -169,7 +151,6 @@ const indexes = computed(() =>
 	})),
 )
 
-// A table outside the inspected one's schema is named with its schema.
 function qualified(schemaOf: string, name: string): string {
 	return schemaOf === schemaId.value ? name : `${schemaOf}.${name}`
 }
@@ -196,18 +177,12 @@ const incoming = computed(() =>
 	),
 )
 
-// The container shows the relation's table as its own row: on the Schemas
-// page, the URL, the position and J / K follow it. Should it fail to read
-// the row, the inspector shows it itself, and the row's own table again
-// closes the detour.
 async function follow(target: TableRow) {
 	if (props.showRow) {
 		try {
 			await props.showRow(`${target.schema}::${target.name}`)
 			return
-		} catch {
-			// Shown in place below.
-		}
+		} catch {}
 	}
 	const own =
 		target.schema === props.rowData?.schema &&
@@ -215,9 +190,6 @@ async function follow(target: TableRow) {
 	followed.value = own ? null : target
 }
 
-// --- rows: in every instance at once; the data browser shows each one's ---
-// Read with the table, on the server too when the link opens the drawer; no
-// figure shows while another table's loads, nor once it failed.
 const rowTotal = useApiData<{ total: number }>(
 	() => (schemaId.value && tableName.value ? BROWSE_COUNT : null),
 	{
@@ -298,8 +270,6 @@ async function copyName() {
 </script>
 
 <template>
-	<!-- As wide as the side drawer, whatever the open tab holds. The drawer's
-		body scrolls, its header (the table's name, position, steps) in view. -->
 	<div class="flex w-full min-w-0 flex-col gap-4">
 		<header class="grid grid-cols-[minmax(0,1fr)] gap-3">
 			<div class="flex min-w-0 flex-wrap items-center gap-2">
@@ -342,11 +312,11 @@ async function copyName() {
 					<template v-if="instanceCount > 1">
 						·
 						<DmsAutoLink
-							@click="emit('success')"
 							:to="
 								tableLink('data', { ...address, instance: ALL_INSTANCES_PARAM })
 							"
 							class="text-primary hover:underline"
+							@click="emit('success')"
 						>
 							{{ t('dms_database.inspector.facts.by_instance') }}
 						</DmsAutoLink>
@@ -357,33 +327,31 @@ async function copyName() {
 			<div class="flex flex-wrap gap-2">
 				<UButton
 					:to="tableLink('data', address)"
-					@click="emit('success')"
 					icon="i-ph-rows"
 					size="sm"
 					:label="t('dms_database.inspector.actions.browse')"
+					@click="emit('success')"
 				/>
 				<UButton
 					v-if="!lacks('queryConsole')"
 					:to="tableLink('query', address)"
-					@click="emit('success')"
 					icon="i-ph-code"
 					size="sm"
 					color="neutral"
 					variant="outline"
 					:label="t('dms_database.inspector.actions.query')"
+					@click="emit('success')"
 				/>
 				<UButton
 					:to="tableLink('diagram', address)"
-					@click="emit('success')"
 					icon="i-ph-graph"
 					size="sm"
 					color="neutral"
 					variant="ghost"
 					:label="t('dms_database.inspector.actions.diagram')"
+					@click="emit('success')"
 				/>
 			</div>
-			<!-- Held to the header's width, the four tabs scroll sideways on a
-				phone, a fade on the side the others hide in. -->
 			<DrawerTabs v-model="tab" :items="tabs" />
 		</header>
 
@@ -415,8 +383,6 @@ async function copyName() {
 				:description="`${schemaId}.${tableName}`"
 			/>
 
-			<!-- Its columns keep their width: narrower than them, the table
-				scrolls sideways. -->
 			<div
 				v-else-if="tab === 'columns'"
 				class="min-w-0 overflow-x-auto"
@@ -581,7 +547,6 @@ async function copyName() {
 			</div>
 
 			<div v-else class="grid gap-3">
-				<!-- Nothing to page through in an empty table. -->
 				<div
 					v-if="sampleTotal > 0"
 					class="flex min-w-0 items-center justify-between gap-2"

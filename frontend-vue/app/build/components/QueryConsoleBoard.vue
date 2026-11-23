@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useQueryStore } from '../composables/useQueryStore'
+import { isText } from '../utils/values'
 import { useDatabaseSchemas } from '../composables/useDatabaseSchemas'
 import { useElsewhereInstances } from '../composables/useElsewhereInstances'
 import { useSessionStorage } from '@vueuse/core'
@@ -30,28 +31,24 @@ import QueryResultPanel, {
 	type QueryFailure,
 } from '../../components/QueryResultPanel.vue'
 
-// The query console: the library rail, the editor and the result. A query
-// that changes data runs only after a dry run told what it touches (D-03):
-// every write asks for the table name, as the docs say.
-
-// The query being written, kept for the browser tab: a reload, or a row link
-// followed by Back, brings it back (Q-9). A link that names a query wins.
 const DRAFT_KEY = 'dms-database:query:draft'
 const PREFILL_ROWS = 50
-const OPERATION_ICONS: Record<string, string> = {
-	insert: 'i-ph-plus-circle',
-	update: 'i-ph-pencil-simple',
-	replace: 'i-ph-swap',
-	delete: 'i-ph-trash',
-}
+const OPERATION_ICONS = new Map([
+	['insert', 'i-ph-plus-circle'],
+	['update', 'i-ph-pencil-simple'],
+	['replace', 'i-ph-swap'],
+	['delete', 'i-ph-trash'],
+])
+
+type QueryDocument = SavedQuery['query']
 
 const { t, n } = useI18n()
 const route = useDmsRoute()
 const router = useDmsRouter()
 const { confirm } = useConfirm()
 const toast = useToast()
-const { presentError } = useApiErrorPresenter()
-const { user } = useDmsUserSession()
+const errorPresenter = useApiErrorPresenter()
+const { user } = useDmsUserSession<{ _id?: string }>()
 const store = useQueryStore()
 const { schemas, ready: schemasRead } = useDatabaseSchemas()
 
@@ -69,12 +66,8 @@ const edited = computed(
 	() =>
 		Boolean(loadedSaved.value) && loadedSaved.value?.source !== source.value,
 )
-const ownId = computed(
-	() => (user.value as { _id?: string } | null)?._id ?? null,
-)
+const ownId = computed(() => user.value?._id ?? null)
 
-// --- library ---
-// The team's queries: the shared ones the caller did not write.
 const team = computed(() =>
 	store.sharedQueries.value.filter((query) => query.userId !== ownId.value),
 )
@@ -97,7 +90,7 @@ function newQuery() {
 	source.value = ''
 	result.value = null
 	failure.value = null
-	nextTick(() => editor.value?.focus())
+	void nextTick(() => editor.value?.focus())
 }
 
 const draft = useSessionStorage<{ source: string; savedId: string | null }>(
@@ -132,7 +125,9 @@ async function deleteSaved(query: SavedQuery) {
 	try {
 		await store.deleteSaved(query.id)
 	} catch (error) {
-		presentError(error, { fallbackKey: 'dms.action_error.generic' })
+		errorPresenter.presentError(error, {
+			fallbackKey: 'dms.action_error.generic',
+		})
 		return
 	}
 	if (loadedSaved.value?.id === query.id) loadedSaved.value = null
@@ -148,12 +143,13 @@ async function clearHistory() {
 	})
 	if (confirmed)
 		await store.clearHistory().catch((error: unknown) => {
-			presentError(error, { fallbackKey: 'dms.action_error.generic' })
+			errorPresenter.presentError(error, {
+				fallbackKey: 'dms.action_error.generic',
+			})
 		})
 }
 
-// The result keeps naming the previous run's target until the new one lands.
-async function execute(query: Record<string, unknown>, text: string) {
+async function execute(query: QueryDocument, text: string) {
 	executing.value = true
 	const next = readQueryTarget(query)
 	try {
@@ -165,7 +161,7 @@ async function execute(query: Record<string, unknown>, text: string) {
 		result.value = null
 		failure.value = sqlFailure(error)
 		if (!failure.value)
-			presentError(error, {
+			errorPresenter.presentError(error, {
 				fallbackKey: 'dms_database.query.result.failed_title',
 			})
 	} finally {
@@ -177,13 +173,10 @@ async function execute(query: Record<string, unknown>, text: string) {
 }
 
 /** A run that failed before the server ran it, worded for the reader. */
-function describeInputError(error: unknown): QueryFailure {
+function describeInputError(error: Error | null): QueryFailure {
 	if (!(error instanceof QueryInputError))
 		return {
-			message:
-				error instanceof Error && error.message
-					? error.message
-					: t('dms_database.query.result.failed_title'),
+			message: error?.message || t('dms_database.query.result.failed_title'),
 			durationMs: null,
 		}
 	const { problem } = error
@@ -204,7 +197,6 @@ function describeInputError(error: unknown): QueryFailure {
 	}
 }
 
-// A run that never reached the server is not kept in History (decision 9).
 function failBeforeRun(text: string, problem: QueryFailure) {
 	result.value = null
 	elsewhere.value = []
@@ -215,7 +207,6 @@ function failBeforeRun(text: string, problem: QueryFailure) {
 
 function guardTexts(dry: DryRunResult) {
 	const rows = dry.rows ?? 0
-	// The whole target, schema and instance included: `demo.tags @eu`.
 	const table = describeTarget(dry) || (dry.table ?? '')
 	const unknown = dry.rows === null
 	return {
@@ -236,14 +227,14 @@ function guardTexts(dry: DryRunResult) {
 	}
 }
 
-async function guard(query: Record<string, unknown>, text: string) {
+async function guard(query: QueryDocument, text: string) {
 	let dry: DryRunResult
 	try {
 		dry = await store.dryRun(query)
 	} catch (error) {
 		const diagnostic = sqlFailure(error)
 		if (diagnostic) return failBeforeRun(text, diagnostic)
-		presentError(error, {
+		errorPresenter.presentError(error, {
 			fallbackKey: 'dms_database.query.result.failed_title',
 		})
 		return
@@ -255,12 +246,12 @@ async function guard(query: Record<string, unknown>, text: string) {
 		...texts,
 		description: t('dms_database.query.guard.description'),
 		color: dry.operation === 'delete' ? 'error' : 'warning',
-		icon: OPERATION_ICONS[dry.operation] ?? 'i-ph-warning',
+		icon: OPERATION_ICONS.get(dry.operation) ?? 'i-ph-warning',
 		initialFocus: 'cancel',
 		confirmText: dry.table ?? dry.schema,
 		impact: [
 			{
-				icon: OPERATION_ICONS[dry.operation] ?? 'i-ph-lightning',
+				icon: OPERATION_ICONS.get(dry.operation) ?? 'i-ph-lightning',
 				label: t('dms_database.query.guard.operation'),
 				count: t(`dms_database.query.guard.op_${dry.operation}`),
 			},
@@ -294,7 +285,10 @@ async function run() {
 	try {
 		prepared = prepareQueryPayload(source.value, schemas.value)
 	} catch (error) {
-		return failBeforeRun(source.value.trim(), describeInputError(error))
+		return failBeforeRun(
+			source.value.trim(),
+			describeInputError(error instanceof Error ? error : null),
+		)
 	}
 	if (prepared.hasMutations) await guard(prepared.query, prepared.source)
 	else await execute(prepared.query, prepared.source)
@@ -305,7 +299,6 @@ function replaceUnknown(kind: UnknownKind, from: string, to: string) {
 	failure.value = null
 }
 
-// The empty read again, in a named instance that has rows.
 async function runInInstance(instance: string) {
 	if (!target.value.schema) return
 	const next = withInstance(source.value, target.value.schema, instance)
@@ -314,30 +307,26 @@ async function runInInstance(instance: string) {
 	await run()
 }
 
-// --- saving ---
 const saveOpen = ref(false)
 const saveName = ref('')
 const saveDescription = ref('')
 const saveShared = ref(false)
 const saveError = ref<string | null>(null)
-// The name says it is missing once left empty, as a DMS form's required field.
 const nameTouched = ref(false)
 const nameError = computed(() =>
 	nameTouched.value && !saveName.value.trim()
 		? t('dms_database.query.save.name_required')
 		: null,
 )
-// A DMS form's rows in a modal: label column, hairline between rows.
 const SAVE_ROW = { layout: 'form', inset: false, spacing: 'row' } as const
 const saving = ref(false)
 const editing = ref<SavedQuery | null>(null)
-// A past run being saved: the editor takes its text once it is saved.
 const savingRun = ref<HistoryEntry | null>(null)
 
 function openSaveModal(from?: SavedQuery | HistoryEntry) {
 	const saved = from && 'name' in from ? from : null
 	editing.value = saved
-	savingRun.value = from && !saved ? (from as HistoryEntry) : null
+	savingRun.value = from && !('name' in from) ? from : null
 	saveName.value = saved?.name ?? ''
 	saveDescription.value = saved?.description ?? ''
 	saveShared.value = saved?.shared ?? false
@@ -391,13 +380,15 @@ async function confirmSave() {
 		await store.refreshSaved()
 	} catch (error) {
 		if (error instanceof QueryInputError) saveError.value = error.message
-		else presentError(error, { fallbackKey: 'dms_database.query.save.failed' })
+		else
+			errorPresenter.presentError(error, {
+				fallbackKey: 'dms_database.query.save.failed',
+			})
 	} finally {
 		saving.value = false
 	}
 }
 
-// ⌘S on a query of the caller's own saves it in place; anything else asks a name.
 async function save() {
 	const own = loadedSaved.value
 	if (!own || own.userId !== ownId.value) return openSaveModal()
@@ -409,52 +400,44 @@ async function save() {
 	await confirmSave()
 }
 
-// --- links into the console ---
 /** Opens what the URL names; false when it names nothing to open. */
 async function openFromRoute(): Promise<boolean> {
 	const { q, source: linked, history, schema, table, instance } = route.query
 	let opened = false
-	if (typeof q === 'string') {
+	if (isText(q)) {
 		const match =
 			store.savedQueries.value.find((query) => query.id === q) ??
 			team.value.find((query) => query.id === q)
 		if (match) openSaved(match)
 		opened = Boolean(match)
-	} else if (typeof history === 'string') {
+	} else if (isText(history)) {
 		const entry = await store.fetchHistoryEntry(history).catch(() => null)
 		if (entry) openHistory(entry)
 		opened = Boolean(entry)
-	} else if (typeof linked === 'string') {
+	} else if (isText(linked)) {
 		newQuery()
 		source.value = linked
 		opened = true
-	} else if (typeof schema === 'string' && typeof table === 'string') {
+	} else if (isText(schema) && isText(table)) {
 		newQuery()
-		// The instance the link names: a named one, the default, or every one.
 		source.value = `${schemaAccess(schema)}.instance(${instanceArgument(instance)}).table(${JSON.stringify(table)}).slice(0, ${PREFILL_ROWS})`
 		opened = true
 	} else {
 		return false
 	}
-	router.replace({ query: {} })
+	void router.replace({ query: {} })
 	return opened
 }
 
-// The link and the draft name queries of the library: once it is read.
 onMounted(async () => {
 	await store.libraryRead
 	if (!(await openFromRoute())) restoreDraft()
 })
 
-// The page shows once the schemas (the first run's examples) and the library
-// are read: a client navigation waits for them, as a server render does,
-// instead of growing the result panel and filling the sidebar after it.
 await Promise.all([schemasRead, store.libraryRead])
 </script>
 
 <template>
-	<!-- Below lg the cards stack at their own height and the page scrolls; a
-	     card never shrinks under its content. -->
 	<div
 		class="flex min-h-0 flex-1 flex-col gap-4 max-lg:overflow-y-auto lg:grid lg:grid-cols-[19rem_minmax(0,1fr)]"
 	>
@@ -514,8 +497,6 @@ await Promise.all([schemasRead, store.libraryRead])
 			:description="t('dms_database.query.save.description')"
 		>
 			<template #body>
-				<!-- Drawn as a DMS form in a modal: FieldRow rows, errors under
-					their control, the required legend under the rows. -->
 				<form
 					id="dms-database-save-query"
 					class="flex flex-col py-1"
