@@ -1,11 +1,11 @@
+import type { CellValue } from '../utils/values'
 import type { ComputedRef, Ref } from 'vue'
-import type { JsonValue } from './jsonValue'
 import type { SchemaSummary } from './useDatabaseSchemas'
 
 const BROWSE_LIST = '/api/database/browse/list'
 
 interface SamplePage {
-	results: Record<string, JsonValue>[]
+	results: Record<string, CellValue>[]
 	total: number
 }
 

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useQueryStore } from '../composables/useQueryStore'
+import { isText } from '../utils/values'
 import { useDatabaseSchemas } from '../composables/useDatabaseSchemas'
 import { useElsewhereInstances } from '../composables/useElsewhereInstances'
 import { useSessionStorage } from '@vueuse/core'
@@ -40,10 +41,6 @@ const OPERATION_ICONS = new Map([
 ])
 
 type QueryDocument = SavedQuery['query']
-
-function isText(value: unknown): value is string {
-	return typeof value === 'string'
-}
 
 const { t, n } = useI18n()
 const route = useDmsRoute()

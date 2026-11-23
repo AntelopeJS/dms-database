@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useCatalogReferences } from '../composables/useCatalogReferences'
+import { isText } from '../utils/values'
 import { useDatabaseConnections } from '../composables/useDatabaseConnections'
 import { useDatabaseSchemas } from '../composables/useDatabaseSchemas'
 import { useDiagramDrag } from '../composables/useDiagramDrag'
@@ -50,10 +51,6 @@ import TableInspector from '../../components/TableInspector.vue'
 const SAVE_DELAY_MS = 800
 const MIN_ZOOM = 0.1
 const LARGE_SCHEMA_TABLES = 40
-
-function isText(value: unknown): value is string {
-	return typeof value === 'string'
-}
 
 function isTableNodeData(data: unknown): data is { tableName: string } {
 	return (

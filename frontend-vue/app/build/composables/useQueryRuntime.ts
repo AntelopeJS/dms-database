@@ -1,3 +1,4 @@
+import { isObject } from '../utils/values'
 import {
 	CROSS_INSTANCE,
 	Datum,
@@ -12,7 +13,6 @@ import {
 } from '@antelopejs/interface-database/staged-query'
 import { javascriptLanguage } from '@codemirror/lang-javascript'
 import { containsMutations, encodeStaged } from '../utils/stagedSerialization'
-import { isObjectLike } from './guards'
 import type { SchemaSummary } from './useDatabaseSchemas'
 
 /**
@@ -159,13 +159,13 @@ function compile(code: string, text: string) {
 
 /** Whether a value lists the stages of a staged query. */
 function hasStageList(value: unknown): value is { stages: unknown[] } {
-	return isObjectLike(value) && 'stages' in value && Array.isArray(value.stages)
+	return isObject(value) && 'stages' in value && Array.isArray(value.stages)
 }
 
 /** Whether a value is a staged query: a plain object, with its stages when it has any. */
 function isStagedQuery(value: unknown): value is StagedQuery {
 	return (
-		isObjectLike(value) &&
+		isObject(value) &&
 		!Array.isArray(value) &&
 		(!('__cls' in value) || typeof value.__cls === 'string') &&
 		(!('stages' in value) || Array.isArray(value.stages))
@@ -194,7 +194,7 @@ function evaluateUserCode(
 		ValueProxy,
 		CROSS_INSTANCE,
 	)
-	if (!isObjectLike(result)) {
+	if (!isObject(result)) {
 		throw new TypeError(
 			'Query must evaluate to a staged object (e.g. schemas.<id>.instance().table("...").slice(0, 10))',
 		)

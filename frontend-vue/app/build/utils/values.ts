@@ -33,9 +33,19 @@ export function isScalar(
 	return value === null || isText(value) || isNumber(value) || isBoolean(value)
 }
 
+/** Whether a value is a symbol. */
+export function isSymbol(value: unknown): value is symbol {
+	return typeof value === 'symbol'
+}
+
+/** Whether a value is an object or a list, typed as an object. */
+export function isObject(value: unknown): value is object {
+	return typeof value === 'object' && value !== null
+}
+
 /** Whether a value is an object or a list: something that holds other values. */
 export function isRecord(value: unknown): value is Record<string, unknown> {
-	return typeof value === 'object' && value !== null
+	return isObject(value)
 }
 
 function isCellValueAt(value: unknown, path: Set<object>): value is CellValue {

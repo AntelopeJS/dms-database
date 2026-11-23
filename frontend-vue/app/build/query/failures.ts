@@ -1,10 +1,10 @@
-import { isNumber, isRecord, isString } from './guards'
+import { isNumber, isRecord, isText } from '../utils/values'
 
 function bodyFailure(data: unknown) {
-	if (isString(data)) return data ? { message: data, durationMs: null } : null
+	if (isText(data)) return data ? { message: data, durationMs: null } : null
 	if (isRecord(data)) {
 		const { message, durationMs } = data
-		if (isString(message) && message)
+		if (isText(message) && message)
 			return { message, durationMs: isNumber(durationMs) ? durationMs : null }
 	}
 	return null

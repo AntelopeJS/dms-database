@@ -1,5 +1,5 @@
+import type { CellValue } from '../utils/values'
 import { HISTORY_KEPT } from '../query/runs'
-import type { JsonValue } from './jsonValue'
 import type { StagedQuery } from './useQueryRuntime'
 
 export type QueryLanguage = 'aql'
@@ -37,7 +37,7 @@ export interface HistoryEntry {
 }
 
 export interface ExecuteResult {
-	rows: Record<string, JsonValue>[]
+	rows: Record<string, CellValue>[]
 	/** Rows the query answered; above `rows.length` when they were cut. */
 	rowCount: number
 	truncated: boolean

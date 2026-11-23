@@ -1,7 +1,6 @@
+import { type CellRow, isRecord, isSymbol, isText } from '../utils/values'
 import { instanceFromUrl } from '../utils/databaseLinks'
 import { CROSS_INSTANCE_SENTINEL } from '../utils/stagedSerialization'
-import { isRecord, isString, isSymbol } from './guards'
-import type { ResultRow } from './resultRow'
 import { escapeRegExp } from './runs'
 
 /**
@@ -39,7 +38,7 @@ function stageId(
 	const options = stages.find((stage) => stage.stage === name)?.options
 	if (!isRecord(options)) return undefined
 	const id = options.id
-	return isString(id) || isSymbol(id) ? id : undefined
+	return isText(id) || isSymbol(id) ? id : undefined
 }
 
 /**
@@ -56,13 +55,13 @@ export function readQueryTarget(encoded: EncodedQuery | null): QueryTarget {
 	const hasInstance = stages.some((stage) => stage.stage === 'instance')
 	const instance = stageId(stages, 'instance')
 	return {
-		schema: isString(schema) ? schema : undefined,
-		table: isString(table) ? table : undefined,
+		schema: isText(schema) ? schema : undefined,
+		table: isText(table) ? table : undefined,
 		instance: !hasInstance
 			? undefined
 			: instance === CROSS_INSTANCE_SENTINEL || isSymbol(instance)
 				? '*'
-				: isString(instance)
+				: isText(instance)
 					? instance
 					: '',
 	}
@@ -123,15 +122,12 @@ export function runTarget(run: {
  * query's, or the row's own `_instance` when the query read every instance.
  * `''` is the default instance; null when the row does not say.
  */
-export function rowInstance(
-	target: QueryTarget,
-	row: ResultRow,
-): string | null {
+export function rowInstance(target: QueryTarget, row: CellRow): string | null {
 	if (target.instance !== '*') return target.instance ?? ''
 	if (!('_instance' in row)) return null
 	const instance = row._instance
 	if (instance === null || instance === undefined || instance === '') return ''
-	return isString(instance) ? instance : null
+	return isText(instance) ? instance : null
 }
 
 /**

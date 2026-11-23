@@ -7,6 +7,11 @@ import {
 } from '../build/data/cellValues'
 import type { StagedCell } from '../build/data/stagedEdits'
 import { READ_ONLY_REASON } from '../build/data/readOnlyReason'
+import {
+	isBoolean,
+	isNumber as isNumberValue,
+	isObject,
+} from '../build/utils/values'
 import type { ColumnRole } from '../build/utils/fieldTypes'
 
 const props = defineProps<{
@@ -29,18 +34,6 @@ const emit = defineEmits<{
 	cancel: []
 }>()
 
-function isBooleanValue(value: unknown): value is boolean {
-	return typeof value === 'boolean'
-}
-
-function isNumberValue(value: unknown): value is number {
-	return typeof value === 'number'
-}
-
-function isObjectValue(value: unknown): value is object {
-	return value !== null && typeof value === 'object'
-}
-
 const readOnlyReason = inject(READ_ONLY_REASON, ref<string | null>(null))
 const shown = computed(() => (props.staged ? props.staged.after : props.value))
 const isNull = computed(() => shown.value === null || shown.value === undefined)
@@ -49,7 +42,7 @@ const structured = computed(() => isStructured(shown.value))
 const isNumber = computed(() => isNumberValue(shown.value))
 const sizeTag = computed(() => {
 	const value = shown.value
-	if (!structured.value || !isObjectValue(value)) return ''
+	if (!structured.value || !isObject(value)) return ''
 	const size = Object.keys(value).length
 	return Array.isArray(value) ? `[${size}]` : `{${size}}`
 })
@@ -66,7 +59,7 @@ watch(
 	async (editing) => {
 		if (!editing) return
 		cancelling.value = false
-		if (isBooleanValue(shown.value)) boolDraft.value = shown.value
+		if (isBoolean(shown.value)) boolDraft.value = shown.value
 		else draft.value = draftText(shown.value)
 		await nextTick()
 		cellInput.value?.focus()
@@ -76,11 +69,7 @@ watch(
 
 function commit(source: 'enter' | 'blur') {
 	if (cancelling.value) return
-	emit(
-		'commit',
-		isBooleanValue(shown.value) ? boolDraft.value : draft.value,
-		source,
-	)
+	emit('commit', isBoolean(shown.value) ? boolDraft.value : draft.value, source)
 }
 
 function cancel() {

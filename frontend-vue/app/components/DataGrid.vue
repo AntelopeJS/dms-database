@@ -12,8 +12,8 @@ import {
 	useDataBrowserGrid,
 } from '../build/composables/useDataBrowserGrid'
 import { onKeyStroke, useEventListener } from '@vueuse/core'
-import { isStructured, parseDraft } from '../build/data/cellValues'
-import type { CellValue, GridRow } from '../build/data/gridRow'
+import { cellText, isStructured, parseDraft } from '../build/data/cellValues'
+import type { CellRow as GridRow, CellValue } from '../build/utils/values'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import { mayMoveRows, withWrittenRow } from '../build/data/stagedWrites'
 import { type SavedChanges, useStagedSave } from '../build/data/useStagedSave'
@@ -138,7 +138,7 @@ function roleOf(column: GridColumn): ColumnRole {
 
 function rowIdOf(row: GridRow): string | null {
 	const id = row[rowIdKey.value]
-	return id === null || id === undefined ? null : String(id)
+	return id === null || id === undefined ? null : cellText(id)
 }
 
 function isCellEditable(field: string, row: GridRow): boolean {
@@ -470,7 +470,7 @@ function openRow(index: number) {
 function rowKey(row: GridRow, index: number): string | number {
 	const id = rowIdOf(row)
 	if (id === null) return index
-	return crossInstance.value ? `${String(row._instance ?? '')}::${id}` : id
+	return crossInstance.value ? `${cellText(row._instance)}::${id}` : id
 }
 
 const hasRefinements = computed(

@@ -15,6 +15,11 @@ const EDIT_ENDPOINT = '/api/database/browse/edit'
 const UNDO_WINDOW_MS = 10_000
 const UNDONE_NOTICE_MS = 3_000
 
+type RowQuery = ReturnType<typeof browseSelectionQuery> & {
+	id: string
+	connection?: string
+}
+
 /** What the save bar says once a save is written, then once it is undone. */
 export interface SaveNotice {
 	state: 'saved' | 'undoing' | 'undone'
@@ -128,8 +133,7 @@ function useRowWriter(options: StagedSaveOptions, staged: StagedEdits) {
 		rowId: string,
 		body: CellRow,
 	): Promise<CellRow> {
-		const query = browseSelectionQuery(tab)
-		query.id = rowId
+		const query: RowQuery = { ...browseSelectionQuery(tab), id: rowId }
 		if (selected.value) query.connection = selected.value.id
 		return $authFetch<CellRow>(EDIT_ENDPOINT, { method: 'PUT', query, body })
 	}

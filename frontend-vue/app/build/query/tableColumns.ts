@@ -1,7 +1,6 @@
-import { isNumber } from './guards'
-import type { JsonValue, ResultRow } from './resultRow'
+import { type CellRow, type CellValue, isNumber } from '../utils/values'
 
-function isEmpty(value: JsonValue | undefined): boolean {
+function isEmpty(value: CellValue | undefined): boolean {
 	return value === null || value === undefined
 }
 
@@ -10,7 +9,7 @@ function isEmpty(value: JsonValue | undefined): boolean {
  * nothing (`_instance` on a single-instance read) and is left out, unless
  * every column is. JSON and the CSV export keep every column as it is.
  */
-export function filledColumns(rows: ResultRow[], columns: string[]): string[] {
+export function filledColumns(rows: CellRow[], columns: string[]): string[] {
 	const filled = columns.filter((column) =>
 		rows.some((row) => !isEmpty(row[column])),
 	)
@@ -18,7 +17,7 @@ export function filledColumns(rows: ResultRow[], columns: string[]): string[] {
 }
 
 /** Columns holding numbers and nothing else but nulls: right-aligned. */
-export function numericColumns(rows: ResultRow[], columns: string[]): string[] {
+export function numericColumns(rows: CellRow[], columns: string[]): string[] {
 	return columns.filter(
 		(column) =>
 			rows.some((row) => isNumber(row[column])) &&

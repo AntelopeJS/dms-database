@@ -1,3 +1,4 @@
+import { isObject, isText } from '../utils/values'
 import type { ComputedRef, Ref } from 'vue'
 import type { InstanceChoice } from '../data/instanceOptions'
 import {
@@ -12,7 +13,6 @@ import {
 	instanceToUrl,
 } from '../utils/databaseLinks'
 import { CROSS_INSTANCE_VALUE, DEFAULT_INSTANCE_VALUE } from './browserInstance'
-import { isObjectLike, isText } from './guards'
 import { useDataBrowserGrid } from './useDataBrowserGrid'
 
 export { CROSS_INSTANCE_VALUE, DEFAULT_INSTANCE_VALUE }
@@ -101,7 +101,7 @@ interface StoredTabs {
 /** Whether a stored value names the table of a tab. */
 function isStoredTab(value: unknown): value is StoredTab {
 	return (
-		isObjectLike(value) &&
+		isObject(value) &&
 		'schema' in value &&
 		isText(value.schema) &&
 		'instance' in value &&
@@ -114,7 +114,7 @@ function isStoredTab(value: unknown): value is StoredTab {
 /** Whether a stored value is a list of tabs with the database they were opened on. */
 function isStoredTabs(value: unknown): value is StoredTabs {
 	return (
-		isObjectLike(value) &&
+		isObject(value) &&
 		'database' in value &&
 		(value.database === null || isText(value.database)) &&
 		'tabs' in value &&

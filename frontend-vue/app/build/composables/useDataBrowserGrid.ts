@@ -1,5 +1,5 @@
+import type { CellValue } from '../utils/values'
 import { DEFAULT_INSTANCE_VALUE } from './browserInstance'
-import type { JsonValue } from './jsonValue'
 import type { BrowserTab } from './useDataBrowserTabs'
 
 export interface ColumnFilterState {
@@ -29,7 +29,7 @@ export interface GridColumn {
 
 export interface GridData {
 	columns: GridColumn[]
-	rows: Record<string, JsonValue>[]
+	rows: Record<string, CellValue>[]
 	total: number
 	primaryKey: string | null
 }

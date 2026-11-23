@@ -13,7 +13,11 @@ import {
 	isWideValue,
 	parseDraft,
 } from '../build/data/cellValues'
-import type { CellValue, GridRow } from '../build/data/gridRow'
+import {
+	type CellRow as GridRow,
+	type CellValue,
+	isCellValue,
+} from '../build/utils/values'
 import { useStagedEdits } from '../build/data/stagedEdits'
 import type { TableSummary } from '../build/composables/useDatabaseSchemas'
 import type { BrowserTab } from '../build/composables/useDataBrowserTabs'
@@ -128,7 +132,8 @@ function commit(field: (typeof fields.value)[number]) {
 	Reflect.deleteProperty(errors, field.name)
 	if (field.structured) {
 		try {
-			props.onStage(props.rowId, field.name, JSON.parse(draft))
+			const parsed: unknown = JSON.parse(draft)
+			if (isCellValue(parsed)) props.onStage(props.rowId, field.name, parsed)
 		} catch {
 			errors[field.name] = t('dms_database.data.row.invalid_json')
 			return

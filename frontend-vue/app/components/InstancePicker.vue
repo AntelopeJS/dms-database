@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { watchDebounced } from '@vueuse/core'
+import { isText } from '../build/utils/values'
 import {
 	PICKER_LIMIT,
 	type InstanceChoice,
@@ -146,12 +147,8 @@ const icon = computed(() => {
 	return props.allMode === 'readonly' ? READ_ONLY_ICON : ALL_ICON
 })
 
-function isString(value: unknown): value is string {
-	return typeof value === 'string'
-}
-
 function pick(value: unknown) {
-	if (isString(value)) emit('update:modelValue', instancePickChoice(value))
+	if (isText(value)) emit('update:modelValue', instancePickChoice(value))
 }
 </script>
 

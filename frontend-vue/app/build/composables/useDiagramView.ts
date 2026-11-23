@@ -1,8 +1,8 @@
+import { isText } from '../utils/values'
 import type { VueFlowStore } from '@vue-flow/core'
 import type { ComputedRef, Ref, ShallowRef, ShallowUnwrapRef } from 'vue'
 import { NODE_WIDTH, tableNodeId } from '../diagram/graph'
 import { boundsOf, fitZoom, startViewport } from '../diagram/packing'
-import { isText } from './guards'
 import type { SchemaSummary } from './useDatabaseSchemas'
 
 export const RESET_ZOOM = 1
