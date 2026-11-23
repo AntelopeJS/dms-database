@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.6.4
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.3...v0.6.4)
+
+### 📦 Build
+
+- **deps:** Move to interface-dms 0.16 and dms 0.23 ([#231](https://github.com/AntelopeJS/dms-database/pull/231))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.6.3
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.2...v0.6.3)
