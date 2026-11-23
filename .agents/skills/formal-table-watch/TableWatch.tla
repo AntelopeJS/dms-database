@@ -6,7 +6,7 @@
 (*                                                                         *)
 (* Node runs other callbacks at every await, so each stretch of code       *)
 (* between two awaits is one step. A cursor answering a read is a step of  *)
-(* its own. A cursor is what openFeed() returns (tableWatch.ts:157-161):   *)
+(* its own. A cursor is what openFeed() returns (tableWatch.ts:158-165):   *)
 (* a read is iterator.next(), and iterator.return() resolves a read that   *)
 (* waits with done at once, then awaits the server's close                 *)
 (* (interface-database IterableCursor.return). A cursor counts as closed   *)
@@ -58,17 +58,17 @@ Marks == <<emitted, twice, late, badRead>>
 (* has no handle to deactivate yet.                                        *)
 Init ==
   /\ made = 0 /\ errors = 0
-  /\ feed = [f \in Cursors |-> IF f = 1 THEN "open" ELSE "none"]  \* tableWatch.ts:336
+  /\ feed = [f \in Cursors |-> IF f = 1 THEN "open" ELSE "none"]  \* tableWatch.ts:486
   /\ pos = [f \in Cursors |-> 0]
-  /\ rd = [f \in Cursors |-> IF f = 1 THEN "waiting" ELSE "none"] \* tableWatch.ts:338
+  /\ rd = [f \in Cursors |-> IF f = 1 THEN "waiting" ELSE "none"] \* tableWatch.ts:488
   /\ rc = [f \in Cursors |-> 0]
-  /\ act = "probe"                                                \* tableWatch.ts:340
+  /\ act = "probe"                                                \* tableWatch.ts:490
   /\ pp = "idle" /\ on = 1
-  /\ cur = 1                                                      \* tableWatch.ts:337
-  /\ pending = TRUE                                               \* tableWatch.ts:339
-  /\ reconnected = FALSE                                          \* tableWatch.ts:219
+  /\ cur = 1                                                      \* tableWatch.ts:487
+  /\ pending = TRUE                                               \* tableWatch.ts:489
+  /\ reconnected = FALSE                                          \* tableWatch.ts:269
   /\ worked = FALSE
-  /\ stopped = FALSE                                              \* tableWatch.ts:337
+  /\ stopped = FALSE                                              \* tableWatch.ts:487
   /\ dp = "none" /\ calls = 0 /\ returned = FALSE
   /\ emitted = {} /\ twice = FALSE /\ late = FALSE /\ badRead = FALSE
 
@@ -96,13 +96,13 @@ Close(f) ==
 (* drainFeed takes its next read: handle.pending if set, else a new read  *)
 (* on handle.iterator, cursor c after this step, with cursor states fs.   *)
 TakeRead(c, fs) ==
-  IF pending                                                      \* tableWatch.ts:192
+  IF pending                                                      \* tableWatch.ts:242
   THEN /\ on' = 1
-       /\ pending' = FALSE                                        \* tableWatch.ts:193
+       /\ pending' = FALSE                                        \* tableWatch.ts:243
        /\ UNCHANGED <<rd, badRead>>
   ELSE /\ on' = c
        /\ pending' = FALSE
-       /\ rd' = [rd EXCEPT ![c] = "waiting"]                      \* tableWatch.ts:192
+       /\ rd' = [rd EXCEPT ![c] = "waiting"]                      \* tableWatch.ts:242
        /\ badRead' = (badRead \/ fs[c] = "closed")
 
 (* ------------------------------ activate -------------------------------- *)
@@ -112,10 +112,10 @@ TakeRead(c, fs) ==
 (* runs to its first await, on handle.pending.                            *)
 ProbePasses ==
   /\ act = "probe"
-  /\ rd[1] # "error"                                              \* tableWatch.ts:340-347
-  /\ act' = "active"                                              \* tableWatch.ts:354
-  /\ pp' = "read"                                                 \* tableWatch.ts:353, 220-222
-  /\ TakeRead(cur, feed)                                          \* tableWatch.ts:191-194
+  /\ rd[1] # "error"                                              \* tableWatch.ts:490-497
+  /\ act' = "active"                                              \* tableWatch.ts:504
+  /\ pp' = "read"                                                 \* tableWatch.ts:503, 270-272
+  /\ TakeRead(cur, feed)                                          \* tableWatch.ts:241-244
   /\ UNCHANGED <<made, errors, feed, pos, rc, cur, reconnected, worked, Deact,
                  emitted, twice, late>>
 
@@ -123,15 +123,15 @@ ProbePasses ==
 (* cursor 1 and awaits the close.                                         *)
 ProbeFails ==
   /\ act = "probe"
-  /\ rd[1] = "error"                                              \* tableWatch.ts:343, 347
+  /\ rd[1] = "error"                                              \* tableWatch.ts:493, 497
   /\ act' = "failClosing"
-  /\ Close(1)                                                     \* tableWatch.ts:348
+  /\ Close(1)                                                     \* tableWatch.ts:498
   /\ UNCHANGED <<made, errors, pos, rc, Pump, Deact, Marks>>
 
 (* The close resolved: activate() throws.                                 *)
 ActivateThrows ==
   /\ act = "failClosing"
-  /\ act' = "threw"                                               \* tableWatch.ts:349-351
+  /\ act' = "threw"                                               \* tableWatch.ts:499-501
   /\ UNCHANGED <<made, errors, feed, pos, rd, rc, Pump, Deact, Marks>>
 
 (* ------------------------------ the table ------------------------------- *)
@@ -169,38 +169,38 @@ Fail(f) ==
 (* no await between.                                                      *)
 PumpResume ==
   /\ pp = "read"
-  /\ rd[on] \in {"change", "done", "error"}                       \* tableWatch.ts:194
+  /\ rd[on] \in {"change", "done", "error"}                       \* tableWatch.ts:244
   /\ CASE rd[on] = "error" ->
             /\ pp' = "threw"
             /\ UNCHANGED <<rd, on, pending, worked, Marks>>
        [] rd[on] = "done" ->
-            /\ pp' = IF stopped THEN "done" ELSE "threw"          \* tableWatch.ts:195-197
+            /\ pp' = IF stopped THEN "done" ELSE "threw"          \* tableWatch.ts:245-247
             /\ UNCHANGED <<rd, on, pending, worked, Marks>>
-       [] rd[on] = "change" /\ stopped ->                         \* tableWatch.ts:199
+       [] rd[on] = "change" /\ stopped ->                         \* tableWatch.ts:249
             /\ pp' = "done"
             /\ UNCHANGED <<rd, on, pending, worked, Marks>>
        [] rd[on] = "change" /\ ~stopped ->
-            /\ emitted' = emitted \cup {rc[on]}                   \* tableWatch.ts:200
+            /\ emitted' = emitted \cup {rc[on]}                   \* tableWatch.ts:250
             /\ twice' = (twice \/ rc[on] \in emitted)
             /\ late' = (late \/ calls > 0)
             /\ worked' = (worked \/ on > 1)
-            /\ pp' = "read"                                       \* tableWatch.ts:191
-            /\ TakeRead(cur, feed)                                \* tableWatch.ts:192-194
+            /\ pp' = "read"                                       \* tableWatch.ts:241
+            /\ TakeRead(cur, feed)                                \* tableWatch.ts:242-244
   /\ UNCHANGED <<made, errors, feed, pos, rc, act, cur, reconnected, Deact>>
 
 (* pumpFeed's catch runs once drainFeed rejected. After the reconnect it  *)
 (* gives up with an error log and does not close handle.iterator.         *)
 PumpCatch ==
-  /\ pp = "threw"                                                 \* tableWatch.ts:224
-  /\ CASE stopped ->                                              \* tableWatch.ts:225
+  /\ pp = "threw"                                                 \* tableWatch.ts:274
+  /\ CASE stopped ->                                              \* tableWatch.ts:275
             /\ pp' = "done"
             /\ UNCHANGED <<reconnected, worked>>
-       [] ~stopped /\ reconnected ->                              \* tableWatch.ts:226
-            /\ pp' = "gaveUp"                                     \* tableWatch.ts:227-231
+       [] ~stopped /\ reconnected ->                              \* tableWatch.ts:276
+            /\ pp' = "gaveUp"                                     \* tableWatch.ts:277-281
             /\ UNCHANGED <<reconnected, worked>>
        [] ~stopped /\ ~reconnected ->
-            /\ pp' = "sleep"                                      \* tableWatch.ts:238
-            /\ reconnected' = TRUE                                \* tableWatch.ts:233
+            /\ pp' = "sleep"                                      \* tableWatch.ts:288
+            /\ reconnected' = TRUE                                \* tableWatch.ts:283
             /\ worked' = FALSE
   /\ UNCHANGED <<made, errors, feed, pos, rd, rc, act, on, cur, pending,
                  Deact, Marks>>
@@ -209,11 +209,11 @@ PumpCatch ==
 (* failed cursor and awaits the close.                                    *)
 PumpWake ==
   /\ pp = "sleep"
-  /\ IF stopped                                                   \* tableWatch.ts:239
+  /\ IF stopped                                                   \* tableWatch.ts:289
      THEN /\ pp' = "done"
           /\ UNCHANGED <<feed, rd>>
      ELSE /\ pp' = "closing"
-          /\ Close(cur)                                           \* tableWatch.ts:240
+          /\ Close(cur)                                           \* tableWatch.ts:290
   /\ UNCHANGED <<made, errors, pos, rc, act, on, cur, pending, reconnected,
                  worked, Deact, Marks>>
 
@@ -223,20 +223,20 @@ PumpWake ==
 (* gives up.                                                              *)
 PumpReopen ==
   /\ pp = "closing"
-  /\ CASE stopped ->                                              \* tableWatch.ts:241
+  /\ CASE stopped ->                                              \* tableWatch.ts:291
             /\ pp' = "done"
             /\ UNCHANGED <<errors, feed, pos, rd, on, cur, pending, badRead>>
        [] ~stopped ->
             \/ /\ errors < MaxErrors
                /\ errors' = errors + 1
-               /\ pp' = "gaveUp"                                  \* tableWatch.ts:244-249
+               /\ pp' = "gaveUp"                                  \* tableWatch.ts:294-299
                /\ UNCHANGED <<feed, pos, rd, on, cur, pending, badRead>>
             \/ /\ cur + 1 \in Cursors
-               /\ cur' = cur + 1                                  \* tableWatch.ts:243
+               /\ cur' = cur + 1                                  \* tableWatch.ts:293
                /\ feed' = [feed EXCEPT ![cur + 1] = "open"]
                /\ pos' = [pos EXCEPT ![cur + 1] = made]
-               /\ pp' = "read"                                    \* tableWatch.ts:220-222
-               /\ TakeRead(cur + 1, feed')                        \* tableWatch.ts:191-194
+               /\ pp' = "read"                                    \* tableWatch.ts:270-272
+               /\ TakeRead(cur + 1, feed')                        \* tableWatch.ts:241-244
                /\ UNCHANGED errors
   /\ UNCHANGED <<made, rc, act, reconnected, worked, emitted, twice, late,
                  Deact>>
@@ -250,18 +250,18 @@ Deactivate ==
   /\ act = "active"
   /\ calls < MaxDeactivates
   /\ calls' = calls + 1
-  /\ IF stopped                                                   \* tableWatch.ts:361
+  /\ IF stopped                                                   \* tableWatch.ts:511
      THEN /\ returned' = TRUE
           /\ UNCHANGED <<feed, rd, stopped, dp>>
-     ELSE /\ stopped' = TRUE                                      \* tableWatch.ts:362
+     ELSE /\ stopped' = TRUE                                      \* tableWatch.ts:512
           /\ dp' = "closing"
-          /\ Close(cur)                                           \* tableWatch.ts:363
+          /\ Close(cur)                                           \* tableWatch.ts:513
           /\ UNCHANGED returned
   /\ UNCHANGED <<made, errors, pos, rc, act, Pump, Marks>>
 
 (* The close resolved and deactivate() returns.                           *)
 DeactivateReturns ==
-  /\ dp = "closing"                                               \* tableWatch.ts:363
+  /\ dp = "closing"                                               \* tableWatch.ts:513
   /\ dp' = "returned"
   /\ returned' = TRUE
   /\ UNCHANGED <<made, errors, feed, pos, rd, rc, act, Pump, stopped, calls,

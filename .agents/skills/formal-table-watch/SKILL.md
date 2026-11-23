@@ -62,8 +62,8 @@ Run `--full` when a change touches `src/automation/tableWatch.ts` or this folder
 
 Each finding was replayed on `dist/automation/tableWatch.js` built by `pnpm run build` at the sync commit, against a fake change-feed table. The replays were scratch scripts and are not committed. The replay stubs `Schema.get` with a schema whose table `orders` hands out fake cursors. A fake cursor's `next()` waits until the replay answers, rejects or ends it. Its `return()` resolves a waiting read with done and waits until the replay resolves the close. `setTimeout` is a queue the replay fires by delay (2000 for the probe, 5000 for the reconnect), and `Logging.Warn` and `Logging.Error` print. The replay takes one model action per step, in TLC's order.
 
-- **F1, the pump gives up without closing the cursor it reopened (`GiveUpCloses`).** After the reconnect, a second failure logs and returns (tableWatch.ts:226-231). It does not call `handle.iterator.return()`. The reconnect path does (line 240), and the pumpFeed TSDoc gives the reason: the failed cursor may still own a server-side change stream (lines 209-211). In TLC's counterexample, the probe passes, cursor 1 fails, the pump sleeps, closes cursor 1 and opens cursor 2, and cursor 2 fails. The replay logged `Logging.Error ... change feed failed after reconnect, giving up: change stream error` and then `open cursors [2], return() calls 1:1,2:0`. Only `deactivate()` closed cursor 2: `return() calls 1:1,2:1`. With `@antelopejs/mongodb` 1.6.2, `ReadCursor` already closes the server cursor when a read rejects, so on MongoDB the open cursor holds no server stream. A backend that keeps the stream after a failed read leaks it until `deactivate()`.
-- **F2, one reconnect per activation, not per failure (`GiveUpOnlyOnFailedReconnect`).** `reconnected` is set once (line 233) and never reset. A reopened cursor that worked for weeks makes the next error final. In TLC's counterexample, cursor 1 fails, cursor 2 opens, delivers an insert, then fails, and the pump gives up. The replay logged `emit(insert {"id":1})`, then `Logging.Error ... giving up`, then `open cursors [2], reads waiting [], emits 1`. No read waits on any cursor, so later changes fire nothing until the runtime re-activates the trigger. The pumpFeed TSDoc reads "on a feed error ... it attempts ONE reconnect"; whether one per activation is intended is the owner's call.
+- **F1, the pump gives up without closing the cursor it reopened (`GiveUpCloses`).** After the reconnect, a second failure logs and returns (tableWatch.ts:276-281). It does not call `handle.iterator.return()`. The reconnect path does (line 290), and the pumpFeed TSDoc gives the reason: the failed cursor may still own a server-side change stream (lines 259-261). In TLC's counterexample, the probe passes, cursor 1 fails, the pump sleeps, closes cursor 1 and opens cursor 2, and cursor 2 fails. The replay logged `Logging.Error ... change feed failed after reconnect, giving up: change stream error` and then `open cursors [2], return() calls 1:1,2:0`. Only `deactivate()` closed cursor 2: `return() calls 1:1,2:1`. With `@antelopejs/mongodb` 1.6.2, `ReadCursor` already closes the server cursor when a read rejects, so on MongoDB the open cursor holds no server stream. A backend that keeps the stream after a failed read leaks it until `deactivate()`.
+- **F2, one reconnect per activation, not per failure (`GiveUpOnlyOnFailedReconnect`).** `reconnected` is set once (line 283) and never reset. A reopened cursor that worked for weeks makes the next error final. In TLC's counterexample, cursor 1 fails, cursor 2 opens, delivers an insert, then fails, and the pump gives up. The replay logged `emit(insert {"id":1})`, then `Logging.Error ... giving up`, then `open cursors [2], reads waiting [], emits 1`. No read waits on any cursor, so later changes fire nothing until the runtime re-activates the trigger. The pumpFeed TSDoc reads "on a feed error ... it attempts ONE reconnect"; whether one per activation is intended is the owner's call.
 
 Neither finding is filed as an issue yet.
 
@@ -73,7 +73,7 @@ Read each TLC result with the pstack `/statechart` skill. Work on a copy of `Tab
 
 ## Real bug or modeling error
 
-The runtime gets the handle only when `activate()` resolves, so no `deactivate()` lands in the probe; the model enables `Deactivate` only after `ProbePasses`. Each `deactivate()` is one step up to its `await` on `return()`. `drainFeed` takes its next read with no await after the `stopped` check (lines 191-192), and `PumpReopen` opens the next cursor and reads it in one step (lines 243, 220-222, 191-194); an order that puts a `deactivate()` inside either is a modeling error. The model lets a `deactivate()` land between a cursor's answer and the pump's resume. A read's answer reaches `drainFeed` through several promise hops, and a fake cursor that answers and a `deactivate()` called in the same task produce that order.
+The runtime gets the handle only when `activate()` resolves, so no `deactivate()` lands in the probe; the model enables `Deactivate` only after `ProbePasses`. Each `deactivate()` is one step up to its `await` on `return()`. `drainFeed` takes its next read with no await after the `stopped` check (lines 241-242), and `PumpReopen` opens the next cursor and reads it in one step (lines 293, 270-272, 241-244); an order that puts a `deactivate()` inside either is a modeling error. The model lets a `deactivate()` land between a cursor's answer and the pump's resume. A read's answer reaches `drainFeed` through several promise hops, and a fake cursor that answers and a `deactivate()` called in the same task produce that order.
 
 Replay a counterexample with the fake table above, one action per step, and assert only what the runtime sees: `emit()` calls, which cursors got `return()`, reads started on a closed cursor, and the log lines. If the replay does not reproduce a finding, treat the model as wrong until you show it is not.
 
@@ -88,18 +88,18 @@ Replay a counterexample with the fake table above, one action per step, and asse
 
 | Model action | Code |
 | --- | --- |
-| `Init` | `activate()` past validation: `openFeed`, the handle, the first read in `handle.pending` (tableWatch.ts:316-339) |
-| `ProbePasses` | the probe race won by the sleep or a non-error answer, the pump's start, `return handle` (lines 340-347, 353-354, 220-222, 191-194) |
-| `ProbeFails`, `ActivateThrows` | a probe error closes the cursor, then throws (lines 343, 347-351) |
-| `Change`, `Deliver`, `Fail` | the cursor `openFeed` returns (lines 157-161); interface-database 0.3.0 `IterableCursor.next` |
+| `Init` | `activate()` past validation: `openFeed`, the handle, the first read in `handle.pending` (tableWatch.ts:448-489) |
+| `ProbePasses` | the probe race won by the sleep or a non-error answer, the pump's start, `return handle` (lines 490-497, 503-504, 270-272, 241-244) |
+| `ProbeFails`, `ActivateThrows` | a probe error closes the cursor, then throws (lines 493, 497-501) |
+| `Change`, `Deliver`, `Fail` | the cursor `openFeed` returns (lines 158-165); interface-database 0.3.0 `IterableCursor.next` |
 | `Close` | interface-database 0.3.0 `IterableCursor.return`: a waiting read resolves with done |
-| `PumpResume` | `drainFeed` after `await read`: done, `stopped`, `emitChange`, the next read (lines 191-201) |
-| `PumpCatch` | `pumpFeed`'s catch: `stopped`, the give-up, the reconnect flag and sleep (lines 224-238) |
-| `PumpWake` | the sleep's end and the close of the failed cursor (lines 238-240, 123-125) |
-| `PumpReopen` | the close's end, then `openFeed` or its throw (lines 241-250) |
-| `Deactivate`, `DeactivateReturns` | `deactivate()` (lines 360-364) |
+| `PumpResume` | `drainFeed` after `await read`: done, `stopped`, `emitChange`, the next read (lines 241-251) |
+| `PumpCatch` | `pumpFeed`'s catch: `stopped`, the give-up, the reconnect flag and sleep (lines 274-288) |
+| `PumpWake` | the sleep's end and the close of the failed cursor (lines 288-290, 118-120) |
+| `PumpReopen` | the close's end, then `openFeed` or its throw (lines 291-300) |
+| `Deactivate`, `DeactivateReturns` | `deactivate()` (lines 510-514) |
 
-The sync commit is `d14f337`. `tableWatch.ts` last changed in `78f995c`.
+The sync commit is `424b783`. `tableWatch.ts` last changed in `424b783`.
 
 ## Bounds and what is left out
 
@@ -107,7 +107,8 @@ A pass covers the bounds of the table under "Run it" only. The model leaves out:
 
 - `cluster: "singleton"`: dms-automation activates the trigger on its elected leader only. The election is dms-automation's `formal-leader-triggers` check. Two instances that both believe they lead each hold a handle, and each emits every change.
 - the dms-automation runtime around the trigger: the 10 s `TRIGGER_OP_TIMEOUT_MS` on `activate()` and `deactivate()`, the `live.armed` flag, and the reconcile that re-activates a trigger that gave up.
-- `emitChange`'s `eventTypes` filter and change-type mapping: every change counts as emitted.
+- `emitChange`'s `eventTypes` filter, its change-type mapping, and its skip of changes a procedure's write made (`includeAutomationWrites`, the loop guard): every change counts as emitted.
+- `activate()`'s validation before `openFeed`, the instance check included.
 - changes made between a failure and the reopen. A reopened cursor starts at the current change, as a change stream without a resume token does, so those changes never fire, and no rule checks that.
 - the database module behind the cursor. The model counts a cursor as open until the trigger calls `return()`, whatever the module closed on its own.
 - a second `activate()` for the same procedure: each activation has its own handle.
@@ -118,14 +119,14 @@ On a scratch copy of this folder (with `node_modules` reachable, for example a s
 
 | Scratch change in the code, and the model edit | CI configuration | Full configuration |
 | --- | --- | --- |
-| `no-stop-check-after-read`: drop `if (handle.stopped) return` before `emitChange` (line 199): the `stopped` change branch of `PumpResume` emits | `BROKEN NoEmitAfterDeactivate` | same |
-| `keep-pending`: drop `handle.pending = undefined` (line 193): `TakeRead` keeps `pending` | `BROKEN EmitOnce`, `CHANGED GiveUpCloses: 9 states (recorded 10)`, `HOLDS GiveUpOnlyOnFailedReconnect` | same |
-| `probe-fail-no-close`: `activate()` throws without `iterator.return()` (line 348): `ProbeFails` closes nothing | `BROKEN StopClosesFeeds` | same |
-| `no-close-before-reopen`: drop the close before the reopen (line 240): `PumpWake` closes nothing | `BROKEN OneOpenFeed`, `CHANGED GiveUpCloses: 7 states (recorded 10)` | same |
-| `no-stop-check-after-close`: drop `if (handle.stopped) return` after the close (line 241): a stopped `PumpReopen` opens a cursor | `BROKEN StopClosesFeeds` | same |
-| `await-before-read`: an `await` between the `stopped` check and `next()` (lines 191-192): a `PumpRead` step after the emit | `BROKEN NoReadOnClosedFeed`, `CHANGED GiveUpOnlyOnFailedReconnect: 14 states (recorded 13)` | same |
-| `deactivate-skips-return`: `deactivate()` sets `stopped` without `iterator.return()` (line 363) | `BROKEN StopClosesFeeds` | same |
-| Fix candidate `close-on-give-up`: `return()` on `handle.iterator` before the give-up returns (lines 226-231) | `HOLDS GiveUpCloses` | same |
-| Fix candidate `reset-reconnected-after-change`: reset `reconnected` once a reopened cursor emits (lines 200, 233) | `HOLDS GiveUpOnlyOnFailedReconnect` | same |
+| `no-stop-check-after-read`: drop `if (handle.stopped) return` before `emitChange` (line 249): the `stopped` change branch of `PumpResume` emits | `BROKEN NoEmitAfterDeactivate` | same |
+| `keep-pending`: drop `handle.pending = undefined` (line 243): `TakeRead` keeps `pending` | `BROKEN EmitOnce`, `CHANGED GiveUpCloses: 9 states (recorded 10)`, `HOLDS GiveUpOnlyOnFailedReconnect` | same |
+| `probe-fail-no-close`: `activate()` throws without `iterator.return()` (line 498): `ProbeFails` closes nothing | `BROKEN StopClosesFeeds` | same |
+| `no-close-before-reopen`: drop the close before the reopen (line 290): `PumpWake` closes nothing | `BROKEN OneOpenFeed`, `CHANGED GiveUpCloses: 7 states (recorded 10)` | same |
+| `no-stop-check-after-close`: drop `if (handle.stopped) return` after the close (line 291): a stopped `PumpReopen` opens a cursor | `BROKEN StopClosesFeeds` | same |
+| `await-before-read`: an `await` between the `stopped` check and `next()` (lines 241-242): a `PumpRead` step after the emit | `BROKEN NoReadOnClosedFeed`, `CHANGED GiveUpOnlyOnFailedReconnect: 14 states (recorded 13)` | same |
+| `deactivate-skips-return`: `deactivate()` sets `stopped` without `iterator.return()` (line 513) | `BROKEN StopClosesFeeds` | same |
+| Fix candidate `close-on-give-up`: `return()` on `handle.iterator` before the give-up returns (lines 276-281) | `HOLDS GiveUpCloses` | same |
+| Fix candidate `reset-reconnected-after-change`: reset `reconnected` once a reopened cursor emits (lines 250, 283) | `HOLDS GiveUpOnlyOnFailedReconnect` | same |
 
 Every scratch run in the table exited 1. With the edits dropped, both configurations exit 0. The `no-stop-check-after-read` path also replays on a scratch copy of `dist/automation/tableWatch.js` without line 184: the insert is emitted after `deactivate()` was called, and the real build emits nothing.
