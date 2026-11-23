@@ -8,6 +8,7 @@ import {
 import type { StagedCell } from '../build/data/stagedEdits'
 import { READ_ONLY_REASON } from '../build/data/readOnlyReason'
 import {
+	type CellValue,
 	isBoolean,
 	isNumber as isNumberValue,
 	isObject,
@@ -17,7 +18,7 @@ import type { ColumnRole } from '../build/utils/fieldTypes'
 const props = defineProps<{
 	/** The column's name, which names the editor for assistive technology. */
 	column: string
-	value: unknown
+	value: CellValue
 	staged?: StagedCell
 	role: ColumnRole
 	editable: boolean
