@@ -102,6 +102,8 @@
     "extending": {
       "covers": [
         "src/automation/**",
+        "src/service/jsonRows.ts",
+        "src/service/rows.ts",
         "frontend-vue/app/config/shortcuts-registry.ts",
         "src/utils/guards.ts",
         "src/types/**",
@@ -205,6 +207,7 @@
         "src/pages/query.ts",
         "src/routes/query.ts",
         "src/service/queryInspection.ts",
+        "src/service/queryRun.ts",
         "src/utils/requestValidation.ts",
         "frontend-vue/app/components/QueryConsole.vue",
         "frontend-vue/app/build/components/QueryConsoleBoard.vue",
