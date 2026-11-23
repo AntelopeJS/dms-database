@@ -146,11 +146,7 @@ export function draftText(value: CellValue): string {
 export function cellText(value: CellValue): string {
 	if (isEmpty(value)) return ''
 	if (!isStructured(value)) return String(value)
-	try {
-		return JSON.stringify(value)
-	} catch {
-		return Object.prototype.toString.call(value)
-	}
+	return JSON.stringify(value)
 }
 
 /**

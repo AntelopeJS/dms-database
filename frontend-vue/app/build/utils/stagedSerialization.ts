@@ -10,7 +10,7 @@ import {
 	Table,
 	ValueProxy,
 } from '@antelopejs/interface-database/staged-query'
-import { type CellValue, isRecord, isScalar, isText } from './values'
+import { type CellValue, isBigInt, isRecord, isScalar, isText } from './values'
 
 type EncodedStage = {
 	stage: string
@@ -68,6 +68,8 @@ function encodeStage(stage: unknown): CellValue {
 /** A staged query as JSON: its classes by name with their stages, anything else as the plain data it holds. */
 export function encodeStaged(node: unknown): CellValue {
 	if (isCrossInstance(node)) return CROSS_INSTANCE_SENTINEL
+	if (isBigInt(node))
+		throw new TypeError('Do not know how to serialize a BigInt')
 	if (isScalar(node)) return node
 	if (Array.isArray(node)) return node.map(encodeStaged)
 	if (isRecord(node)) {

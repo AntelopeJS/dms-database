@@ -163,6 +163,7 @@ export default defineConfig({
         },
       };
     },
+    /** Swallows its own failure: ajs awaits it inside a `finally`, where a rejection would replace the run's outcome with a teardown stack. */
     async cleanup() {
       try {
         if (mongod) await mongod.stop();

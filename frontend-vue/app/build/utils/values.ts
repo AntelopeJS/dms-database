@@ -33,6 +33,11 @@ export function isScalar(
 	return value === null || isText(value) || isNumber(value) || isBoolean(value)
 }
 
+/** Whether a value is a bigint. */
+export function isBigInt(value: unknown): value is bigint {
+	return typeof value === 'bigint'
+}
+
 /** Whether a value is a symbol. */
 export function isSymbol(value: unknown): value is symbol {
 	return typeof value === 'symbol'

@@ -176,6 +176,7 @@ function useTabsState(): TabsState {
 	return { tabs, activeId, activations, database, recent, activeTab }
 }
 
+/** Stores the open tabs for this browser tab's session. A full or private storage only loses the restore. */
 function persistTabs({ database, tabs, activeId }: TabsState) {
 	if (typeof window === 'undefined') return
 	try {
@@ -187,9 +188,7 @@ function persistTabs({ database, tabs, activeId }: TabsState) {
 				activeId: activeId.value,
 			}),
 		)
-	} catch {
-		return
-	}
+	} catch {}
 }
 
 /**

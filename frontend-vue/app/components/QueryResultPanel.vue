@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
-import { isNumber, isObject } from '../build/utils/values'
+import { isNumber, isObject, isScalar } from '../build/utils/values'
 import { downloadText, resultColumns, toCsv } from '../build/query/csv'
 import {
 	filledColumns,
@@ -29,18 +29,6 @@ import {
 type ResultMode = 'table' | 'json' | 'chart'
 
 type ResultRow = ExecuteResult['rows'][number]
-
-function isScalar(
-	value: unknown,
-): value is string | number | boolean | bigint | symbol {
-	return (
-		typeof value === 'string' ||
-		typeof value === 'number' ||
-		typeof value === 'boolean' ||
-		typeof value === 'bigint' ||
-		typeof value === 'symbol'
-	)
-}
 
 function isRowId(value: unknown): value is string | number {
 	return typeof value === 'string' || typeof value === 'number'

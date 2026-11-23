@@ -34,7 +34,7 @@ export function readRecentTables(database: string): RecentTable[] {
 	}
 }
 
-/** Records a table opened on `database` as its newest. */
+/** Records a table opened on `database` as its newest. A full or private storage only loses the suggestions. */
 export function rememberTable(
 	database: string,
 	entry: Omit<RecentTable, 'openedAt'>,
@@ -52,7 +52,5 @@ export function rememberTable(
 	].slice(0, MAX_RECENT)
 	try {
 		window.localStorage.setItem(STORAGE_PREFIX + database, JSON.stringify(next))
-	} catch {
-		return
-	}
+	} catch {}
 }

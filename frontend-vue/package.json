@@ -16,7 +16,7 @@
     "lint": "pnpm -s run types && eslint .",
     "lint:fix": "pnpm -s run types && eslint . --fix",
     "types": "pnpm --dir .. exec ajs dms prepare-types -q --module frontend-vue --out frontend-vue/.dms-types",
-    "test": "vitest run"
+    "test": "pnpm -s run types && vitest run"
   },
   "dependencies": {
     "@antelopejs/interface-core": ">=0.5.2 <0.6.0",
