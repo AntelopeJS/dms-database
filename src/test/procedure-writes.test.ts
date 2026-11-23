@@ -85,6 +85,12 @@ describe("the procedure write registry", () => {
     assert.ok(writes.attribute(WATCH, { ...ROWS, instance: "t1" }, 0));
     assert.ok(writes.attribute(WATCH, { ...ROWS, instance: "" }, 0));
   });
+
+  it("matches a change that names no instance to a write of any instance, as a key-only delete across instances", () => {
+    const writes = new ProcedureWriteRegistry();
+    writes.begin(ORIGIN, { ...ROWS, instance: "t1" });
+    assert.ok(writes.attribute(WATCH, { ...ROWS, instance: undefined }, 0));
+  });
 });
 
 describe("the automation loop guard", () => {

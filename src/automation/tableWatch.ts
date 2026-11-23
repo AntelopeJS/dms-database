@@ -8,7 +8,7 @@ import type {
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
 import { OWN_DATABASE } from "../service/database";
 import { listSchemaInstances } from "../service/introspect";
-import { jsonRows } from "../service/jsonRows";
+import { type ChangeRows, jsonRows } from "../service/jsonRows";
 import type { JsonObject } from "../types/json";
 import { admitAutomationChange } from "./loopGuard";
 import { procedureWrites } from "./origin";
@@ -165,6 +165,16 @@ function openFeed(scope: WatchScope): ChangeFeed {
 }
 
 /**
+ * A delete whose old row holds only its key: a cross-instance MongoDB feed
+ * without a pre-image, which carries no instance tag.
+ */
+function isKeyOnlyDelete(rows: ChangeRows): boolean {
+  if (rows.new !== null || rows.old === null) return false;
+  const keys = Object.keys(rows.old);
+  return keys.length === 1 && keys[0] === "_id";
+}
+
+/**
  * Fires the run of one change. A change a procedure's write made counts
  * against that write before the event-type filter, so the write's other
  * changes stay attributed; it fires only with `includeAutomationWrites`, and
@@ -183,7 +193,8 @@ function emitChange(
     {
       schema: scope.schema,
       table: scope.table,
-      instance,
+      instance:
+        scope.allInstances && isKeyOnlyDelete(rows) ? undefined : instance,
     },
   );
   const type = CHANGE_TYPE_TO_EVENT[change.changeType];
@@ -291,7 +302,7 @@ async function pumpFeed(
   }
 }
 
-const MAX_INSTANCE_LENGTH = 128;
+const MAX_NAME_LENGTH = 128;
 
 /**
  * The instance a watch reads: `""` for the default one, else a named instance
@@ -319,9 +330,9 @@ async function resolveInstance(
     return "";
   }
   if (!instance) return "";
-  if (instance.length > MAX_INSTANCE_LENGTH) {
+  if (instance.length > MAX_NAME_LENGTH) {
     throw new Error(
-      `table-watch: 'instance' is longer than ${MAX_INSTANCE_LENGTH} characters`,
+      `table-watch: 'instance' is longer than ${MAX_NAME_LENGTH} characters`,
     );
   }
   const named = await listSchemaInstances(OWN_DATABASE, schema);
@@ -354,11 +365,13 @@ export const tableWatchTrigger: TriggerType<
         type: "string",
         title: "Schema",
         description: "Registered schema id, e.g. `dms`",
+        maxLength: MAX_NAME_LENGTH,
       },
       table: {
         type: "string",
         title: "Table",
         description: "Table name inside the schema",
+        maxLength: MAX_NAME_LENGTH,
       },
       eventTypes: {
         type: "array",
@@ -437,6 +450,16 @@ export const tableWatchTrigger: TriggerType<
     const tableName = isString(config.table) ? config.table.trim() : "";
     if (!schemaId) throw new Error("table-watch: 'schema' is required");
     if (!tableName) throw new Error("table-watch: 'table' is required");
+    for (const [name, value] of [
+      ["schema", schemaId],
+      ["table", tableName],
+    ]) {
+      if (value.length > MAX_NAME_LENGTH) {
+        throw new Error(
+          `table-watch: '${name}' is longer than ${MAX_NAME_LENGTH} characters`,
+        );
+      }
+    }
     const schema = Schema.get(schemaId);
     if (!schema) {
       throw new Error(`table-watch: unknown schema "${schemaId}"`);

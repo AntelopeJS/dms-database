@@ -153,6 +153,12 @@ function instanceWatchTests(): void {
           "table-watch: name an instance or watch every instance, not both",
       },
     );
+    await assert.rejects(
+      watch({ schema: "s".repeat(129), table: "rows" }, []),
+      {
+        message: "table-watch: 'schema' is longer than 128 characters",
+      },
+    );
   });
 }
 

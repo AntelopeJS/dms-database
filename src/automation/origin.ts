@@ -18,7 +18,8 @@ export interface WriteTarget {
 export interface ChangeLocation {
   schema: string;
   table: string;
-  instance: string;
+  /** Undefined when the change does not say: it matches a write to any instance. */
+  instance: string | undefined;
 }
 
 /** A procedure's write a change is attributed to. */
@@ -49,6 +50,7 @@ function matches(target: WriteTarget, change: ChangeLocation): boolean {
     (target.table === undefined || target.table === change.table) &&
     (target.instance === undefined ||
       target.instance === "*" ||
+      change.instance === undefined ||
       target.instance === change.instance)
   );
 }
