@@ -1,10 +1,27 @@
 import { HTTPResult } from "@antelopejs/interface-api";
+import type { RefusalSpec } from "../service/refusals";
 import { isNumber, isRecord, isString } from "../utils/guards";
 
-/** What a controller refused with: the HTTP status and the message it gave. */
+/**
+ * What a controller refused with: the HTTP status and the message it gave, with the params of a
+ * refusal from the table.
+ */
 export interface Refusal {
   status: number;
   message: string;
+  params?: Record<string, string>;
+}
+
+/** The refusal of the table a controller answers, as {@link refusal} reads it. */
+export function refused(
+  { status, key }: RefusalSpec,
+  params: Record<string, string> = {},
+): Refusal {
+  return { status, message: key, params };
+}
+
+function isParams(value: unknown): value is Record<string, string> {
+  return isRecord(value) && Object.values(value).every(isString);
 }
 
 /** The refusal body of a failed query run, parsed. */
@@ -43,18 +60,29 @@ export interface KeyedRefusal {
 export async function keyedRefusal(
   call: Promise<unknown>,
 ): Promise<KeyedRefusal> {
-  const { status, message } = await refusal(call);
-  const body: unknown = JSON.parse(message);
+  const { status, text } = await refusedText(call);
+  const body: unknown = JSON.parse(text);
   return { status, body };
 }
 
-/** Awaits a call that must fail with an HTTP error, and reads that error. */
-export async function refusal(call: Promise<unknown>): Promise<Refusal> {
+async function refusedText(
+  call: Promise<unknown>,
+): Promise<{ status: number; text: string }> {
   try {
     await call;
   } catch (error) {
     if (!(error instanceof HTTPResult)) throw error;
-    return { status: error.getStatus(), message: bodyText(error) };
+    return { status: error.getStatus(), text: bodyText(error) };
   }
   throw new Error("the call was expected to be refused");
+}
+
+/** Awaits a call that must fail with an HTTP error, and reads that error. */
+export async function refusal(call: Promise<unknown>): Promise<Refusal> {
+  const { status, text } = await refusedText(call);
+  const body: unknown = text.startsWith("{") ? JSON.parse(text) : text;
+  if (isRecord(body) && isString(body.message) && isParams(body.params)) {
+    return { status, message: body.message, params: body.params };
+  }
+  return { status, message: text };
 }

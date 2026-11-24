@@ -12,6 +12,7 @@ import {
   type JsonValue,
 } from "../types/json";
 import { callDatabase, type HttpAnswer } from "./helpers/http";
+import { REFUSALS } from "../service/refusals";
 import { pick } from "./helpers/pick";
 import { createOwnerSession, type OwnerSession } from "./ownerSession";
 import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
@@ -118,7 +119,10 @@ async function assertTypedWrites(session: OwnerSession): Promise<void> {
     "a date cell takes a date text and stays a date",
   );
   assert.equal(badDate.status, 400, "a text that is no date is refused");
-  assert.match(badDate.text, /Invalid date for 'created_at'/);
+  assert.deepEqual(
+    [pick(badDate.body, "message"), pick(badDate.body, "params", "field")],
+    [REFUSALS.invalidDate.key, "created_at"],
+  );
   assert.equal(boolDate.status, 400, "a boolean over a date is refused");
   assert.deepEqual(
     [key.status, row._id, row._instance, hacked.status],
@@ -155,9 +159,9 @@ async function assertRefusals(session: OwnerSession): Promise<void> {
     { channel: "everywhere" },
   );
   assert.equal(everywhere.status, 400, "an edit across instances is refused");
-  assert.match(
-    everywhere.text,
-    /Editing is disabled when browsing across all instances/,
+  assert.equal(
+    pick(everywhere.body, "message"),
+    REFUSALS.crossInstanceEdit.key,
   );
   assert.notEqual(
     (await stored(session)).channel,
@@ -174,7 +178,7 @@ async function assertRefusals(session: OwnerSession): Promise<void> {
     [400, 400, 404],
     "a missing id is 400, an array body 400, a missing row 404",
   );
-  assert.match(missing.text, /Row not found/);
+  assert.equal(pick(missing.body, "message"), REFUSALS.rowNotFound.key);
 }
 
 describe("[integration] editing journeys", function () {

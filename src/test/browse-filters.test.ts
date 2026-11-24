@@ -6,7 +6,8 @@ import { ConnectionSelectionModel } from "../db/models/connection_selections.mod
 import { DatabaseBrowseController } from "../routes/data";
 import { resolveDatabase } from "../service/connections";
 import type { Database } from "../service/database";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 
 interface Customer {
@@ -195,7 +196,7 @@ describe("[integration] a filter gives the same rows on the own database and an 
     it(`refuses a filter on a column the table does not have on ${database.name}, which a column name passed to the database as it is would run`, async () => {
       assert.deepEqual(
         await refusal(read(database, { filter_$where: "is:x" })),
-        { status: 400, message: "Unknown column: $where" },
+        refused(REFUSALS.unknownColumn, { column: "$where" }),
       );
     });
   }
@@ -401,19 +402,16 @@ describe("[integration] a filter on number, true or false and object columns", (
   }
 
   it("refuses a filter on an object column, which a comparison of its text would not", async () => {
-    const { status, message } = await refusal(
-      readMetrics({ filter_meta: "contains:needle" }),
+    assert.deepEqual(
+      await refusal(readMetrics({ filter_meta: "contains:needle" })),
+      refused(REFUSALS.unfilterableColumn, { column: "meta" }),
     );
-    assert.equal(status, 400);
-    assert.match(message, /\bmeta\b/);
   });
 
   it("refuses a filter on a column whose name holds a dot, which a query reading it as a nested field would answer with no row", async () => {
-    const { status, message } = await refusal(
-      readMetrics({ "filter_unit.price": "is:cheap" }),
+    assert.deepEqual(
+      await refusal(readMetrics({ "filter_unit.price": "is:cheap" })),
+      refused(REFUSALS.nestedFilterColumn, { column: "unit.price" }),
     );
-    assert.equal(status, 400);
-    assert.match(message, /unit\.price/);
-    assert.match(message, /nested field/);
   });
 });

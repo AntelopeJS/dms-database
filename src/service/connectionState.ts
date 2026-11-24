@@ -1,5 +1,3 @@
-import { HTTPResult } from "@antelopejs/interface-api";
-import { assert } from "@antelopejs/interface-api-util";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { GetRuntimeInfo } from "@antelopejs/interface-core/runtime";
 import type { RelationSummary } from "@antelopejs/interface-database-catalog";
@@ -12,7 +10,7 @@ import {
 import { setExternalConnections, withAccess } from "../config";
 import { configuredAccess } from "../connectionAccess";
 import { builderRefusalReason } from "./builderRefusal";
-import { CONNECTION_REFUSALS, connectionRefusal } from "./connectionRefusals";
+import { REFUSALS, type RefusalSpec, refusal, refuse } from "./refusals";
 import { ConnectionSelectionModel } from "../db/models/connection_selections.model";
 import {
   type CatalogBinding,
@@ -45,14 +43,14 @@ export const EXTERNAL_UNSUPPORTED = [
 
 export type ConsoleFeature = (typeof EXTERNAL_UNSUPPORTED)[number];
 
-const FEATURE_NAMES: Record<ConsoleFeature, string> = {
-  migrations: "Migrations",
-  schemaEdits: "Schema edits",
-  indexes: "Indexes",
-  queryConsole: "The query console",
-  instances: "Instances",
-  rowReferences: "A row's references",
-};
+const EXTERNAL_REFUSALS = {
+  migrations: REFUSALS.externalMigrations,
+  schemaEdits: REFUSALS.externalSchemaEdits,
+  indexes: REFUSALS.externalIndexes,
+  queryConsole: REFUSALS.externalQueryConsole,
+  instances: REFUSALS.externalInstances,
+  rowReferences: REFUSALS.externalRowReferences,
+} as const satisfies Record<ConsoleFeature, RefusalSpec>;
 
 /**
  * One database the console shows. The dashboard names the project's own
@@ -234,10 +232,9 @@ export async function selectConnection(
   userId: string,
   connection: string,
 ): Promise<void> {
-  assert(
+  refuse(
     connection === OWN_CONNECTION || listExternalIds().includes(connection),
-    404,
-    CONNECTION_REFUSALS.unknownConnection,
+    REFUSALS.unknownConnection,
   );
   await GetModel(ConnectionSelectionModel).select(userId, connection);
 }
@@ -254,21 +251,13 @@ export async function changeAccess(
   access: ConnectionAccess,
 ): Promise<void> {
   assertExternal(connection);
-  assert(await accessEditable(), 403, CONNECTION_REFUSALS.notDevelopment);
+  refuse(await accessEditable(), REFUSALS.notDevelopment);
   await writeAccess(connection, access);
 }
 
 function assertExternal(connection: string): void {
-  assert(
-    connection !== OWN_CONNECTION,
-    400,
-    "The project's own database is always writable",
-  );
-  assert(
-    listExternalIds().includes(connection),
-    404,
-    CONNECTION_REFUSALS.unknownConnection,
-  );
+  refuse(connection !== OWN_CONNECTION, REFUSALS.ownDatabaseAccess);
+  refuse(listExternalIds().includes(connection), REFUSALS.unknownConnection);
 }
 
 let accessWrites: Promise<unknown> = Promise.resolve();
@@ -299,11 +288,11 @@ async function writeAccessNow(
   assertExternal(connection);
   if (access === "read-write") {
     const { canWrite } = await summarizeExternal(connection);
-    assert(canWrite !== null, 409, CONNECTION_REFUSALS.unverifiedAccount);
-    assert(canWrite, 409, CONNECTION_REFUSALS.readOnlyAccount);
+    refuse(canWrite !== null, REFUSALS.unverifiedAccount);
+    refuse(canWrite, REFUSALS.readOnlyAccount);
   }
   const moduleId = ownModuleId();
-  assert(moduleId, 503, CONNECTION_REFUSALS.noModuleEntry);
+  refuse(moduleId, REFUSALS.noModuleEntry);
   const next = withAccess(connection, access);
   const externalConnections = Object.fromEntries(
     Object.entries(next).map(([id, settings]) => [
@@ -314,11 +303,10 @@ async function writeAccessNow(
   const written = await ConfigureModule(moduleId, {
     config: { externalConnections },
   }).catch(() => undefined);
-  assert(written !== undefined, 503, CONNECTION_REFUSALS.noBuilder);
+  refuse(written !== undefined, REFUSALS.noBuilder);
   if (!written.ok) {
-    throw new HTTPResult(409, {
-      message: CONNECTION_REFUSALS.builderRefused,
-      params: { reason: builderRefusalReason(written.error) },
+    throw refusal(REFUSALS.builderRefused, {
+      reason: builderRefusalReason(written.error),
     });
   }
   setExternalConnections(next);
@@ -332,12 +320,7 @@ async function writeAccessNow(
 export async function assertWritable(db: Database): Promise<void> {
   if (db.connection === OWN_CONNECTION) return;
   if ((await GetConnectionAccess(db.connection)) !== "read-write") {
-    throw connectionRefusal(
-      403,
-      CONNECTION_REFUSALS.readOnlyConnection,
-      db.connection,
-      "warning",
-    );
+    throw refusal(REFUSALS.readOnlyConnection, { connection: db.connection });
   }
 }
 
@@ -348,9 +331,5 @@ export async function assertWritable(db: Database): Promise<void> {
  * @param feature The feature it needs
  */
 export function assertSupported(db: Database, feature: ConsoleFeature): void {
-  assert(
-    db.connection === OWN_CONNECTION,
-    409,
-    `${FEATURE_NAMES[feature]} is not available on an external database`,
-  );
+  refuse(db.connection === OWN_CONNECTION, EXTERNAL_REFUSALS[feature]);
 }

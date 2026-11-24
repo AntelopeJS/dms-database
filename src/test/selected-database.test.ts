@@ -13,9 +13,9 @@ import { DatabaseOverviewController } from "../routes/overview";
 import { DatabaseQueryController } from "../routes/query";
 import { DatabaseSchemasController } from "../routes/schemas";
 import { DatabaseTablesController } from "../routes/tables";
-import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { REFUSALS } from "../service/refusals";
 import { OWN_CONNECTION } from "../types/constants";
-import { keyedRefusal, refusal } from "./refusal";
+import { keyedRefusal, refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 import { encode } from "./stagedWire";
 
@@ -213,10 +213,10 @@ describe("[integration] what the selected external database refuses", () => {
       await ownErp.destroyInstance("eu").run();
     }
     for (const instance of ["is:eu", "is:__CROSS_INSTANCE__"]) {
-      assert.deepEqual(await refusal(browseList(EXTERNAL_USER, instance)), {
-        status: 400,
-        message: "erp has no instances: read its tables without one",
-      });
+      assert.deepEqual(
+        await refusal(browseList(EXTERNAL_USER, instance)),
+        refused(REFUSALS.noInstances, { connection: "erp" }),
+      );
     }
   });
 
@@ -249,7 +249,7 @@ describe("[integration] what the selected external database refuses", () => {
       {
         status: 403,
         body: {
-          message: CONNECTION_REFUSALS.readOnlyConnection,
+          message: REFUSALS.readOnlyConnection.key,
           params: { connection: EXTERNAL },
           severity: "warning",
         },
@@ -261,10 +261,7 @@ describe("[integration] what the selected external database refuses", () => {
   it("refuses the query console and a row's references on the external database", async () => {
     const query = encode(ownErp.instance().table("customers"));
     const queries = new DatabaseQueryController();
-    const consoleRefusal = {
-      status: 409,
-      message: "The query console is not available on an external database",
-    };
+    const consoleRefusal = refused(REFUSALS.externalQueryConsole);
     assert.deepEqual(
       await refusal(
         queries.execute(EXTERNAL_USER, {
@@ -289,10 +286,7 @@ describe("[integration] what the selected external database refuses", () => {
           "c1",
         ),
       ),
-      {
-        status: 409,
-        message: "A row's references is not available on an external database",
-      },
+      refused(REFUSALS.externalRowReferences),
     );
   });
 });
@@ -355,7 +349,7 @@ describe("[integration] the diagram of the selected external database", () => {
       (await diagram.listNotes(user, EXTERNAL)).items.map(({ text }) => text);
     assert.deepEqual(await texts(OWN_USER), ["own"]);
     assert.deepEqual(await texts(EXTERNAL_USER), ["external"]);
-    const notFound = { status: 404, message: "Note not found" };
+    const notFound = refused(REFUSALS.noteNotFound);
     assert.deepEqual(
       await refusal(
         diagram.updateNote(OWN_USER, OWN_CONNECTION, externalNote.id, { x: 5 }),
@@ -426,8 +420,8 @@ describe("[integration] the stored diagrams of the own and the external database
     const stale = {
       status: 409,
       body: {
-        message: CONNECTION_REFUSALS.staleDatabase,
-        params: { connection: EXTERNAL },
+        message: REFUSALS.staleDatabase.key,
+        params: {},
         severity: "warning",
       },
     };
@@ -455,7 +449,7 @@ describe("[integration] the stored diagrams of the own and the external database
           positions: {},
         }),
       ),
-      { status: 400, message: "Expected non-empty string" },
+      refused(REFUSALS.emptyValue),
     );
   });
 

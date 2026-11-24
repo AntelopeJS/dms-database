@@ -12,7 +12,8 @@ import { describeUnknownQueryTarget } from "../service/queryInspection";
 import { buildEditUpdates } from "../service/rowEdit";
 import { OWN_DATABASE } from "../service/database";
 import { listSchemaSummaries } from "../service/introspect";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 
 /**
@@ -95,7 +96,7 @@ describe("[integration] filters of names that Object.prototype also answers to",
         await refusal(
           listFilterRows({ [`filter_${name}`]: "contains:function" }),
         ),
-        { status: 400, message: `Unknown column: ${name}` },
+        refused(REFUSALS.unknownColumn, { column: name }),
       );
     });
   }
@@ -212,7 +213,7 @@ describe("[integration] tables named like Object.prototype members", () => {
         await refusal(
           controller.count(user, `is:${SCHEMA}`, undefined, `is:${name}`),
         ),
-        { status: 404, message: `Unknown table: ${name}` },
+        refused(REFUSALS.unknownTable, { table: name }),
       );
     });
 

@@ -100,7 +100,7 @@ async function layoutApi(): Promise<void> {
     positions: { orders: { x: "a", y: 1 } },
   });
   assert.equal(text.status, 400, "a text coordinate is refused 400");
-  assert.ok(text.text.includes("finite"), text.text);
+  assert.deepEqual(at(text.body, "params"), { field: "orders.x" }, text.text);
   const missingY = await saveLayout(SHOP, { positions: { orders: { x: 1 } } });
   assert.equal(missingY.status, 400, "a position without y is refused 400");
   assert.deepEqual(

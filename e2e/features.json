@@ -95,6 +95,8 @@
         "frontend-vue/app/build/data/useStagedSave.ts",
         "frontend-vue/app/build/data/cellValues.ts",
         "frontend-vue/app/build/utils/stagedSerialization.ts",
+        "frontend-vue/app/build/utils/values.ts",
+        "frontend-vue/app/build/composables/browserInstance.ts",
         "frontend-vue/app/build/components/DataGridSaveStatus.vue"
       ],
       "docs": ["docs/4.usage/4.data-browser.md", "docs/6.faq.md", "README.md"]
@@ -118,7 +120,7 @@
         "src/service/catalog.ts",
         "src/service/catalogReferences.ts",
         "src/service/catalogSchemas.ts",
-        "src/service/connectionRefusals.ts",
+        "src/service/refusals.ts",
         "src/service/connectionState.ts",
         "src/service/connections.ts",
         "src/service/database.ts",

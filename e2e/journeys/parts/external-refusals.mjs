@@ -11,6 +11,12 @@ import { accessBar, barReads, ERP, pageText, setAccess, storedCustomer, UNWRITAB
  */
 
 const KEY_UNKNOWN = "$dms_database.connections.unknown";
+
+/**
+ * @param {{ body: unknown }} answer A refused request
+ * @returns {unknown} The translation key its body carries
+ */
+const keyOf = (answer) => pick(answer.body, "message");
 const SELECTION = "filter_schema=is:erp&filter_table=is:customers&id=c1";
 
 /**
@@ -24,11 +30,11 @@ async function connectionRoutes(ctx) {
   const own = await db(ctx, "access of the project database", "PUT", "/connections/own/access", { body: { access: "read" } });
   const bad = await db(ctx, "a bad access", "PUT", `/connections/${ERP}/access`, { body: { access: "write" } });
   await ctx.verify("the connection routes refuse what is not theirs", [
-    check("an unknown database to pick answers 404 with its key", unknown.status === 404 && unknown.body === KEY_UNKNOWN, show(unknown)),
-    check("an access change on an unknown database answers 404 with its key", unknownAccess.status === 404 && unknownAccess.body === KEY_UNKNOWN, show(unknownAccess)),
-    check("the relations of an unknown database answer 404 with its key", unknownRelations.status === 404 && unknownRelations.body === KEY_UNKNOWN, show(unknownRelations)),
-    check("the project database's access cannot change", own.status === 400 && own.body === "The project's own database is always writable", show(own)),
-    check("a bad access answers 400 and names the two it takes", bad.status === 400 && bad.body === 'Expected { access: "read" | "read-write" }', show(bad)),
+    check("an unknown database to pick answers 404 with its key", unknown.status === 404 && keyOf(unknown) === KEY_UNKNOWN, show(unknown)),
+    check("an access change on an unknown database answers 404 with its key", unknownAccess.status === 404 && keyOf(unknownAccess) === KEY_UNKNOWN, show(unknownAccess)),
+    check("the relations of an unknown database answer 404 with its key", unknownRelations.status === 404 && keyOf(unknownRelations) === KEY_UNKNOWN, show(unknownRelations)),
+    check("the project database's access cannot change", own.status === 400 && keyOf(own) === "$dms_database.refusals.own_database_access", show(own)),
+    check("a bad access answers 400 with the key of the sentence naming the two it takes", bad.status === 400 && keyOf(bad) === "$dms_database.refusals.access_body", show(bad)),
   ]);
 }
 
@@ -53,8 +59,8 @@ async function unservedRoutes(ctx) {
     check("a write while the access is read answers 403 with its key and the database", readOnly.status === 403 && pick(readOnly.body, "message") === "$dms_database.data.save.read_only_access" && pick(readOnly.body, "params", "connection") === ERP, show(readOnly)),
     check("the diagram is served: its layout answers 200", diagram.status === 200 && show(pick(diagram.body, "positions")) === "{}", show(diagram)),
     check("the layout of an external database's schema is its own: saved on erp it reads back there and not on the project database's schema of the same name", drawn.status === 200 && show(pick(drawnBack.body, "positions")) === '{"customers":{"x":5,"y":6}}' && show(pick(ownLayout.body, "positions")) === "{}", [show(drawnBack), show(ownLayout)]),
-    check("the query console answers 409 and names itself", execute.status === 409 && execute.body === "The query console is not available on an external database", show(execute)),
-    check("a row's references answer 409 and name themselves", references.status === 409 && references.body === "A row's references is not available on an external database", show(references)),
+    check("the query console answers 409 with its own key", execute.status === 409 && keyOf(execute) === "$dms_database.refusals.external.query_console", show(execute)),
+    check("a row's references answer 409 with their own key", references.status === 409 && keyOf(references) === "$dms_database.refusals.external.row_references", show(references)),
     check("the customer was not written", text(stored, "name") === "Ada", show(stored)),
   ]);
 }

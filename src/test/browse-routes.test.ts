@@ -4,7 +4,8 @@ import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseBrowseController } from "../routes/data";
 import { DatabaseTablesController } from "../routes/tables";
 import type { JsonObject, JsonValue } from "../types/json";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 
 const SCHEMA = "browse-routes-qa";
@@ -65,30 +66,30 @@ describe("[integration] browse routes: selection and reads", () => {
       schemaFilter: JsonValue | undefined,
       tableFilter: JsonValue | undefined,
     ) => refusal(controller.count(USER, schemaFilter, "is:alpha", tableFilter));
-    assert.deepEqual(await count(undefined, IS_ITEMS), {
-      status: 400,
-      message: "Missing 'schema' filter",
-    });
-    assert.deepEqual(await count("contains:browse", IS_ITEMS), {
-      status: 400,
-      message: "Missing 'schema' filter",
-    });
-    assert.deepEqual(await count(IS_SCHEMA, ""), {
-      status: 400,
-      message: "Missing 'table' filter",
-    });
-    assert.deepEqual(await count(IS_SCHEMA, ["is:items"]), {
-      status: 400,
-      message: "Missing 'table' filter",
-    });
-    assert.deepEqual(await count("is:nope", IS_ITEMS), {
-      status: 404,
-      message: "Unknown schema: nope",
-    });
-    assert.deepEqual(await count(IS_SCHEMA, "is:nothing"), {
-      status: 404,
-      message: "Unknown table: nothing",
-    });
+    assert.deepEqual(
+      await count(undefined, IS_ITEMS),
+      refused(REFUSALS.missingParameter, { name: "filter_schema" }),
+    );
+    assert.deepEqual(
+      await count("contains:browse", IS_ITEMS),
+      refused(REFUSALS.missingParameter, { name: "filter_schema" }),
+    );
+    assert.deepEqual(
+      await count(IS_SCHEMA, ""),
+      refused(REFUSALS.missingParameter, { name: "filter_table" }),
+    );
+    assert.deepEqual(
+      await count(IS_SCHEMA, ["is:items"]),
+      refused(REFUSALS.missingParameter, { name: "filter_table" }),
+    );
+    assert.deepEqual(
+      await count("is:nope", IS_ITEMS),
+      refused(REFUSALS.unknownSchema, { schema: "nope" }),
+    );
+    assert.deepEqual(
+      await count(IS_SCHEMA, "is:nothing"),
+      refused(REFUSALS.unknownTable, { table: "nothing" }),
+    );
   });
 
   it("describes the columns and their coarse types from a sample", async () => {
@@ -117,14 +118,14 @@ describe("[integration] browse routes: selection and reads", () => {
     assert.deepEqual(await controller.tables(USER, IS_SCHEMA, "is:Beta"), {
       items: [{ name: "items", elementCount: 0 }],
     });
-    assert.deepEqual(await refusal(controller.tables(USER, "", "is:alpha")), {
-      status: 400,
-      message: "Missing 'schema' filter",
-    });
-    assert.deepEqual(await refusal(controller.tables(USER, "is:nope", "")), {
-      status: 404,
-      message: "Unknown schema: nope",
-    });
+    assert.deepEqual(
+      await refusal(controller.tables(USER, "", "is:alpha")),
+      refused(REFUSALS.missingParameter, { name: "filter_schema" }),
+    );
+    assert.deepEqual(
+      await refusal(controller.tables(USER, "is:nope", "")),
+      refused(REFUSALS.unknownSchema, { schema: "nope" }),
+    );
   });
 });
 
@@ -149,34 +150,37 @@ describe("[integration] browse routes: rows", () => {
     });
     const get = (id: JsonValue | undefined) =>
       refusal(controller.get(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, id));
-    assert.deepEqual(await get(undefined), {
-      status: 400,
-      message: "Missing 'id'",
-    });
-    assert.deepEqual(await get(""), { status: 400, message: "Missing 'id'" });
-    assert.deepEqual(await get(7), { status: 400, message: "Missing 'id'" });
-    assert.deepEqual(await get("nothing"), {
-      status: 404,
-      message: "Row not found",
-    });
+    assert.deepEqual(
+      await get(undefined),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
+    assert.deepEqual(
+      await get(""),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
+    assert.deepEqual(
+      await get(7),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
+    assert.deepEqual(await get("nothing"), refused(REFUSALS.rowNotFound));
   });
 
   it("counts the rows of other tables pointing at a row, in one instance", async () => {
     const controller = new DatabaseBrowseController();
     const references = (instance: string, id: JsonValue | undefined) =>
       refusal(controller.references(USER, IS_SCHEMA, instance, IS_ITEMS, id));
-    assert.deepEqual(await references("is:alpha", ""), {
-      status: 400,
-      message: "Missing 'id'",
-    });
-    assert.deepEqual(await references("is:alpha", "nothing"), {
-      status: 404,
-      message: "Row not found",
-    });
-    assert.deepEqual(await references("is:__CROSS_INSTANCE__", "i1"), {
-      status: 400,
-      message: "Pick one instance to read a row's references",
-    });
+    assert.deepEqual(
+      await references("is:alpha", ""),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
+    assert.deepEqual(
+      await references("is:alpha", "nothing"),
+      refused(REFUSALS.rowNotFound),
+    );
+    assert.deepEqual(
+      await references("is:__CROSS_INSTANCE__", "i1"),
+      refused(REFUSALS.crossInstanceReferences),
+    );
     assert.deepEqual(
       await controller.references(USER, IS_SCHEMA, "is:alpha", IS_ITEMS, "i1"),
       { items: [] },
@@ -201,32 +205,32 @@ describe("[integration] browse routes: edits", () => {
       );
     const edit = (instance: string, id: string | undefined, body: JsonObject) =>
       refusal(controller.edit(USER, context(instance, id), body));
-    assert.deepEqual(await edit("is:__CROSS_INSTANCE__", "i1", {}), {
-      status: 400,
-      message: "Editing is disabled when browsing across all instances",
-    });
-    assert.deepEqual(await edit("is:alpha", undefined, {}), {
-      status: 400,
-      message: "Missing 'id'",
-    });
-    assert.deepEqual(await edit("is:alpha", "", {}), {
-      status: 400,
-      message: "Missing 'id'",
-    });
+    assert.deepEqual(
+      await edit("is:__CROSS_INSTANCE__", "i1", {}),
+      refused(REFUSALS.crossInstanceEdit),
+    );
+    assert.deepEqual(
+      await edit("is:alpha", undefined, {}),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
+    assert.deepEqual(
+      await edit("is:alpha", "", {}),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
     assert.deepEqual(
       await refusal(controller.edit(USER, context("is:alpha", "i1"), [])),
-      { status: 400, message: "Invalid request body" },
+      refused(REFUSALS.editBody),
     );
     assert.deepEqual(
       await refusal(
         controller.edit(USER, context("is:alpha", "i1"), undefined),
       ),
-      { status: 400, message: "Invalid request body" },
+      refused(REFUSALS.editBody),
     );
-    assert.deepEqual(await edit("is:alpha", "nothing", { name: "x" }), {
-      status: 404,
-      message: "Row not found",
-    });
+    assert.deepEqual(
+      await edit("is:alpha", "nothing", { name: "x" }),
+      refused(REFUSALS.rowNotFound),
+    );
   });
 
   it("edits only what changed and skips the protected and the empty", async () => {
@@ -284,13 +288,13 @@ describe("[integration] table routes", () => {
 
   it("serves a table's row by id and refuses an unknown one", async () => {
     const controller = new DatabaseTablesController();
-    assert.deepEqual(await refusal(controller.sourceRow(USER, undefined)), {
-      status: 400,
-      message: "Missing 'id'",
-    });
+    assert.deepEqual(
+      await refusal(controller.sourceRow(USER, undefined)),
+      refused(REFUSALS.missingParameter, { name: "id" }),
+    );
     assert.deepEqual(
       await refusal(controller.sourceRow(USER, `${SCHEMA}::nothing`)),
-      { status: 404, message: `Unknown table ${SCHEMA}::nothing` },
+      refused(REFUSALS.unknownTable, { table: `${SCHEMA}::nothing` }),
     );
     const row = await controller.sourceRow(USER, `${SCHEMA}::items`);
     assert.equal(row.id, `${SCHEMA}::items`);
@@ -328,11 +332,11 @@ describe("[integration] table routes", () => {
       await refusal(
         controller.instances(USER, undefined, undefined, undefined),
       ),
-      { status: 400, message: "Missing 'schema'" },
+      refused(REFUSALS.missingParameter, { name: "schema" }),
     );
     assert.deepEqual(
       await refusal(controller.instances(USER, "nope", undefined, undefined)),
-      { status: 404, message: "Unknown schema nope" },
+      refused(REFUSALS.unknownSchema, { schema: "nope" }),
     );
   });
 

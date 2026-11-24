@@ -292,6 +292,41 @@
 				"reason": "Not available on an external database"
 			}
 		},
+		"refusals": {
+			"own_database_access": "The project's own database is always writable: its access cannot change.",
+			"selection_body": "The request must name the database to select.",
+			"access_body": "The access must be \"read\" or \"read-write\".",
+			"edit_body": "The edit must send its changes as an object.",
+			"missing_parameter": "The request is missing {name}.",
+			"empty_value": "The request sent an empty value where it needs text.",
+			"unknown_relation": "The relation {relation} does not exist.",
+			"unknown_schema": "The schema {schema} does not exist.",
+			"unknown_table": "The table {table} does not exist.",
+			"unknown_column": "The table has no column {column}.",
+			"no_instances": "{connection} has no instances: read its tables without one.",
+			"cross_instance_references": "Pick one instance to read a row's references.",
+			"cross_instance_edit": "Editing is disabled when browsing across all instances. Pick one instance to edit.",
+			"row_not_found": "This row no longer exists.",
+			"invalid_date": "{value} is not a date for {field}.",
+			"nested_filter_column": "The column {column} cannot be filtered: the database reads an empty column name, or a dot in one, as a nested field.",
+			"unfilterable_column": "The column {column} cannot be filtered: a filter compares text, numbers and true or false only.",
+			"layout_body": "The layout must map each table to its position.",
+			"invalid_position": "The position of {table} must be an object with x and y.",
+			"invalid_number": "{field} must be a finite number.",
+			"note_not_found": "This note no longer exists.",
+			"saved_query_body": "The saved query must send its query as an object.",
+			"unsupported_language": "The query console does not run this query language.",
+			"saved_query_not_found": "This saved query no longer exists.",
+			"history_entry_not_found": "This history entry no longer exists.",
+			"external": {
+				"migrations": "Migrations are not available on an external database.",
+				"schema_edits": "Schema edits are not available on an external database.",
+				"indexes": "Indexes are not available on an external database.",
+				"query_console": "The query console is not available on an external database.",
+				"instances": "Instances are not available on an external database.",
+				"row_references": "A row's references are not available on an external database."
+			}
+		},
 		"diagram": {
 			"title": "Diagram",
 			"description": "Tables and relations of a schema. Drag tables to arrange them; the layout is saved for the whole team.",

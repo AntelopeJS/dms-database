@@ -18,7 +18,7 @@ import {
   ensureCatalogSchemas,
   type SchemaRegistry,
 } from "./catalogSchemas";
-import { CONNECTION_REFUSALS } from "./connectionRefusals";
+import { REFUSALS, refuse } from "./refusals";
 import {
   type Database,
   externalDatabase,
@@ -159,7 +159,7 @@ function loadBinding<T>(
   const instance = asOwnModule(() =>
     GetInterfaceInstance(interfaceId, connection),
   );
-  assert(instance, 404, CONNECTION_REFUSALS.unknownConnection);
+  refuse(instance, REFUSALS.unknownConnection);
   return asOwnModule(() => {
     const loaded: unknown = require(instance.path);
     assert(
@@ -172,11 +172,7 @@ function loadBinding<T>(
 }
 
 function assertExternal(connection: string): void {
-  assert(
-    listExternalIds().includes(connection),
-    404,
-    CONNECTION_REFUSALS.unknownConnection,
-  );
+  refuse(listExternalIds().includes(connection), REFUSALS.unknownConnection);
 }
 
 /**

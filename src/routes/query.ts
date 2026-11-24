@@ -2,7 +2,6 @@ import {
   Controller,
   Delete,
   Get,
-  HTTPResult,
   JSONBody,
   Parameter,
   Post,
@@ -36,6 +35,7 @@ import {
   decodeStaged,
   StagedDecodeError,
 } from "../service/stagedSerialization";
+import { REFUSALS, queryDiagnostic, refuse } from "../service/refusals";
 import type {
   ExecuteResult,
   HistoryEntry,
@@ -85,11 +85,6 @@ function isQueryLanguage(value: unknown): value is QueryLanguage {
   return SUPPORTED_LANGUAGES.some((language) => language === value);
 }
 
-/** A failed run answers what failed and how long it took. */
-function runFailure(message: string, durationMs: number): HTTPResult {
-  return new HTTPResult(400, { message, durationMs });
-}
-
 /**
  * A body that does not decode to a runnable query reaches no table: it
  * answers like a failed run, in no time.
@@ -99,11 +94,13 @@ function decodeRunnable(query: JsonObject): Query<unknown> {
   try {
     root = decodeStaged(query);
   } catch (error) {
-    if (error instanceof StagedDecodeError) throw runFailure(error.message, 0);
+    if (error instanceof StagedDecodeError) {
+      throw queryDiagnostic(error.message, 0);
+    }
     throw error;
   }
   if (!(root instanceof Query)) {
-    throw runFailure(
+    throw queryDiagnostic(
       "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)",
       0,
     );
@@ -123,7 +120,7 @@ interface ParsedSaveBody {
 /** Shared create/update payload validation, including the runnable check. */
 function parseSaveBody(body: SaveBody): ParsedSaveBody {
   const query = body?.query;
-  assert(isJsonObject(query), 400, "Expected query to be an object");
+  refuse(isJsonObject(query), REFUSALS.savedQueryBody);
   decodeRunnable(query);
   const name = body?.name;
   assertNonEmptyString(name);
@@ -131,7 +128,7 @@ function parseSaveBody(body: SaveBody): ParsedSaveBody {
   const source = body?.source;
   assertNonEmptyString(source);
   const language = body?.language;
-  assert(isQueryLanguage(language), 400, "Unsupported query language");
+  refuse(isQueryLanguage(language), REFUSALS.unsupportedLanguage);
   return {
     name,
     description: isString(description) ? description : "",
@@ -151,8 +148,10 @@ async function getOwnedSavedQuery(
   userId: string,
 ): Promise<SavedQueryRow> {
   const row = await GetModel(SavedQueryModel).get(id);
-  assert(row !== undefined, 404, "Saved query not found");
-  assert(row.userId === userId, 404, "Saved query not found");
+  refuse(
+    row !== undefined && row.userId === userId,
+    REFUSALS.savedQueryNotFound,
+  );
   return row;
 }
 
@@ -284,11 +283,15 @@ async function runQuery(
 
 function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
   const query = body?.query;
-  assert(isJsonObject(query), 400, "Expected query to be an object");
+  if (!isJsonObject(query)) {
+    throw queryDiagnostic("Expected query to be an object");
+  }
   const source = body?.source;
   assertNonEmptyString(source);
   const language = body?.language;
-  assert(isQueryLanguage(language), 400, "Unsupported query language");
+  if (!isQueryLanguage(language)) {
+    throw queryDiagnostic("Unsupported query language");
+  }
   return { query, source, language, root: decodeRunnable(query) };
 }
 
@@ -340,7 +343,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
         mutation,
         error: message,
       });
-      throw runFailure(message, durationMs);
+      throw queryDiagnostic(message, durationMs);
     }
     const durationMs = Date.now() - startedAt;
     const { raw, total } = answer;
@@ -384,18 +387,18 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   ): Promise<DryRunResult> {
     await assertQueryConsoleAvailable(user);
     const query = body?.query;
-    assert(isJsonObject(query), 400, "Expected query to be an object");
+    if (!isJsonObject(query)) {
+      throw queryDiagnostic("Expected query to be an object");
+    }
     const root = decodeRunnable(query);
     const unknownTarget = await describeUnknownQueryTarget(
       readQueryTarget(root),
     );
-    assert(!unknownTarget, 400, unknownTarget ?? "");
+    if (unknownTarget) throw queryDiagnostic(unknownTarget);
     try {
       return await dryRun(root);
     } catch (error) {
-      assert(
-        false,
-        400,
+      throw queryDiagnostic(
         (error instanceof Error ? error.message : String(error)) ||
           QUERY_FAILED,
       );
@@ -499,10 +502,9 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
   ): Promise<HistoryEntry> {
     assertNonEmptyString(id);
     const row = await GetModel(QueryHistoryModel).get(id);
-    assert(
+    refuse(
       row !== undefined && row.userId === user._id,
-      404,
-      "History entry not found",
+      REFUSALS.historyEntryNotFound,
     );
     return toHistoryWire(row);
   }

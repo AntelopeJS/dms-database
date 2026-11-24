@@ -7,7 +7,6 @@ import {
   Put,
   type RequestContext,
 } from "@antelopejs/interface-api";
-import { assert } from "@antelopejs/interface-api-util";
 import { CROSS_INSTANCE } from "@antelopejs/interface-database";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
@@ -29,10 +28,7 @@ import {
   getTableElementCount,
   listSchemaSummaries,
 } from "../service/introspect";
-import {
-  CONNECTION_REFUSALS,
-  connectionRefusal,
-} from "../service/connectionRefusals";
+import { REFUSALS, refusal, refuse } from "../service/refusals";
 import { listRowReferences, type RowReference } from "../service/references";
 import { editRow } from "../service/rowEdit";
 import type { JsonValue } from "../types/json";
@@ -138,7 +134,7 @@ export class DatabaseBrowseController extends Controller(
     const schemaId = unwrapIsFilter(
       isString(schemaFilter) ? schemaFilter : undefined,
     );
-    assert(schemaId, 400, "Missing 'schema' filter");
+    refuse(schemaId, REFUSALS.missingParameter, { name: "filter_schema" });
     const instance = decodeInstanceFilter(
       isString(instanceFilter) ? instanceFilter : undefined,
     );
@@ -147,7 +143,7 @@ export class DatabaseBrowseController extends Controller(
     const summary = (await listSchemaSummaries(db)).find(
       (candidate) => candidate.id === schemaId,
     );
-    assert(summary, 404, `Unknown schema: ${schemaId}`);
+    refuse(summary, REFUSALS.unknownSchema, { schema: schemaId });
     const items = await Promise.all(
       summary.tables.map(async (table) => ({
         name: table.name,
@@ -178,15 +174,14 @@ export class DatabaseBrowseController extends Controller(
       isString(instanceFilter) ? instanceFilter : undefined,
       isString(tableFilter) ? tableFilter : undefined,
     );
-    assert(
+    refuse(
       selection.instance !== CROSS_INSTANCE,
-      400,
-      "Pick one instance to read a row's references",
+      REFUSALS.crossInstanceReferences,
     );
-    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    refuse(isNonEmptyString(idRaw), REFUSALS.missingParameter, { name: "id" });
     const id = idRaw;
     const row: unknown = await resolveTable(db, selection).get(id).run();
-    assert(isRecord(row), 404, "Row not found");
+    refuse(isRecord(row), REFUSALS.rowNotFound);
     const items = await listRowReferences(
       db,
       selection.schema,
@@ -210,14 +205,14 @@ export class DatabaseBrowseController extends Controller(
       isString(instanceFilter) ? instanceFilter : undefined,
       isString(tableFilter) ? tableFilter : undefined,
     );
-    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    refuse(isNonEmptyString(idRaw), REFUSALS.missingParameter, { name: "id" });
     const id = idRaw;
     const table = resolveTable(
       await resolveSelectedDatabase(user._id),
       selection,
     );
     const row: unknown = await table.get(id).run();
-    assert(isObject(row), 404, "Row not found");
+    refuse(isObject(row), REFUSALS.rowNotFound);
     return row;
   }
 
@@ -229,18 +224,15 @@ export class DatabaseBrowseController extends Controller(
   ) {
     const selection = readSelection(ctx);
     const id = readQueryText(ctx, "id");
-    assert(id !== undefined, 400, "Missing 'id'");
-    assert(isObject(body) && !Array.isArray(body), 400, "Invalid request body");
+    refuse(id !== undefined, REFUSALS.missingParameter, { name: "id" });
+    refuse(isObject(body) && !Array.isArray(body), REFUSALS.editBody);
     const db = await resolveSelectedDatabase(user._id);
     const connection = readQueryText(ctx, "connection");
-    assert(connection !== undefined, 400, "Missing 'connection'");
+    refuse(connection !== undefined, REFUSALS.missingParameter, {
+      name: "connection",
+    });
     if (connection !== db.connection) {
-      throw connectionRefusal(
-        409,
-        CONNECTION_REFUSALS.staleDatabase,
-        db.connection,
-        "warning",
-      );
+      throw refusal(REFUSALS.staleDatabase);
     }
     await assertWritable(db);
     return editRow(db, selection, id, body);
