@@ -2,14 +2,13 @@ import {
   Controller,
   Delete,
   Get,
-  HTTPResult,
   JSONBody,
   Parameter,
   Post,
   Put,
 } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
-import { Query, Stream } from "@antelopejs/interface-database";
+import type { Query } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import { type User, UserModel } from "@antelopejs/interface-dms/auth/db";
@@ -32,10 +31,12 @@ import {
   readQueryTarget,
 } from "../service/queryInspection";
 import {
-  type Decoded,
-  decodeStaged,
-  StagedDecodeError,
-} from "../service/stagedSerialization";
+  decodeRunnable,
+  normaliseRows,
+  type RunAnswer,
+  runFailure,
+  runQuery,
+} from "../service/queryRun";
 import type {
   ExecuteResult,
   HistoryEntry,
@@ -49,13 +50,7 @@ import type {
 } from "../types/responses";
 import { MAX_HISTORY_PER_USER } from "../types/constants";
 import { isJsonObject, type JsonObject } from "../types/json";
-import {
-  isBoolean,
-  isFiniteNumber,
-  isNumber,
-  isObject,
-  isString,
-} from "../utils/guards";
+import { isFiniteNumber, isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
@@ -83,32 +78,6 @@ interface SaveBody {
 
 function isQueryLanguage(value: unknown): value is QueryLanguage {
   return SUPPORTED_LANGUAGES.some((language) => language === value);
-}
-
-/** A failed run answers what failed and how long it took. */
-function runFailure(message: string, durationMs: number): HTTPResult {
-  return new HTTPResult(400, { message, durationMs });
-}
-
-/**
- * A body that does not decode to a runnable query reaches no table: it
- * answers like a failed run, in no time.
- */
-function decodeRunnable(query: JsonObject): Query<unknown> {
-  let root: Decoded;
-  try {
-    root = decodeStaged(query);
-  } catch (error) {
-    if (error instanceof StagedDecodeError) throw runFailure(error.message, 0);
-    throw error;
-  }
-  if (!(root instanceof Query)) {
-    throw runFailure(
-      "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)",
-      0,
-    );
-  }
-  return root;
 }
 
 interface ParsedSaveBody {
@@ -190,42 +159,6 @@ async function ownerNames(userIds: string[]): Promise<Map<string, string>> {
   );
 }
 
-function isRow(value: QueryAnswer): value is ExecuteResult["rows"][number] {
-  return isObject(value) && !Array.isArray(value);
-}
-
-/** A value a query answers that the console shows as a one-column row. */
-type ScalarAnswer = string | number | boolean | null;
-
-function isScalarAnswer(value: QueryAnswer): value is ScalarAnswer {
-  return (
-    value === null || isString(value) || isNumber(value) || isBoolean(value)
-  );
-}
-
-/**
- * One row of the console's grid: an object as is, a scalar or a list as
- * `{ value }`. Anything else (a bigint, a symbol, a function, an `undefined`
- * list entry) has no JSON form, so its row is empty, as `JSON.stringify`
- * already sends a symbol, a function or `undefined`.
- */
-function rowOf(entry: QueryAnswer): ExecuteResult["rows"][number] {
-  if (isRow(entry)) return entry;
-  if (isList(entry) || isScalarAnswer(entry)) return { value: entry };
-  return {};
-}
-
-function isList(value: QueryAnswer): value is QueryAnswer[] {
-  return Array.isArray(value);
-}
-
-function normaliseRows(raw: QueryAnswer): ExecuteResult["rows"] {
-  if (isList(raw)) return raw.map((entry) => rowOf(entry));
-  if (isRow(raw)) return [raw];
-  if (isScalarAnswer(raw)) return [{ value: raw }];
-  return raw === undefined ? [] : [{}];
-}
-
 function toHistoryWire(row: QueryHistoryRow): HistoryEntry {
   const entry: HistoryEntry = {
     id: row._id,
@@ -251,35 +184,6 @@ interface ExecuteBodyParsed {
   source: string;
   language: QueryLanguage;
   root: Query<unknown>;
-}
-
-/** What running the console's query answers, or one entry of an answered list: the query declares no result type. */
-type QueryAnswer = Awaited<ReturnType<ExecuteBodyParsed["root"]["run"]>>;
-
-interface RunAnswer {
-  raw: QueryAnswer;
-  /** The rows a read stream holds, counted in the database when it holds more than the console sends. */
-  total?: number;
-}
-
-/**
- * Runs the console's query. A read stream is read from its cursor and closed
- * one row past {@link MAX_RESULT_ROWS}, so the console never takes a whole
- * table; the query itself is unchanged, so ties keep the order a full run
- * gives them, which a `slice` sorted by the database would not.
- */
-async function runQuery(
-  root: Query<unknown>,
-  mutation: boolean,
-): Promise<RunAnswer> {
-  if (mutation || !(root instanceof Stream)) return { raw: await root.run() };
-  const raw: QueryAnswer[] = [];
-  for await (const row of root.cursor()) {
-    raw.push(row);
-    if (raw.length > MAX_RESULT_ROWS) break;
-  }
-  if (raw.length <= MAX_RESULT_ROWS) return { raw };
-  return { raw, total: await root.count().run() };
 }
 
 function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
@@ -322,7 +226,7 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
         readQueryTarget(root),
       );
       if (unknownTarget) throw new Error(unknownTarget);
-      answer = await runQuery(root, mutation);
+      answer = await runQuery(root, mutation, MAX_RESULT_ROWS);
     } catch (error) {
       const message =
         (error instanceof Error ? error.message : String(error)) ||

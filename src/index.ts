@@ -25,9 +25,9 @@ export async function construct(config?: DmsDatabaseConfig): Promise<void> {
 
 export async function start(): Promise<void> {
   await RegisterSchema(SCHEMA_NAME);
-  registerAutomationNodes();
+  await registerAutomationNodes();
 }
 
-export function stop(): void {
-  unregisterAutomationNodes();
+export async function stop(): Promise<void> {
+  await unregisterAutomationNodes();
 }

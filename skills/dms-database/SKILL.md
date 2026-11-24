@@ -13,7 +13,8 @@ A read-mostly database console for the platform owner. It has no API for other m
 ## When to reach for it
 
 - A user wants to look at, fix or query raw rows: point them to the console instead of writing a throwaway admin page.
-- A procedure must react to row changes: use the `database.table-watch` trigger (`schema`, `table`, optional `eventTypes`), loaded only with `@antelopejs/dms-automation`.
+- A procedure must react to row changes: use the `database.table-watch` trigger (`schema`, `table`, optional `eventTypes`, `instance` or `allInstances`, `includeAutomationWrites`), loaded only with `@antelopejs/dms-automation`. It ignores the changes a procedure's `database.run-saved-query` makes unless `includeAutomationWrites` is on.
+- Other nodes, same condition: trigger `database.connection-status`; reads `database.get-row`, `database.count-rows`, `database.health`; `database.run-saved-query` (writes only with `allowWrite`); data nodes `database.row-diff`, `database.field-changed` on a Table watch event's `old` and `new`. Reference: `docs/5.extending.md`, "Automation nodes".
 - Never build a business screen on it: saved edits bypass every module's logic. Build a DMS page for that.
 
 ## Config (`antelope.config.ts`, all optional)

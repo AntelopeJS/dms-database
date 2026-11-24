@@ -1,16 +1,17 @@
 import { Logging } from "@antelopejs/interface-core/logging";
-import { Schema } from "@antelopejs/interface-database";
+import { randomUUID } from "node:crypto";
+import { CROSS_INSTANCE, Schema } from "@antelopejs/interface-database";
 import type {
   Changes,
   WriteDocument,
 } from "@antelopejs/interface-database/common";
 import type { TriggerType } from "@antelopejs/interface-dms-automation";
-import {
-  isJsonObject,
-  isJsonObjectValue,
-  type JsonObject,
-  type JsonValue,
-} from "../types/json";
+import { OWN_DATABASE } from "../service/database";
+import { listSchemaInstances } from "../service/introspect";
+import { type ChangeRows, jsonRows } from "../service/jsonRows";
+import type { JsonObject } from "../types/json";
+import { admitAutomationChange } from "./loopGuard";
+import { procedureWrites } from "./origin";
 import {
   isBoolean,
   isFunction,
@@ -32,6 +33,12 @@ interface TableWatchConfig {
   table: string;
   /** Change types to fire on; omitted means all. */
   eventTypes?: WatchEventType[];
+  /** The instance watched; `""` or omitted for the default instance. */
+  instance?: string;
+  /** Watch every instance through one cross-instance feed. */
+  allInstances?: boolean;
+  /** Fire on the changes a procedure's `database.run-saved-query` makes too. */
+  includeAutomationWrites?: boolean;
 }
 
 type TableWatchOutput = {
@@ -40,40 +47,28 @@ type TableWatchOutput = {
   new: JsonObject | null;
   schema: string;
   table: string;
+  instance: string;
   at: string;
+  originProcedureId?: string;
+  originRunId?: string;
 };
+
+/** What a watch reads, its settings checked. */
+interface WatchScope {
+  schema: string;
+  table: string;
+  /** `""` for the default instance; ignored with `allInstances`. */
+  instance: string;
+  allInstances: boolean;
+  includeAutomationWrites: boolean;
+  /** Tells this watch's changes apart in the procedure write registry. */
+  watchId: string;
+  /** When the watch opened its feed, in epoch milliseconds. */
+  openedAt: number;
+}
 
 type ChangeRow = WriteDocument;
 
-/** The instance tag the store adds to every row it reads: not a column of the table. */
-const INSTANCE_TAG_FIELD = "_instance";
-
-function rowOf(value: JsonValue | undefined): JsonObject | null {
-  if (value === undefined || !isJsonObjectValue(value)) return null;
-  return Object.fromEntries(
-    Object.entries(value).filter(([key]) => key !== INSTANCE_TAG_FIELD),
-  );
-}
-
-/**
- * The two rows of a change as JSON: the form the run stores its payload in and
- * a re-run reads back (a date becomes its ISO string), so a run sees what its
- * re-run sees. A row the change does not carry is null. The rows leave out the
- * instance tag, as the Data browser does on one instance: the watch reads the
- * default instance only.
- */
-export function jsonRows(
-  change: Changes<ChangeRow>,
-): Pick<TableWatchOutput, "old" | "new"> {
-  const json: unknown = JSON.parse(
-    JSON.stringify({
-      old: change.oldValue ?? null,
-      new: change.newValue ?? null,
-    }),
-  );
-  if (!isJsonObject(json)) return { old: null, new: null };
-  return { old: rowOf(json.old), new: rowOf(json.new) };
-}
 type ChangeFeed = AsyncGenerator<Changes<ChangeRow>, void, unknown>;
 
 interface TableWatchHandle {
@@ -124,8 +119,13 @@ function sleep(ms: number): Promise<undefined> {
   return new Promise((resolve) => setTimeout(() => resolve(undefined), ms));
 }
 
-function watchLabel(config: TableWatchConfig): string {
-  return `table-watch ${config.schema}.${config.table}`;
+function watchLabel(scope: WatchScope): string {
+  const instance = scope.allInstances
+    ? "*"
+    : scope.instance
+      ? scope.instance
+      : "default";
+  return `table-watch ${scope.schema}.${scope.table} (instance ${instance})`;
 }
 
 function resolveEventTypes(
@@ -150,31 +150,81 @@ function resolveEventTypes(
 }
 
 /**
- * Opens a change feed cursor on the table (default schema instance). Each read
- * pulls one change; closing the cursor (iterator.return) resolves a blocked
- * read with done and closes the server-side change stream.
+ * Opens a change feed cursor on the table: in one instance, or in every
+ * instance through one cross-instance feed. Each read pulls one change;
+ * closing the cursor (iterator.return) resolves a blocked read with done and
+ * closes the server-side change stream.
  */
-function openFeed(schemaId: string, tableName: string): ChangeFeed {
-  const schema = Schema.get(schemaId);
-  if (!schema) throw new Error(`unknown schema "${schemaId}"`);
-  return schema.instance().table(tableName).changes().cursor();
+function openFeed(scope: WatchScope): ChangeFeed {
+  const schema = Schema.get(scope.schema);
+  if (!schema) throw new Error(`unknown schema "${scope.schema}"`);
+  const instance = scope.allInstances
+    ? CROSS_INSTANCE
+    : scope.instance || undefined;
+  return schema.instance(instance).table(scope.table).changes().cursor();
 }
 
+/**
+ * A delete whose old row holds only its key: a cross-instance MongoDB feed
+ * without a pre-image, which carries no instance tag.
+ */
+function isKeyOnlyDelete(rows: ChangeRows): boolean {
+  if (rows.new !== null || rows.old === null) return false;
+  const keys = Object.keys(rows.old);
+  return keys.length === 1 && keys[0] === "_id";
+}
+
+/**
+ * Fires the run of one change. A change a procedure's write made counts
+ * against that write before the event-type filter, so the write's other
+ * changes stay attributed; it fires only with `includeAutomationWrites`, and
+ * then only while the loop guard admits its write.
+ */
 function emitChange(
   change: Changes<ChangeRow>,
-  config: TableWatchConfig,
+  scope: WatchScope,
   events: Set<WatchEventType>,
   emit: (payload: TableWatchOutput) => void,
 ): void {
+  const rows = jsonRows(change);
+  const instance = scope.allInstances ? rows.instance : scope.instance;
+  const origin = procedureWrites.attribute(
+    { id: scope.watchId, openedAt: scope.openedAt },
+    {
+      schema: scope.schema,
+      table: scope.table,
+      instance:
+        scope.allInstances && isKeyOnlyDelete(rows) ? undefined : instance,
+    },
+  );
   const type = CHANGE_TYPE_TO_EVENT[change.changeType];
   if (!type || !events.has(type)) return;
-  emit({
+  if (origin) {
+    if (!scope.includeAutomationWrites) return;
+    if (
+      !admitAutomationChange(
+        watchLabel(scope),
+        `${scope.watchId}|${origin.procedureId}`,
+        origin.writeId,
+      )
+    ) {
+      return;
+    }
+  }
+  const payload: TableWatchOutput = {
     type,
-    ...jsonRows(change),
-    schema: config.schema,
-    table: config.table,
+    old: rows.old,
+    new: rows.new,
+    schema: scope.schema,
+    table: scope.table,
+    instance,
     at: new Date().toISOString(),
-  });
+  };
+  if (origin) {
+    payload.originProcedureId = origin.procedureId;
+    payload.originRunId = origin.runId;
+  }
+  emit(payload);
 }
 
 /**
@@ -184,7 +234,7 @@ function emitChange(
  */
 async function drainFeed(
   handle: TableWatchHandle,
-  config: TableWatchConfig,
+  scope: WatchScope,
   events: Set<WatchEventType>,
   emit: (payload: TableWatchOutput) => void,
 ): Promise<void> {
@@ -197,7 +247,7 @@ async function drainFeed(
       throw new Error("change feed ended unexpectedly");
     }
     if (handle.stopped) return;
-    emitChange(result.value, config, events, emit);
+    emitChange(result.value, scope, events, emit);
   }
 }
 
@@ -212,27 +262,27 @@ async function drainFeed(
  */
 async function pumpFeed(
   handle: TableWatchHandle,
-  config: TableWatchConfig,
+  scope: WatchScope,
   events: Set<WatchEventType>,
   emit: (payload: TableWatchOutput) => void,
 ): Promise<void> {
   let reconnected = false;
   while (!handle.stopped) {
     try {
-      await drainFeed(handle, config, events, emit);
+      await drainFeed(handle, scope, events, emit);
       return;
     } catch (err) {
       if (handle.stopped) return;
       if (reconnected) {
         Logging.Error(
-          `[dms-database] ${watchLabel(config)}: change feed failed after reconnect, giving up:`,
+          `[dms-database] ${watchLabel(scope)}: change feed failed after reconnect, giving up:`,
           err,
         );
         return;
       }
       reconnected = true;
       Logging.Warn(
-        `[dms-database] ${watchLabel(config)}: change feed error, reconnecting in ${RECONNECT_DELAY_MS}ms:`,
+        `[dms-database] ${watchLabel(scope)}: change feed error, reconnecting in ${RECONNECT_DELAY_MS}ms:`,
         err,
       );
       await sleep(RECONNECT_DELAY_MS);
@@ -240,10 +290,10 @@ async function pumpFeed(
       await handle.iterator.return(undefined).catch(() => undefined);
       if (handle.stopped) return;
       try {
-        handle.iterator = openFeed(config.schema, config.table);
+        handle.iterator = openFeed(scope);
       } catch (reopenErr) {
         Logging.Error(
-          `[dms-database] ${watchLabel(config)}: reconnect failed, giving up:`,
+          `[dms-database] ${watchLabel(scope)}: reconnect failed, giving up:`,
           reopenErr,
         );
         return;
@@ -252,13 +302,56 @@ async function pumpFeed(
   }
 }
 
+const MAX_NAME_LENGTH = 128;
+
+/**
+ * The instance a watch reads: `""` for the default one, else a named instance
+ * the schema lists. Refused together with `allInstances`.
+ */
+async function resolveInstance(
+  schemaId: string,
+  schema: Pick<Schema, "listInstances">,
+  config: TableWatchConfig,
+): Promise<string> {
+  const raw: unknown = config.instance;
+  if (raw !== undefined && !isString(raw)) {
+    throw new Error("table-watch: 'instance' must be a string");
+  }
+  const instance = raw?.trim() ?? "";
+  if (config.allInstances !== undefined && !isBoolean(config.allInstances)) {
+    throw new Error("table-watch: 'allInstances' must be a boolean");
+  }
+  if (config.allInstances === true) {
+    if (instance) {
+      throw new Error(
+        "table-watch: name an instance or watch every instance, not both",
+      );
+    }
+    return "";
+  }
+  if (!instance) return "";
+  if (instance.length > MAX_NAME_LENGTH) {
+    throw new Error(
+      `table-watch: 'instance' is longer than ${MAX_NAME_LENGTH} characters`,
+    );
+  }
+  const named = await listSchemaInstances(OWN_DATABASE, schema);
+  if (!named.includes(instance)) {
+    throw new Error(
+      `table-watch: unknown instance "${instance}" in schema "${schemaId}"`,
+    );
+  }
+  return instance;
+}
+
 export const tableWatchTrigger: TriggerType<
   TableWatchConfig,
   TableWatchOutput
 > = {
   id: "database.table-watch",
   name: "Table watch",
-  description: "Fires on inserts, updates and deletes in a database table",
+  description:
+    "Fires on inserts, updates and deletes in a database table, in one instance or in every instance",
   icon: "i-ph-database",
   /**
    * The feed must be consumed exactly once cluster-wide; the automation
@@ -272,11 +365,13 @@ export const tableWatchTrigger: TriggerType<
         type: "string",
         title: "Schema",
         description: "Registered schema id, e.g. `dms`",
+        maxLength: MAX_NAME_LENGTH,
       },
       table: {
         type: "string",
         title: "Table",
         description: "Table name inside the schema",
+        maxLength: MAX_NAME_LENGTH,
       },
       eventTypes: {
         type: "array",
@@ -285,6 +380,28 @@ export const tableWatchTrigger: TriggerType<
         items: { type: "string", enum: [...EVENT_TYPES] },
         uniqueItems: true,
         minItems: 1,
+      },
+      instance: {
+        type: "string",
+        title: "Instance",
+        description:
+          "Instance to watch, e.g. a tenant id; empty for the default instance",
+        default: "",
+        maxLength: 128,
+      },
+      allInstances: {
+        type: "boolean",
+        title: "All instances",
+        description:
+          "Watch every instance through one feed; leave Instance empty",
+        default: false,
+      },
+      includeAutomationWrites: {
+        type: "boolean",
+        title: "Include automation writes",
+        description:
+          "Also fire on changes a procedure makes with Run saved query",
+        default: false,
       },
     },
     required: ["schema", "table"],
@@ -305,8 +422,23 @@ export const tableWatchTrigger: TriggerType<
       },
       schema: { type: "string" },
       table: { type: "string" },
+      instance: {
+        type: "string",
+        description: "Instance of the changed row; empty for the default",
+      },
       at: { type: "string", format: "date-time" },
+      originProcedureId: {
+        type: "string",
+        description:
+          "Procedure whose write made the change; only with Include automation writes",
+      },
+      originRunId: {
+        type: "string",
+        description:
+          "Run whose write made the change; only with Include automation writes",
+      },
     },
+    required: ["type", "old", "new", "schema", "table", "instance", "at"],
   },
   /**
    * Opens the feed and probes it: an early open failure surfaces as an
@@ -318,6 +450,16 @@ export const tableWatchTrigger: TriggerType<
     const tableName = isString(config.table) ? config.table.trim() : "";
     if (!schemaId) throw new Error("table-watch: 'schema' is required");
     if (!tableName) throw new Error("table-watch: 'table' is required");
+    for (const [name, value] of [
+      ["schema", schemaId],
+      ["table", tableName],
+    ]) {
+      if (value.length > MAX_NAME_LENGTH) {
+        throw new Error(
+          `table-watch: '${name}' is longer than ${MAX_NAME_LENGTH} characters`,
+        );
+      }
+    }
     const schema = Schema.get(schemaId);
     if (!schema) {
       throw new Error(`table-watch: unknown schema "${schemaId}"`);
@@ -331,9 +473,17 @@ export const tableWatchTrigger: TriggerType<
       );
     }
     const events = resolveEventTypes(config.eventTypes);
-    const scope: TableWatchConfig = { schema: schemaId, table: tableName };
+    const scope: WatchScope = {
+      schema: schemaId,
+      table: tableName,
+      instance: await resolveInstance(schemaId, schema, config),
+      allInstances: config.allInstances === true,
+      includeAutomationWrites: config.includeAutomationWrites === true,
+      watchId: randomUUID(),
+      openedAt: Date.now(),
+    };
 
-    const iterator = openFeed(schemaId, tableName);
+    const iterator = openFeed(scope);
     const handle: TableWatchHandle = { stopped: false, iterator };
     const first = iterator.next();
     handle.pending = first;
