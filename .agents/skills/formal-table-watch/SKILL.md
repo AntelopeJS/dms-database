@@ -99,7 +99,7 @@ Replay a counterexample with the fake table above, one action per step, and asse
 | `PumpReopen` | the close's end, then `openFeed` or its throw (lines 291-300) |
 | `Deactivate`, `DeactivateReturns` | `deactivate()` (lines 510-514) |
 
-The sync commit is `424b783`. `tableWatch.ts` last changed in `424b783`.
+The sync commit is `aa3bbda`. `tableWatch.ts` last changed in `aa3bbda`.
 
 ## Bounds and what is left out
 
