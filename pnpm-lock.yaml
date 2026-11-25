@@ -113,8 +113,8 @@ importers:
         specifier: '>=0.7.3 <0.8.0'
         version: 0.7.3(@antelopejs/interface-core@0.5.2)
       '@antelopejs/interface-dms-builder':
-        specifier: '>=0.6.0 <0.7.0'
-        version: 0.6.0(@antelopejs/interface-core@0.5.2)
+        specifier: '>=0.6.2 <0.7.0'
+        version: 0.6.2(@antelopejs/interface-core@0.5.2)
 
 packages:
 
@@ -193,11 +193,6 @@ packages:
 
   '@antelopejs/interface-dms-automation@0.7.3':
     resolution: {integrity: sha512-alQ6gykmTBH7O2bY0j26emHkcAAJXSX+lqRldPkKQZZM4pnEm2VHALt4qPnHteDhRDIBY9nmo/Z+8eHJSBlUyg==}
-    peerDependencies:
-      '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
-
-  '@antelopejs/interface-dms-builder@0.6.0':
-    resolution: {integrity: sha512-y/2cJKAFd+gcO/VEeuIwC+J/WNWWb1le6P6+Zv66cfqCWmWUAKa2P4LHWES1WBYkGz/gncf+/As/S2G1LBuJLw==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
 
@@ -3368,11 +3363,6 @@ snapshots:
   '@antelopejs/interface-dms-automation@0.7.3(@antelopejs/interface-core@0.5.2)':
     dependencies:
       '@antelopejs/interface-core': 0.5.2
-
-  '@antelopejs/interface-dms-builder@0.6.0(@antelopejs/interface-core@0.5.2)':
-    dependencies:
-      '@antelopejs/interface-core': 0.5.2
-    optional: true
 
   '@antelopejs/interface-dms-builder@0.6.2(@antelopejs/interface-core@0.5.2)':
     dependencies:
