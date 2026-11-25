@@ -1,17 +1,23 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
+import ts from "typescript";
 
 /**
  * Invariants over the module's sources that no component test can reach:
  * the components the backend pages name exist, `<i18n-t>` reads the global
- * messages, and every text key a backend page names resolves in each locale.
+ * messages, every text key a backend page names resolves in each locale, and
+ * every 4xx of the backend is a refusal of `src/service/refusals.ts`, whose
+ * key the dashboard's error presenter translates.
  * Prints the violations only; exits 1 when there are any.
  */
 
 type Messages = { [key: string]: string | Messages };
 
 const ROOT = join(import.meta.dirname, "..", "frontend-vue");
-const PAGES_DIR = join(ROOT, "..", "src", "pages");
+const BACKEND_DIR = join(ROOT, "..", "src");
+const PAGES_DIR = join(BACKEND_DIR, "pages");
+const BACKEND_TESTS_DIR = join(BACKEND_DIR, "test");
+const REFUSALS_MODULE = join(BACKEND_DIR, "service", "refusals.ts");
 const COMPONENTS_DIR = join(ROOT, "app", "components");
 const LOCALES_DIR = join(ROOT, "i18n", "locales");
 
@@ -164,6 +170,39 @@ for (const locale of locales)
     failures.push(
       `${shown(locale.file)}: the Overview shows no beta notice, so "dms_database.overview.beta.title" has no place here`,
     );
+
+function answeredStatus(node: ts.Node): ts.Expression | undefined {
+  if (ts.isCallExpression(node) && node.expression.getText() === "assert")
+    return node.arguments[1];
+  if (ts.isNewExpression(node) && node.expression.getText() === "HTTPResult")
+    return node.arguments?.[0];
+  return undefined;
+}
+
+for (const file of list(BACKEND_DIR, ".ts")) {
+  if (file === REFUSALS_MODULE || file.startsWith(BACKEND_TESTS_DIR)) continue;
+  const source = ts.createSourceFile(
+    file,
+    read(file),
+    ts.ScriptTarget.Latest,
+    true,
+  );
+  const visit = (node: ts.Node): void => {
+    const status = answeredStatus(node);
+    if (
+      status !== undefined &&
+      ts.isNumericLiteral(status) &&
+      /^4\d\d$/.test(status.text)
+    ) {
+      const { line } = source.getLineAndCharacterOfPosition(node.getStart());
+      failures.push(
+        `${shown(file)}:${line + 1}: a ${status.text} built outside src/service/refusals.ts, whose key the error presenter translates; refuse with a refusal of REFUSALS`,
+      );
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(source);
+}
 
 if (failures.length > 0) {
   console.error(failures.join("\n"));

@@ -1,11 +1,11 @@
 import { strict as assert } from "node:assert";
-import { HTTPResult } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { User, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel, SavedQueryModel } from "../db";
 import { DatabaseQueryController } from "../routes/query";
-import { bodyText, refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "saved-queries-qa";
@@ -134,18 +134,15 @@ describe("[integration] refused saves", () => {
     const controller = new DatabaseQueryController();
     const save = (body: SaveBody) =>
       refusal(controller.createSaved(OWNER, body));
-    const objectOnly = {
-      status: 400,
-      message: "Expected query to be an object",
-    };
+    const objectOnly = refused(REFUSALS.savedQueryBody);
     assert.deepEqual(await save({ ...SAVE, query: undefined }), objectOnly);
     assert.deepEqual(await save({ ...SAVE, query: [] }), objectOnly);
     assert.deepEqual(await save({ ...SAVE, query: "items" }), objectOnly);
-    const nonEmpty = { status: 400, message: "Expected non-empty string" };
+    const nonEmpty = refused(REFUSALS.emptyValue);
     assert.deepEqual(await save({ ...SAVE, name: "" }), nonEmpty);
     assert.deepEqual(await save({ ...SAVE, name: 3 }), nonEmpty);
     assert.deepEqual(await save({ ...SAVE, source: undefined }), nonEmpty);
-    const language = { status: 400, message: "Unsupported query language" };
+    const language = refused(REFUSALS.unsupportedLanguage);
     assert.deepEqual(await save({ ...SAVE, language: "sql" }), language);
     assert.deepEqual(await save({ ...SAVE, language: undefined }), language);
     assert.deepEqual(
@@ -165,26 +162,22 @@ describe("[integration] refused saves", () => {
     );
   });
 
-  it("answers a body that is not a runnable query like a failed run", async () => {
+  it("refuses a body that is not a runnable query with a key the error presenter translates, which the console's verbatim run diagnostic would show as a generic failure", async () => {
     const controller = new DatabaseQueryController();
-    await assert.rejects(
-      controller.createSaved(OWNER, {
-        ...SAVE,
-        query: { __cls: "NoSuchClass", stages: [] },
-      }),
-      (error: HTTPResult) => {
-        assert.equal(error.getStatus(), 400);
-        assert.match(bodyText(error), /^\{"message":"Malformed query/);
-        return true;
-      },
+    assert.deepEqual(
+      await refusal(
+        controller.createSaved(OWNER, {
+          ...SAVE,
+          query: { __cls: "NoSuchClass", stages: [] },
+        }),
+      ),
+      refused(REFUSALS.savedQueryNotRunnable),
     );
-    await assert.rejects(
-      controller.createSaved(OWNER, { ...SAVE, query: { value: 1 } }),
-      (error: HTTPResult) => {
-        assert.equal(error.getStatus(), 400);
-        assert.match(bodyText(error), /Query must resolve to a runnable/);
-        return true;
-      },
+    assert.deepEqual(
+      await refusal(
+        controller.createSaved(OWNER, { ...SAVE, query: { value: 1 } }),
+      ),
+      refused(REFUSALS.savedQueryNotRunnable),
     );
   });
 });
@@ -207,7 +200,7 @@ describe("[integration] saved query ownership", () => {
     const listed = await controller.listSaved(OWNER, "shared");
     assert.ok(listed.items.some((item) => item.name === "renamed"));
 
-    const notFound = { status: 404, message: "Saved query not found" };
+    const notFound = refused(REFUSALS.savedQueryNotFound);
     assert.deepEqual(
       await refusal(controller.updateSaved(PEER, saved.id, SAVE)),
       notFound,
@@ -216,7 +209,7 @@ describe("[integration] saved query ownership", () => {
       await refusal(controller.updateSaved(OWNER, "missing", SAVE)),
       notFound,
     );
-    const nonEmpty = { status: 400, message: "Expected non-empty string" };
+    const nonEmpty = refused(REFUSALS.emptyValue);
     assert.deepEqual(
       await refusal(controller.updateSaved(OWNER, "", SAVE)),
       nonEmpty,
@@ -227,7 +220,7 @@ describe("[integration] saved query ownership", () => {
     );
     assert.deepEqual(
       await refusal(controller.updateSaved(OWNER, "", { ...SAVE, query: 1 })),
-      { status: 400, message: "Expected query to be an object" },
+      refused(REFUSALS.savedQueryBody),
       "the body is checked before the id",
     );
   });
@@ -235,21 +228,21 @@ describe("[integration] saved query ownership", () => {
   it("deletes a query for its owner only", async () => {
     const controller = new DatabaseQueryController();
     const saved = await controller.createSaved(OWNER, SAVE);
-    assert.deepEqual(await refusal(controller.deleteSaved(PEER, saved.id)), {
-      status: 404,
-      message: "Saved query not found",
-    });
+    assert.deepEqual(
+      await refusal(controller.deleteSaved(PEER, saved.id)),
+      refused(REFUSALS.savedQueryNotFound),
+    );
     assert.deepEqual(await controller.deleteSaved(OWNER, saved.id), {
       success: true,
     });
-    assert.deepEqual(await refusal(controller.deleteSaved(OWNER, saved.id)), {
-      status: 404,
-      message: "Saved query not found",
-    });
-    assert.deepEqual(await refusal(controller.deleteSaved(OWNER, undefined)), {
-      status: 400,
-      message: "Expected non-empty string",
-    });
+    assert.deepEqual(
+      await refusal(controller.deleteSaved(OWNER, saved.id)),
+      refused(REFUSALS.savedQueryNotFound),
+    );
+    assert.deepEqual(
+      await refusal(controller.deleteSaved(OWNER, undefined)),
+      refused(REFUSALS.emptyValue),
+    );
   });
 });
 
@@ -295,16 +288,16 @@ describe("[integration] query history routes", () => {
     assert.equal(entry.source, "run 2");
     assert.deepEqual(
       await refusal(controller.getHistoryEntry(PEER, newest.id)),
-      { status: 404, message: "History entry not found" },
+      refused(REFUSALS.historyEntryNotFound),
     );
     assert.deepEqual(
       await refusal(controller.getHistoryEntry(OWNER, "missing")),
-      { status: 404, message: "History entry not found" },
+      refused(REFUSALS.historyEntryNotFound),
     );
-    assert.deepEqual(await refusal(controller.getHistoryEntry(OWNER, "")), {
-      status: 400,
-      message: "Expected non-empty string",
-    });
+    assert.deepEqual(
+      await refusal(controller.getHistoryEntry(OWNER, "")),
+      refused(REFUSALS.emptyValue),
+    );
     assert.deepEqual(await controller.clearHistory(OWNER), { success: true });
     assert.equal(
       (await controller.listHistory(OWNER, undefined, undefined)).total,

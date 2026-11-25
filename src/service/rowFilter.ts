@@ -1,6 +1,6 @@
-import { assert } from "@antelopejs/interface-api-util";
 import type { ValueProxy } from "@antelopejs/interface-database";
 import type { StoredCell } from "../types/stored";
+import { REFUSALS, refuse } from "./refusals";
 
 /**
  * How a column filter compares a cell with the user's text: `is` against the
@@ -185,17 +185,11 @@ export function buildRowFilter(
   filters: readonly ColumnFilter[],
 ): RowMatch | undefined {
   const parts = filters.map(({ field, mode, value }) => {
-    assert(
-      namesOneField(field),
-      400,
-      `Cannot filter column ${field}: the database reads an empty column name, or a dot in one, as a nested field`,
-    );
+    refuse(namesOneField(field), REFUSALS.nestedFilterColumn, {
+      column: field,
+    });
     const kind = filtersOf(meta, field);
-    assert(
-      kind,
-      400,
-      `Cannot filter column ${field}: a filter compares text, numbers and true or false only`,
-    );
+    refuse(kind, REFUSALS.unfilterableColumn, { column: field });
     return onColumn(field, kind[mode](value));
   });
   if (search) {

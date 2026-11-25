@@ -149,7 +149,7 @@ const allInstances = {
       check("the banner offers Switch to eu, us and default", show(switches) === '["Switch to eu","Switch to us","Switch to default"]', switches),
       check("Enter on a cell opens no editor", noEditor.pass, noEditor.detail),
       check("a double-click opens no editor", noEditorDouble.pass, noEditorDouble.detail),
-      check("the edit route refuses with 400 and says why", refused.status === 400 && /Editing is disabled when browsing across all instances/.test(isRow(refused.body) ? text(refused.body, "message") : String(refused.body)), [refused.status, refused.body]),
+      check("the edit route refuses with 400 and the key that says why", refused.status === 400 && isRow(refused.body) && text(refused.body, "message") === "$dms_database.refusals.cross_instance_edit", [refused.status, refused.body]),
       check("the row is unchanged", pick(after.body, "company") !== "Hacked", pick(after.body, "company")),
     ]);
     await openRowOf(tab, "eu_cus_001");

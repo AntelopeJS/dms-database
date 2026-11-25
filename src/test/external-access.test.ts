@@ -7,9 +7,9 @@ import {
 } from "../config";
 import { DatabaseConnectionsController } from "../routes/connections";
 import { DatabaseBrowseController } from "../routes/data";
-import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { REFUSALS } from "../service/refusals";
 import { writeAccess } from "../service/connectionState";
-import { keyedRefusal, refusal } from "./refusal";
+import { keyedRefusal, refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 import { answerNextWrite, writerCalls } from "./writerCalls";
 import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
@@ -55,15 +55,15 @@ describe("[integration] external connections: changing access", function () {
     const before = writerCalls().length;
     assert.deepEqual(
       await refusal(controller.access(owner, "erp", { access: "read-write" })),
-      { status: 403, message: CONNECTION_REFUSALS.notDevelopment },
+      refused(REFUSALS.notDevelopment),
     );
     assert.deepEqual(
       await refusal(controller.access(owner, "own", { access: "read" })),
-      { status: 400, message: "The project's own database is always writable" },
+      refused(REFUSALS.ownDatabaseAccess),
     );
     assert.deepEqual(
       await refusal(controller.access(owner, "erp", { access: "write" })),
-      { status: 400, message: 'Expected { access: "read" | "read-write" }' },
+      refused(REFUSALS.accessBody),
     );
     assert.equal((await controller.list(owner)).accessEditable, false);
     assert.equal(writerCalls().length, before);
@@ -71,10 +71,10 @@ describe("[integration] external connections: changing access", function () {
 
   it("refuses read-write when the account can only read, without writing the configuration", async () => {
     const before = writerCalls().length;
-    assert.deepEqual(await refusal(writeAccess("archive", "read-write")), {
-      status: 409,
-      message: CONNECTION_REFUSALS.readOnlyAccount,
-    });
+    assert.deepEqual(
+      await refusal(writeAccess("archive", "read-write")),
+      refused(REFUSALS.readOnlyAccount),
+    );
     assert.equal(writerCalls().length, before);
   });
 
@@ -161,7 +161,7 @@ describe("[integration] external connections: changing access", function () {
     assert.deepEqual(await keyedRefusal(edit(editor, "Ada")), {
       status: 403,
       body: {
-        message: CONNECTION_REFUSALS.readOnlyConnection,
+        message: REFUSALS.readOnlyConnection.key,
         params: { connection: "erp" },
         severity: "warning",
       },
@@ -181,30 +181,22 @@ describe("[integration] external connections: a refused access write", () => {
         { pointer: "", message: "the configuration is spread" },
       ],
     });
-    const { status, message } = await refusal(writeAccess("erp", "read-write"));
-    const body: unknown = JSON.parse(message);
     assert.deepEqual(
-      { status, body },
-      {
-        status: 409,
-        body: {
-          message: CONNECTION_REFUSALS.builderRefused,
-          params: {
-            reason:
-              "/modules/local/config is held in a variable; the configuration is spread",
-          },
-        },
-      },
+      await refusal(writeAccess("erp", "read-write")),
+      refused(REFUSALS.builderRefused, {
+        reason:
+          "/modules/local/config is held in a variable; the configuration is spread",
+      }),
     );
     assert.equal(await accessOf("erp"), "read");
   });
 
   it("answers 503 only when the builder does not answer", async () => {
     answerNextWrite("absent");
-    assert.deepEqual(await refusal(writeAccess("erp", "read-write")), {
-      status: 503,
-      message: CONNECTION_REFUSALS.noBuilder,
-    });
+    assert.deepEqual(
+      await refusal(writeAccess("erp", "read-write")),
+      refused(REFUSALS.noBuilder),
+    );
     assert.equal(await accessOf("erp"), "read");
   });
 });
@@ -226,7 +218,7 @@ describe("[integration] external connections: writes through the Data browser", 
     assert.deepEqual(await keyedRefusal(edit(writer, "Ada Lovelace")), {
       status: 403,
       body: {
-        message: CONNECTION_REFUSALS.readOnlyConnection,
+        message: REFUSALS.readOnlyConnection.key,
         params: { connection: "erp" },
         severity: "warning",
       },
@@ -250,15 +242,15 @@ describe("[integration] external connections: writes through the Data browser", 
       {
         status: 409,
         body: {
-          message: CONNECTION_REFUSALS.staleDatabase,
-          params: { connection: "erp" },
+          message: REFUSALS.staleDatabase.key,
+          params: {},
           severity: "warning",
         },
       },
     );
     assert.deepEqual(
       await refusal(browse.edit(writer, c1Edit(), { name: "No connection" })),
-      { status: 400, message: "Missing 'connection'" },
+      refused(REFUSALS.missingParameter, { name: "connection" }),
     );
     assert.deepEqual(
       await browse.get(writer, "is:erp", undefined, "is:customers", "c1"),

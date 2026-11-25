@@ -7,7 +7,8 @@ import { DatabaseBrowseController } from "../routes/data";
 import { resolveDatabase } from "../service/connections";
 import type { Database } from "../service/database";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { queryContext } from "./requestContext";
 
 const USER = Object.assign(new User(), { _id: "external-bounds-user" });
@@ -109,7 +110,7 @@ describe("[integration] browse inputs name the table's own columns", () => {
       await refusal(
         browse.list(USER, queryContext({ ...CUSTOMERS, sortKey: "$where" })),
       ),
-      { status: 400, message: "Unknown column: $where" },
+      refused(REFUSALS.unknownColumn, { column: "$where" }),
     );
   });
 
@@ -126,7 +127,7 @@ describe("[integration] browse inputs name the table's own columns", () => {
           { "segment.$": "x" },
         ),
       ),
-      { status: 400, message: "Unknown column: segment.$" },
+      refused(REFUSALS.unknownColumn, { column: "segment.$" }),
     );
   });
 });

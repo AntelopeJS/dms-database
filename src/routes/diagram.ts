@@ -17,10 +17,7 @@ import {
   DiagramNoteModel,
   noteConnection,
 } from "../db";
-import {
-  CONNECTION_REFUSALS,
-  connectionRefusal,
-} from "../service/connectionRefusals";
+import { REFUSALS, refusal, refuse } from "../service/refusals";
 import { resolveSelectedDatabase } from "../service/connectionState";
 import {
   isJsonContainer,
@@ -73,7 +70,7 @@ function assertFiniteNumber(
   value: unknown,
   label: string,
 ): asserts value is number {
-  assert(isFiniteNumber(value), 400, `Expected finite number for ${label}`);
+  refuse(isFiniteNumber(value), REFUSALS.invalidNumber, { field: label });
 }
 
 interface LayoutResponse {
@@ -83,14 +80,10 @@ interface LayoutResponse {
 function asPositions(
   value: JsonValue | undefined,
 ): LayoutResponse["positions"] {
-  assert(
-    value !== undefined && isJsonObjectValue(value),
-    400,
-    "Expected positions object",
-  );
+  refuse(value !== undefined && isJsonObjectValue(value), REFUSALS.layoutBody);
   const out: Record<string, Position> = {};
   for (const [key, raw] of Object.entries(value)) {
-    assert(isJsonContainer(raw), 400, `Invalid position for ${key}`);
+    refuse(isJsonContainer(raw), REFUSALS.invalidPosition, { table: key });
     const entry: JsonObject = isJsonObjectValue(raw) ? raw : {};
     assertFiniteNumber(entry.x, `${key}.x`);
     assertFiniteNumber(entry.y, `${key}.y`);
@@ -133,12 +126,7 @@ async function selectedConnection(user: User): Promise<string> {
 async function writtenConnection(user: User, asked: string): Promise<string> {
   const connection = await selectedConnection(user);
   if (asked !== connection) {
-    throw connectionRefusal(
-      409,
-      CONNECTION_REFUSALS.staleDatabase,
-      connection,
-      "warning",
-    );
+    throw refusal(REFUSALS.staleDatabase);
   }
   return connection;
 }
@@ -149,10 +137,9 @@ async function writtenConnection(user: User, asked: string): Promise<string> {
  */
 async function noteOf(connection: string, id: string): Promise<DiagramNote> {
   const note = await GetModel(DiagramNoteModel).get(id);
-  assert(
+  refuse(
     note !== undefined && noteConnection(note) === connection,
-    404,
-    "Note not found",
+    REFUSALS.noteNotFound,
   );
   return note;
 }
@@ -192,7 +179,7 @@ export class DatabaseDiagramController extends Controller(
     const connection = await writtenConnection(user, asked);
     assertNonEmptyString(schema);
     const raw = body?.positions;
-    assert(isJsonValue(raw), 400, "Expected positions object");
+    refuse(isJsonValue(raw), REFUSALS.layoutBody);
     const positions = asPositions(raw);
     const layoutModel = GetModel(DiagramLayoutModel);
     await layoutModel.upsertFor(connection, schema, positions);

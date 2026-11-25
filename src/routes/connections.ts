@@ -5,7 +5,6 @@ import {
   Parameter,
   Put,
 } from "@antelopejs/interface-api";
-import { assert } from "@antelopejs/interface-api-util";
 import { Logging } from "@antelopejs/interface-core/logging";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
@@ -20,10 +19,7 @@ import {
   readConnectionsState,
   selectConnection,
 } from "../service/connectionState";
-import {
-  CONNECTION_REFUSALS,
-  connectionRefusal,
-} from "../service/connectionRefusals";
+import { REFUSALS, refusal, refuse } from "../service/refusals";
 import {
   referencesByTable,
   type RelationsByTable,
@@ -58,18 +54,10 @@ async function readCatalog<T>(
     CATALOG_DEADLINE_MS,
   );
   if (outcome === TIMED_OUT) {
-    throw connectionRefusal(
-      409,
-      CONNECTION_REFUSALS.catalogTimedOut,
-      connection,
-    );
+    throw refusal(REFUSALS.catalogTimedOut, { connection });
   }
   if (!outcome.ok) {
-    throw connectionRefusal(
-      409,
-      CONNECTION_REFUSALS.catalogRefused,
-      connection,
-    );
+    throw refusal(REFUSALS.catalogRefused, { connection });
   }
   return outcome.value;
 }
@@ -93,12 +81,11 @@ export class DatabaseConnectionsController extends Controller(
     @AuthRawUser() user: User,
     @JSONBody() body: JsonValue | undefined,
   ): Promise<ConnectionsState> {
-    assert(
+    refuse(
       isObject(body) &&
         "connection" in body &&
         isNonEmptyString(body.connection),
-      400,
-      "Expected { connection: string }",
+      REFUSALS.selectionBody,
     );
     await selectConnection(user._id, body.connection);
     return readConnectionsState(user._id);
@@ -115,12 +102,11 @@ export class DatabaseConnectionsController extends Controller(
     @JSONBody() body: JsonValue | undefined,
   ): Promise<ConnectionsState> {
     assertNonEmptyString(connection);
-    assert(
+    refuse(
       isObject(body) &&
         "access" in body &&
         (body.access === "read" || body.access === "read-write"),
-      400,
-      'Expected { access: "read" | "read-write" }',
+      REFUSALS.accessBody,
     );
     await changeAccess(connection, body.access);
     return readConnectionsState(user._id);
@@ -147,18 +133,20 @@ export class DatabaseConnectionsController extends Controller(
     @Parameter("relation", "param") relation: unknown,
   ): Promise<RelationDescription> {
     assertNonEmptyString(connection);
-    assert(isNonEmptyString(relation), 400, "Missing relation");
+    refuse(isNonEmptyString(relation), REFUSALS.missingParameter, {
+      name: "relation",
+    });
     const catalog = resolveCatalog(connection);
     const listed = await readCatalog(connection, () => catalog.ListRelations());
-    assert(
+    refuse(
       listed.some(({ schema, name }) => `${schema}.${name}` === relation),
-      404,
-      `Unknown relation: ${relation}`,
+      REFUSALS.unknownRelation,
+      { relation },
     );
     const [description] = await readCatalog(connection, () =>
       catalog.DescribeRelations([relation]),
     );
-    assert(description, 404, `Unknown relation: ${relation}`);
+    refuse(description, REFUSALS.unknownRelation, { relation });
     return description;
   }
 
@@ -173,7 +161,9 @@ export class DatabaseConnectionsController extends Controller(
     @Parameter("schema", "param") schema: unknown,
   ): Promise<{ tables: RelationsByTable }> {
     assertNonEmptyString(connection);
-    assert(isNonEmptyString(schema), 400, "Missing schema");
+    refuse(isNonEmptyString(schema), REFUSALS.missingParameter, {
+      name: "schema",
+    });
     const catalog = resolveCatalog(connection);
     const listed = await readCatalog(connection, () => catalog.ListRelations());
     const names = listed

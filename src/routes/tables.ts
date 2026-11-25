@@ -1,10 +1,10 @@
 import { Controller, Get, Parameter } from "@antelopejs/interface-api";
-import { assert } from "@antelopejs/interface-api-util";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import type { User } from "@antelopejs/interface-dms/auth/db";
 import { formatModifier, localeOf, type ServerLocale } from "../i18n/messages";
 import { assertDefaultInstance } from "../service/browse";
 import { resolveSelectedDatabase } from "../service/connectionState";
+import { REFUSALS, refuse } from "../service/refusals";
 import { type Database, OWN_CONNECTION } from "../service/database";
 import {
   getTableElementCount,
@@ -244,7 +244,7 @@ export class DatabaseTablesController extends Controller(
     @AuthRawUser() user: User,
     @Parameter("id", "query") idRaw: unknown,
   ): Promise<TableSourceRow> {
-    assert(isNonEmptyString(idRaw), 400, "Missing 'id'");
+    refuse(isNonEmptyString(idRaw), REFUSALS.missingParameter, { name: "id" });
     const id = idRaw;
     const db = await resolveSelectedDatabase(user._id);
     const summaries = await listSchemaSummaries(db);
@@ -253,7 +253,7 @@ export class DatabaseTablesController extends Controller(
         summary.tables.map((table) => ({ schemaId: summary.id, table })),
       )
       .find(({ schemaId, table }) => sourceRowId(schemaId, table.name) === id);
-    assert(listed, 404, `Unknown table ${id}`);
+    refuse(listed, REFUSALS.unknownTable, { table: id });
     const count = await getTableElementCount(
       db,
       listed.schemaId,
@@ -275,11 +275,13 @@ export class DatabaseTablesController extends Controller(
     @Parameter("search", "query") search: unknown,
     @Parameter("limit", "query") limitRaw: unknown,
   ): Promise<InstancesResult> {
-    assert(isNonEmptyString(schemaRaw), 400, "Missing 'schema'");
+    refuse(isNonEmptyString(schemaRaw), REFUSALS.missingParameter, {
+      name: "schema",
+    });
     const schema = schemaRaw;
     const db = await resolveSelectedDatabase(user._id);
     const registered = db.schemas().get(schema);
-    assert(registered, 404, `Unknown schema ${schema}`);
+    refuse(registered, REFUSALS.unknownSchema, { schema });
     const named = await listSchemaInstances(db, registered);
     const limit = clamp(
       parseInteger(

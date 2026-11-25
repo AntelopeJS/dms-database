@@ -8,6 +8,7 @@ import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { hasInstances } from "./introspect";
+import { REFUSALS, refuse } from "./refusals";
 import {
   buildRowFilter,
   type ColumnFilter,
@@ -130,8 +131,8 @@ export function resolveSelection(
 ): BrowseSelection {
   const schema = unwrapIsFilter(schemaFilter);
   const table = unwrapIsFilter(tableFilter);
-  assert(schema, 400, "Missing 'schema' filter");
-  assert(table, 400, "Missing 'table' filter");
+  refuse(schema, REFUSALS.missingParameter, { name: "filter_schema" });
+  refuse(table, REFUSALS.missingParameter, { name: "filter_table" });
   return {
     schema,
     instance: decodeInstanceFilter(instanceFilter),
@@ -150,22 +151,20 @@ export function assertDefaultInstance(
   db: Database,
   instance: InstanceId | undefined,
 ): void {
-  assert(
-    instance === undefined || hasInstances(db),
-    400,
-    `${db.connection} has no instances: read its tables without one`,
-  );
+  refuse(instance === undefined || hasInstances(db), REFUSALS.noInstances, {
+    connection: db.connection,
+  });
 }
 
 export function resolveTable(db: Database, selection: BrowseSelection) {
   assertDefaultInstance(db, selection.instance);
   const schema = db.schemas().get(selection.schema);
-  assert(schema, 404, `Unknown schema: ${selection.schema}`);
-  assert(
+  refuse(schema, REFUSALS.unknownSchema, { schema: selection.schema });
+  refuse(
     isObject(schema.definition) &&
       Object.hasOwn(schema.definition, selection.table),
-    404,
-    `Unknown table: ${selection.table}`,
+    REFUSALS.unknownTable,
+    { table: selection.table },
   );
   return schema.instance(selection.instance).table(selection.table);
 }
@@ -183,10 +182,10 @@ function assertKnownColumn(
   primaryKey: string | undefined,
   column: string,
 ): void {
-  assert(
+  refuse(
     meta.columns.includes(column) || column === primaryKey,
-    400,
-    `Unknown column: ${column}`,
+    REFUSALS.unknownColumn,
+    { column },
   );
 }
 

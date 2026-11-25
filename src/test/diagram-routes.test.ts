@@ -5,7 +5,8 @@ import { DiagramLayoutModel, DiagramNoteModel } from "../db";
 import { DatabaseDiagramController } from "../routes/diagram";
 import { OWN_CONNECTION } from "../types/constants";
 import type { JsonValue } from "../types/json";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 const SCHEMA_NAME = "diagram-routes-shop";
@@ -85,49 +86,39 @@ describe("[integration] diagram layout routes", function () {
       refusal(
         controller.putLayout(USER, OWN_CONNECTION, SCHEMA_NAME, { positions }),
       );
-    const expected = { status: 400 };
-    assert.deepEqual(await put(undefined), {
-      ...expected,
-      message: "Expected positions object",
-    });
-    assert.deepEqual(await put([]), {
-      ...expected,
-      message: "Expected positions object",
-    });
-    assert.deepEqual(await put("orders"), {
-      ...expected,
-      message: "Expected positions object",
-    });
-    assert.deepEqual(await put({ orders: 4 }), {
-      ...expected,
-      message: "Invalid position for orders",
-    });
-    assert.deepEqual(await put({ orders: null }), {
-      ...expected,
-      message: "Invalid position for orders",
-    });
-    assert.deepEqual(await put({ orders: { x: 1 } }), {
-      ...expected,
-      message: "Expected finite number for orders.y",
-    });
-    assert.deepEqual(await put({ orders: { x: "1", y: 2 } }), {
-      ...expected,
-      message: "Expected finite number for orders.x",
-    });
-    assert.deepEqual(await put({ orders: [1, 2] }), {
-      ...expected,
-      message: "Expected finite number for orders.x",
-    });
+    assert.deepEqual(await put(undefined), refused(REFUSALS.layoutBody));
+    assert.deepEqual(await put([]), refused(REFUSALS.layoutBody));
+    assert.deepEqual(await put("orders"), refused(REFUSALS.layoutBody));
+    assert.deepEqual(
+      await put({ orders: 4 }),
+      refused(REFUSALS.invalidPosition, { table: "orders" }),
+    );
+    assert.deepEqual(
+      await put({ orders: null }),
+      refused(REFUSALS.invalidPosition, { table: "orders" }),
+    );
+    assert.deepEqual(
+      await put({ orders: { x: 1 } }),
+      refused(REFUSALS.invalidNumber, { field: "orders.y" }),
+    );
+    assert.deepEqual(
+      await put({ orders: { x: "1", y: 2 } }),
+      refused(REFUSALS.invalidNumber, { field: "orders.x" }),
+    );
+    assert.deepEqual(
+      await put({ orders: [1, 2] }),
+      refused(REFUSALS.invalidNumber, { field: "orders.x" }),
+    );
     assert.deepEqual(
       await refusal(
         controller.putLayout(USER, OWN_CONNECTION, "", { positions: {} }),
       ),
-      { ...expected, message: "Expected non-empty string" },
+      refused(REFUSALS.emptyValue),
     );
-    assert.deepEqual(await refusal(controller.getLayout(USER, undefined)), {
-      ...expected,
-      message: "Expected non-empty string",
-    });
+    assert.deepEqual(
+      await refusal(controller.getLayout(USER, undefined)),
+      refused(REFUSALS.emptyValue),
+    );
   });
 
   it("keeps one layout row when saves of a new schema race", async () => {
@@ -248,26 +239,26 @@ describe("[integration] diagram note routes", () => {
     const controller = new DatabaseDiagramController();
     const create = (body: NoteBody) =>
       refusal(controller.createNote(USER, OWN_CONNECTION, body));
-    assert.deepEqual(await create({ ...NOTE, schemaName: "" }), {
-      status: 400,
-      message: "Expected non-empty string",
-    });
-    assert.deepEqual(await create({ ...NOTE, x: undefined }), {
-      status: 400,
-      message: "Expected finite number for x",
-    });
-    assert.deepEqual(await create({ ...NOTE, y: Number.NaN }), {
-      status: 400,
-      message: "Expected finite number for y",
-    });
-    assert.deepEqual(await create({ ...NOTE, width: "200" }), {
-      status: 400,
-      message: "Expected finite number for width",
-    });
-    assert.deepEqual(await create({ ...NOTE, height: null }), {
-      status: 400,
-      message: "Expected finite number for height",
-    });
+    assert.deepEqual(
+      await create({ ...NOTE, schemaName: "" }),
+      refused(REFUSALS.emptyValue),
+    );
+    assert.deepEqual(
+      await create({ ...NOTE, x: undefined }),
+      refused(REFUSALS.invalidNumber, { field: "x" }),
+    );
+    assert.deepEqual(
+      await create({ ...NOTE, y: Number.NaN }),
+      refused(REFUSALS.invalidNumber, { field: "y" }),
+    );
+    assert.deepEqual(
+      await create({ ...NOTE, width: "200" }),
+      refused(REFUSALS.invalidNumber, { field: "width" }),
+    );
+    assert.deepEqual(
+      await create({ ...NOTE, height: null }),
+      refused(REFUSALS.invalidNumber, { field: "height" }),
+    );
   });
 });
 
@@ -280,27 +271,24 @@ describe("[integration] diagram note refusals", () => {
       await refusal(
         controller.updateNote(USER, OWN_CONNECTION, "missing-note", {}),
       ),
-      { status: 404, message: "Note not found" },
+      refused(REFUSALS.noteNotFound),
     );
     assert.deepEqual(
       await refusal(
         controller.deleteNote(USER, OWN_CONNECTION, "missing-note"),
       ),
-      { status: 404, message: "Note not found" },
+      refused(REFUSALS.noteNotFound),
     );
     assert.deepEqual(
       await refusal(controller.deleteNote(USER, OWN_CONNECTION, "")),
-      {
-        status: 400,
-        message: "Expected non-empty string",
-      },
+      refused(REFUSALS.emptyValue),
     );
     const note = await controller.createNote(USER, OWN_CONNECTION, NOTE);
     assert.deepEqual(
       await refusal(
         controller.updateNote(USER, OWN_CONNECTION, note.id, { width: "wide" }),
       ),
-      { status: 400, message: "Expected finite number for width" },
+      refused(REFUSALS.invalidNumber, { field: "width" }),
     );
     assert.equal(
       (await controller.updateNote(USER, OWN_CONNECTION, note.id, {})).width,

@@ -1,9 +1,9 @@
 import { strict as assert } from "node:assert";
 import { User } from "@antelopejs/interface-dms/auth/db";
 import { DatabaseConnectionsController } from "../routes/connections";
-import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
 import { EXTERNAL_UNSUPPORTED } from "../service/connectionState";
-import { refusal } from "./refusal";
+import { REFUSALS } from "../service/refusals";
+import { refusal, refused } from "./refusal";
 
 const controller = new DatabaseConnectionsController();
 const unsupported = [...EXTERNAL_UNSUPPORTED];
@@ -71,7 +71,7 @@ describe("[integration] external connections: listing and selection", () => {
       await refusal(
         controller.select(user("half-user"), { connection: "shop" }),
       ),
-      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+      refused(REFUSALS.unknownConnection),
     );
     assert.equal((await controller.list(user("half-user"))).selected, "own");
   });
@@ -90,11 +90,11 @@ describe("[integration] external connections: listing and selection", () => {
       await refusal(
         controller.select(user("selecting-user"), { connection: "nope" }),
       ),
-      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+      refused(REFUSALS.unknownConnection),
     );
     assert.deepEqual(
       await refusal(controller.select(user("selecting-user"), {})),
-      { status: 400, message: "Expected { connection: string }" },
+      refused(REFUSALS.selectionBody),
     );
   });
 });
@@ -131,13 +131,13 @@ describe("[integration] external connections: relations", () => {
 
   it("refuses the relations of a connection the project does not have with the sentence the dashboard translates", async () => {
     const reader = user("relations-user");
-    assert.deepEqual(await refusal(controller.relations(reader, "nope")), {
-      status: 404,
-      message: CONNECTION_REFUSALS.unknownConnection,
-    });
+    assert.deepEqual(
+      await refusal(controller.relations(reader, "nope")),
+      refused(REFUSALS.unknownConnection),
+    );
     assert.deepEqual(
       await refusal(controller.relation(reader, "nope", "erp.customers")),
-      { status: 404, message: CONNECTION_REFUSALS.unknownConnection },
+      refused(REFUSALS.unknownConnection),
     );
   });
 });

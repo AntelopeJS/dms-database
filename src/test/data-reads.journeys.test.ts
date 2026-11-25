@@ -11,6 +11,7 @@ import {
   SHOP,
   withDataFixture,
 } from "./dataJourneys";
+import { REFUSALS } from "../service/refusals";
 import { objectsAt, pick, text } from "./helpers/pick";
 import type { HttpAnswer } from "./helpers/http";
 
@@ -52,8 +53,16 @@ async function assertSelectionDecoding(api: DataApi): Promise<void> {
     [400, 400],
     "a missing schema or table is 400",
   );
-  assert.match(message(noSchema), /schema/i, "the 400 names the schema");
-  assert.match(message(noTable), /table/i, "the 400 names the table");
+  assert.equal(
+    pick(noSchema.body, "params", "name"),
+    "filter_schema",
+    "the 400 names the schema",
+  );
+  assert.equal(
+    pick(noTable.body, "params", "name"),
+    "filter_table",
+    "the 400 names the table",
+  );
   const containsSchema = await api.get(
     `/browse/count?filter_schema=contains:${SHOP}&filter_table=is:customers`,
   );
@@ -74,8 +83,8 @@ async function assertSelectionDecoding(api: DataApi): Promise<void> {
       [unknownTable.status, message(unknownTable)],
     ],
     [
-      [404, "Unknown schema: nowhere"],
-      [404, "Unknown table: nowhere"],
+      [404, REFUSALS.unknownSchema.key],
+      [404, REFUSALS.unknownTable.key],
     ],
     "an unknown schema or table is 404",
   );
@@ -197,7 +206,7 @@ async function assertRowsAndTables(api: DataApi): Promise<void> {
   });
   assert.deepEqual(
     [otherInstance.status, message(otherInstance)],
-    [404, "Row not found"],
+    [404, REFUSALS.rowNotFound.key],
     "get reads the instance asked: the id of eu is not in us",
   );
   assert.deepEqual(
@@ -237,8 +246,13 @@ async function assertRowsAndTables(api: DataApi): Promise<void> {
   const noSchema = await api.get("/browse/tables");
   const unknown = await api.get("/browse/tables?filter_schema=is:nowhere");
   assert.deepEqual(
-    [noSchema.status, unknown.status, message(unknown)],
-    [400, 404, "Unknown schema: nowhere"],
+    [
+      noSchema.status,
+      unknown.status,
+      message(unknown),
+      pick(unknown.body, "params", "schema"),
+    ],
+    [400, 404, REFUSALS.unknownSchema.key, "nowhere"],
     "tables without a schema is 400, an unknown schema 404",
   );
 }
@@ -311,7 +325,7 @@ async function assertReferencesCount(api: DataApi): Promise<void> {
     id: "eu_ord_10400",
   });
   assert.equal(everywhere.status, 400, "every instance is refused");
-  assert.match(message(everywhere), /Pick one instance/);
+  assert.equal(message(everywhere), REFUSALS.crossInstanceReferences.key);
   assert.deepEqual(
     [
       (await references(`${SHOP}.orders`, { filter_instance: "is:eu" })).status,

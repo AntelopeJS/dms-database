@@ -1,4 +1,3 @@
-import { assert } from "@antelopejs/interface-api-util";
 import { CROSS_INSTANCE } from "@antelopejs/interface-database";
 import {
   isJsonContainer,
@@ -12,6 +11,7 @@ import { cellToText } from "../utils/query";
 import { type BrowseSelection, fetchColumns, resolveTable } from "./browse";
 import type { Database } from "./database";
 import { hasInstances } from "./introspect";
+import { REFUSALS, refuse } from "./refusals";
 
 /**
  * Synthetic columns the browse layer surfaces but does not persist (e.g. the
@@ -102,11 +102,10 @@ function resolveDateValue(
   value: string | number | boolean,
 ) {
   const date = isBoolean(value) ? null : new Date(value);
-  assert(
-    date && !Number.isNaN(date.getTime()),
-    400,
-    `Invalid date for '${field}': ${JSON.stringify(value)}`,
-  );
+  refuse(date && !Number.isNaN(date.getTime()), REFUSALS.invalidDate, {
+    field,
+    value: JSON.stringify(value),
+  });
   return date.getTime() === before.getTime() ? SKIP_FIELD : date;
 }
 
@@ -206,7 +205,9 @@ async function assertKnownFields(
     ...READONLY_FIELDS,
   ]);
   const unknown = Object.keys(body).filter((field) => !known.has(field));
-  assert(unknown.length === 0, 400, `Unknown column: ${unknown.join(", ")}`);
+  refuse(unknown.length === 0, REFUSALS.unknownColumn, {
+    column: unknown.join(", "),
+  });
 }
 
 /**
@@ -231,14 +232,10 @@ export async function editRow(
   id: string,
   body: JsonObject,
 ): Promise<object> {
-  assert(
-    selection.instance !== CROSS_INSTANCE,
-    400,
-    "Editing is disabled when browsing across all instances",
-  );
+  refuse(selection.instance !== CROSS_INSTANCE, REFUSALS.crossInstanceEdit);
   const target = resolveTable(db, selection).get(id);
   const existing: unknown = await target.run();
-  assert(isRecord(existing), 404, "Row not found");
+  refuse(isRecord(existing), REFUSALS.rowNotFound);
   await assertKnownFields(db, selection, Object.keys(existing), body);
   const updates = buildEditUpdates(
     new Map(Object.entries(existing)),
@@ -249,7 +246,7 @@ export async function editRow(
     const changed = await target.update(updates).run();
     if (changed === 0) {
       const persisted: unknown = await target.run();
-      assert(isObject(persisted), 404, "Row not found");
+      refuse(isObject(persisted), REFUSALS.rowNotFound);
       return persisted;
     }
   }

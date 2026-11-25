@@ -1,5 +1,5 @@
 import { strict as assert } from "node:assert";
-import { CONNECTION_REFUSALS } from "../service/connectionRefusals";
+import { REFUSALS } from "../service/refusals";
 import {
   createMemberSession,
   createOwnerSession,
@@ -72,7 +72,7 @@ describe("[integration] external databases over HTTP: who may call", () => {
       {
         status: 403,
         body: {
-          message: CONNECTION_REFUSALS.readOnlyConnection,
+          message: REFUSALS.readOnlyConnection.key,
           params: { connection: "erp" },
           severity: "warning",
         },

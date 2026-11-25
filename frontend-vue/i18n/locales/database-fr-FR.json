@@ -292,6 +292,42 @@
 				"reason": "Indisponible sur une base externe"
 			}
 		},
+		"refusals": {
+			"own_database_access": "La base du projet est toujours modifiable : son accès ne peut pas changer.",
+			"selection_body": "La requête doit nommer la base à sélectionner.",
+			"access_body": "L'accès doit être « read » ou « read-write ».",
+			"edit_body": "La modification doit envoyer ses changements sous forme d'objet.",
+			"missing_parameter": "Il manque {name} à la requête.",
+			"empty_value": "La requête a envoyé une valeur vide là où il faut du texte.",
+			"unknown_relation": "La relation {relation} n'existe pas.",
+			"unknown_schema": "Le schéma {schema} n'existe pas.",
+			"unknown_table": "La table {table} n'existe pas.",
+			"unknown_column": "La table n'a pas de colonne {column}.",
+			"no_instances": "{connection} n'a pas d'instances : lisez ses tables sans en choisir une.",
+			"cross_instance_references": "Choisissez une instance pour lire les références d'une ligne.",
+			"cross_instance_edit": "La modification est désactivée quand vous parcourez toutes les instances. Choisissez une instance pour modifier.",
+			"row_not_found": "Cette ligne n'existe plus.",
+			"invalid_date": "{value} n'est pas une date pour {field}.",
+			"nested_filter_column": "La colonne {column} ne peut pas être filtrée : la base lit un nom de colonne vide, ou qui contient un point, comme un champ imbriqué.",
+			"unfilterable_column": "La colonne {column} ne peut pas être filtrée : un filtre compare uniquement du texte, des nombres et vrai ou faux.",
+			"layout_body": "La disposition doit associer chaque table à sa position.",
+			"invalid_position": "La position de {table} doit être un objet avec x et y.",
+			"invalid_number": "{field} doit être un nombre fini.",
+			"note_not_found": "Cette note n'existe plus.",
+			"saved_query_body": "La requête enregistrée doit envoyer sa requête sous forme d'objet.",
+			"saved_query_not_runnable": "La requête enregistrée ne se décode pas en une requête que la console peut exécuter.",
+			"unsupported_language": "La console ne prend pas en charge ce langage de requête.",
+			"saved_query_not_found": "Cette requête enregistrée n'existe plus.",
+			"history_entry_not_found": "Cette entrée de l'historique n'existe plus.",
+			"external": {
+				"migrations": "Les migrations ne sont pas disponibles sur une base externe.",
+				"schema_edits": "La modification des schémas n'est pas disponible sur une base externe.",
+				"indexes": "Les index ne sont pas disponibles sur une base externe.",
+				"query_console": "La console de requêtes n'est pas disponible sur une base externe.",
+				"instances": "Les instances ne sont pas disponibles sur une base externe.",
+				"row_references": "Les références d'une ligne ne sont pas disponibles sur une base externe."
+			}
+		},
 		"diagram": {
 			"title": "Diagramme",
 			"description": "Les tables d'un schéma et leurs relations. Déplacez les tables pour les arranger ; la disposition est enregistrée pour toute l'équipe.",
