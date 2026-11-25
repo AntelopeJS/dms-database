@@ -52,6 +52,7 @@ import { isJsonObject, type JsonObject } from "../types/json";
 import {
   isBoolean,
   isFiniteNumber,
+  isNonEmptyString,
   isNumber,
   isObject,
   isString,
@@ -85,26 +86,27 @@ function isQueryLanguage(value: unknown): value is QueryLanguage {
   return SUPPORTED_LANGUAGES.some((language) => language === value);
 }
 
-/**
- * A body that does not decode to a runnable query reaches no table: it
- * answers like a failed run, in no time.
- */
-function decodeRunnable(query: JsonObject): Query<unknown> {
+/** The runnable query a body decodes to, or what keeps it from running. */
+function decodeQuery(query: JsonObject): Query<unknown> | string {
   let root: Decoded;
   try {
     root = decodeStaged(query);
   } catch (error) {
-    if (error instanceof StagedDecodeError) {
-      throw queryDiagnostic(error.message, 0);
-    }
+    if (error instanceof StagedDecodeError) return error.message;
     throw error;
   }
-  if (!(root instanceof Query)) {
-    throw queryDiagnostic(
-      "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)",
-      0,
-    );
-  }
+  return root instanceof Query
+    ? root
+    : "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)";
+}
+
+/**
+ * A body the console runs that does not decode to a runnable query reaches
+ * no table: it answers like a failed run, in no time.
+ */
+function decodeRunnable(query: JsonObject): Query<unknown> {
+  const root = decodeQuery(query);
+  if (isString(root)) throw queryDiagnostic(root, 0);
   return root;
 }
 
@@ -121,7 +123,7 @@ interface ParsedSaveBody {
 function parseSaveBody(body: SaveBody): ParsedSaveBody {
   const query = body?.query;
   refuse(isJsonObject(query), REFUSALS.savedQueryBody);
-  decodeRunnable(query);
+  refuse(!isString(decodeQuery(query)), REFUSALS.savedQueryNotRunnable);
   const name = body?.name;
   assertNonEmptyString(name);
   const description = body?.description;
@@ -287,7 +289,9 @@ function parseExecuteBody(body: ExecuteBody): ExecuteBodyParsed {
     throw queryDiagnostic("Expected query to be an object");
   }
   const source = body?.source;
-  assertNonEmptyString(source);
+  if (!isNonEmptyString(source)) {
+    throw queryDiagnostic("Expected the query's source text");
+  }
   const language = body?.language;
   if (!isQueryLanguage(language)) {
     throw queryDiagnostic("Unsupported query language");

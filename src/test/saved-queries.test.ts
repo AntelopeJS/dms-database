@@ -1,12 +1,11 @@
 import { strict as assert } from "node:assert";
-import { HTTPResult } from "@antelopejs/interface-api";
 import { Schema } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { User, UserModel } from "@antelopejs/interface-dms/auth/db";
 import { QueryHistoryModel, SavedQueryModel } from "../db";
 import { DatabaseQueryController } from "../routes/query";
 import { REFUSALS } from "../service/refusals";
-import { bodyText, refusal, refused } from "./refusal";
+import { refusal, refused } from "./refusal";
 import { encode } from "./stagedWire";
 
 const SCHEMA = "saved-queries-qa";
@@ -163,26 +162,22 @@ describe("[integration] refused saves", () => {
     );
   });
 
-  it("answers a body that is not a runnable query like a failed run", async () => {
+  it("refuses a body that is not a runnable query with a key the error presenter translates, which the console's verbatim run diagnostic would show as a generic failure", async () => {
     const controller = new DatabaseQueryController();
-    await assert.rejects(
-      controller.createSaved(OWNER, {
-        ...SAVE,
-        query: { __cls: "NoSuchClass", stages: [] },
-      }),
-      (error: HTTPResult) => {
-        assert.equal(error.getStatus(), 400);
-        assert.match(bodyText(error), /^\{"message":"Malformed query/);
-        return true;
-      },
+    assert.deepEqual(
+      await refusal(
+        controller.createSaved(OWNER, {
+          ...SAVE,
+          query: { __cls: "NoSuchClass", stages: [] },
+        }),
+      ),
+      refused(REFUSALS.savedQueryNotRunnable),
     );
-    await assert.rejects(
-      controller.createSaved(OWNER, { ...SAVE, query: { value: 1 } }),
-      (error: HTTPResult) => {
-        assert.equal(error.getStatus(), 400);
-        assert.match(bodyText(error), /Query must resolve to a runnable/);
-        return true;
-      },
+    assert.deepEqual(
+      await refusal(
+        controller.createSaved(OWNER, { ...SAVE, query: { value: 1 } }),
+      ),
+      refused(REFUSALS.savedQueryNotRunnable),
     );
   });
 });

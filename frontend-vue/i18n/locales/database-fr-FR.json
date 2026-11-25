@@ -315,6 +315,7 @@
 			"invalid_number": "{field} doit être un nombre fini.",
 			"note_not_found": "Cette note n'existe plus.",
 			"saved_query_body": "La requête enregistrée doit envoyer sa requête sous forme d'objet.",
+			"saved_query_not_runnable": "La requête enregistrée ne se décode pas en une requête que la console peut exécuter.",
 			"unsupported_language": "La console ne prend pas en charge ce langage de requête.",
 			"saved_query_not_found": "Cette requête enregistrée n'existe plus.",
 			"history_entry_not_found": "Cette entrée de l'historique n'existe plus.",

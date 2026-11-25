@@ -183,6 +183,11 @@ export const REFUSALS = {
     key: "$dms_database.refusals.saved_query_body",
     params: [],
   },
+  savedQueryNotRunnable: {
+    status: 400,
+    key: "$dms_database.refusals.saved_query_not_runnable",
+    params: [],
+  },
   unsupportedLanguage: {
     status: 400,
     key: "$dms_database.refusals.unsupported_language",

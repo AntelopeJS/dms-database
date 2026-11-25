@@ -3,21 +3,22 @@ import type { RefusalSpec } from "../service/refusals";
 import { isNumber, isRecord, isString } from "../utils/guards";
 
 /**
- * What a controller refused with: the HTTP status and the message it gave, with the params of a
- * refusal from the table.
+ * What a controller refused with: the HTTP status and the message it gave, with the params and the
+ * severity of a refusal from the table.
  */
 export interface Refusal {
   status: number;
   message: string;
   params?: Record<string, string>;
+  severity?: string;
 }
 
 /** The refusal of the table a controller answers, as {@link refusal} reads it. */
 export function refused(
-  { status, key }: RefusalSpec,
+  { status, key, severity = "error" }: RefusalSpec,
   params: Record<string, string> = {},
 ): Refusal {
-  return { status, message: key, params };
+  return { status, message: key, params, severity };
 }
 
 function isParams(value: unknown): value is Record<string, string> {
@@ -81,8 +82,18 @@ async function refusedText(
 export async function refusal(call: Promise<unknown>): Promise<Refusal> {
   const { status, text } = await refusedText(call);
   const body: unknown = text.startsWith("{") ? JSON.parse(text) : text;
-  if (isRecord(body) && isString(body.message) && isParams(body.params)) {
-    return { status, message: body.message, params: body.params };
+  if (
+    isRecord(body) &&
+    isString(body.message) &&
+    isParams(body.params) &&
+    isString(body.severity)
+  ) {
+    return {
+      status,
+      message: body.message,
+      params: body.params,
+      severity: body.severity,
+    };
   }
   return { status, message: text };
 }
