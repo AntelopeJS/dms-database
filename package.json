@@ -78,11 +78,11 @@
     "@antelopejs/interface-database": ">=0.4.0 <0.5.0",
     "@antelopejs/interface-database-catalog": ">=0.1.1 <0.2.0",
     "@antelopejs/interface-database-decorators": ">=0.5.2 <0.6.0",
-    "@antelopejs/interface-dms": ">=0.16.0 <0.17.0"
+    "@antelopejs/interface-dms": ">=0.17.0 <0.18.0"
   },
   "devDependencies": {
     "@antelopejs/core": "~1.24.6",
-    "@antelopejs/dms": ">=0.23.0 <0.24.0",
+    "@antelopejs/dms": ">=0.24.0 <0.25.0",
     "@antelopejs/dms-automation": ">=0.11.6 <0.12.0",
     "@antelopejs/dms-frontend": ">=0.11.8 <0.12.0",
     "@antelopejs/interface-data-api": ">=0.8.0 <0.9.0",
@@ -110,7 +110,7 @@
   },
   "optionalDependencies": {
     "@antelopejs/interface-dms-automation": ">=0.7.3 <0.8.0",
-    "@antelopejs/interface-dms-builder": ">=0.6.0 <0.7.0"
+    "@antelopejs/interface-dms-builder": ">=0.6.3 <0.7.0"
   },
   "packageManager": "pnpm@10.33.0",
   "antelopeJs": {
