@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.6.5
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.4...v0.6.5)
+
+### 🩹 Fixes
+
+- **refusals:** Answer every 4xx refusal with a translation key ([#234](https://github.com/AntelopeJS/dms-database/pull/234))
+
+### 🏡 Chore
+
+- **lint:** Adopt tooling-configs 0.10 comment rule ([#232](https://github.com/AntelopeJS/dms-database/pull/232))
+- **deps:** Pin dependencies ([#235](https://github.com/AntelopeJS/dms-database/pull/235))
+- **deps:** Update dependency @antelopejs/core to v1.24.7 ([#236](https://github.com/AntelopeJS/dms-database/pull/236))
+- **deps:** Update dependency mocha to v12.0.3 ([#238](https://github.com/AntelopeJS/dms-database/pull/238))
+- **deps:** Update dependency @types/node to v22.20.5 ([#237](https://github.com/AntelopeJS/dms-database/pull/237))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+
 ## v0.6.4
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.3...v0.6.4)
