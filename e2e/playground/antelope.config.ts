@@ -105,7 +105,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/dms",
-        version: "0.23.0",
+        version: "0.24.1",
       },
       importOverrides: ownDatabase(),
       config: {
