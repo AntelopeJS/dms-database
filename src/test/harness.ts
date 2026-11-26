@@ -106,14 +106,14 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/file-storage-local",
-        version: "0.2.2",
+        version: "0.2.3",
       },
     },
     nodemailer: {
       source: {
         type: "package",
         package: "@antelopejs/nodemailer",
-        version: "0.0.13",
+        version: "0.0.15",
       },
       config: {
         host: "127.0.0.1",
@@ -126,7 +126,7 @@ export default defineConfig({
       source: {
         type: "package",
         package: "@antelopejs/api",
-        version: "1.7.8",
+        version: "1.7.9",
       },
       config: {
         servers: [{ protocol: "http", host: "127.0.0.1", port: API_PORT }],
