@@ -4,9 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  vite: '>=8.3.4 <8.4.0'
-
 importers:
 
   .:
@@ -43,8 +40,8 @@ importers:
         specifier: '>=0.11.7 <0.12.0'
         version: 0.11.7(@antelopejs/interface-file-storage@0.1.4(@antelopejs/interface-core@0.5.2))
       '@antelopejs/dms-frontend':
-        specifier: '>=0.11.8 <0.12.0'
-        version: 0.11.8(@antelopejs/core@1.24.7)
+        specifier: '>=0.11.11 <0.12.0'
+        version: 0.11.11(@antelopejs/core@1.24.7)
       '@antelopejs/interface-data-api':
         specifier: '>=0.8.0 <0.9.0'
         version: 0.8.2(@antelopejs/interface-api-util@0.3.3(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.2))(@antelopejs/interface-core@0.5.2))(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.2))(@antelopejs/interface-core@0.5.2)(@antelopejs/interface-database-decorators@0.5.4(@antelopejs/interface-api@0.3.4(@antelopejs/interface-core@0.5.2))(@antelopejs/interface-core@0.5.2)(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.2)))(@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.2))
@@ -132,8 +129,8 @@ packages:
   '@antelopejs/dms-automation@0.11.7':
     resolution: {integrity: sha512-JWVIX2/drrqaoPp4vfZKOJ0qiFvyzssu3UcTQtWC44HzjD8Khn27HDn8nYji7jJ4mixHBjmDF2cLaHQTYTZlMA==}
 
-  '@antelopejs/dms-frontend@0.11.8':
-    resolution: {integrity: sha512-owMawDaP66LA0j7OlBTJ4gebBC0TFpn8xveEpsv9kUyy8ltkPn1DPoJHyJ+7QNxq5iO56m1V49+sW0j2M/LpvQ==}
+  '@antelopejs/dms-frontend@0.11.11':
+    resolution: {integrity: sha512-DNqMpvOTdfZc19WG9Uh9iW1MWDItxDHSEHos3gEXtxn7/paKH5F7SH6wyQI7mJEGK3xp7YqEz4j5qWk9Rr6HfQ==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -3265,7 +3262,7 @@ snapshots:
       - '@antelopejs/interface-file-storage'
       - supports-color
 
-  '@antelopejs/dms-frontend@0.11.8(@antelopejs/core@1.24.7)':
+  '@antelopejs/dms-frontend@0.11.11(@antelopejs/core@1.24.7)':
     dependencies:
       '@antelopejs/core': 1.24.7
       '@intlify/message-compiler': 11.4.16
