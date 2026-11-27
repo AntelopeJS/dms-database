@@ -44,7 +44,7 @@ jobs:
   # shared tier rule: tests on a ready pull request that touches more than docs,
   # on a push, in the merge queue and in the nightly, Windows in the nightly only.
   select:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
@@ -84,9 +84,9 @@ jobs:
               ;;
           esac
 
-          os='["ubuntu-latest"]'
+          os='["blacksmith-4vcpu-ubuntu-2404"]'
           if [[ "$tier" == nightly ]]; then
-            os='["ubuntu-latest","windows-latest"]'
+            os='["blacksmith-4vcpu-ubuntu-2404","blacksmith-4vcpu-windows-2025"]'
           fi
 
           e2e=none
@@ -199,7 +199,7 @@ jobs:
   e2e:
     needs: select
     if: needs.select.outputs.e2e != 'none'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -265,7 +265,7 @@ jobs:
   e2e-report:
     needs: [select, e2e]
     if: always() && !cancelled() && needs.select.outputs.e2e == 'all'
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -302,7 +302,7 @@ jobs:
   ubuntu:
     if: always()
     needs: [select, ci, frontend, formal-table-watch, e2e]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 5
     steps:
       - if: >-
