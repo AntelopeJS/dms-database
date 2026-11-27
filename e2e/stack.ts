@@ -52,7 +52,8 @@ export interface Stack {
   /** The overlay the running backend started with. */
   readonly env: Env;
   /**
-   * Stops the backend, points it at a new database with an empty overlay, starts it, drops the previous database
+   * Kills the backend without a grace period, since nothing reads its database again, points it at a new database
+   * with an empty overlay, starts it, drops the previous database
    * and, when `onboard`, registers the administrator through `POST /api/onboarding/register` and logs it in.
    */
   reset(precondition: Precondition): Promise<Session | undefined>;
@@ -165,13 +166,13 @@ class Child {
     process.kill(-pid, signal);
   }
 
-  /** SIGTERM to the group, SIGKILL after the grace period; resolves once no process of the group is left. */
-  async stop(): Promise<void> {
+  /** SIGTERM to the group, SIGKILL after `graceMs`; resolves once no process of the group is left. */
+  async stop(graceMs = STOP_GRACE_MS): Promise<void> {
     this.#stopping = true;
     const { pid } = this.#process;
     if (pid === undefined) return;
     this.kill("SIGTERM");
-    const deadline = Date.now() + STOP_GRACE_MS;
+    const deadline = Date.now() + graceMs;
     while (groupAlive(pid) && Date.now() < deadline) await delay(POLL_MS);
     this.kill("SIGKILL");
     while (groupAlive(pid)) await delay(POLL_MS);
@@ -368,7 +369,7 @@ class WorkerStack implements Stack {
   }
 
   async reset(precondition: Precondition): Promise<Session | undefined> {
-    await this.#backend?.stop();
+    await this.#backend?.stop(0);
     const previous = this.#database;
     this.#database = this.#nextDatabase();
     this.#env = {};
