@@ -28,7 +28,7 @@
 - `scripts/check-sources.mts` runs in `pnpm lint`: the components the backend pages name exist, `<i18n-t>` reads the global messages, and every text key a page names resolves in each locale.
 - The playground is linted but not type-checked. Check it with `pnpm --dir playground install --ignore-workspace --frozen-lockfile && pnpm --dir playground build`.
 
-`e2e/` is the Playwright suite of the module's feature journeys, one spec per feature, run on the `e2e/playground` project with one worker that starts its own MongoDB, backend and dashboard on free ports. `pnpm e2e:smoke` builds once and runs the journeys tagged `@smoke`, as the `e2e` job of `ci.yml` does on a pull request; every other run (the merge queue, the nightly, a manual run, a push and a pull request labelled `ci:full`) runs every journey in two shards, and a draft runs none. After `pnpm e2e:build`, `pnpm e2e:run specs/<feature>.spec.ts` runs one feature without a rebuild.
+`e2e/` is the Playwright suite of the module's feature journeys, one spec per feature, run on the `e2e/playground` project with one worker that starts its own MongoDB, backend and dashboard on free ports. `pnpm e2e:smoke` builds once and runs the journeys tagged `@smoke`, as the `e2e` job of `ci.yml` does on a pull request; every other run (the merge queue, the nightly, a manual run, a push and a pull request labelled `ci:full`) runs every journey in twelve shards, and a draft runs none. After `pnpm e2e:build`, `pnpm e2e:run specs/<feature>.spec.ts` runs one feature without a rebuild.
 
 `pnpm knip` checks dependencies only. `pnpm knip:all` also reports unused files and exports; confirm each finding before you remove it.
 

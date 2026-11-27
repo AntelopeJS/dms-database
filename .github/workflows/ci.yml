@@ -96,7 +96,7 @@ jobs:
               e2e=smoke
             else
               e2e=all
-              shards='[1, 2]'
+              shards='[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]'
             fi
           fi
 
@@ -192,7 +192,7 @@ jobs:
       - run: node .agents/skills/formal-table-watch/check.mjs
 
   # The Playwright suite in `e2e/`: the journeys tagged @smoke on a pull
-  # request, every journey in two shards in the merge queue, the nightly, a
+  # request, every journey in twelve shards in the merge queue, the nightly, a
   # manual run and a pull request labelled ci:full, nothing on a draft or a
   # docs-only change. One worker owns a MongoDB replica set, the backend and
   # the dashboard on free ports.
@@ -243,7 +243,7 @@ jobs:
       # The blob report keeps each test's steps, attachments and traces, so
       # e2e-report merges the shards into one.
       - if: env.SUITE == 'all'
-        run: pnpm e2e:run --shard=${{ matrix.shard }}/2 --reporter=blob,list
+        run: pnpm e2e:run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob,list
       - if: ${{ !cancelled() }}
         uses: AntelopeJS/.github/.github/actions/module-locks-committed@v2
       - if: always() && env.SUITE == 'all'
