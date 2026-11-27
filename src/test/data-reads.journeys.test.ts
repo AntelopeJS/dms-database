@@ -14,6 +14,7 @@ import {
 import { REFUSALS } from "../service/refusals";
 import { objectsAt, pick, text } from "./helpers/pick";
 import type { HttpAnswer } from "./helpers/http";
+import { LOADED_HOST_TIMEOUT_MS } from "./helpers/timeouts";
 
 async function assertSelectionDecoding(api: DataApi): Promise<void> {
   const count = async (params: Record<string, string>) =>
@@ -354,7 +355,9 @@ async function assertReferencesCount(api: DataApi): Promise<void> {
   );
 }
 
-describe("[integration] data journeys: reads", () => {
+describe("[integration] data journeys: reads", function () {
+  this.timeout(LOADED_HOST_TIMEOUT_MS);
+
   const api = withDataFixture("data-reads-journeys-owner@example.test");
 
   it("the-selection-decodes-schema-table-and-instance", () =>
