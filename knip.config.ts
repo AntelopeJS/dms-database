@@ -7,6 +7,7 @@ export default {
       entry: [
         "src/test/harness.ts",
         "e2e/playwright.config.ts",
+        "e2e/flaky-reporter.ts",
         "e2e/specs/*.spec.ts",
         "e2e/playground/antelope.config.ts",
         "e2e/playground/src/index.ts",
