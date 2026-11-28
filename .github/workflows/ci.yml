@@ -259,7 +259,7 @@ jobs:
       - if: env.SUITE == 'all'
         env:
           PWTEST_SHARD_WEIGHTS: ${{ needs.select.outputs.shard-weights }}
-        run: pnpm e2e:run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob,list
+        run: pnpm e2e:run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob,list,./e2e/flaky-reporter.ts
       - if: ${{ !cancelled() }}
         uses: AntelopeJS/.github/.github/actions/module-locks-committed@v2
       - if: always() && env.SUITE == 'all'
