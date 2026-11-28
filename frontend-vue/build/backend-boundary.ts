@@ -4,7 +4,7 @@ import type { DmsVitePluginEntry } from '#dms/frontend-build'
 
 type VitePlugin = Extract<DmsVitePluginEntry, { name: string }>
 
-const BACKEND_PACKAGE = "@antelopejs/dms-database"
+const BACKEND_PACKAGE = '@antelopejs/dms-database'
 const BACKEND_SOURCE = 'src'
 const QUERY_OR_HASH = /[?#].*$/
 
