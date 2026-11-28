@@ -1,4 +1,4 @@
-import { HTTPResult } from "@antelopejs/interface-api";
+import { type HTTPResult, IsHTTPResult } from "@antelopejs/interface-api";
 import type { RefusalSpec } from "../service/refusals";
 import { isNumber, isRecord, isString } from "../utils/guards";
 
@@ -72,7 +72,7 @@ async function refusedText(
   try {
     await call;
   } catch (error) {
-    if (!(error instanceof HTTPResult)) throw error;
+    if (!IsHTTPResult(error)) throw error;
     return { status: error.getStatus(), text: bodyText(error) };
   }
   throw new Error("the call was expected to be refused");

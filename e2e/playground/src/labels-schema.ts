@@ -1,7 +1,5 @@
 import { Field, RegisterTable, Table } from "@antelopejs/interface-database-decorators";
 
-/** One tiny table in each schema whose label the configuration page documents. */
-
 @RegisterTable("entries", "app-site")
 export class AppSiteEntry extends Table {
   @Field("string") declare _id: string;

@@ -95,7 +95,7 @@ function guardSchemas(bindings: SchemaBindings) {
 	return new Proxy(bindings, {
 		get(target, key) {
 			if (!isStringKey(key)) return undefined
-			if (key in target) return target[key]
+			if (Object.hasOwn(target, key)) return target[key]
 			if (IGNORED_KEYS.has(key)) return undefined
 			throw new QueryInputError(`Unknown schema "${key}"`, {
 				kind: 'unknown_schema',

@@ -12,8 +12,8 @@ importers:
         specifier: '>=0.5.2 <0.6.0'
         version: 0.5.2
       '@antelopejs/interface-database':
-        specifier: '>=0.4.0 <0.5.0'
-        version: 0.4.3(@antelopejs/interface-core@0.5.2)
+        specifier: '>=0.4.5 <0.5.0'
+        version: 0.4.5(@antelopejs/interface-core@0.5.2)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.4
@@ -49,8 +49,8 @@ importers:
         version: 3.5.34(typescript@5.9.3)
     devDependencies:
       '@antelopejs/tooling-configs':
-        specifier: '>=0.10.0 <0.11.0'
-        version: 0.10.0(@nuxt/eslint-config@1.17.0(@typescript-eslint/utils@8.73.0(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))(@vue/compiler-sfc@3.5.46)(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))
+        specifier: '>=0.10.13 <0.11.0'
+        version: 0.10.13(@nuxt/eslint-config@1.17.0(@typescript-eslint/utils@8.73.0(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))(@vue/compiler-sfc@3.5.46)(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))
       '@intlify/message-compiler':
         specifier: ^11
         version: 11.4.23
@@ -91,13 +91,13 @@ packages:
   '@antelopejs/interface-core@0.5.2':
     resolution: {integrity: sha512-5rmFLzHH8x8SCMK3KEm7L4DdRaLXjKKMWS/5ektDz5C2P/mAmaG++JAe1+09RBFNWWe0LER56vz9AVIeqVQoMA==}
 
-  '@antelopejs/interface-database@0.4.3':
-    resolution: {integrity: sha512-0LPVluZbv2FYyhrVB0mbZ/zpYH9VRE5jHW62NUxEkBj8oD9wyQXRONeAI7DE0Ngyz6vLIQ4yuTb1Kbac+x+0EQ==}
+  '@antelopejs/interface-database@0.4.5':
+    resolution: {integrity: sha512-roZ5DpgtHEHPdA4QV3HkdF/bDz604opl5/e3X++YErqKm5/hxLS6Zu538Eis+6Oc526wYACp+Rx/597PGs5j7g==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
 
-  '@antelopejs/tooling-configs@0.10.0':
-    resolution: {integrity: sha512-5UwQirzbFvd6Elzab7B8sssS2zVp5m2zIc0sAr7hpAMvHq7Cy0JIqY0XEZlwFJ3NwJZez5fBPbTU/6/lYJt+0Q==}
+  '@antelopejs/tooling-configs@0.10.13':
+    resolution: {integrity: sha512-lQ4lYQA83Co4O+/6TBMGwmHL4E0QJoRhcWNYqTnolX9XQxaeAbdLnF4ajY7eh2t2piDWDyUZfi7JkFZGob545g==}
     engines: {node: '>=22.18.0'}
     hasBin: true
     peerDependencies:
@@ -105,8 +105,8 @@ packages:
       eslint-plugin-perfectionist: '>=5.0.0'
       knip: '>=6.0.0'
       mongodb-memory-server: '>=10.0.0'
-      oxfmt: ^0.66.0 || ^0.77.0 || ^0.79.0
-      oxlint: 1.81.0 || 1.94.0
+      oxfmt: ^0.66.0 || ^0.77.0 || ^0.79.0 || ^0.80.0
+      oxlint: 1.81.0 || 1.94.0 || 1.95.0
       pixelmatch: '>=7.0.0'
       playwright-core: '>=1.56.0'
       sharp: '>=0.34.0'
@@ -819,8 +819,8 @@ packages:
   '@oxc-project/types@0.160.0':
     resolution: {integrity: sha512-gw4k9syEmnckbOgw2A2FU1TBDdX9hfwV9jEn/uio65pguPzwWiXQS3OIJDMEhv9m06tj9XiEe6RoD0YA+LgreA==}
 
-  '@oxlint/plugins@1.94.0':
-    resolution: {integrity: sha512-YT6htikBOBQ00XDxZpRZLZ0anEDo7h9s4+YvjRU0/Ng/cLd0D6SZQ3tsms4g/GDer/z8UKlegC5iptEfyRXJcw==}
+  '@oxlint/plugins@1.95.0':
+    resolution: {integrity: sha512-wb81nObfxWVASxtMQknyL4A387XDVuSIgpL1/wlhWzGpWLAGMzEvI+xWXJ242Bk8qqAmgDwG6ejetKnLISTGGw==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
 
   '@polka/url@1.0.0-next.29':
@@ -3958,13 +3958,13 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.2)':
+  '@antelopejs/interface-database@0.4.5(@antelopejs/interface-core@0.5.2)':
     dependencies:
       '@antelopejs/interface-core': 0.5.2
 
-  '@antelopejs/tooling-configs@0.10.0(@nuxt/eslint-config@1.17.0(@typescript-eslint/utils@8.73.0(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))(@vue/compiler-sfc@3.5.46)(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))':
+  '@antelopejs/tooling-configs@0.10.13(@nuxt/eslint-config@1.17.0(@typescript-eslint/utils@8.73.0(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))(@vue/compiler-sfc@3.5.46)(eslint@10.15.0(jiti@2.7.0))(typescript@5.9.3))':
     dependencies:
-      '@oxlint/plugins': 1.94.0
+      '@oxlint/plugins': 1.95.0
       dts-bundle-generator: 9.5.1
       minimatch: 10.2.6
       semver: 7.8.5
@@ -4788,7 +4788,7 @@ snapshots:
 
   '@oxc-project/types@0.160.0': {}
 
-  '@oxlint/plugins@1.94.0': {}
+  '@oxlint/plugins@1.95.0': {}
 
   '@polka/url@1.0.0-next.29': {}
 

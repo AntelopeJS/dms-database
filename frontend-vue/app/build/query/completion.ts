@@ -99,9 +99,15 @@ export function buildCompletionIndex(
 /** The fields to offer where the chain stands: its table's, else wider. */
 export function fieldsAt(index: CompletionIndex, chain: QueryTarget): string[] {
 	if (chain.schema && chain.table) {
-		const own = index.fieldsByTable[`${chain.schema}.${chain.table}`]
+		const tableKey = `${chain.schema}.${chain.table}`
+		const own = Object.hasOwn(index.fieldsByTable, tableKey)
+			? index.fieldsByTable[tableKey]
+			: undefined
 		if (own) return own
 	}
-	const wider = chain.schema ? index.fieldsBySchema[chain.schema] : undefined
+	const wider =
+		chain.schema && Object.hasOwn(index.fieldsBySchema, chain.schema)
+			? index.fieldsBySchema[chain.schema]
+			: undefined
 	return wider ?? index.allFields
 }

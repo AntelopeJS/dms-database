@@ -6,7 +6,8 @@
     "frontend-vue/.*",
     "frontend-vue/eslint.config.mjs",
     "frontend-vue/vitest.config.ts",
-    "frontend-vue/pnpm-lock.yaml"
+    "frontend-vue/pnpm-lock.yaml",
+    "frontend-vue/pnpm-workspace.yaml"
   ],
   "features": {
     "access": {

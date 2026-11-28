@@ -2,16 +2,6 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-/**
- * Prints the `PWTEST_SHARD_WEIGHTS` value that balances the e2e shards by
- * recorded time, as `node scripts/e2e-shard-weights.mts <results.json> <shards>`,
- * with `results.json` the merged report of a whole-suite run (the
- * `playwright-report` artifact of `e2e-report`). Playwright gives each shard a
- * contiguous run of the listed journeys, as many as its weight; the weights
- * printed are the run lengths whose slowest shard is the shortest. A journey
- * the report does not hold counts as the median journey.
- */
-
 const ROOT = join(import.meta.dirname, "..");
 
 interface Report {

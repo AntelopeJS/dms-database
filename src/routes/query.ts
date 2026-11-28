@@ -8,7 +8,7 @@ import {
   Put,
 } from "@antelopejs/interface-api";
 import { assert } from "@antelopejs/interface-api-util";
-import { Query, Stream } from "@antelopejs/interface-database";
+import { IsQuery, IsStream, type Query } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import { type User, UserModel } from "@antelopejs/interface-dms/auth/db";
@@ -95,7 +95,7 @@ function decodeQuery(query: JsonObject): Query<unknown> | string {
     if (error instanceof StagedDecodeError) return error.message;
     throw error;
   }
-  return root instanceof Query
+  return IsQuery(root)
     ? root
     : "Query must resolve to a runnable expression (Table/Selection/Stream/Datum/Query)";
 }
@@ -273,7 +273,7 @@ async function runQuery(
   root: Query<unknown>,
   mutation: boolean,
 ): Promise<RunAnswer> {
-  if (mutation || !(root instanceof Stream)) return { raw: await root.run() };
+  if (mutation || !IsStream(root)) return { raw: await root.run() };
   const raw: QueryAnswer[] = [];
   for await (const row of root.cursor()) {
     raw.push(row);

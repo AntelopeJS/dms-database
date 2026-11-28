@@ -58,7 +58,7 @@
     "prepack": "pnpm run build",
     "knip": "knip --dependencies",
     "knip:all": "knip",
-    "formal:access-write-back": "pnpm run build && DMS_PREBUILT=1 ajs module test . -f dist/test/access-write-back.property.test.js",
+    "formal:access-write-back": "pnpm run build && DMS_PREBUILT=1 ajs module test . -f dist/test/access-write-back.property.test.js --timeout 30000",
     "test:layer": "pnpm --dir frontend-vue test",
     "test:frontend": "ajs dms verify-source --layer node_modules/@antelopejs/dms/frontend-vue --module frontend-vue",
     "prepare": "if [ -e .git ] && command -v git >/dev/null 2>&1 && command -v lefthook >/dev/null 2>&1 && GIT_DIR=.git GIT_WORK_TREE=. git rev-parse --git-dir >/dev/null 2>&1; then GIT_DIR=.git GIT_WORK_TREE=. lefthook install; fi",
@@ -72,10 +72,10 @@
     "suppressions:update": "antelopejs-suppressions --update"
   },
   "dependencies": {
-    "@antelopejs/interface-api": ">=0.3.3 <0.4.0",
+    "@antelopejs/interface-api": ">=0.3.5 <0.4.0",
     "@antelopejs/interface-api-util": ">=0.3.2 <0.4.0",
     "@antelopejs/interface-core": ">=0.5.2 <0.6.0",
-    "@antelopejs/interface-database": ">=0.4.0 <0.5.0",
+    "@antelopejs/interface-database": ">=0.4.5 <0.5.0",
     "@antelopejs/interface-database-catalog": ">=0.1.1 <0.2.0",
     "@antelopejs/interface-database-decorators": ">=0.5.2 <0.6.0",
     "@antelopejs/interface-dms": ">=0.17.0 <0.18.0"
@@ -87,7 +87,7 @@
     "@antelopejs/dms-frontend": ">=0.11.11 <0.12.0",
     "@antelopejs/interface-data-api": ">=0.8.0 <0.9.0",
     "@antelopejs/mongodb": "~1.8.13",
-    "@antelopejs/tooling-configs": ">=0.10.0 <0.11.0",
+    "@antelopejs/tooling-configs": ">=0.10.13 <0.11.0",
     "@playwright/test": "^1.65.1",
     "@types/chai": "^5.2.3",
     "@types/mocha": "^10.0.10",

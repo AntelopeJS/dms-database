@@ -1,13 +1,6 @@
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-/**
- * Writes the range of a release, `>=<major>.<minor>.0 <<major>.<minor + 1>.0`,
- * into every config example of `@antelopejs/dms-database` in the README and
- * the docs. The release runs it right after the version bump, as
- * `node scripts/sync-module-range.mts <version>`.
- */
-
 const ROOT = join(import.meta.dirname, "..");
 const SOURCE =
   /(package:\s*"@antelopejs\/dms-database",\s*version:\s*")[^"]*"/g;
