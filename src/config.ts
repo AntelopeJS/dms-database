@@ -24,6 +24,14 @@ export interface DmsDatabaseConfig {
    * by configuration. When omitted the overview shows "—".
    */
   driverLabel?: string;
+  /**
+   * The longest the query console waits for a run or a dry run, in
+   * milliseconds; 30 000 when unset. A run past it answers an error and is
+   * kept in the history as one. The deadline frees the request: the query
+   * keeps running in the database, which `statementTimeoutMs` on the
+   * provider stops.
+   */
+  queryDeadlineMs?: number;
 }
 
 let moduleConfig: DmsDatabaseConfig = {};

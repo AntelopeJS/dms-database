@@ -15,6 +15,7 @@ import {
 } from "@antelopejs/interface-database-decorators";
 import { getModuleConfig } from "../config";
 import type { StoredCell } from "../types/stored";
+import { mapWithLimit } from "../utils/concurrency";
 import {
   isBoolean,
   isFiniteNumber,
@@ -30,6 +31,7 @@ import {
   type SchemaTableDefinition,
 } from "./declaredFields";
 import type { Database, OWN_CONNECTION } from "./database";
+import { externalAnswer, TABLE_FAN_OUT_LIMIT } from "./externalAnswer";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { resolveSchemaLabel } from "./schemaLabels";
 import type {
@@ -192,18 +194,20 @@ function inferFieldType(value: StoredCell): FieldDescriptor | undefined {
   return undefined;
 }
 
+/** A few rows of a table; none when the database refuses, or is external and late. */
 async function sampleRows(
+  db: Database,
   schema: Schema,
   tableName: string,
   instance?: InstanceId,
 ): Promise<unknown[]> {
   try {
-    const rows: unknown[] = await schema
+    const rows: Promise<unknown[]> = schema
       .instance(instance)
       .table(tableName)
       .slice(0, FIELD_INFERENCE_SAMPLE_SIZE)
       .run();
-    return rows;
+    return await externalAnswer(db, rows, []);
   } catch {
     return [];
   }
@@ -220,9 +224,9 @@ async function sampleAnyInstance(
   schema: Schema,
   tableName: string,
 ): Promise<unknown[]> {
-  const rows = await sampleRows(schema, tableName);
+  const rows = await sampleRows(db, schema, tableName);
   if (rows.length > 0 || !hasInstances(db)) return rows;
-  return sampleRows(schema, tableName, CROSS_INSTANCE);
+  return sampleRows(db, schema, tableName, CROSS_INSTANCE);
 }
 
 /**
@@ -447,7 +451,10 @@ export async function listSchemaInstances(
   }
 }
 
-/** Rows of a table in one instance, the default one when none is named. */
+/**
+ * Rows of a table in one instance, the default one when none is named; 0 when
+ * the database refuses the count, or is external and late.
+ */
 export async function getTableElementCount(
   db: Database,
   schemaId: string,
@@ -457,7 +464,11 @@ export async function getTableElementCount(
   const schema = db.schemas().get(schemaId);
   if (!schema) return 0;
   return cachedCount(tableCountKey(db, schemaId, tableName, instance), () =>
-    countTableRows(schema, tableName, instance).catch(() => 0),
+    externalAnswer(
+      db,
+      countTableRows(schema, tableName, instance).catch(() => 0),
+      0,
+    ),
   );
 }
 
@@ -490,7 +501,9 @@ async function computeInsights(
 ): Promise<SchemaInsights> {
   const tableNames = Object.keys(schema.definition);
   const [counts, instances] = await Promise.all([
-    Promise.all(tableNames.map((name) => getTableElementCount(db, id, name))),
+    mapWithLimit(tableNames, TABLE_FAN_OUT_LIMIT, (name) =>
+      getTableElementCount(db, id, name),
+    ),
     listSchemaInstances(db, schema),
   ]);
   return {

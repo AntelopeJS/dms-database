@@ -1,8 +1,11 @@
 import { Logging } from "@antelopejs/interface-core/logging";
 import { getModuleConfig } from "../config";
+import { mapWithLimit } from "../utils/concurrency";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
+import { describeError } from "../utils/redact";
 import { resolveCatalog } from "./connections";
 import { type Database, OWN_CONNECTION } from "./database";
+import { TABLE_FAN_OUT_LIMIT } from "./externalAnswer";
 import { getTableElementCount, listSchemaSummaries } from "./introspect";
 
 export type ConnectionStatus = "ok" | "down";
@@ -85,7 +88,7 @@ async function probeConnection(db: Database): Promise<ConnectionProbe> {
         (error: unknown) => {
           Logging.Warn(
             `[dms-database] ${db.connection} refused the probe`,
-            error,
+            describeError(error instanceof Error ? error : String(error)),
           );
           return PROBE_REFUSED;
         },
@@ -126,10 +129,10 @@ async function aggregateStorage(
 
   for (const summary of summaries) {
     tableCount += summary.tables.length;
-    const counts = await Promise.all(
-      summary.tables.map((table) =>
-        getTableElementCount(db, summary.id, table.name),
-      ),
+    const counts = await mapWithLimit(
+      summary.tables,
+      TABLE_FAN_OUT_LIMIT,
+      (table) => getTableElementCount(db, summary.id, table.name),
     );
     summary.tables.forEach((table, idx) => {
       const rows = counts[idx] ?? 0;
@@ -147,16 +150,19 @@ async function aggregateStorage(
 /**
  * The driver label a database shows: the configured one for the project's
  * own, the engine and version its catalog reports for an external one, or
- * `null` when the catalog does not answer.
+ * `null` when the catalog refuses or takes longer than the probe may.
  */
 async function driverLabelOf(db: Database): Promise<string | null> {
   if (db.connection === OWN_CONNECTION) {
     return getModuleConfig().driverLabel ?? null;
   }
-  const info = await resolveCatalog(db.connection)
-    .Info()
-    .catch(() => undefined);
-  return info ? `${info.engine} ${info.version}` : null;
+  const info = await withDeadline(
+    resolveCatalog(db.connection)
+      .Info()
+      .catch(() => undefined),
+    PROBE_DEADLINE_MS,
+  );
+  return info && info !== TIMED_OUT ? `${info.engine} ${info.version}` : null;
 }
 
 /**

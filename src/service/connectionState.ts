@@ -25,6 +25,7 @@ import {
 } from "./connections";
 import { type Database, OWN_CONNECTION } from "./database";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
+import { describeError } from "../utils/redact";
 
 /**
  * The console's features an external database does not offer: the console
@@ -106,7 +107,10 @@ async function catalogAnswer<T>(
 ): Promise<T | undefined> {
   const answer = await withDeadline(
     read.catch((error: unknown) => {
-      Logging.Warn(`[dms-database] the catalog of ${id} refused`, error);
+      Logging.Warn(
+        `[dms-database] the catalog of ${id} refused`,
+        describeError(error instanceof Error ? error : String(error)),
+      );
       return undefined;
     }),
     CATALOG_DEADLINE_MS,

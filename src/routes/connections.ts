@@ -29,12 +29,13 @@ import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
 import { isNonEmptyString, isObject } from "../utils/guards";
+import { describeError } from "../utils/redact";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
 /**
  * Reads a catalog, answering its refusal (outside development, say) or its
- * silence with a conflict. The driver's message stays in the server log: it
- * names the host, the port and the account.
+ * silence with a conflict. The driver's message stays in the server log, its
+ * credentials masked: it names the host, the port and the account.
  */
 async function readCatalog<T>(
   connection: string,
@@ -46,7 +47,7 @@ async function readCatalog<T>(
       (error: unknown) => {
         Logging.Warn(
           `[dms-database] the catalog of ${connection} refused`,
-          error,
+          describeError(error instanceof Error ? error : String(error)),
         );
         return { ok: false as const };
       },

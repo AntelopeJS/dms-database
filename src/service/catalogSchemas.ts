@@ -5,6 +5,7 @@ import type {
   RelationDescription,
 } from "@antelopejs/interface-database-catalog";
 import { TIMED_OUT, withDeadline } from "../utils/deadline";
+import { describeError } from "../utils/redact";
 
 const ID_FIELD = "_id";
 
@@ -139,7 +140,7 @@ export async function defineCatalogSchemas(
     describeAll(catalog).catch((error: unknown) => {
       Logging.Warn(
         `[dms-database] the catalog of ${connection} lists no relation to browse`,
-        error,
+        describeError(error instanceof Error ? error : String(error)),
       );
       return [];
     }),

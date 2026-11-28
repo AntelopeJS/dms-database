@@ -24,6 +24,7 @@ import {
   assertWritable,
   resolveSelectedDatabase,
 } from "../service/connectionState";
+import { TABLE_FAN_OUT_LIMIT } from "../service/externalAnswer";
 import {
   getTableElementCount,
   listSchemaSummaries,
@@ -33,6 +34,7 @@ import { listRowReferences, type RowReference } from "../service/references";
 import { editRow } from "../service/rowEdit";
 import type { JsonValue } from "../types/json";
 import type { ListResult } from "../types/responses";
+import { mapWithLimit } from "../utils/concurrency";
 import {
   isNonEmptyString,
   isObject,
@@ -144,8 +146,10 @@ export class DatabaseBrowseController extends Controller(
       (candidate) => candidate.id === schemaId,
     );
     refuse(summary, REFUSALS.unknownSchema, { schema: schemaId });
-    const items = await Promise.all(
-      summary.tables.map(async (table) => ({
+    const items = await mapWithLimit(
+      summary.tables,
+      TABLE_FAN_OUT_LIMIT,
+      async (table) => ({
         name: table.name,
         elementCount: await getTableElementCount(
           db,
@@ -153,7 +157,7 @@ export class DatabaseBrowseController extends Controller(
           table.name,
           instance,
         ),
-      })),
+      }),
     );
     return { items };
   }

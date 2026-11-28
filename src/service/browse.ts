@@ -6,6 +6,7 @@ import {
 } from "@antelopejs/interface-database";
 import type { Database } from "./database";
 import { getDeclaredFieldOrder, getDeclaredFieldTypes } from "./declaredFields";
+import { EXTERNAL_PAGE_DEADLINE_MS } from "./externalAnswer";
 import type { FieldDescriptor } from "./fieldDescriptor";
 import { hasInstances } from "./introspect";
 import { REFUSALS, refuse } from "./refusals";
@@ -41,9 +42,6 @@ import {
 export const DEFAULT_LIMIT = 25;
 /** The most rows a page holds. */
 export const MAX_LIMIT = 200;
-
-/** The longest a page of an external database's rows may take, in milliseconds. */
-export const EXTERNAL_PAGE_DEADLINE_MS = 10_000;
 
 /**
  * Rows sampled by `/columns` to union column names and infer coarse types; a
@@ -302,7 +300,8 @@ export async function fetchColumns(
   selection: BrowseSelection,
 ): Promise<ColumnsMeta> {
   const table = resolveTable(db, selection);
-  const sample: unknown[] = await table.slice(0, COLUMN_SAMPLE_SIZE).run();
+  const sampled: Promise<unknown[]> = table.slice(0, COLUMN_SAMPLE_SIZE).run();
+  const sample = await (hasInstances(db) ? sampled : answerInTime(sampled));
   const columns: string[] = [];
   const typeByColumn = new Map<string, string>();
   for (const row of sample) {

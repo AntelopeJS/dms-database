@@ -6,6 +6,7 @@ import { assertDefaultInstance } from "../service/browse";
 import { resolveSelectedDatabase } from "../service/connectionState";
 import { REFUSALS, refuse } from "../service/refusals";
 import { type Database, OWN_CONNECTION } from "../service/database";
+import { TABLE_FAN_OUT_LIMIT } from "../service/externalAnswer";
 import {
   getTableElementCount,
   getTableTotalCount,
@@ -18,6 +19,7 @@ import {
   type SchemaFilters,
 } from "../service/schemaFilters";
 import type { TableSummary } from "../service/types";
+import { mapWithLimit } from "../utils/concurrency";
 import { isNonEmptyString, isString } from "../utils/guards";
 import { clamp, parseInteger } from "../utils/query";
 
@@ -176,8 +178,8 @@ async function listTableSourceRows(
   const tables = registered.filter((listed) =>
     matchesStructure(listed, filters, needle),
   );
-  const counts = await Promise.all(
-    tables.map((listed) => countRows(db, listed, filters.instance)),
+  const counts = await mapWithLimit(tables, TABLE_FAN_OUT_LIMIT, (listed) =>
+    countRows(db, listed, filters.instance),
   );
   const rows = tables.map((listed, index) =>
     toSourceRow(db, listed, counts[index] ?? 0, locale),

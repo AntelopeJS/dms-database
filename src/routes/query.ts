@@ -12,6 +12,7 @@ import { IsQuery, IsStream, type Query } from "@antelopejs/interface-database";
 import { GetModel } from "@antelopejs/interface-database-decorators";
 import { AuthOwnerOnly, AuthRawUser } from "@antelopejs/interface-dms/auth";
 import { type User, UserModel } from "@antelopejs/interface-dms/auth/db";
+import { getModuleConfig } from "../config";
 import {
   QueryHistoryModel,
   type QueryHistoryRow,
@@ -57,12 +58,18 @@ import {
   isObject,
   isString,
 } from "../utils/guards";
+import { TIMED_OUT, withDeadline } from "../utils/deadline";
 import { clamp, parseInteger } from "../utils/query";
+import { redactSecrets } from "../utils/redact";
 import { assertNonEmptyString } from "../utils/requestValidation";
 
 const DEFAULT_HISTORY_LIMIT = 25;
 /** Rows a run sends back at most; the console says when it cut the rest. */
 const MAX_RESULT_ROWS = 1000;
+/** The longest a run or a dry run waits for the database when `queryDeadlineMs` is unset. */
+const DEFAULT_QUERY_DEADLINE_MS = 30_000;
+const QUERY_TIMED_OUT =
+  "The query did not answer in time: narrow it, or raise queryDeadlineMs";
 /** Every kept run can be listed: the console pages through them. */
 const MAX_HISTORY_LIMIT = MAX_HISTORY_PER_USER;
 const SUPPORTED_LANGUAGES: QueryLanguage[] = ["aql"];
@@ -310,6 +317,33 @@ async function assertQueryConsoleAvailable(user: User): Promise<void> {
   assertSupported(await resolveSelectedDatabase(user._id), "queryConsole");
 }
 
+/** The deadline of a run, from `queryDeadlineMs` when it is a positive number. */
+function queryDeadlineMs(): number {
+  const configured = getModuleConfig().queryDeadlineMs;
+  return isFiniteNumber(configured) && configured > 0
+    ? configured
+    : DEFAULT_QUERY_DEADLINE_MS;
+}
+
+/**
+ * The database's answer to a run, or the failure of a run that takes longer
+ * than {@link queryDeadlineMs}. The query keeps running in the database: the
+ * deadline frees the request, it does not cancel the query.
+ */
+async function answerInTime<T>(work: Promise<T>): Promise<T> {
+  const answer = await withDeadline(work, queryDeadlineMs());
+  if (answer === TIMED_OUT) throw new Error(QUERY_TIMED_OUT);
+  return answer;
+}
+
+/**
+ * The text a failed run shows and keeps in the history: the database's own
+ * message, the credentials of a connection URL it may repeat masked.
+ */
+function failureText(message: string): string {
+  return redactSecrets(message) || QUERY_FAILED;
+}
+
 @AuthOwnerOnly()
 export class DatabaseQueryController extends Controller("/api/database/query") {
   @Post("/execute")
@@ -329,11 +363,11 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
         readQueryTarget(root),
       );
       if (unknownTarget) throw new Error(unknownTarget);
-      answer = await runQuery(root, mutation);
+      answer = await answerInTime(runQuery(root, mutation));
     } catch (error) {
-      const message =
-        (error instanceof Error ? error.message : String(error)) ||
-        QUERY_FAILED;
+      const message = failureText(
+        error instanceof Error ? error.message : String(error),
+      );
       const durationMs = Date.now() - startedAt;
       await historyModel.addAndPrune({
         userId: user._id,
@@ -400,11 +434,10 @@ export class DatabaseQueryController extends Controller("/api/database/query") {
     );
     if (unknownTarget) throw queryDiagnostic(unknownTarget);
     try {
-      return await dryRun(root);
+      return await answerInTime(dryRun(root));
     } catch (error) {
       throw queryDiagnostic(
-        (error instanceof Error ? error.message : String(error)) ||
-          QUERY_FAILED,
+        failureText(error instanceof Error ? error.message : String(error)),
       );
     }
   }
