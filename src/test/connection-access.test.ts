@@ -166,7 +166,10 @@ describe("[integration] a table mapped from an external connection", function ()
       });
       const body = await created.text();
       assert.equal(created.status, 403, body);
-      assert.match(body, new RegExp(`Connection "${connection}" is read-only`));
+      assert.deepEqual(JSON.parse(body), {
+        message: "$dms.refusals.connection.read_only",
+        params: { connection },
+      });
       const listed = await send(
         "GET",
         `${API}/${connection}/list?limit=50&showArchived=false`,
