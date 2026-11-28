@@ -1,4 +1,8 @@
-import { CROSS_INSTANCE, Query } from "@antelopejs/interface-database";
+import {
+  CROSS_INSTANCE,
+  IsStagedObject,
+  Query,
+} from "@antelopejs/interface-database";
 import {
   type QueryStage,
   StagedObject,
@@ -83,9 +87,7 @@ export function containsMutation(root: StagedObject): boolean {
     .some(
       (stage) =>
         isMutatingStage(stage.stage) ||
-        stage.args.some(
-          (arg) => arg instanceof StagedObject && containsMutation(arg),
-        ),
+        stage.args.some((arg) => IsStagedObject(arg) && containsMutation(arg)),
     );
 }
 

@@ -1,4 +1,4 @@
-import { CROSS_INSTANCE } from "@antelopejs/interface-database";
+import { CROSS_INSTANCE, IsStagedObject } from "@antelopejs/interface-database";
 import {
   type QueryStage,
   StagedObject,
@@ -45,7 +45,7 @@ function isNode(value: unknown): value is Node {
     value === null ||
     value === undefined ||
     value === CROSS_INSTANCE ||
-    value instanceof StagedObject
+    IsStagedObject(value)
   ) {
     return true;
   }
@@ -70,7 +70,7 @@ function encodeNode(node: Node): Wire {
   if (node === CROSS_INSTANCE) return CROSS_INSTANCE_SENTINEL;
   if (Array.isArray(node)) return node.map(encodeNode);
   if (!isObject(node)) return node;
-  if (node instanceof StagedObject) {
+  if (IsStagedObject(node)) {
     const cls = node.constructor.name;
     if (STAGED_CLASS_NAMES.has(cls)) {
       return {

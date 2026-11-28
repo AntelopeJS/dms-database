@@ -10,7 +10,10 @@ import {
   Table,
   ValueProxy,
 } from "@antelopejs/interface-database";
-import { StagedObject } from "@antelopejs/interface-database/common";
+import {
+  IsStagedObject,
+  StagedObject,
+} from "@antelopejs/interface-database/common";
 import { CROSS_INSTANCE_SENTINEL } from "../types/constants";
 import {
   isJsonObjectValue,
@@ -104,7 +107,7 @@ export function decodeStaged(value: JsonValue | undefined): Decoded {
           Reflect.construct(StagedObject, [stage, previous], cls),
         undefined,
       );
-    if (!(instance instanceof StagedObject)) {
+    if (!IsStagedObject(instance)) {
       throw new StagedDecodeError("Malformed query: invalid staged value");
     }
     return instance;
