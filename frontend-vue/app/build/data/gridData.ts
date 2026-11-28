@@ -30,7 +30,10 @@ export function columnsOf(
 	const names = sampled.length > 0 ? sampled : Object.keys(table?.fields ?? {})
 	return names.map((name) => ({
 		name,
-		type: meta?.types[name] ?? 'string',
+		type:
+			(meta && Object.hasOwn(meta.types, name)
+				? meta.types[name]
+				: undefined) ?? 'string',
 		isPrimaryKey: name === (primaryKey ?? DEFAULT_PRIMARY_KEY),
 	}))
 }
