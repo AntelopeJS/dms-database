@@ -55,7 +55,7 @@ jobs:
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
       tests: ${{ steps.tier.outputs.tests }}
-      os: ${{ steps.tier.outputs.os }}
+      exclude-os: ${{ steps.tier.outputs.exclude-os }}
       e2e: ${{ steps.tier.outputs.e2e }}
       shards: ${{ steps.tier.outputs.shards }}
       shard-weights: ${{ steps.tier.outputs.shard-weights }}
@@ -91,9 +91,9 @@ jobs:
               ;;
           esac
 
-          os='["blacksmith-4vcpu-ubuntu-2404"]'
+          exclude_os='[{"os":"blacksmith-4vcpu-windows-2025"}]'
           if [[ "$tier" == nightly ]]; then
-            os='["blacksmith-4vcpu-ubuntu-2404","blacksmith-4vcpu-windows-2025"]'
+            exclude_os='[]'
           fi
 
           e2e=none
@@ -114,12 +114,12 @@ jobs:
           {
             echo "tier=${tier}"
             echo "tests=${tests}"
-            echo "os=${os}"
+            echo "exclude-os=${exclude_os}"
             echo "e2e=${e2e}"
             echo "shards=${shards}"
             echo "shard-weights=${shard_weights}"
           } >> "$GITHUB_OUTPUT"
-          echo "Tier \`${tier}\`: tests ${tests}, runners ${os}, e2e ${e2e} on ${shards}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tier \`${tier}\`: tests ${tests}, runners excluding ${exclude_os}, e2e ${e2e} on ${shards}" >> "$GITHUB_STEP_SUMMARY"
 
   frontend:
     needs: select
@@ -127,7 +127,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.select.outputs.os) }}
+        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-4vcpu-windows-2025]
+        exclude: ${{ fromJSON(needs.select.outputs.exclude-os) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
@@ -166,7 +167,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(needs.select.outputs.os) }}
+        os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-4vcpu-windows-2025]
+        exclude: ${{ fromJSON(needs.select.outputs.exclude-os) }}
     runs-on: ${{ matrix.os }}
     defaults:
       run:
