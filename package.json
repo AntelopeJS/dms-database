@@ -112,7 +112,7 @@
     "@antelopejs/interface-dms-automation": ">=0.7.3 <0.8.0",
     "@antelopejs/interface-dms-builder": ">=0.6.4 <0.7.0"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.34.9",
   "antelopeJs": {
     "baseUrl": "dist",
     "implements": [],
