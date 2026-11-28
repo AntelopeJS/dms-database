@@ -1,9 +1,4 @@
 /**
- * Reader's view of TableWatch.tla for /statechart: one region for the
- * trigger, one for the change-feed cursors, one for deactivate().
- */
-
-/**
  * The variables of TableWatch.tla this view reads, as /statechart passes
  * them: a function of cursors is an object keyed from 1, a set an array.
  * @typedef {object} Vars

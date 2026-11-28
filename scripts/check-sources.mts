@@ -2,15 +2,6 @@ import { readdirSync, readFileSync } from "node:fs";
 import { basename, join, relative } from "node:path";
 import ts from "typescript";
 
-/**
- * Invariants over the module's sources that no component test can reach:
- * the components the backend pages name exist, `<i18n-t>` reads the global
- * messages, every text key a backend page names resolves in each locale, and
- * every 4xx of the backend is a refusal of `src/service/refusals.ts`, whose
- * key the dashboard's error presenter translates.
- * Prints the violations only; exits 1 when there are any.
- */
-
 type Messages = { [key: string]: string | Messages };
 
 const ROOT = join(import.meta.dirname, "..", "frontend-vue");
