@@ -41,7 +41,7 @@ The module works without configuration. To show the database name on the Overvie
 ```ts fragment
 // antelope.config.ts
 "dms-database": {
-  source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.6.0 <0.7.0" },
+  source: { type: "package", package: "@antelopejs/dms-database", version: ">=0.7.0 <0.8.0" },
   config: {
     driverLabel: "MongoDB 8.0",
     schemaLabels: {

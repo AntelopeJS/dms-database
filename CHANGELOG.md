@@ -1,5 +1,59 @@
 # Changelog
 
+## v0.7.0
+
+[compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.6...v0.7.0)
+
+### 🔥 Performance
+
+- **ci:** Run the repo's own jobs on Blacksmith 4 vCPU ([#252](https://github.com/AntelopeJS/dms-database/pull/252))
+- **e2e:** Kill the previous journey's backend instead of waiting for its exit ([#253](https://github.com/AntelopeJS/dms-database/pull/253))
+- **ci:** Run every e2e journey in twelve shards ([#255](https://github.com/AntelopeJS/dms-database/pull/255))
+- **ci:** Balance the e2e shards by recorded journey time ([#259](https://github.com/AntelopeJS/dms-database/pull/259))
+
+### 📦 Build
+
+- **deps:** Enforce a 24 h minimumReleaseAge in the Vue layer ([#240](https://github.com/AntelopeJS/dms-database/pull/240))
+- **deps:** Refresh the AntelopeJS module locks ([#241](https://github.com/AntelopeJS/dms-database/pull/241))
+- **deps:** Drop the vite override and lock dms-frontend 0.11.11 ([#251](https://github.com/AntelopeJS/dms-database/pull/251))
+- **ci:** Sync tooling-configs 0.10.13 ([#260](https://github.com/AntelopeJS/dms-database/pull/260))
+- **ci:** Sync tooling-configs 0.10.14 ([#267](https://github.com/AntelopeJS/dms-database/pull/267))
+- **deps:** Require @antelopejs/dms-frontend 0.11.11 and @antelopejs/dms 0.25 ([#268](https://github.com/AntelopeJS/dms-database/pull/268))
+
+### 🏡 Chore
+
+- **deps:** Update codemirror ([#243](https://github.com/AntelopeJS/dms-database/pull/243))
+- **deps:** Update dependency @antelopejs/core to v1.24.8 ([#244](https://github.com/AntelopeJS/dms-database/pull/244))
+- **deps:** Update dependency @intlify/message-compiler to v11.4.23 ([#245](https://github.com/AntelopeJS/dms-database/pull/245))
+- **deps:** Update dependency eslint to v9.39.5 ([#248](https://github.com/AntelopeJS/dms-database/pull/248))
+- **deps:** Update dependency @vitejs/plugin-vue to v6.0.11 ([#247](https://github.com/AntelopeJS/dms-database/pull/247))
+- **deps:** Update antelopejs tooling configs ([#256](https://github.com/AntelopeJS/dms-database/pull/256))
+- **deps:** Update actions/cache action to v6 ([#258](https://github.com/AntelopeJS/dms-database/pull/258))
+- **deps:** Update actions/checkout action to v7 ([#261](https://github.com/AntelopeJS/dms-database/pull/261))
+- **deps:** Update actions/setup-java action to v6 ([#262](https://github.com/AntelopeJS/dms-database/pull/262))
+- **deps:** Update actions/setup-node action to v7 ([#263](https://github.com/AntelopeJS/dms-database/pull/263))
+- **deps:** Update dependency eslint to v10 ([#264](https://github.com/AntelopeJS/dms-database/pull/264))
+- **deps:** Update antelopejs packages ([#254](https://github.com/AntelopeJS/dms-database/pull/254))
+- **deps:** Move to dms 0.25 and interface-dms 0.17.3 ([#265](https://github.com/AntelopeJS/dms-database/pull/265))
+
+### ✅ Tests
+
+- Give each test and hook 30 s ([#246](https://github.com/AntelopeJS/dms-database/pull/246))
+- Give the data reads journeys the loaded-host timeout ([#250](https://github.com/AntelopeJS/dms-database/pull/250))
+
+### 🤖 CI
+
+- **e2e:** Retry a failed journey once in the merge queue and report it as flaky ([#266](https://github.com/AntelopeJS/dms-database/pull/266))
+
+#### ⚠️ Breaking Changes
+
+- **deps:** Require @antelopejs/dms-frontend 0.11.11 and @antelopejs/dms 0.25 ([#268](https://github.com/AntelopeJS/dms-database/pull/268))
+
+### ❤️ Contributors
+
+- Antony Rizzitelli
+- dada-sudo
+
 ## v0.6.6
 
 [compare changes](https://github.com/AntelopeJS/dms-database/compare/v0.6.5...v0.6.6)
