@@ -52,6 +52,7 @@ jobs:
       os: ${{ steps.tier.outputs.os }}
       e2e: ${{ steps.tier.outputs.e2e }}
       shards: ${{ steps.tier.outputs.shards }}
+      shard-weights: ${{ steps.tier.outputs.shard-weights }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         if: github.event_name == 'pull_request'
@@ -91,12 +92,16 @@ jobs:
 
           e2e=none
           shards='[1]'
+          shard_weights=''
           if [[ "$tests" == true ]]; then
             if [[ "$EVENT" == pull_request && "$FULL_LABEL" != true ]]; then
               e2e=smoke
             else
               e2e=all
               shards='[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]'
+              # Journeys per shard, balanced by recorded time:
+              # node scripts/e2e-shard-weights.mts <results.json> 12
+              shard_weights='9:15:12:10:7:9:10:15:6:17:10:6'
             fi
           fi
 
@@ -106,6 +111,7 @@ jobs:
             echo "os=${os}"
             echo "e2e=${e2e}"
             echo "shards=${shards}"
+            echo "shard-weights=${shard_weights}"
           } >> "$GITHUB_OUTPUT"
           echo "Tier \`${tier}\`: tests ${tests}, runners ${os}, e2e ${e2e} on ${shards}" >> "$GITHUB_STEP_SUMMARY"
 
@@ -243,6 +249,8 @@ jobs:
       # The blob report keeps each test's steps, attachments and traces, so
       # e2e-report merges the shards into one.
       - if: env.SUITE == 'all'
+        env:
+          PWTEST_SHARD_WEIGHTS: ${{ needs.select.outputs.shard-weights }}
         run: pnpm e2e:run --shard=${{ matrix.shard }}/${{ strategy.job-total }} --reporter=blob,list
       - if: ${{ !cancelled() }}
         uses: AntelopeJS/.github/.github/actions/module-locks-committed@v2
