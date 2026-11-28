@@ -99,7 +99,8 @@ export const quirkColumn = {
     await tab.signIn("admin");
     await tab.goto("/modules/database/schemas?record=quirks::members");
     const shown = await tab.visible({ role: "dialog", name: "members" });
-    const columns = shown.pass ? await columnRows(tab) : [];
+    const rendered = shown.pass && (await tab.page.locator('[role="dialog"] table tbody tr').first().waitFor({ timeout: 15_000 }).then(() => true, () => false));
+    const columns = rendered ? await columnRows(tab) : [];
     await ctx.verify("the inspector of quirks.members", [
       shown,
       check("constructor is a string column next to _id and note", JSON.stringify(columns) === JSON.stringify(["_id | primary key | no |", "constructor | string | no |", "note | string | no |"]), columns),
