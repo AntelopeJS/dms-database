@@ -1,4 +1,5 @@
 import { resolve } from 'node:path'
+import { testTimeouts } from '@antelopejs/tooling-configs/vitest'
 import vue from '@vitejs/plugin-vue'
 import { normalizePath } from 'vite'
 import { defineConfig } from 'vitest/config'
@@ -35,6 +36,7 @@ export default defineConfig({
 		},
 	},
 	test: {
+		...testTimeouts,
 		environment: 'node',
 		include: ['tests/**/*.test.ts'],
 		testTransformMode: {
