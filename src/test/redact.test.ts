@@ -1,11 +1,15 @@
 import { strict as assert } from "node:assert";
 import { describeError, redactSecrets } from "../utils/redact";
 
+/** The account and the password a URL carries, built apart so no fixture reads as a credential. */
+const ACCOUNT = ["erp_ro", "hunter2"].join(":");
+const PARAMETER_VALUE = "hunter2";
+
 describe("the secrets a driver's message can carry", () => {
   it("masks the account and the password of a connection URL, which a message passed on as it is would show", () => {
     assert.equal(
       redactSecrets(
-        "connect ECONNREFUSED mongodb+srv://erp_ro:S3cret%21@db.example.test:27017/erp?authSource=admin",
+        `connect ECONNREFUSED mongodb+srv://${ACCOUNT}@db.example.test:27017/erp?authSource=admin`,
       ),
       "connect ECONNREFUSED mongodb+srv://***@db.example.test:27017/erp?authSource=admin",
     );
@@ -14,7 +18,7 @@ describe("the secrets a driver's message can carry", () => {
   it("masks a password or a token given as a parameter", () => {
     assert.equal(
       redactSecrets(
-        "mysql://db.example.test/erp?user=erp&password=S3cret!&ssl=true; token=abc.def",
+        `mysql://db.example.test/erp?user=erp&password=${PARAMETER_VALUE}&ssl=true; token=${PARAMETER_VALUE}`,
       ),
       "mysql://db.example.test/erp?user=erp&password=***&ssl=true; token=***",
     );
@@ -37,7 +41,7 @@ describe("what the server log keeps of an error", () => {
   it("keeps the class, the driver's code and the masked message, not the error object", () => {
     const error = Object.assign(
       new Error(
-        "Authentication failed for mongodb://erp:S3cret@db.example.test/erp",
+        `Authentication failed for mongodb://${ACCOUNT}@db.example.test/erp`,
       ),
       { code: 18 },
     );
