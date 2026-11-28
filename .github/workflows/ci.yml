@@ -50,7 +50,7 @@ jobs:
   # shared tier rule: tests on a ready pull request that touches more than docs,
   # on a push, in the merge queue and in the nightly, Windows in the nightly only.
   select:
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404') }}
     timeout-minutes: 5
     outputs:
       tier: ${{ steps.tier.outputs.tier }}
@@ -129,7 +129,7 @@ jobs:
       matrix:
         os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-4vcpu-windows-2025]
         exclude: ${{ fromJSON(needs.select.outputs.exclude-os) }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'blacksmith-4vcpu-windows-2025' && (vars.RUNNER_CI_WINDOWS || (github.event.repository.visibility == 'public' && 'windows-latest' || 'blacksmith-4vcpu-windows-2025')) || (vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404')) }}
     defaults:
       run:
         shell: bash
@@ -169,7 +169,7 @@ jobs:
       matrix:
         os: [blacksmith-4vcpu-ubuntu-2404, blacksmith-4vcpu-windows-2025]
         exclude: ${{ fromJSON(needs.select.outputs.exclude-os) }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ matrix.os == 'blacksmith-4vcpu-windows-2025' && (vars.RUNNER_CI_WINDOWS || (github.event.repository.visibility == 'public' && 'windows-latest' || 'blacksmith-4vcpu-windows-2025')) || (vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404')) }}
     defaults:
       run:
         shell: bash
@@ -213,7 +213,7 @@ jobs:
   e2e:
     needs: select
     if: needs.select.outputs.e2e != 'none'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404') }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -281,7 +281,7 @@ jobs:
   e2e-report:
     needs: [select, e2e]
     if: always() && !cancelled() && needs.select.outputs.e2e == 'all'
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404') }}
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -318,7 +318,7 @@ jobs:
   ubuntu:
     if: always()
     needs: [select, ci, frontend, formal-table-watch, e2e]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404') }}
     timeout-minutes: 5
     steps:
       - if: >-
@@ -362,7 +362,7 @@ jobs:
       - module-locks
       - renovate-sync
     if: ${{ !cancelled() }}
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    runs-on: ${{ vars.RUNNER_CI || (github.event.repository.visibility == 'public' && 'ubuntu-latest' || 'blacksmith-4vcpu-ubuntu-2404') }}
     timeout-minutes: 5
     permissions: {}
     steps:
