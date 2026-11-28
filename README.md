@@ -71,7 +71,7 @@ Restart the backend, then the frontend, sign in as the platform owner and open *
 
 <!-- antelopejs-docs-compat:end -->
 
-The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range above, and DMS 0.25 or later, the first release that implements `@antelopejs/interface-dms` 0.17.3 and provides `@antelopejs/interface-dms-builder` 0.6.4, and the `@antelopejs/dms-frontend` renderer in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range, and an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb`.
+The module also needs a DMS backend in a release that implements the `@antelopejs/interface-dms` range above, and DMS 0.25 or later, the first release that implements `@antelopejs/interface-dms` 0.17.3 and provides `@antelopejs/interface-dms-builder` 0.6.4, and the `@antelopejs/dms-frontend` renderer 0.11.11 or later, the first release with the Vite build-lock fix, in the range its frontend module declares in `engines["@antelopejs/dms-frontend"]` of `frontend-vue/package.json`; the `ajs dms` CLI refuses to build it with a renderer outside that range, and an `@antelopejs/interface-database` implementation, such as `@antelopejs/mongodb`.
 
 ## Documentation
 
