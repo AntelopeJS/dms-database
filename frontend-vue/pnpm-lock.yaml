@@ -12,8 +12,8 @@ importers:
         specifier: '>=0.5.2 <0.6.0'
         version: 0.5.2
       '@antelopejs/interface-database':
-        specifier: '>=0.4.0 <0.5.0'
-        version: 0.4.3(@antelopejs/interface-core@0.5.2)
+        specifier: '>=0.4.5 <0.5.0'
+        version: 0.4.5(@antelopejs/interface-core@0.5.2)
       '@codemirror/autocomplete':
         specifier: ^6.18.6
         version: 6.20.4
@@ -91,8 +91,8 @@ packages:
   '@antelopejs/interface-core@0.5.2':
     resolution: {integrity: sha512-5rmFLzHH8x8SCMK3KEm7L4DdRaLXjKKMWS/5ektDz5C2P/mAmaG++JAe1+09RBFNWWe0LER56vz9AVIeqVQoMA==}
 
-  '@antelopejs/interface-database@0.4.3':
-    resolution: {integrity: sha512-0LPVluZbv2FYyhrVB0mbZ/zpYH9VRE5jHW62NUxEkBj8oD9wyQXRONeAI7DE0Ngyz6vLIQ4yuTb1Kbac+x+0EQ==}
+  '@antelopejs/interface-database@0.4.5':
+    resolution: {integrity: sha512-roZ5DpgtHEHPdA4QV3HkdF/bDz604opl5/e3X++YErqKm5/hxLS6Zu538Eis+6Oc526wYACp+Rx/597PGs5j7g==}
     peerDependencies:
       '@antelopejs/interface-core': '>=0.5.1 <0.6.0'
 
@@ -3947,9 +3947,6 @@ packages:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
 
-ignoredOptionalDependencies:
-  - playwright-core
-
 snapshots:
 
   '@alloc/quick-lru@5.2.0': {}
@@ -3958,7 +3955,7 @@ snapshots:
     dependencies:
       reflect-metadata: 0.2.2
 
-  '@antelopejs/interface-database@0.4.3(@antelopejs/interface-core@0.5.2)':
+  '@antelopejs/interface-database@0.4.5(@antelopejs/interface-core@0.5.2)':
     dependencies:
       '@antelopejs/interface-core': 0.5.2
 
